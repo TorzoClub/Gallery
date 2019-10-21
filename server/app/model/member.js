@@ -1,11 +1,11 @@
 'use strict';
 
 module.exports = app => {
-  const { INTEGER, STRING } = app.Sequelize;
+  const { BIGINT, STRING } = app.Sequelize;
 
   const Member = app.model.define('member', {
     qq_num: {
-      type: INTEGER(16),
+      type: BIGINT,
       allowNull: false,
     },
 

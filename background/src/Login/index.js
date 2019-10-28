@@ -2,9 +2,10 @@ import React from 'react';
 import { Form } from 'element-react';
 import { Input } from 'element-react';
 import { Button } from 'element-react';
+import { Message } from 'element-react';
 import './Login.css';
 
-import axios from 'axios';
+import axios from '../axios';
 
 // import { Select } from 'element-react';
 // import { DatePicker } from 'element-react';
@@ -14,7 +15,15 @@ import axios from 'axios';
 // import { Checkbox } from 'element-react';
 // import { Radio } from 'element-react';
 
-
+const checkPassword = async (value) => {
+    return await axios({
+        method: 'post',
+        url: 'api/admin/login',
+        data: {
+            pass: value
+        }
+    })
+}
 
 
 class Login extends React.Component {
@@ -29,14 +38,25 @@ class Login extends React.Component {
         this.onSubmit = this.onSubmit.bind(this);
     }
 
-    onSubmit(e) {
+    async onSubmit(e) {
         e.preventDefault();
-        
-        
+        try {
+            const response = await checkPassword(this.state.password);
+            window.token = response.data;
+            this.props.onLogin(response.data);
+            window._HISTORY.push('/dashboard')
+        }
+        catch (error) {
+            this.setState({password:''})
+            Message({
+                message:error.response.data.message,
+                type:'error'
+            })
+        }
     }
 
     onChange(value) {
-        this.setState({password:value})
+        this.setState({ password: value })
         this.forceUpdate();
     }
 

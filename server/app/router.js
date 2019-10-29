@@ -38,7 +38,7 @@ module.exports = app => {
     const { create, remove, show, edit } = controller.admin.photo;
     setAdminRouter('post', 'photo', create);
     setAdminRouter('delete', 'photo/:id', remove);
-    setAdminRouter('get', 'photo', show);
+    setAdminRouter('get', 'gallery/:gallery_id/photo', show);
     setAdminRouter('patch', 'photo/:id', edit);
   }
 

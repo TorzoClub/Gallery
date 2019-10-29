@@ -88,4 +88,21 @@ module.exports = app =>
 
       return await photo.save();
     }
+
+    async getListByGalleryId({ gallery_id }) {
+      gallery_id = parseInt(gallery_id);
+
+      const gallery = await this.GalleryModel.findByPk(gallery_id);
+      if (!gallery) {
+        throw new this.ctx.app.WarningError('相册不存在', 404);
+      }
+
+      const list = await this.Model.findAll({
+        where: {
+          gallery_id,
+        },
+      });
+
+      return list;
+    }
   };

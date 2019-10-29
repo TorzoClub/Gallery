@@ -41,6 +41,7 @@ module.exports = app => {
 
   Photo.associate = () => {
     app.model.Photo.belongsTo(app.model.Gallery, { foreignKey: 'gallery_id' });
+    app.model.Photo.hasMany(app.model.Vote, { foreignKey: 'photo_id' });
   };
 
   return Photo;

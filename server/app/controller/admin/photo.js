@@ -36,8 +36,17 @@ module.exports = app => {
     }
 
     async show(ctx) {
-      // const list = await ctx.model.Member.findAll();
-      // ctx.backData(200, list);
+      ctx.validate({
+        gallery_id: { type: 'id', required: true },
+      }, ctx.params);
+
+      console.warn('ctx.params.gallery_id', ctx.params.gallery_id);
+
+      const list = await ctx.service.photo.getListByGalleryId({
+        gallery_id: parseInt(ctx.params.gallery_id),
+      });
+
+      ctx.backData(200, list);
     }
 
     async edit(ctx) {

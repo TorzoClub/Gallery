@@ -13,22 +13,22 @@ const { Service } = require('egg');
 module.exports = app =>
   class PhotoService extends Service {
     get Model() {
-      return this.ctx.model.Photo;
+      return this.app.model.Photo;
     }
 
     get GalleryModel() {
-      return this.ctx.model.Gallery;
+      return this.app.model.Gallery;
     }
 
     get ImageService() {
-      return this.ctx.service.image;
+      return this.app.service.image;
     }
 
     async getImageDimensions(src) {
       const srcPath = app.serviceClasses.image.toLocalSrcPath(src);
 
       if (!fs.existsSync(srcPath)) {
-        throw new this.ctx.app.WarningError('src不存在', 404);
+        throw new this.app.WarningError('src不存在', 404);
       }
 
       const { width, height } = await getImageSize(srcPath);
@@ -41,7 +41,7 @@ module.exports = app =>
       const gallery = await this.GalleryModel.findByPk(gallery_id);
 
       if (!gallery) {
-        throw new this.ctx.app.WarningError('相册不存在', 404);
+        throw new this.app.WarningError('相册不存在', 404);
       }
 
       const { width, height } = await this.getImageDimensions(src);
@@ -64,14 +64,14 @@ module.exports = app =>
       const photo = await this.Model.findByPk(id);
 
       if (!photo) {
-        throw new this.ctx.app.WarningError('找不到该照片', 404);
+        throw new this.app.WarningError('找不到该照片', 404);
       }
 
       if (data.hasOwnProperty('gallery_id')) {
         const gallery = await this.GalleryModel.findByPk(data.gallery_id);
 
         if (!gallery) {
-          throw new this.ctx.app.WarningError('相册不存在', 404);
+          throw new this.app.WarningError('相册不存在', 404);
         }
       }
 
@@ -94,13 +94,34 @@ module.exports = app =>
 
       const gallery = await this.GalleryModel.findByPk(gallery_id);
       if (!gallery) {
-        throw new this.ctx.app.WarningError('相册不存在', 404);
+        throw new this.app.WarningError('相册不存在', 404);
       }
 
       const list = await this.Model.findAll({
         where: {
           gallery_id,
         },
+      });
+
+      return list;
+    }
+
+    async getVoteOrderListByGalleryId({ gallery_id }) {
+      gallery_id = parseInt(gallery_id);
+
+      const gallery = await this.GalleryModel.findByPk(gallery_id);
+      if (!gallery) {
+        throw new this.app.WarningError('相册不存在', 404);
+      }
+
+      const list = await this.Model.findAll({
+        where: {
+          gallery_id,
+        },
+
+        order: [
+          [ 'vote_count', 'DESC' ],
+        ],
       });
 
       return list;

@@ -37,6 +37,13 @@ module.exports = app => {
       type: INTEGER,
       allowNull: false,
     },
+
+    vote_count: {
+      type: INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      validate: { min: 0 },
+    },
   });
 
   Photo.associate = () => {

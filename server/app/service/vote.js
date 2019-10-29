@@ -42,19 +42,21 @@ module.exports = app =>
         throw new app.WarningError('成员不存在', 404);
       }
 
-      const votes = await this.VoteModel.findAll({
-        where: {
-          gallery_id: gallery.id,
-          photo_id: photo.id,
-          member_id: member.id,
-        },
+      const vote = await this.VoteModel.findOne({
+        where: { gallery_id, photo_id, member_id: member.id },
       });
 
+      if (vote) {
+        throw new app.WarningError('已经投过这个相片了', 409);
+      }
+
       if (gallery.vote_limit > 0) {
-        if (votes.length >= gallery.vote_limit) {
+        if (photo.vote_count > gallery.vote_limit) {
           throw new app.WarningError('票数限制', 403);
         }
       }
+
+      photo.increment('vote_count', { by: 1 });
 
       return await this.VoteModel.create({
         gallery_id,

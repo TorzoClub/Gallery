@@ -2,21 +2,10 @@ import React from 'react';
 import { Form } from 'element-react';
 import { Input } from 'element-react';
 import { Button } from 'element-react';
-import { Message } from 'element-react';
 import './Login.css';
 
-import axios from '../axios';
-
-// import { Select } from 'element-react';
-// import { DatePicker } from 'element-react';
-// import { Layout } from 'element-react';
-// import { TimePicker } from 'element-react';
-// import { Switch } from 'element-react';
-// import { Checkbox } from 'element-react';
-// import { Radio } from 'element-react';
-
 const checkPassword = async (value) => {
-    return await axios({
+    return await window._AXIOS({
         method: 'post',
         url: 'api/admin/login',
         data: {
@@ -42,16 +31,11 @@ class Login extends React.Component {
         e.preventDefault();
         try {
             const response = await checkPassword(this.state.password);
-            window.token = response.data;
             this.props.onLogin(response.data);
             window._HISTORY.push('/dashboard')
         }
         catch (error) {
             this.setState({password:''})
-            Message({
-                message:error.response.data.message,
-                type:'error'
-            })
         }
     }
 

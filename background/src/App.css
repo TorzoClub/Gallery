@@ -7,10 +7,14 @@
 }
 
 .App-header {
-  background-color: #dddddd;
+  background-color: #20a0ff;
   font-size: calc(10px + 2vmin);
   color: rgb(22, 22, 22);
   height: 10vmin;
+}
+
+.App-header span {
+  color: white;
 }
 
 .App-link {
@@ -18,7 +22,7 @@
 }
 
 .Header-holder {
-  width: 90%;
+  width: 70%;
   padding-left: 20px;
   padding-right: 20px;
   margin-left: auto;
@@ -32,6 +36,11 @@
 
 .Header-item-right {
   margin-left: auto;
+}
+
+.Header-item-right:hover {
+  cursor: pointer;
+  text-decoration:underline;
 }
 
 .App-main {

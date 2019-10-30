@@ -1,0 +1,16 @@
+.Content-holder {
+    min-width: 70%; 
+    height: 100%;
+}
+
+.Side-nav {
+    vertical-align: top;
+    text-align: left;
+    display: inline-block;
+    width: 100%;
+}
+
+
+.El-menu-vertical {
+    height: 100%;
+}

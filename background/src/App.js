@@ -41,9 +41,12 @@ class App extends React.Component {
       if (error.response) {
         Message({
           message: error.response.data.message,
-          type: 'error'
+          type: 'error',
+          customClass:'Message-style'
         });
         if (error.response.status === 401) {
+          this.setState({ token: '' });
+          cookie.save('token', '');
           window._HISTORY.push('/login', { message: error.response.data.message });
         }
       }

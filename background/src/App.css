@@ -49,3 +49,7 @@
   align-items: center;
   justify-content: center;
 }
+
+.Message-style {
+  z-index: 2000;
+}

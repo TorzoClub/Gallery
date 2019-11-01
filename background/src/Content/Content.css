@@ -14,3 +14,8 @@
 .El-menu-vertical {
     height: 100%;
 }
+
+.Button-holder {
+    padding-left: 20px;
+    padding-right: 20px;
+}

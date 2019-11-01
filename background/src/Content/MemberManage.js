@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Button } from 'element-react';
+import { Table, Button, Dialog, Form, Input, Message, MessageBox } from 'element-react';
 
 class MemberManager extends React.Component {
     constructor(props) {
@@ -28,14 +28,25 @@ class MemberManager extends React.Component {
                         )
                     }
                 }
-            ]
+            ],
+            dialogVisible: false,
+            form: {
+                name: '',
+                qq_num: null
+            }
         }
 
         this.onDeleteClick = this.onDeleteClick.bind(this);
         this.onEditClick = this.onEditClick.bind(this);
+        this.onDialogClose = this.onDialogClose.bind(this);
+        this.onOperateSuccess = this.onOperateSuccess.bind(this);
     }
 
     async componentDidMount() {
+        await this.getList();
+    }
+
+    async getList() {
         const response = await window._AXIOS.get('api/admin/member');
         const data = response.data.map(item => {
             item.created_at = new Date(item.created_at);
@@ -46,28 +57,196 @@ class MemberManager extends React.Component {
     }
 
     onDeleteClick(value) {
-        console.log(value);
+        MessageBox.confirm(`确认删除QQ号为 ${value.qq_num}，名字是 ${value.name} 的成员吗？`, '提示', {
+            type: 'warning'
+        }).then(async () => {
+            try {
+                await window._AXIOS.delete(`api/admin/member/${value.id}`)
+                this.getList();
+                Message({
+                    type: 'success',
+                    message: '删除成功!'
+                });
+            }
+            catch (e) {
+
+            }
+        }).catch(() => {
+            Message({
+                type: 'info',
+                message: '已取消删除'
+            });
+        });
     }
 
     onEditClick(value) {
-        console.log(value)
+        this.setState({ form: value })
+        this.setState({ dialogVisible: true })
+    }
+
+    onDialogClose() {
+        this.setState({ dialogVisible: false });
+        this.setState({
+            form: {
+                name: '',
+                qq_num: null
+            }
+        })
+    }
+
+    onOperateSuccess() {
+        this.onDialogClose();
+        Message({
+            message: '操作成功',
+            type: 'success',
+            customClass: 'Message-style'
+        });
+        this.getList();
     }
 
     render() {
         return (
             <div>
-                <Button type="text" >添加</Button>
+                <span className='Button-holder'>
+                    <Button onClick={() => this.setState({ dialogVisible: true })} type="text">添加成员</Button>
+                </span>
                 <Table
                     style={{ width: '100%' }}
                     columns={this.state.columns}
-                    data={this.state.data.map(item => {
-                        item.updated_at = item.updated_at.toLocaleString();
-                        item.created_at = item.created_at.toLocaleString();
-                        return item
-                    })}
+                    data={this.state.data}
                     border={true}
                 />
+
+                {this.state.dialogVisible ? <EditDialog
+                    title="编辑成员"
+                    visible={this.state.dialogVisible}
+                    form={this.state.form}
+                    onCancel={this.onDialogClose}
+                    onOperateSuccess={this.onOperateSuccess}
+                /> : null}
+
+
             </div>
+        )
+    }
+}
+
+class EditDialog extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            form: {
+                name: '',
+                qq_num: null
+            },
+            rules: {
+                name: [
+                    { required: true, message: '请输入名字', trigger: 'blur' }
+                ],
+                qq_num: [
+                    { required: true, message: '请输入QQ号码', trigger: 'change', type: 'number' },
+                ]
+            }
+        }
+
+        this.onChange = this.onInputChange.bind(this);
+        this.onCancel = this.onCancel.bind(this);
+        this.onAddConfirm = this.onAddConfirm.bind(this);
+        this.onEditConfirm = this.onEditConfirm.bind(this);
+    }
+
+    onInputChange(key, value) {
+        const newForm = Object.assign({}, this.state.form);
+        newForm[value] = key;
+        this.setState({ form: newForm })
+    }
+
+    onCancel() {
+        this.setState({
+            form: {
+                name: '',
+                qq_num: null
+            }
+        })
+        this.props.onCancel();
+    }
+
+
+    async onAddConfirm() {
+        this.refs.form.validate(async valid => {
+            if (valid) {
+                try {
+                    await window._AXIOS({
+                        method: 'post',
+                        url: 'api/admin/member',
+                        data: this.state.form
+                    });
+                    this.props.onOperateSuccess();
+                }
+                catch (e) {
+                    const newForm = Object.assign({}, this.state.form);
+                    newForm.qq_num = null;
+                    this.setState({
+                        form: newForm
+                    })
+                }
+            }
+        });
+    }
+
+    async onEditConfirm(){
+        this.refs.form.validate(async valid => {
+            if (valid) {
+                try {
+                    await window._AXIOS({
+                        method: 'patch',
+                        url: `api/admin/member/${this.state.form.id}`,
+                        data: this.state.form
+                    });
+                    this.props.onOperateSuccess();
+                }
+                catch (e) {
+                    const newForm = Object.assign({}, this.state.form);
+                    newForm.qq_num = null;
+                    this.setState({
+                        form: newForm
+                    })
+                }
+            }
+        });
+    }
+
+    componentDidMount() {
+        this.setState({ form: this.props.form })
+    }
+
+    render() {
+
+        return (
+            <Dialog
+                title={this.props.title}
+                visible={this.props.visible}
+                onCancel={this.onCancel}
+            >
+                <Dialog.Body>
+                    <Form ref="form" model={this.state.form} rules={this.state.rules}>
+                        <Form.Item label="成员名称" prop="name" >
+                            <Input value={this.state.form.name} onChange={k => { this.onInputChange(k, 'name') }}></Input>
+                        </Form.Item>
+                        <Form.Item label="成员QQ号码" prop="qq_num">
+                            <Input value={this.state.form.qq_num} onChange={k => { const numK = Number.parseInt(k); if (k === '') { this.onInputChange(null, 'qq_num') } else { if (Number.isInteger(numK)) { this.onInputChange(numK, 'qq_num') } } }}></Input>
+                        </Form.Item>
+                    </Form>
+                </Dialog.Body>
+
+                <Dialog.Footer className="dialog-footer">
+                    <Button onClick={this.onCancel}>取 消</Button>
+                    {this.state.form.id ?
+                        <Button type="primary" onClick={this.onEditConfirm}>确认修改</Button> :
+                        <Button type="primary" onClick={this.onAddConfirm}>添 加</Button>}
+                </Dialog.Footer>
+            </Dialog>
         )
     }
 }

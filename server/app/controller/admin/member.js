@@ -10,12 +10,6 @@ module.exports = app => {
         qq_num: { type: 'integer', required: true },
       }, data);
 
-      ctx.service.member.create({
-        name: data.name,
-        avatar_src: data.avatar_src,
-        qq_num: data.qq_num,
-      });
-
       const result = await ctx.service.member.create({
         name: data.name,
         avatar_src: data.avatar_src,

@@ -2,16 +2,11 @@
 
 const fs = require('fs');
 
-const { Service } = require('egg');
+const CommonService = require('./common');
 
-class MemberService extends Service {
-  async findById(id, transactionOptions = {}) {
-    const member = await this.Model.findByPk(id, { ...transactionOptions });
-    if (!member) {
-      throw new this.ctx.app.WarningError('成员不存在', 404);
-    }
-
-    return member;
+class MemberService extends CommonService {
+  get OBJECT_NAME() {
+    return '成员';
   }
 
   get Model() {
@@ -50,11 +45,7 @@ class MemberService extends Service {
 
   async edit(id, data) {
     return this.app.model.transaction(async transaction => {
-      const member = await this.Model.findByPk(id, { transaction });
-
-      if (!member) {
-        throw new this.ctx.app.WarningError('找不到该成员', 404);
-      }
+      const member = await this.findById(id, { transaction });
 
       if (data.hasOwnProperty('qq_num') && (member.qq_num !== data.qq_num)) {
         // 检查所修改的QQ号是否被占用

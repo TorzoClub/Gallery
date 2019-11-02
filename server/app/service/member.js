@@ -40,31 +40,38 @@ class MemberService extends Service {
   }
 
   async edit(id, data) {
-    const member = await this.Model.findByPk(id);
+    return this.app.model.transaction(async transaction => {
+      const member = await this.Model.findByPk(id, { transaction });
 
-    if (!member) {
-      throw new this.ctx.app.WarningError('找不到该成员', 404);
-    }
+      if (!member) {
+        throw new this.ctx.app.WarningError('找不到该成员', 404);
+      }
 
-    if (data.hasOwnProperty('qq_num') && (member.qq_num !== data.qq_num)) {
-      const sameQQNumMember = await this.Model.findOne({
-        where: {
-          qq_num: data.qq_num,
-        },
+      if (data.hasOwnProperty('qq_num') && (member.qq_num !== data.qq_num)) {
+        // 检查所修改的QQ号是否被占用
+
+        const sameQQNumMember = await this.Model.count({
+          where: {
+            qq_num: data.qq_num,
+          },
+
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+
+        if (sameQQNumMember) {
+          throw new this.ctx.app.WarningError('无法更新，所修改的QQ号已被占用', 409);
+        }
+      }
+
+      this.editableProperty.forEach(key => {
+        if (data.hasOwnProperty(key)) {
+          member[key] = data[key];
+        }
       });
 
-      if (sameQQNumMember) {
-        throw new this.ctx.app.WarningError('无法更新，所修改的QQ号已被占用', 409);
-      }
-    }
-
-    this.editableProperty.forEach(key => {
-      if (data.hasOwnProperty(key)) {
-        member[key] = data[key];
-      }
+      return await member.save({ transaction });
     });
-
-    return await member.save();
   }
 }
 

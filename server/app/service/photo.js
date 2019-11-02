@@ -8,20 +8,16 @@ const getImageSize = filePath => new Promise((res, rej) => {
   });
 });
 
-const { Service } = require('egg');
+const CommonService = require('./common');
 
 module.exports = app =>
-  class PhotoService extends Service {
+  class PhotoService extends CommonService {
+    get OBJECT_NAME() {
+      return '照片';
+    }
+
     get Model() {
       return this.app.model.Photo;
-    }
-
-    get GalleryModel() {
-      return this.app.model.Gallery;
-    }
-
-    get ImageService() {
-      return this.app.service.image;
     }
 
     async getImageDimensions(src) {
@@ -37,22 +33,24 @@ module.exports = app =>
     }
 
     async create(data) {
-      const { gallery_id, src } = data;
-      const gallery = await this.GalleryModel.findByPk(gallery_id);
+      return this.app.model.transaction(async transaction => {
+        const { gallery_id, src } = data;
 
-      if (!gallery) {
-        throw new this.app.WarningError('相册不存在', 404);
-      }
+        await this.service.gallery.detectExistsById(gallery_id, {
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
 
-      const { width, height } = await this.getImageDimensions(src);
+        const { width, height } = await this.getImageDimensions(src);
 
-      return await this.Model.create({
-        gallery_id,
-        author: data.author,
-        desc: data.desc,
-        src,
-        width,
-        height,
+        return await this.Model.create({
+          gallery_id,
+          author: data.author,
+          desc: data.desc,
+          src,
+          width,
+          height,
+        }, { transaction });
       });
     }
 
@@ -61,69 +59,78 @@ module.exports = app =>
     }
 
     async edit(id, data) {
-      const photo = await this.Model.findByPk(id);
+      return this.app.model.transaction(async transaction => {
+        const photo = await this.findById(id, { transaction, lock: transaction.LOCK.UPDATE });
 
-      if (!photo) {
-        throw new this.app.WarningError('找不到该照片', 404);
-      }
-
-      if (data.hasOwnProperty('gallery_id')) {
-        const gallery = await this.GalleryModel.findByPk(data.gallery_id);
-
-        if (!gallery) {
-          throw new this.app.WarningError('相册不存在', 404);
+        if (data.hasOwnProperty('gallery_id')) {
+          // 检查相册是否存在
+          await this.service.gallery.detectExistsById(data.gallery_id, {
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+          });
         }
-      }
 
-      this.editableProperty.forEach(key => {
-        if (data.hasOwnProperty(key)) {
-          photo[key] = data[key];
+        this.editableProperty.forEach(key => {
+          if (data.hasOwnProperty(key)) {
+            photo[key] = data[key];
+          }
+        });
+
+        if (data.src) {
+          const { width, height } = await this.getImageDimensions(data.src);
+          Object.assign(photo, { width, height });
         }
+
+        return await photo.save({ transaction });
       });
-
-      if (data.src) {
-        const { width, height } = await this.getImageDimensions(data.src);
-        Object.assign(photo, { width, height });
-      }
-
-      return await photo.save();
     }
 
-    async getListByGalleryId({ gallery_id }) {
-      gallery_id = parseInt(gallery_id);
+    getListByGalleryId({ gallery_id }) {
+      return this.app.model.transaction(async transaction => {
+        gallery_id = parseInt(gallery_id);
 
-      const gallery = await this.GalleryModel.findByPk(gallery_id);
-      if (!gallery) {
-        throw new this.app.WarningError('相册不存在', 404);
-      }
+        await this.service.gallery.detectExistsById(gallery_id, { transaction, lock: transaction.LOCK.UPDATE });
 
-      const list = await this.Model.findAll({
-        where: {
-          gallery_id,
-        },
+        const list = await this.Model.findAll({
+          where: {
+            gallery_id,
+          },
+
+          transaction,
+        });
+
+        return list;
       });
-
-      return list;
     }
 
-    async getVoteOrderListByGalleryId({ gallery_id }) {
-      gallery_id = parseInt(gallery_id);
+    getVoteOrderListByGalleryId({ gallery_id }) {
+      return this.app.model.transaction(async transaction => {
+        gallery_id = parseInt(gallery_id);
 
-      const gallery = await this.GalleryModel.findByPk(gallery_id);
-      if (!gallery) {
-        throw new this.app.WarningError('相册不存在', 404);
-      }
+        await this.service.gallery.detectExistsById(gallery_id, {
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
 
-      const list = await this.Model.findAll({
-        where: {
-          gallery_id,
-        },
+        const list = await this.Model.findAll({
+          where: {
+            gallery_id,
+          },
 
-        order: [
-          [ 'vote_count', 'DESC' ],
-        ],
+          order: [
+            [ 'vote_count', 'DESC' ],
+          ],
+
+          transaction,
+        });
+
+        return list;
       });
+    }
 
-      return list;
+    removeById(id) {
+      return this.app.model.transaction(async transaction => {
+        return await this.destroyById(parseInt(id), { transaction });
+      });
     }
   };

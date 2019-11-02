@@ -27,12 +27,7 @@ module.exports = app => {
       }, ctx.params);
 
       const { id } = ctx.params;
-      const photo = await ctx.model.Photo.findByPk(id);
-      if (photo) {
-        ctx.backData(200, await photo.destroy());
-      } else {
-        throw new app.WarningError('照片不存在', 404);
-      }
+      ctx.backData(200, await ctx.service.photo.removeById(id));
     }
 
     async show(ctx) {

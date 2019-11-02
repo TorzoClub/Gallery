@@ -25,12 +25,7 @@ module.exports = app => {
       }, ctx.params);
 
       const { id } = ctx.params;
-      const member = await ctx.model.Member.findByPk(id);
-      if (member) {
-        ctx.backData(200, await member.destroy());
-      } else {
-        throw new app.WarningError('成员不存在', 404);
-      }
+      ctx.backData(200, await ctx.service.member.removeById(id));
     }
 
     async show(ctx) {

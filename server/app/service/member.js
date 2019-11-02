@@ -5,6 +5,15 @@ const fs = require('fs');
 const { Service } = require('egg');
 
 class MemberService extends Service {
+  async findById(id, transactionOptions = {}) {
+    const member = await this.Model.findByPk(id, { ...transactionOptions });
+    if (!member) {
+      throw new this.ctx.app.WarningError('成员不存在', 404);
+    }
+
+    return member;
+  }
+
   get Model() {
     return this.ctx.model.Member;
   }
@@ -71,6 +80,14 @@ class MemberService extends Service {
       });
 
       return await member.save({ transaction });
+    });
+  }
+
+  async removeById(id) {
+    return this.app.model.transaction(async transaction => {
+      const member = await this.findById(id, { transaction, lock: transaction.LOCK.UPDATE });
+
+      return await member.destroy({ transaction });
     });
   }
 }

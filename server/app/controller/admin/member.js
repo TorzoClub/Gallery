@@ -6,11 +6,19 @@ module.exports = app => {
       const { body: data } = ctx.request;
       ctx.validate({
         name: { type: 'string', required: true },
+        avatar_src: { type: 'string', required: true },
         qq_num: { type: 'integer', required: true },
       }, data);
 
+      ctx.service.member.create({
+        name: data.name,
+        avatar_src: data.avatar_src,
+        qq_num: data.qq_num,
+      });
+
       const result = await ctx.service.member.create({
         name: data.name,
+        avatar_src: data.avatar_src,
         qq_num: data.qq_num,
       });
 
@@ -46,6 +54,7 @@ module.exports = app => {
 
       const validOption = {
         name: { type: 'string', required: false },
+        avatar_src: { type: 'string', required: false },
         qq_num: { type: 'integer', required: false },
       };
       ctx.validate(validOption, data);

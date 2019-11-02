@@ -1,5 +1,7 @@
 'use strict';
 
+const fs = require('fs');
+
 const { Service } = require('egg');
 
 class MemberService extends Service {
@@ -8,23 +10,33 @@ class MemberService extends Service {
   }
 
   async create(data) {
-    const { qq_num } = data;
+    return this.app.model.transaction(async transaction => {
+      const { qq_num, avatar_src } = data;
 
-    const member = await this.Model.findOne({
-      where: {
-        qq_num,
-      },
+      const member = await this.Model.findOne({
+        where: {
+          qq_num,
+        },
+
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+
+      if (member) {
+        throw new this.ctx.app.WarningError('重复QQ号的成员', 409);
+      }
+
+      const srcPath = await this.app.serviceClasses.image.toLocalSrcPath(avatar_src);
+      if (!fs.existsSync(srcPath)) {
+        throw new this.app.WarningError('src不存在', 404);
+      }
+
+      return await this.Model.create(data, { transaction });
     });
-
-    if (member) {
-      throw new this.ctx.app.WarningError('重复QQ号的成员', 409);
-    }
-
-    return await this.Model.create(data);
   }
 
   get editableProperty() {
-    return [ 'qq_num', 'name' ];
+    return [ 'qq_num', 'avatar_src', 'name' ];
   }
 
   async edit(id, data) {

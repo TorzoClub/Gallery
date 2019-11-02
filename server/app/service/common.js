@@ -23,6 +23,15 @@ module.exports = class CommonService extends Service {
     return this.OBJECT_NAME;
   }
 
+  async findOneByOptions(options) {
+    const item = await this.Model.findOne(options);
+    if (!item) {
+      throw new this.ctx.app.WarningError(`${this.ObjectName}不存在`, 404);
+    }
+
+    return item;
+  }
+
   async findById(id, transactionOptions = {}) {
     const item = await this.Model.findByPk(id, { ...transactionOptions });
     if (!item) {
@@ -30,6 +39,10 @@ module.exports = class CommonService extends Service {
     }
 
     return item;
+  }
+
+  async existsByOptions(options) {
+    return await this.Model.count(options);
   }
 
   async existsById(id, transactionOptions = {}) {

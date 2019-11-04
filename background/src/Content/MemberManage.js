@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Button, Dialog, Form, Input, Message, MessageBox } from 'element-react';
+import { Table, Button, Dialog, Form, Input, Message, MessageBox, Upload } from 'element-react';
 
 class MemberManager extends React.Component {
     constructor(props) {
@@ -17,6 +17,16 @@ class MemberManager extends React.Component {
                     prop: "name"
                 },
                 {
+                    label: "头像",
+                    prop: "avatar_src",
+                    width: 186,
+                    render: (row) => {
+                        return (
+                            <img src={`${row.avatar_thumb} `} alt={row.name} />
+                        )
+                    }
+                },
+                {
                     label: "操作",
                     prop: "id",
                     render: (row) => {
@@ -32,7 +42,8 @@ class MemberManager extends React.Component {
             dialogVisible: false,
             form: {
                 name: '',
-                qq_num: null
+                qq_num: null,
+                avatar_thumb: ''
             }
         }
 
@@ -51,6 +62,8 @@ class MemberManager extends React.Component {
         const data = response.data.map(item => {
             item.created_at = new Date(item.created_at);
             item.updated_at = new Date(item.updated_at);
+            item.avatar_src = item.avatar_src.replace(':\\', '://').replace(/\\/g, '/');
+            item.avatar_thumb = item.avatar_thumb.replace(':\\', '://').replace(/\\/g, '/');
             return item;
         })
         this.setState({ data });
@@ -89,7 +102,8 @@ class MemberManager extends React.Component {
         this.setState({
             form: {
                 name: '',
-                qq_num: null
+                qq_num: null,
+                avatar_thumb: ''
             }
         })
     }
@@ -138,7 +152,8 @@ class EditDialog extends React.Component {
         this.state = {
             form: {
                 name: '',
-                qq_num: null
+                qq_num: null,
+                avatar_src: '',
             },
             rules: {
                 name: [
@@ -146,6 +161,9 @@ class EditDialog extends React.Component {
                 ],
                 qq_num: [
                     { required: true, message: '请输入QQ号码', trigger: 'change', type: 'number' },
+                ],
+                avatar_src: [
+                    { required: true, message: '请上传图片', trigger: 'change' }
                 ]
             }
         }
@@ -154,19 +172,22 @@ class EditDialog extends React.Component {
         this.onCancel = this.onCancel.bind(this);
         this.onAddConfirm = this.onAddConfirm.bind(this);
         this.onEditConfirm = this.onEditConfirm.bind(this);
+        this.onImageUploadSuccess = this.onImageUploadSuccess.bind(this);
     }
 
     onInputChange(key, value) {
-        const newForm = Object.assign({}, this.state.form);
-        newForm[value] = key;
-        this.setState({ form: newForm })
+        this.setState(state => {
+            state.form[value] = key
+            return state
+        })
     }
 
     onCancel() {
         this.setState({
             form: {
                 name: '',
-                qq_num: null
+                qq_num: null,
+                avatar_src: ''
             }
         })
         this.props.onCancel();
@@ -185,17 +206,16 @@ class EditDialog extends React.Component {
                     this.props.onOperateSuccess();
                 }
                 catch (e) {
-                    const newForm = Object.assign({}, this.state.form);
-                    newForm.qq_num = null;
-                    this.setState({
-                        form: newForm
+                    this.setState(state => {
+                        state.form.qq_num = null;
+                        return state
                     })
                 }
             }
         });
     }
 
-    async onEditConfirm(){
+    async onEditConfirm() {
         this.refs.form.validate(async valid => {
             if (valid) {
                 try {
@@ -207,18 +227,32 @@ class EditDialog extends React.Component {
                     this.props.onOperateSuccess();
                 }
                 catch (e) {
-                    const newForm = Object.assign({}, this.state.form);
-                    newForm.qq_num = null;
-                    this.setState({
-                        form: newForm
+                    this.setState(state => {
+                        state.form.qq_num = null;
+                        return state
                     })
                 }
             }
         });
     }
 
+    onImageUploadSuccess(imgUrl) {
+        this.setState(state => {
+            state.form.avatar_src = imgUrl;
+            return state
+        });
+    }
+
     componentDidMount() {
-        this.setState({ form: this.props.form })
+        this.setState(state => {
+            state.form.name = this.props.form.name;
+            state.form.qq_num = this.props.form.qq_num;
+            if (state.form.id) {
+                state.form.id = this.props.form.id;
+                state.form.avatar_src = this.props.form.avatar_src.split('/').pop();
+            }
+            return state
+        })
     }
 
     render() {
@@ -237,8 +271,14 @@ class EditDialog extends React.Component {
                         <Form.Item label="成员QQ号码" prop="qq_num">
                             <Input value={this.state.form.qq_num} onChange={k => { const numK = Number.parseInt(k); if (k === '') { this.onInputChange(null, 'qq_num') } else { if (Number.isInteger(numK)) { this.onInputChange(numK, 'qq_num') } } }}></Input>
                         </Form.Item>
+                        <Form.Item label="成员头像" prop="avatar_src">
+                            <br />
+                            <ImageUpload onUploadSuccess={this.onImageUploadSuccess} imageUrl={this.props.form.avatar_src} />
+                        </Form.Item>
                     </Form>
                 </Dialog.Body>
+
+                <div>{JSON.stringify(this.state)}</div>
 
                 <Dialog.Footer className="dialog-footer">
                     <Button onClick={this.onCancel}>取 消</Button>
@@ -247,6 +287,54 @@ class EditDialog extends React.Component {
                         <Button type="primary" onClick={this.onAddConfirm}>添 加</Button>}
                 </Dialog.Footer>
             </Dialog>
+        )
+    }
+}
+
+class ImageUpload extends React.Component {
+    constructor(props) {
+        super(props)
+
+        this.state = {
+            imageUrl: ''
+        }
+
+        this.uploadImage = this.uploadImage.bind(this);
+        this.handleImageUploadScucess = this.handleImageUploadScucess.bind(this);
+    }
+
+    async uploadImage(rawRequest) {
+        const formDate = new FormData();
+        formDate.append('', rawRequest.file)
+        const response = await window._AXIOS({
+            url: 'api/admin/image/upload',
+            method: 'post',
+            data: formDate
+        })
+        rawRequest.onSuccess(response);
+    }
+
+    handleImageUploadScucess(res, file) {
+        this.setState({ imageUrl: `${res.data.imagePrefix}/${res.data.src}` })
+        this.props.onUploadSuccess(`${res.data.src}`);
+    }
+
+    componentDidMount() {
+        this.setState({ imageUrl: this.props.imageUrl })
+    }
+
+    render() {
+        return (
+            <Upload
+                className={'avatar-uploader'}
+                action={''}
+                showFileList={false}
+                drag={true}
+                onSuccess={this.handleImageUploadScucess}
+                httpRequest={this.uploadImage}
+            >
+                {this.state.imageUrl ? <img src={this.state.imageUrl} className="avatar" alt="上传的图片" /> : <div className="el-upload__text"><i className="el-icon-plus avatar-uploader-icon">拖动或点击以上传图片</i> </div>}
+            </Upload>
         )
     }
 }

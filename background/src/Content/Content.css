@@ -19,3 +19,23 @@
     padding-left: 20px;
     padding-right: 20px;
 }
+
+.el-upload-dragger {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 360px;
+    height: 360px;
+}
+
+.el-icon-plus.avatar-uploader-icon{
+    color: #8c939d;
+    width: 178px;
+    height: 178px;
+    line-height: 178px;
+    text-align: center;
+}
+
+.avatar {
+    width: 50%;
+}

@@ -4,6 +4,7 @@ import {  Menu } from 'element-react'
 import './Content.css'
 
 import MemberManage from './MemberManage';
+import GalleryManage from './GalleryManage';
 
 
 class Content extends React.Component {
@@ -39,7 +40,7 @@ class Content extends React.Component {
 const Selector = props =>{
     switch (props.itemName){
         case 'gallery':
-            return 'gallary';
+            return <GalleryManage />;
         case 'member':
             return <MemberManage />;
         default:

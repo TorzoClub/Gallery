@@ -44,7 +44,7 @@ class App extends React.Component {
           type: 'error',
           customClass:'Message-style'
         });
-        if (error.response.status === 401) {
+        if (error.response.status === 401||error.response.status === 403) {
           this.setState({ token: '' });
           cookie.save('token', '');
           window._HISTORY.push('/login', { message: error.response.data.message });

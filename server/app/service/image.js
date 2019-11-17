@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('path');
+const url = require('url');
 const fs = require('fs');
 const jimp = require('jimp');
 
@@ -17,11 +18,11 @@ module.exports = app =>
     }
 
     static toSrcUrl(fileName) {
-      return path.join(app.config.imagePrefix, fileName);
+      return url.resolve(app.config.imagePrefix, fileName);
     }
 
     static toThumbUrl(fileName) {
-      return path.join(app.config.imageThumbPrefix, fileName);
+      return url.resolve(app.config.imageThumbPrefix, fileName);
     }
 
     async generateThumb(filePath) {

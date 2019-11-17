@@ -5,15 +5,15 @@ module.exports = app => {
     async create(ctx) {
       const { body: data } = ctx.request;
       ctx.validate({
+        member_id: { type: 'integer', required: true },
         gallery_id: { type: 'integer', required: true },
-        author: { type: 'string', required: true },
         desc: { type: 'string', required: true },
         src: { type: 'string', required: true },
       }, data);
 
       const result = await ctx.service.photo.create({
+        member_id: data.member_id,
         gallery_id: data.gallery_id,
-        author: data.author,
         desc: data.desc,
         src: data.src,
       });
@@ -28,6 +28,20 @@ module.exports = app => {
 
       const { id } = ctx.params;
       ctx.backData(200, await ctx.service.photo.removeById(id));
+    }
+
+    async get(ctx) {
+      ctx.validate({
+        id: { type: 'id', required: true },
+      }, ctx.params);
+
+      const { id } = ctx.params;
+
+      const photo = await ctx.service.photo.findById(id);
+      ctx.backData(200, {
+        ...photo.toJSON(),
+        member: await photo.getMember(),
+      });
     }
 
     async show(ctx) {
@@ -63,8 +77,8 @@ module.exports = app => {
       }, ctx.params);
 
       const validOption = {
+        member_id: { type: 'integer', required: true },
         gallery_id: { type: 'integer', required: true },
-        author: { type: 'string', required: true },
         desc: { type: 'string', required: true },
         src: { type: 'string', required: true },
       };

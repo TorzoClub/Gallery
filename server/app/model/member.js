@@ -32,5 +32,9 @@ module.exports = app => {
     },
   });
 
+  Member.associate = () => {
+    app.model.Member.hasMany(app.model.Photo, { foreignKey: 'member_id' });
+  };
+
   return Member;
 };

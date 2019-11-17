@@ -34,7 +34,12 @@ module.exports = app =>
 
     async create(data) {
       return this.app.model.transaction(async transaction => {
-        const { gallery_id, src } = data;
+        const { member_id, gallery_id, src } = data;
+
+        await this.service.member.detectExistsById(member_id, {
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
 
         await this.service.gallery.detectExistsById(gallery_id, {
           transaction,
@@ -44,8 +49,8 @@ module.exports = app =>
         const { width, height } = await this.getImageDimensions(src);
 
         return await this.Model.create({
+          member_id,
           gallery_id,
-          author: data.author,
           desc: data.desc,
           src,
           width,
@@ -55,12 +60,20 @@ module.exports = app =>
     }
 
     get editableProperty() {
-      return [ 'gallery_id', 'author', 'desc', 'src' ];
+      return [ 'member_id', 'gallery_id', 'desc', 'src' ];
     }
 
     async edit(id, data) {
       return this.app.model.transaction(async transaction => {
         const photo = await this.findById(id, { transaction, lock: transaction.LOCK.UPDATE });
+
+        if (data.hasOwnProperty('member_id')) {
+          // 检查相册是否存在
+          await this.service.member.detectExistsById(data.member_id, {
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+          });
+        }
 
         if (data.hasOwnProperty('gallery_id')) {
           // 检查相册是否存在
@@ -92,6 +105,10 @@ module.exports = app =>
         await this.service.gallery.detectExistsById(gallery_id, { transaction, lock: transaction.LOCK.UPDATE });
 
         const list = await this.Model.findAll({
+          include: [{
+            model: this.app.model.Member,
+          }],
+
           where: {
             gallery_id,
           },

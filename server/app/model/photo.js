@@ -4,11 +4,6 @@ module.exports = app => {
   const { INTEGER, VIRTUAL, STRING, TEXT } = app.Sequelize;
 
   const Photo = app.model.define('photo', {
-    author: {
-      type: STRING,
-      allowNull: false,
-    },
-
     desc: TEXT,
 
     src: {
@@ -47,6 +42,8 @@ module.exports = app => {
   });
 
   Photo.associate = () => {
+    app.model.Photo.belongsTo(app.model.Member, { foreignKey: 'member_id' });
+
     app.model.Photo.belongsTo(app.model.Gallery, { foreignKey: 'gallery_id' });
     app.model.Photo.hasMany(app.model.Vote, { foreignKey: 'photo_id' });
   };

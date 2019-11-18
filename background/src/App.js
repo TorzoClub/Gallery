@@ -26,10 +26,10 @@ class App extends React.Component {
   }
 
   componentDidMount() {
-    this.setState({ token: cookie.load('token') })
+    this.setState({ token: cookie.load('token')===undefined?'':cookie.load('token') })
     window._HISTORY = this.myRef.current.history;
     window._AXIOS.interceptors.request.use(config => {
-      if (this.state.token) {
+      if (cookie.load('token') ) {
         config.headers['Authorization'] = this.state.token;
       }
       else {

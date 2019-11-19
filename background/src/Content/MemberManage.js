@@ -1,5 +1,6 @@
 import React from 'react';
-import { Table, Button, Dialog, Form, Input, Message, MessageBox, Upload } from 'element-react';
+import ImageUpload from './ImageUpload';
+import { Table, Button, Dialog, Form, Input, Message, MessageBox } from 'element-react';
 
 class MemberManager extends React.Component {
     constructor(props) {
@@ -62,8 +63,6 @@ class MemberManager extends React.Component {
         const data = response.data.map(item => {
             item.created_at = new Date(item.created_at);
             item.updated_at = new Date(item.updated_at);
-            item.avatar_src = item.avatar_src.replace(':\\', '://').replace(/\\/g, '/');
-            item.avatar_thumb = item.avatar_thumb.replace(':\\', '://').replace(/\\/g, '/');
             return item;
         })
         this.setState({ data });
@@ -160,10 +159,10 @@ class EditDialog extends React.Component {
                     { required: true, message: '请输入名字', trigger: 'blur' }
                 ],
                 qq_num: [
-                    { required: true, message: '请输入QQ号码', trigger: 'change', type: 'number' },
+                    { required: true, message: '请输入QQ号码', trigger: 'blur', type: 'number' },
                 ],
                 avatar_src: [
-                    { required: true, message: '请上传图片', trigger: 'change' }
+                    { required: true, message: '请上传图片', trigger: 'blur' }
                 ]
             }
         }
@@ -278,8 +277,6 @@ class EditDialog extends React.Component {
                     </Form>
                 </Dialog.Body>
 
-                <div>{JSON.stringify(this.state)}</div>
-
                 <Dialog.Footer className="dialog-footer">
                     <Button onClick={this.onCancel}>取 消</Button>
                     {this.state.form.id ?
@@ -291,52 +288,4 @@ class EditDialog extends React.Component {
     }
 }
 
-class ImageUpload extends React.Component {
-    constructor(props) {
-        super(props)
-
-        this.state = {
-            imageUrl: ''
-        }
-
-        this.uploadImage = this.uploadImage.bind(this);
-        this.handleImageUploadScucess = this.handleImageUploadScucess.bind(this);
-    }
-
-    async uploadImage(rawRequest) {
-        const formDate = new FormData();
-        formDate.append('', rawRequest.file)
-        const response = await window._AXIOS({
-            url: 'api/admin/image/upload',
-            method: 'post',
-            data: formDate
-        })
-        rawRequest.onSuccess(response);
-    }
-
-    handleImageUploadScucess(res, file) {
-        this.setState({ imageUrl: `${res.data.imagePrefix}/${res.data.src}` })
-        this.props.onUploadSuccess(`${res.data.src}`);
-    }
-
-    componentDidMount() {
-        this.setState({ imageUrl: this.props.imageUrl })
-    }
-
-    render() {
-        return (
-            <Upload
-                className={'avatar-uploader'}
-                action={''}
-                showFileList={false}
-                drag={true}
-                onSuccess={this.handleImageUploadScucess}
-                httpRequest={this.uploadImage}
-            >
-                {this.state.imageUrl ? <img src={this.state.imageUrl} className="avatar" alt="上传的图片" /> : <div className="el-upload__text"><i className="el-icon-plus avatar-uploader-icon">拖动或点击以上传图片</i> </div>}
-            </Upload>
-        )
-    }
-}
-
-export default MemberManager
+export default MemberManager 

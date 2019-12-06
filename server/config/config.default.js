@@ -33,11 +33,13 @@ module.exports = appInfo => {
   const userConfig = {
     adminPass: '7355608',
 
-    imageThumbSavePath: absolutePath('./static/thumb/'),
-    imageSavePath: absolutePath('./static/src'),
 
-    imageThumbPrefix: 'http://localhost:7001/static/thumb',
-    imagePrefix: 'http://localhost:7001/static/src',
+    imageThumbSavePath: absolutePath('./static/thumb/'),
+    imageSavePath: absolutePath('./static/src/'),
+
+    // imageThumbPrefix、imagePrefix 请在末尾加上斜杠
+    imageThumbPrefix: 'http://localhost:7001/static/thumb/',
+    imagePrefix: 'http://localhost:7001/static/src/',
   };
 
   config.sequelize = {

@@ -77,10 +77,10 @@ module.exports = app => {
       }, ctx.params);
 
       const validOption = {
-        member_id: { type: 'integer', required: true },
-        gallery_id: { type: 'integer', required: true },
-        desc: { type: 'string', required: true },
-        src: { type: 'string', required: true },
+        member_id: { type: 'integer', required: false },
+        gallery_id: { type: 'integer', required: false },
+        desc: { type: 'string', required: false },
+        src: { type: 'string', required: false },
       };
       ctx.validate(validOption, data);
 

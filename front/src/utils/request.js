@@ -2,7 +2,7 @@ import axios from 'axios'
 import store from 'store'
 
 const config = {
-  baseURL: 'http://localhost:7001/api',
+  baseURL: process.env.REACT_APP_API_PREFIX,
   timeout: 5000
 }
 

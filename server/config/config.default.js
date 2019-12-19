@@ -15,6 +15,9 @@ module.exports = appInfo => {
    **/
   const config = exports = {};
 
+  // api 前缀，注意要以 / 结尾
+  config.apiPrefix = '/';
+
   // use for cookie sign key, should change to your own and keep security
   config.keys = appInfo.name + '_1570827005712_4094';
 

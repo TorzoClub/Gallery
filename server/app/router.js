@@ -4,10 +4,10 @@
  * @param {Egg.Application} app - egg application
  */
 module.exports = app => {
-  const { controller, middlewares } = app;
+  const { config, controller, middlewares } = app;
 
   const setRouter = (method, path, ...middlewareArgs) => {
-    return app.router[method](`/api/${path}`, ...middlewareArgs);
+    return app.router[method](`${config.apiPrefix}api/${path}`, ...middlewareArgs);
   };
 
   const setAdminRouter = (method, path, ...middlewareArgs) => {

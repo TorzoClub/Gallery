@@ -44,5 +44,11 @@ module.exports = app => {
     setAdminRouter('patch', 'photo/:id', edit);
   }
 
-  setRouter('post', 'vote', controller.vote.create);
+
+  setRouter('post', 'member/photo', controller.member.photo.show);
+  setRouter('post', 'member/vote', controller.member.vote.create);
+
+
+  setRouter('get', 'photo', controller.photo.show);
+  setRouter('get', 'photo/:id', controller.photo.get);
 };

@@ -19,17 +19,19 @@ module.exports = app => {
   setAdminRouter('post', 'image/upload', controller.admin.image.upload);
 
   {
-    const { create, remove, show, edit } = controller.admin.gallery;
+    const { create, remove, get, show, edit } = controller.admin.gallery;
     setAdminRouter('post', 'gallery', create);
     setAdminRouter('delete', 'gallery/:id', remove);
+    setAdminRouter('get', 'gallery/:id', get);
     setAdminRouter('get', 'gallery', show);
     setAdminRouter('patch', 'gallery/:id', edit);
   }
 
   {
-    const { create, remove, show, edit } = controller.admin.member;
+    const { create, remove, get, show, edit } = controller.admin.member;
     setAdminRouter('post', 'member', create);
     setAdminRouter('delete', 'member/:id', remove);
+    setAdminRouter('get', 'member/:id', get);
     setAdminRouter('get', 'member', show);
     setAdminRouter('patch', 'member/:id', edit);
   }

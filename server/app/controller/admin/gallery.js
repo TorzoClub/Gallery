@@ -61,6 +61,15 @@ module.exports = app => {
       ctx.backData(200, list);
     }
 
+    async get(ctx) {
+      ctx.validate({
+        id: { type: 'id', required: true },
+      }, ctx.params);
+
+      const { id } = ctx.params;
+      ctx.backData(200, await ctx.service.gallery.findById(id));
+    }
+
     async edit(ctx) {
       const { id } = ctx.params;
       const { body: data } = ctx.request;

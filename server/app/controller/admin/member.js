@@ -28,6 +28,15 @@ module.exports = app => {
       ctx.backData(200, await ctx.service.member.removeById(id));
     }
 
+    async get(ctx) {
+      ctx.validate({
+        id: { type: 'id', required: true },
+      }, ctx.params);
+
+      const { id } = ctx.params;
+      ctx.backData(200, await ctx.service.member.findById(id));
+    }
+
     async show(ctx) {
       const list = await ctx.model.Member.findAll();
       ctx.backData(200, list);

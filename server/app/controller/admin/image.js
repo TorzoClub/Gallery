@@ -14,6 +14,9 @@ module.exports = app => {
           imageThumbPrefix,
           src,
           thumb,
+
+          srcUrl: `${imagePrefix}${src}`,
+          thumbUrl: `${imageThumbPrefix}${thumb}`,
         });
       } catch (err) {
         await sendToWormhole(stream);

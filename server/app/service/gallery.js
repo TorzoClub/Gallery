@@ -20,12 +20,11 @@ module.exports = class GalleryService extends CommonService {
     });
   }
 
-  removeById(id) {
+  async removeById(id) {
     return this.app.model.transaction(async transaction => {
-      return this.Model.destroy({
-        where: { id: parseInt(id) },
-        transaction,
-      });
+      const gallery = await this.findById(id, { transaction, lock: transaction.LOCK.UPDATE });
+
+      return await gallery.destroy({ transaction });
     });
   }
 };

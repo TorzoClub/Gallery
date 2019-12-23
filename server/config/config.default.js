@@ -36,6 +36,7 @@ module.exports = appInfo => {
   const userConfig = {
     adminPass: '7355608',
 
+    imageThumbSize: 640,
 
     imageThumbSavePath: absolutePath('./static/thumb/'),
     imageSavePath: absolutePath('./static/src/'),

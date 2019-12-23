@@ -28,7 +28,7 @@ module.exports = app =>
     async generateThumb(filePath) {
       const image = await jimp.read(filePath);
 
-      await image.resize(150, jimp.AUTO);
+      await image.resize(app.config.imageThumbSize, jimp.AUTO);
 
       const srcFilename = path.basename(filePath);
 

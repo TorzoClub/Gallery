@@ -53,7 +53,10 @@ module.exports = app => {
         200,
         photos_list.map((photos, idx) => {
           const gallery = list[idx];
-          return Object.assign(gallery.toJSON(), { photos });
+          return Object.assign(gallery.toJSON(), {
+            vote_submitted: !photos.every(photo => !photo.is_voted),
+            photos,
+          });
         })
       );
     }

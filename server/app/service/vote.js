@@ -1,5 +1,8 @@
 'use strict';
 
+const Sequelize = require('sequelize');
+const Op = Sequelize.Op;
+
 const CommonService = require('./common');
 
 module.exports = app =>
@@ -12,16 +15,28 @@ module.exports = app =>
       return this.app.model.Vote;
     }
 
-    async create({ gallery_id, photo_id, qq_num }) {
+    async create({ gallery_id, photo_id_list, qq_num }) {
       return this.app.model.transaction(async transaction => {
         const UpdateLockOptions = { transaction, lock: transaction.LOCK.UPDATE };
 
         const gallery = await this.service.gallery.findById(gallery_id, UpdateLockOptions);
 
-        const photo = await this.service.photo.findById(photo_id, UpdateLockOptions);
+        const photo_list = await this.service.photo.Model.findAll({
+          where: {
+            gallery_id,
+            id: {
+              [Op.or]: photo_id_list,
+            },
+          },
+          ...UpdateLockOptions,
+        });
 
-        if (photo.gallery_id !== gallery.id) {
-          throw new app.WarningError('相册和照片不匹配', 404);
+        if (!photo_list.length || !photo_list.length) {
+          throw new app.WarningError('照片不存在', 404);
+        }
+
+        if (photo_list.length !== photo_id_list.length) {
+          throw new app.WarningError('相册和照片数量不匹配', 404);
         }
 
         const member = await this.service.member.findOneByOptions({
@@ -32,7 +47,6 @@ module.exports = app =>
         const voteExists = await this.existsByOptions({
           where: {
             gallery_id: gallery.id,
-            photo_id: photo.id,
             member_id: member.id,
           },
 
@@ -41,34 +55,34 @@ module.exports = app =>
         });
 
         if (voteExists) {
-          throw new app.WarningError('已经投过这个相片了', 409);
+          throw new app.WarningError('这个相册已经投过票了', 409);
         }
 
         if (gallery.vote_limit !== 0) {
-          // 检查成员有没有达到相册投票次数的限制
+          // 检查提交的投票有没有达到相册投票次数的限制
 
-          const voteCount = await this.Model.count({
-            where: {
-              gallery_id: gallery.id,
-              member_id: member.id,
-            },
-
-            transaction,
-            lock: transaction.LOCK.SHARE,
-          });
-
-          if (voteCount >= gallery.vote_limit) {
+          if (photo_id_list.length > gallery.vote_limit) {
             throw new app.WarningError('票数限制', 403);
           }
         }
 
-        await photo.increment('vote_count', { by: 1, ...UpdateLockOptions });
+        const result_list = [];
 
-        return await this.Model.create({
-          gallery_id: gallery.id,
-          photo_id: photo.id,
-          member_id: member.id,
-        }, { transaction });
+        for (let i = 0; i < photo_list.length; ++i) {
+          const photo = photo_list[i];
+
+          await photo.increment('vote_count', { by: 1, ...UpdateLockOptions });
+
+          const newVote = await this.Model.create({
+            gallery_id: gallery.id,
+            photo_id: photo.id,
+            member_id: member.id,
+          }, { transaction });
+
+          result_list.push(newVote);
+        }
+
+        return result_list;
       });
     }
   };

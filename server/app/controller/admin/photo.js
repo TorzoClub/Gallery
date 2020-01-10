@@ -68,6 +68,18 @@ module.exports = app => {
       ctx.backData(200, list);
     }
 
+    async showMemberVote(ctx) {
+      ctx.validate({
+        gallery_id: { type: 'id', required: true },
+      }, ctx.params);
+
+      const list = await ctx.service.photo.getMemberVoteListByGalleryId({
+        gallery_id: parseInt(ctx.params.gallery_id),
+      });
+
+      ctx.backData(200, list);
+    }
+
     async edit(ctx) {
       const { id } = ctx.params;
       const { body: data } = ctx.request;

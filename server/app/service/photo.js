@@ -145,6 +145,43 @@ module.exports = app =>
       });
     }
 
+    getMemberVoteListByGalleryId({ gallery_id }) {
+      return this.app.model.transaction(async transaction => {
+        gallery_id = parseInt(gallery_id);
+
+        await this.service.gallery.detectExistsById(gallery_id, {
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+
+        const memberList = await this.service.member.Model.findAll({
+          transaction,
+        });
+
+        const votes = memberList.map(member => {
+          return this.service.vote.Model.findAll({
+            where: {
+              member_id: member.id,
+              gallery_id,
+            },
+
+            transaction,
+          });
+        });
+
+        const voteList = await Promise.all(votes);
+
+        return memberList.map((mem, idx) => {
+          const member = {
+            ...mem.toJSON(),
+            votes: voteList[idx],
+          };
+
+          return member;
+        });
+      });
+    }
+
     removeById(id) {
       return this.app.model.transaction(async transaction => {
         return await this.destroyById(parseInt(id), { transaction });

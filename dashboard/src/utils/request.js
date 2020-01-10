@@ -46,6 +46,19 @@ service.interceptors.response.use(
       }
     })
 
+    return data
+  },
+
+  axiosErr => {
+    if (!axiosErr.response) {
+      return Promise.reject(axiosErr)
+    }
+
+    const { response } = axiosErr
+    const { data, status } = response
+
+    const err = data.message ? Error(data.message) : Error(axiosErr.message)
+
     if (status === 401) {
       // 或许是 token 过期
 
@@ -64,19 +77,6 @@ service.interceptors.response.use(
         { SILENT: true }
       )
     }
-
-    return data
-  },
-
-  axiosErr => {
-    if (!axiosErr.response) {
-      return Promise.reject(axiosErr)
-    }
-
-    const { response } = axiosErr
-    const { data, status } = response
-
-    const err = data.message ? Error(data.message) : Error(axiosErr.message)
 
     Object.assign(err, {
       data,

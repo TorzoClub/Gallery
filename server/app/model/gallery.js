@@ -22,7 +22,7 @@ module.exports = app => {
       allowNull: false,
     },
 
-    can_vote: {
+    is_expired: {
       type: VIRTUAL,
       get() {
         const vote_expire = this.getDataValue('vote_expire');

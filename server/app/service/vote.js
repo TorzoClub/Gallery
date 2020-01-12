@@ -21,7 +21,7 @@ module.exports = app =>
 
         const gallery = await this.service.gallery.findById(gallery_id, UpdateLockOptions);
 
-        if (!gallery.can_vote) {
+        if (!gallery.is_expired) {
           throw Object.assign(new app.WarningError('已过投票截止时间', 403), { VOTE_EXPIRED: true });
         }
 

@@ -4,6 +4,7 @@
     :style="{
       backgroundImage: `url(${src})`
     }"
+    @click="$emit('click')"
   >
     <!-- <img class="img" :src="src" /> -->
   </div>

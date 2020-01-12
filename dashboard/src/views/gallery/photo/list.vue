@@ -13,6 +13,8 @@
       >创建</ElButton>
 
       <ElButton size="small" type="primary" icon="el-icon-refresh" @click="refresh">刷新</ElButton>
+
+      <ElButton size="small" type="primary" icon="el-icon-view" @click="$router.push('member')">成员投票情况</ElButton>
     </ElHeader>
 
     <ElMain>

@@ -31,7 +31,7 @@ module.exports = app => {
         const expireTimestamp = vote_expire.valueOf();
         const nowTimestamp = nowDate.valueOf();
 
-        return expireTimestamp > nowTimestamp;
+        return nowTimestamp >= expireTimestamp;
       },
     },
 

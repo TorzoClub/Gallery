@@ -21,6 +21,10 @@ module.exports = app =>
 
         const gallery = await this.service.gallery.findById(gallery_id, UpdateLockOptions);
 
+        if (!gallery.can_vote) {
+          throw Object.assign(new app.WarningError('已过投票截止时间', 403), { VOTE_EXPIRED: true });
+        }
+
         const photo_list = await this.service.photo.Model.findAll({
           where: {
             gallery_id,

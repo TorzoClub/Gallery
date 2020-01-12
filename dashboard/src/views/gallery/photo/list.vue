@@ -24,7 +24,7 @@
           </template>
         </ElTableColumn>
         <ElTableColumn prop="member.name" label="作者" align="center" />
-        <ElTableColumn prop="vote_count" label="票数" align="center" width="64" />
+        <ElTableColumn prop="vote_count" label="票数" align="center" width="96" sortable />
         <ElTableColumn prop="created_at" label="创建时间" align="center" width="150">
           <template slot-scope="scope">
             {{ toDateTime(scope.row.created_at) }}

@@ -1,6 +1,14 @@
 <template>
   <div class="login-container">
-    <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form" auto-complete="on" label-position="left">
+    <el-form
+      ref="loginForm"
+      class="login-form"
+      auto-complete="on"
+      label-position="left"
+      :model="loginForm"
+      :rules="loginRules"
+      @submit.native.prevent
+    >
 
       <div class="title-container">
         <h3 class="title">同装相册后台系统</h3>
@@ -105,6 +113,7 @@ export default {
         this.$refs.password.focus()
       })
     },
+
     handleLogin() {
       this.$refs.loginForm.validate(valid => {
         if (valid) {
@@ -112,8 +121,10 @@ export default {
           this.$store.dispatch('user/login', this.loginForm).then(() => {
             this.$router.push({ path: this.redirect || '/' })
             this.loading = false
-          }).catch(() => {
+          }).catch(err => {
             this.loading = false
+            console.error('登录失败', err)
+            this.$message.error(`登录失败：${err.message}`)
           })
         } else {
           console.log('error submit!!')

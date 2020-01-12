@@ -31,3 +31,9 @@ export const update = (id, data) =>
     method: 'patch',
     data
   })
+
+export const setRetryVote = ({ id, gallery_id }) =>
+  request({
+    url: `admin/member/${id}/gallery/${gallery_id}/vote`,
+    method: 'delete'
+  })

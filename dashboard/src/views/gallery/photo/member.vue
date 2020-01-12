@@ -1,7 +1,7 @@
 <template>
   <ElContainer
     v-loading="loading"
-    style="padding-top: 20px; width: 1024px"
+    style="padding-top: 20px;"
     direction="vertical"
   >
     <ElHeader height="32px">
@@ -11,7 +11,11 @@
     <ElMain>
       <ElTable :data="list" border style="width: 100%" stripe :max-height="$parent.getMaxHeight() - 32 - 20 - 20 * 2">
         <ElTableColumn prop="id" label="成员id" align="center" width="64" />
-        <ElTableColumn prop="name" label="名称" align="center" width="128" />
+        <ElTableColumn prop="name" label="名称" align="center" width="128">
+          <router-link slot-scope="scope" :to="{ name: 'MemberDetail', params: { id: scope.row.id } }" style="color: #46a0fc; text-decoration: underline;">
+            {{ scope.row.name }}
+          </router-link>
+        </ElTableColumn>
         <ElTableColumn prop="votes" label="投票状况" align="left" sortable>
           <template slot-scope="scope">
             <template v-if="!scope.row.votes || !scope.row.votes.length">
@@ -29,12 +33,23 @@
             </template>
           </template>
         </ElTableColumn>
+        <ElTableColumn label="编辑" align="center" width="170">
+          <ElButtonGroup slot-scope="scope">
+            <ElButton
+              size="small"
+              type="danger"
+              icon="el-icon-tickets"
+              @click="setRetryVote(scope.$index)"
+            >设置重投</ElButton>
+          </ElButtonGroup>
+        </ElTableColumn>
       </ElTable>
     </ElMain>
   </ElContainer>
 </template>
 
 <script>
+  import { setRetryVote } from '@/api/member'
   import { getList as getPhotoList } from '@/api/photo'
   import { getMemberVoteList } from '@/api/gallery'
   import ImageBox from '@/components/Image'
@@ -82,6 +97,45 @@
           this.loading = false
         }
       },
+
+      confirm(title, content, appendOpt = {}) {
+        const opt = Object.assign({
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          confirmButtonClass: 'el-button--warning',
+          showClose: false,
+        }, appendOpt)
+        return this.$confirm(content, title, opt)
+          .then(() => true)
+          .catch(() => false)
+      },
+
+      async setRetryVote(idx) {
+        const member = this.list[idx]
+
+        const confirm = await this.confirm('', `你确定要让【${member.name}】重投吗？`, {
+          confirmButtonClass: 'el-button--warning',
+        })
+
+        if (!confirm) {
+          return
+        }
+
+        try {
+          this.loading = true
+          await setRetryVote({
+            id: member.id,
+            gallery_id: this.gallery_id
+          })
+          this.$message.success(`操作成功，【${member.name}】已经可以重新投票`)
+          this.refresh()
+        } catch (err) {
+          console.error('设置失败', err)
+          this.$message.error(`设置失败: ${err.message}`)
+        } finally {
+          this.loading = false
+        }
+      }
     }
   }
 </script>

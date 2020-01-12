@@ -100,6 +100,13 @@ export const constantRoutes = [
       },
       {
         hidden: true,
+        path: ':gallery_id/photo/member',
+        name: 'GalleryPhotoMemberList',
+        component: () => import('@/views/gallery/photo/member'),
+        meta: { title: '成员投票情况', icon: 'table' }
+      },
+      {
+        hidden: true,
         path: ':gallery_id/photo/:id',
         name: 'GalleryPhotoList',
         component: () => import('@/views/gallery/photo/detail'),

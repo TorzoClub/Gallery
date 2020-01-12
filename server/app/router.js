@@ -28,12 +28,14 @@ module.exports = app => {
   }
 
   {
-    const { create, remove, get, show, edit } = controller.admin.member;
+    const { create, remove, get, show, edit, removeMemberGalleryVote } = controller.admin.member;
     setAdminRouter('post', 'member', create);
     setAdminRouter('delete', 'member/:id', remove);
     setAdminRouter('get', 'member/:id', get);
     setAdminRouter('get', 'member', show);
     setAdminRouter('patch', 'member/:id', edit);
+
+    setAdminRouter('delete', 'member/:id/gallery/:gallery_id/vote', removeMemberGalleryVote);
   }
 
   {

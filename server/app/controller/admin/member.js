@@ -59,6 +59,23 @@ module.exports = app => {
 
       ctx.backData(200, await ctx.service.member.edit(id, data));
     }
+
+    async removeMemberGalleryVote(ctx) {
+      const { id, gallery_id } = ctx.params;
+
+      ctx.validate({
+        id: { type: 'id', required: true },
+        gallery_id: { type: 'id', required: true },
+      }, ctx.params);
+
+      ctx.backData(
+        200,
+        await ctx.service.member.removeMemberGalleryVote({
+          member_id: id,
+          gallery_id,
+        })
+      );
+    }
   }
 
   return MemberController;

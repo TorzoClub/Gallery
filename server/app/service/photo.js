@@ -187,4 +187,20 @@ module.exports = app =>
         return await this.destroyById(parseInt(id), { transaction });
       });
     }
+
+    async reComputeVoteCount({ photo_id }, transactionOptions = {}) {
+      const photo = await this.findById(photo_id, transactionOptions);
+
+      const voteCount = await this.service.vote.Model.count({
+        where: {
+          photo_id: photo.id,
+        },
+
+        ...transactionOptions,
+      });
+
+      photo.vote_count = voteCount;
+
+      return photo.save({ ...transactionOptions });
+    }
   };

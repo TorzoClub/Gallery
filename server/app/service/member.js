@@ -81,6 +81,39 @@ class MemberService extends CommonService {
       return await member.destroy({ transaction });
     });
   }
+
+  async removeMemberGalleryVote({ member_id, gallery_id }) {
+    return this.app.model.transaction(async transaction => {
+      const transactionOptions = { transaction, lock: transaction.LOCK.UPDATE };
+
+      const member = await this.findById(member_id, { ...transactionOptions });
+
+      const voteList = await this.service.vote.Model.findAll({
+        where: {
+          gallery_id,
+          member_id: member.id,
+        },
+
+        ...transactionOptions,
+      });
+
+      for (let i = 0; i < voteList.length; ++i) {
+        const vote = voteList[i];
+
+        await vote.destroy({ ...transactionOptions });
+      }
+
+      for (let i = 0; i < voteList.length; ++i) {
+        const vote = voteList[i];
+
+        await this.service.photo.reComputeVoteCount({
+          photo_id: vote.photo_id,
+        }, transactionOptions);
+      }
+
+      return voteList;
+    });
+  }
 }
 
 module.exports = MemberService;

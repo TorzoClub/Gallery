@@ -108,7 +108,7 @@ export const constantRoutes = [
       {
         hidden: true,
         path: ':gallery_id/photo/:id',
-        name: 'GalleryPhotoList',
+        name: 'GalleryPhotoDetail',
         component: () => import('@/views/gallery/photo/detail'),
         meta: { title: '相片详情', icon: 'table' }
       }

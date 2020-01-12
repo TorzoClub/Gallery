@@ -24,7 +24,15 @@
             <template v-else>
               <template v-for="vote in scope.row.votes">
                 <template v-if="getPhotoById(vote.photo_id)">
-                  <ImageBox :key="vote.id" :src="getPhotoById(vote.photo_id).thumb" style="margin: 0 4px; width: 64px; height: 64px;" />
+                  <ImageBox
+                    :key="vote.id"
+                    :src="getPhotoById(vote.photo_id).thumb"
+                    style="margin: 0 4px; width: 64px; height: 64px;"
+                    @click="$router.push({
+                      name: 'GalleryPhotoDetail',
+                      params: { gallery_id: gallery_id, id: vote.photo_id }
+                    })"
+                  />
                 </template>
                 <template v-else>
                   照片不存在！

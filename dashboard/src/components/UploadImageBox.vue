@@ -133,8 +133,8 @@
       },
 
       accept: {
-        type: Object,
-        default: () => ({})
+        type: String,
+        default: ''
       },
 
       uploadUrl: {

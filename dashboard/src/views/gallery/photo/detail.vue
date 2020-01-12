@@ -180,7 +180,7 @@
             member_id: Number(this.form.member_id)
           }
 
-          if (this.UploadImageBox.img) {
+          if (this.$refs.UploadImageBox.img) {
             // 如果有选择了图片
             data.src = this.form.src
           }

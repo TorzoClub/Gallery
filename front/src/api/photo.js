@@ -10,11 +10,11 @@ export const fetchListWithQQNum = qq_num =>
 
 export const vote = ({
   gallery_id,
-  photo_id,
+  photo_id_list,
   qq_num
 }) =>
   request.post('member/vote', {
     gallery_id,
-    photo_id,
+    photo_id_list,
     qq_num
   })

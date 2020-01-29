@@ -39,6 +39,13 @@ module.exports = app => {
       defaultValue: 0,
       validate: { min: 0 },
     },
+
+    index: {
+      type: INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+      validate: { min: 0 },
+    },
   });
 
   Photo.associate = () => {

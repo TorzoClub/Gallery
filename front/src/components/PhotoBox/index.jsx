@@ -20,7 +20,7 @@ class ImageBox extends React.Component {
     }
   }
 
-  loadImage() {
+  loadImage(url) {
     this.setState({
       downloading: true
     })
@@ -33,9 +33,9 @@ class ImageBox extends React.Component {
         if (xhr.status === 200 || xhr.status === 304) {
           // const blobObject = new Blob([xhr.response], { type: xhr.getResponseHeader('content-type') })
           this.interval = Date.now() - this.start_time
-          this.props.toDetail && this.props.toDetail({
-            ...this.props,
-            imageData: xhr.response
+          this.context.toDetail && this.context.toDetail({
+            imageUrl: URL.createObjectURL(xhr.response)
+            // imageData: xhr.response
           })
         }
       }
@@ -51,20 +51,21 @@ class ImageBox extends React.Component {
     xhr.onloadstart = e => {
       this.start_time = Date.now()
     }
-    xhr.open('GET', this.props.url)
+    xhr.open('GET', url)
     xhr.responseType = 'blob'
     xhr.send()
   }
 
-  handleClick = e => {
-    this.loadImage()
+  handleClickCover = src => {
+    this.loadImage(src)
   }
 
-  handleClickVote = (e, photo) => {
+  handleClickVote = e => {
     e.preventDefault()
     e.stopPropagation()
 
-    this.context.handleVotePhoto(photo)
+    const { gallery, photo } = this.props
+    this.context.handleClickVote(gallery, photo)
   }
 
   handleImageLoaded = e => {
@@ -73,11 +74,19 @@ class ImageBox extends React.Component {
 
   render() {
     const { props, state } = this
-    const { photo } = props
+    const { screen, gutter, gallery, photo } = props
     const { member } = photo
 
     const ratio = (props.height / props.width).toFixed(4)
-    const height = `calc((${props.boxWidth} - ${style['avatar-size']} / 2) * ${ ratio })`
+
+    const isMobile = screen === 'mobile'
+
+    let height
+    if (isMobile) {
+      height = `calc((${props.boxWidth} - ${gutter} / 2) * ${ ratio })`
+    } else {
+      height = `calc((${props.boxWidth} - ${style['avatar-size']} / 2) * ${ ratio })`
+    }
     console.info('height', height)
 
     const coverFrameStyle = {
@@ -85,12 +94,14 @@ class ImageBox extends React.Component {
       background: state.loaded ? 'white': ''
     }
 
-    const isHighlight = photo.is_voted
+    const { selectedGalleryId, selectedIdList } = this.context
+    const isChoosed = (selectedGalleryId === photo.gallery_id) && (selectedIdList.indexOf(photo.id) !== -1)
+    const isHighlight = gallery.vote_submitted ? photo.is_voted : isChoosed
 
     return (
-      <div className="image-box-wrapper">
-        <div className="image-box" onClick={ this.handleClick }>
-          <div className="cover-frame" style={ coverFrameStyle }>
+      <div className={`image-box-wrapper ${screen}`}>
+        <div className="image-box">
+          <div className="cover-frame" style={ coverFrameStyle } onClick={ () => this.handleClickCover(photo.src) }>
             {
               state.downloading && <div className="box-loading-frame">
                 <Loading
@@ -112,7 +123,7 @@ class ImageBox extends React.Component {
           </div>
           <div className="bottom-area">
             <div className="back-bottom">
-              <div className="block-wrapper" onClick={ e => this.handleClickVote(e, photo) }>
+              <div className="block-wrapper" onClick={ this.handleClickVote }>
                 {
                   isHighlight ?
                   <div className="block highlight">

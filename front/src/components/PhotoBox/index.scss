@@ -2,6 +2,7 @@
 $image-box-border-radius: 3px;
 
 $avatar-size: 54px;
+$avatar-size-mobile: 36px;
 
 :export {
   avatar-size: $avatar-size;
@@ -49,7 +50,12 @@ $avatar-size: 54px;
       top: 0;
       height: 100%;
       width: 100%;
-      background-color: rgba(255, 255, 255, 0.75)
+      background-color: rgba(255, 255, 255, 0.75);
+
+      display: flex;
+      align-items: center;
+      align-content: center;
+      justify-content: center;
     }
 
     .cover {
@@ -162,7 +168,7 @@ $avatar-size: 54px;
 
         .avatar-float {
           float: left;
-          width: calc(#{$avatar-size} / 2);
+          width: calc(#{$avatar-size} / 2 + 8px);
           height: calc(#{$avatar-size} / 2);
         }
       }
@@ -177,7 +183,8 @@ $avatar-size: 54px;
       height: $back-bottom-height;
 
       .block-wrapper {
-        height: 0;
+        touch-action: none;
+        // height: 0;
       }
 
       .block {
@@ -200,7 +207,7 @@ $avatar-size: 54px;
           // background-color: #e01d1c;
           // background-color: #ca1d1c;
 
-          background-color: #e95f28;
+          background-color: #ba1616;
 
           box-shadow:
             // inset 0px 4px 4px -4px grey,
@@ -210,7 +217,8 @@ $avatar-size: 54px;
             0 2px 2px -2px #{$box-shadow-color},
             0 1px 1px -2px #{$box-shadow-color},
 
-            0 2px 12px rgba(244, 67, 54, 0.8),
+            // 0 2px 12px rgba(244, 67, 54, 0.8),
+            0 2px 12px rgba(186, 22, 22, 0.8),
 
             // inset 0 -2px 2px -2px #{$box-shadow-color},
             // inset -1px 0 0 #{rgba(0, 0, 0, 0.15)},
@@ -245,6 +253,44 @@ $avatar-size: 54px;
           background-repeat: no-repeat;
           // border-radius: $back-bottom-height;
           // border: solid 1px grey;
+        }
+      }
+    }
+  }
+}
+
+.image-box-wrapper.mobile {
+  padding-left: 0px;
+  width: 100%;
+
+  &:first-child {
+  }
+
+  .bottom-area {
+    .bottom-block {
+      display: flex;
+      justify-content: space-between;
+      padding: calc((#{$avatar-size} - #{$avatar-size-mobile}) / 2) 10px;
+      box-sizing: border-box;
+
+      .avatar-wrapper {
+        position: relative;
+        top: 0;
+        left: 0;
+        width: $avatar-size-mobile;
+        height: $avatar-size-mobile;
+        min-width: $avatar-size-mobile;
+        min-height: $avatar-size-mobile;
+        padding: 0;
+        box-shadow: inset 0 -1px 1px rgba(0, 0, 0, 0.2), 0 0 1px rgba(0, 0, 0, 0.3);
+      }
+
+      .member-name {
+        margin-left: 10px;
+        flex-grow: 2;
+
+        .avatar-float {
+          display: none;
         }
       }
     }

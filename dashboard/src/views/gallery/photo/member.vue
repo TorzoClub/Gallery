@@ -6,6 +6,12 @@
   >
     <ElHeader height="32px">
       <ElButton size="small" type="primary" icon="el-icon-refresh" @click="refresh">刷新</ElButton>
+
+      <ElButton size="small" icon="el-icon-tickets">总人数: {{ totalPeopleCount }}</ElButton>
+
+      <ElButton size="small" icon="el-icon-check">已投 {{ votedPeopleCount }}</ElButton>
+
+      <ElButton size="small" icon="el-icon-close">未投 {{ totalPeopleCount - votedPeopleCount }}</ElButton>
     </ElHeader>
 
     <ElMain>
@@ -16,10 +22,21 @@
             {{ scope.row.name }}
           </router-link>
         </ElTableColumn>
-        <ElTableColumn prop="votes" label="投票状况" align="left" sortable>
+        <ElTableColumn
+          prop="votes"
+          label="投票状况"
+          align="left"
+          :filters="[
+            {text: '已投', value: true },
+            {text: '未投', value: false }
+          ]"
+          :filter-multiple="false"
+          :filter-method="filterHandler"
+          filter-placement="bottom-end"
+        >
           <template slot-scope="scope">
             <template v-if="!scope.row.votes || !scope.row.votes.length">
-              此人未投，可以鄙视
+              未投
             </template>
             <template v-else>
               <template v-for="vote in scope.row.votes">
@@ -70,13 +87,25 @@
     data: () => ({
       loading: false,
       photoList: [],
-      list: [],
+      list: []
     }),
 
     computed: {
       gallery_id() {
         return this.$route.params.gallery_id
       },
+
+      totalPeopleCount() {
+        return this.list.length
+      },
+
+      votedPeopleCount() {
+        const votedArr = this.list.map(member => {
+          return Boolean(member.votes.length)
+        }).filter(isVote => isVote)
+
+        return votedArr.length
+      }
     },
 
     mounted() {
@@ -84,6 +113,10 @@
     },
 
     methods: {
+      filterHandler(filterValue, row, column) {
+        return filterValue === Boolean(row.votes && row.votes.length)
+      },
+
       getPhotoById(photo_id) {
         const idx = this.photoList.map(photo => photo.id).indexOf(photo_id)
         if (idx !== -1) {

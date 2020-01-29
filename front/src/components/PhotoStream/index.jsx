@@ -37,17 +37,31 @@ export default class PhotoStream extends React.Component {
   }
 
   render() {
-    const { column_count, total_width } = this.props
+    const { screen, column_count, total_width } = this.props
     const { gutter = '0px' } = this.props
 
     const columns = this.createColumns()
 
-    // ${gutter} * 2 + (${gutter} / 2)
+    const isMobile = screen === 'mobile'
+
+    let photoStreamListWidth
+    if (isMobile) {
+      photoStreamListWidth = `calc(100vw - ${gutter} * ${column_count} + (${gutter} / 2))`
+    } else {
+      photoStreamListWidth = `calc(${total_width} + ${gutter} * ${column_count - 1})`
+    }
+
+    let boxWidth
+    if (isMobile) {
+      boxWidth = `(${total_width} / ${column_count} - ${gutter})`
+    } else {
+      boxWidth = `(${total_width} / ${column_count})`
+    }
 
     return <div
-      className="photo-stream"
+      className={`photo-stream ${ screen }`}
       style={{
-        width: `calc(${total_width} + ${gutter} * ${column_count - 1})`
+        width: photoStreamListWidth
       }}
     >
       {
@@ -56,7 +70,7 @@ export default class PhotoStream extends React.Component {
             className="steam-column"
             key={ String(key) }
             style={ {
-              width: `calc(${total_width} / ${column_count})`
+              width: `calc(${boxWidth})`
               // marginLeft: key ? '' : gutter,
               // marginRight: gutter,
               // paddingLeft: key ? '' : gutter,
@@ -66,11 +80,14 @@ export default class PhotoStream extends React.Component {
             {
               column.map(photo => (
                 <PhotoBox
+                  gallery={this.props.gallery}
+                  screen={screen}
+                  gutter={gutter}
                   photo={photo}
                   toDetail={this.props.toDetail}
                   width={ photo.width }
                   height={ photo.height }
-                  boxWidth={`(${total_width} / ${column_count})`}
+                  boxWidth={ boxWidth }
                   key={ photo.id.toString() } />
               ))
             }

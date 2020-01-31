@@ -182,6 +182,37 @@ module.exports = app =>
       });
     }
 
+    sortByVoteCount({ gallery_id }) {
+      return this.app.model.transaction(async transaction => {
+        gallery_id = parseInt(gallery_id);
+
+        await this.service.gallery.detectExistsById(gallery_id, {
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+
+        const photoList = await this.service.photo.Model.findAll({
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+
+          order: [
+            [ 'vote_count', 'DESC' ],
+          ],
+        });
+
+        const saveSeries = photoList.map((photo, idx) => {
+          photo.index = idx;
+
+          return photo.save({
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+          });
+        });
+
+        return Promise.all(saveSeries);
+      });
+    }
+
     removeById(id) {
       return this.app.model.transaction(async transaction => {
         return await this.destroyById(parseInt(id), { transaction });

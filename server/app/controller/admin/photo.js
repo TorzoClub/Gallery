@@ -80,6 +80,18 @@ module.exports = app => {
       ctx.backData(200, list);
     }
 
+    async sortByVoteCount(ctx) {
+      ctx.validate({
+        gallery_id: { type: 'id', required: true },
+      }, ctx.params);
+
+      const sortResult = await ctx.service.photo.sortByVoteCount({
+        gallery_id: parseInt(ctx.params.gallery_id),
+      });
+
+      ctx.backData(200, sortResult);
+    }
+
     async edit(ctx) {
       const { id } = ctx.params;
       const { body: data } = ctx.request;

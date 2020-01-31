@@ -33,6 +33,7 @@
           :filter-multiple="false"
           :filter-method="filterHandler"
           filter-placement="bottom-end"
+          sortable
         >
           <template slot-scope="scope">
             <template v-if="!scope.row.votes || !scope.row.votes.length">

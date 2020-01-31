@@ -31,3 +31,9 @@ export const update = (id, data) =>
     method: 'patch',
     data
   })
+
+export const sortByVoteCount = ({ gallery_id }) =>
+  request({
+    url: `admin/gallery/${gallery_id}/photo/sortByVoteCount`,
+    method: 'PUT'
+  })

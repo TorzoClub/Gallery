@@ -18,7 +18,11 @@ module.exports = app => {
 
       const photos_list = await Promise.all(
         list.map(gallery => {
-          return gallery.getPhotos();
+          return gallery.getPhotos({
+            order: [
+              [ 'index', 'ASC' ],
+            ],
+          });
         })
       );
 

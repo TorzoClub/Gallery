@@ -1,7 +1,7 @@
 <template>
   <ElContainer
     v-loading="loading"
-    style="padding-top: 20px; width: 1024px"
+    style="padding-top: 20px; width: 1120px"
     direction="vertical"
   >
     <ElHeader height="32px">
@@ -15,11 +15,14 @@
       <ElButton size="small" type="primary" icon="el-icon-refresh" @click="refresh">刷新</ElButton>
 
       <ElButton size="small" type="primary" icon="el-icon-view" @click="$router.push('member')">成员投票情况</ElButton>
+
+      <ElButton size="small" type="primary" icon="el-icon-sort" @click="clickReSortByVoteCount">按投票数设定排序</ElButton>
     </ElHeader>
 
     <ElMain>
       <ElTable :data="list" border style="width: 100%" stripe :max-height="$parent.getMaxHeight() - 32 - 20 - 20 * 2">
         <ElTableColumn prop="id" label="id" align="center" width="64" />
+        <ElTableColumn prop="index" label="index" align="center" width="96" sortable />
         <ElTableColumn prop="avatar" label="预览" align="center" width="164">
           <template slot-scope="scope">
             <ImageBox :src="scope.row.thumb" style="width: 128px; height: 128px;" />
@@ -64,15 +67,15 @@
 </template>
 
 <style scoped>
-.line{
-  text-align: center;
-}
+  .line {
+    text-align: center;
+  }
 </style>
 
 <script>
   import { toDateTimeWithMinuteString } from '@/utils/date-format'
   import ImageBox from '@/components/Image'
-  import { getList, remove } from '@/api/photo'
+  import { getList, remove, sortByVoteCount } from '@/api/photo'
 
   export default {
     components: {
@@ -142,6 +145,7 @@
         try {
           this.loading = true
           this.list = await getList(this.gallery_id)
+          return this.list
         } catch (err) {
           console.error('获取成员列表失败', err)
           this.$message.error(`获取成员列表失败: ${err.message}`)
@@ -152,6 +156,29 @@
 
       createPhoto() {
         this.$router.push('new')
+      },
+
+      async clickReSortByVoteCount() {
+        const confirm = await this.confirm('', `你确定要按照当前票数的设定排序吗？（票数越高，在前台网站上排名越前）`, {
+          confirmButtonClass: 'el-button--primary',
+        })
+        if (!confirm) {
+          return
+        }
+
+        try {
+          this.loading = true
+          await sortByVoteCount({ gallery_id: this.gallery_id })
+
+          if (await this.refresh()) {
+            this.$message.success(`已排序`)
+          }
+        } catch (err) {
+          console.error('排序失败', err)
+          this.$message.error(`排序失败: ${err.message}`)
+        } finally {
+          this.loading = false
+        }
       }
     }
   }

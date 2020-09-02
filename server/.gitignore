@@ -3,7 +3,8 @@ npm-debug.log
 yarn-error.log
 node_modules/
 package-lock.json
-
+static/src
+static/thumb
 coverage/
 .idea/
 run/

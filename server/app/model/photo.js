@@ -1,5 +1,7 @@
 'use strict';
 
+const fs = require('fs');
+
 module.exports = app => {
   const { INTEGER, VIRTUAL, STRING, TEXT } = app.Sequelize;
 
@@ -12,6 +14,15 @@ module.exports = app => {
       get() {
         const src = this.getDataValue('src');
         return app.serviceClasses.image.toSrcUrl(src);
+      },
+
+      set(src) {
+        const localPath = app.serviceClasses.image.toLocalSrcPath(src);
+        if (!fs.existsSync(localPath)) {
+          throw new app.WarningError('src is not exists', 400);
+        }
+
+        return this.setDataValue('src', src);
       },
     },
 

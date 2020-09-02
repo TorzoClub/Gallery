@@ -20,7 +20,7 @@
         >
           <UploadImageBox
             :preview-url="form.avatar_src"
-            @upload-success="data => form.avatar_src = data.src"
+            @upload-success="data => form.new_avatar_src = data.src"
           />
         </ElFormItem>
         <ElFormItem
@@ -133,11 +133,14 @@
 
         try {
           this.loading = true
-          await update(this.id, {
+          const data = {
             name: this.form.name,
-            avatar_src: this.form.avatar_src,
             qq_num: Number(this.form.qq_num)
-          })
+          }
+          if (this.form.new_avatar_src) {
+            data.avatar_src = this.form.new_avatar_src
+          }
+          await update(this.id, data)
           this.$router.back()
           this.$message.success(`【${this.form.name}】已更新`)
         } catch (err) {

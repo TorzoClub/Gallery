@@ -13,8 +13,15 @@ module.exports = app =>
       return path.join(app.config.imageSavePath, fileName);
     }
 
+    static toThumbFilename(srcFileName) {
+      return `${srcFileName}.jpg`;
+    }
+
     static toLocalThumbPath(fileName) {
-      return path.join(app.config.imageThumbSavePath, fileName);
+      return path.join(
+        app.config.imageThumbSavePath,
+        ImageService.toThumbFilename(fileName)
+      );
     }
 
     static toSrcUrl(fileName) {
@@ -22,22 +29,26 @@ module.exports = app =>
     }
 
     static toThumbUrl(fileName) {
-      return url.resolve(app.config.imageThumbPrefix, fileName);
+      return url.resolve(
+        app.config.imageThumbPrefix,
+        ImageService.toThumbFilename(fileName)
+      );
     }
 
-    async generateThumb(filePath) {
+    static async generateThumb(filePath) {
       const image = await jimp.read(filePath);
 
-      await image.resize(app.config.imageThumbSize, jimp.AUTO);
-
       const srcFilename = path.basename(filePath);
-
       const writePath = ImageService.toLocalThumbPath(srcFilename);
 
-      await image.writeAsync(writePath);
+      await image
+        .resize(app.config.imageThumbSize, jimp.AUTO)
+        .quality(60)
+        .write(writePath);
 
       return {
-        filename: srcFilename,
+        srcFilename,
+        thumbFilename: ImageService.toThumbFilename(srcFilename),
       };
     }
 
@@ -54,7 +65,7 @@ module.exports = app =>
         stream.on('error', rej);
       }));
 
-      const { filename: thumbFilename } = await this.generateThumb(writePath);
+      const { thumbFilename } = await ImageService.generateThumb(writePath);
 
       return {
         imagePrefix: app.config.imagePrefix,

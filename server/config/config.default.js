@@ -5,6 +5,9 @@
 const path = require('path');
 const absolutePath = inputPath => path.join(__dirname, '../', inputPath);
 
+const imageThumbSavePath = absolutePath('./static/thumb/');
+const imageSavePath = absolutePath('./static/src/');
+
 /**
  * @param {Egg.EggAppInfo} appInfo app info
  */
@@ -32,14 +35,25 @@ module.exports = appInfo => {
     dir: path.join(__dirname, '../static'),
   };
 
+  config.development = {
+    ...(config.development || {}),
+
+    ignoreDirs: [
+      imageThumbSavePath,
+      imageSavePath,
+    ],
+  };
+
   // add your user config here
   const userConfig = {
     adminPass: '7355608',
 
+    startBeforeGenerateThumb: false,
+
     imageThumbSize: 640,
 
-    imageThumbSavePath: absolutePath('./static/thumb/'),
-    imageSavePath: absolutePath('./static/src/'),
+    imageThumbSavePath,
+    imageSavePath,
 
     // imageThumbPrefix、imagePrefix 请在末尾加上斜杠
     imageThumbPrefix: 'http://localhost:7001/static/thumb/',

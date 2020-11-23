@@ -329,7 +329,13 @@ class GalleryHome extends Component {
                 />
 
                 {
-                  <Fade in={ showDetail }>
+                  <Fade
+                    in={ showDetail }
+                    appendStyle={{
+                      zIndex: 1000,
+                      position: 'relative'
+                    }}
+                  >
                     <PhotoDetail imageUrl={ detailImageUrl } onCancel={ () => this.setState({ showDetail: false }) } />
                   </Fade>
                 }

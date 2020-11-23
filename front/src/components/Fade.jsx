@@ -4,12 +4,12 @@ import { Transition } from 'react-transition-group';
 const duration = 300;
 
 export default (props) => {
-  const { children, in: inProp } = props
+  const { appendStyle = {}, children, in: inProp } = props
 
   return (
     <Transition in={inProp} timeout={duration}>
       {state => (
-        <div className={`fade ${state}`} style={{}}>
+        <div className={`fade ${state}`} style={{ ...appendStyle }}>
           { children }
 
           <style jsx>{`

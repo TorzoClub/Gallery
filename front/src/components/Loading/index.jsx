@@ -1,76 +1,59 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import style from './index.module.scss'
-export default class Loading extends React.Component {
-  constructor(props) {
-    super(props)
-    this.state = {
-      line_list: [
-        0, 0, 0, 0,
-        0, 0, 0, 0,
-        0, 0, 0, 0
-      ],
-      line_count: 12,
-      highlight_index: 0
-    }
-  }
+export default () => {
+  const [lineList, setLineList] = useState([
+    0, 0, 0, 0,
+    0, 0, 0, 0,
+    0, 0, 0, 0
+  ])
 
-  componentWillUnmount() {
-    clearInterval(this.timing)
-    this.timing = null
-  }
-
-  componentDidMount() {
-    clearInterval(this.timing)
-
+  useEffect(() => {
     let i = 0
-    this.timing = setInterval(() => {
-      let { line_list } = this.state
+    let latestTime = null
+    const frame = time => {
+      if (latestTime === null) {
+        latestTime = time
+      }
 
-      if (line_list.length === i) {
+      if ((time - latestTime) < 75) {
+        handler = requestAnimationFrame(frame)
+        return
+      } else {
+        latestTime = time
+      }
+
+      if (i >= lineList.length) {
         i = 0
       }
 
-      line_list[i] = 1
+      const newLineList = [...lineList]
+      newLineList[i] = 1
+      setLineList(newLineList.map(v => v))
+      i += 1
 
-      setTimeout((i =>
-        () => {
-          if (!this.timing) {
-            return
-          }
-          this.setState(state => {
-            state.line_list[i] = 0
-            return {
-              line_list: state.line_list.map(v => v)
-            }
-          })
-        }
-      )(i), 200)
+      handler = requestAnimationFrame(frame)
+    }
 
-      this.setState({
-        line_list: line_list.map(v => v)
-      })
-      ++i
-    }, 50)
-  }
+    let handler = requestAnimationFrame(frame)
+    return () => cancelAnimationFrame(handler)
+  }, [])
 
-  render() {
-    const { state } = this
-    // console.log('style', style)
-    return <div className={style.loading}>
-      <div className={ style['loading-block'] }>
+  return (
+    <div className={style.loading}>
+      <div className={style['loading-block']}>
         {
-          state.line_list.map((highlight, index, total) => {
+          lineList.map((highlight, index, total) => {
             const className = `${style['loading-block-line']} ${highlight && style['highlight']}`
             return <div
               key={index}
               className={className}
-              style={ {
+              style={{
                 transform: `rotate(${(360 / total.length) * index}deg)`
-              } }
+              }}
             ></div>
           })
         }
       </div>
     </div>
-  }
+  )
 }

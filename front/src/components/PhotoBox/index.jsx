@@ -122,28 +122,34 @@ class ImageBox extends React.Component {
             {/* <div className="highlight"></div> */}
           </div>
           <div className="bottom-area">
-            <div className="back-bottom">
-              <div className="block-wrapper" onClick={ this.handleClickVote }>
-                {
-                  isHighlight ?
-                  <div className="block highlight">
-                    <div className="heart" style={{ backgroundImage: `url(${heartHighlightIMG})` }} />
-                  </div>
-                  :
-                  <div className="block">
-                    <div className="heart" style={{ backgroundImage: `url(${heartIMG})` }} />
-                  </div>
-                }
-              </div>
-            </div>
-
             <div className="bottom-block">
               <div className="avatar-wrapper">
                 <div className="avatar" alt={ member.name } style={{ backgroundImage: `url(${member.avatar_thumb})` }}></div>
               </div>
 
-              <div className="member-name"><div className="avatar-float"></div>{ member.name }</div>
+              <div className="member-name"><div className="avatar-float"></div><span className="name-label">{ member.name }</span></div>
             </div>
+
+            {
+              gallery.is_expired || (
+                <div className="back-bottom-wrapper">
+                  <div className="back-bottom">
+                    <div className="block-wrapper" onClick={ this.handleClickVote }>
+                      {
+                        isHighlight ?
+                        <div className="block highlight">
+                          <div className="heart" style={{ backgroundImage: `url(${heartHighlightIMG})` }} />
+                        </div>
+                        :
+                        <div className="block">
+                          <div className="heart" style={{ backgroundImage: `url(${heartIMG})` }} />
+                        </div>
+                      }
+                    </div>
+                  </div>
+                </div>
+              )
+            }
           </div>
         </div>
       </div>

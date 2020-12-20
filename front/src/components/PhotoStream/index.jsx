@@ -1,8 +1,10 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 
 import './index.scss'
 
 import PhotoBox from 'components/PhotoBox'
+
+import loadThumb from 'utils/load-thumb'
 
 const SAME_HEIGHT = 100
 
@@ -11,14 +13,17 @@ const witchHeightIsMinimum = columns =>
 
 const computeColumnHeight = column => 
   column
-    .map(photo => SAME_HEIGHT * (photo.height / photo.width))
+    .map(photo => {
+      return SAME_HEIGHT * (photo.height / photo.width)
+    })
     .reduce((a, b) => a + b, 0)
 
 const createColumns = (column_count, photos) => {
   const columns = Array.from(Array(column_count)).map(() => [])
 
   photos.forEach(photo => {
-    // console.log('photo', photo)
+    loadThumb(photo.member.avatar_thumb)
+    loadThumb(photo.thumb)
     const columnsHeight = columns.map(computeColumnHeight)
 
     const min_height_index = witchHeightIsMinimum(columnsHeight)
@@ -31,7 +36,9 @@ const createColumns = (column_count, photos) => {
 export default (props) => {
   const { screen, column_count, photos, total_width, gutter = '0px' } = props
 
-  const columns = createColumns(column_count, photos)
+  const columns = useMemo(() => {
+    return createColumns(column_count, photos)
+  }, [column_count, photos])
 
   const isMobile = screen === 'mobile'
 

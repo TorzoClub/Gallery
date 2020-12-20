@@ -1,55 +1,42 @@
-import React, { Component } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 
-export default class WaitingInput extends Component {
-  state = {
-    password: '',
-    width: ''
-  }
+export default ({
+  disabled,
+  isFailure,
+  onInputChange = () => undefined
+}) => {
+  const inputEl = useRef(null)
+  const frontEl = useRef(null)
+  const [value, setValue] = useState('')
 
-  handleInputChange = e => {
-    e.preventDefault()
-    const { onInputChange } = this.props
+  useEffect(() => {
+    inputEl.current.style.width = `${frontEl.current.offsetWidth}px`
+  })
 
-    const changedPassword = e.target.value
-
-    const isInvalidPassword = /[^0-9/?]/.test(changedPassword)
-    if (!isInvalidPassword) {
-      this.setState({
-        password: changedPassword
-      })
-
-      onInputChange && onInputChange(changedPassword)
-    }
-  }
-
-  componentDidMount() {
-    this.inputElement.style.width = `${this.frontElement.offsetWidth}px`
-  }
-
-  componentDidUpdate() {
-    this.inputElement.style.width = `${this.frontElement.offsetWidth}px`
-  }
-
-  render() {
-    // const borderColors = {
-    //   success: '#A8D8B9',
-    //   failure: '#c88484'
-    // }
-
-    return <div className={`wrapper ${ this.props.isFailure ? 'failure' : ''}`}>
+  return (
+    <div className={`wrapper ${isFailure ? 'failure' : ''}`}>
       <input
         className="input-mask"
-        ref={ el => { this.inputElement = el } }
-        style={ { width: this.state.width } }
-        disabled={ this.props.disabled }
-        value={ this.state.password }
+        ref={inputEl}
+        disabled={disabled}
+        value={value}
         spellCheck="false"
-        onChange={ this.handleInputChange } />
+        onChange={(e) => {
+          e.preventDefault()
+          const changedValue = e.target.value
+
+          const isInvalidValue = /[^0-9/?]/.test(changedValue)
+          if (!isInvalidValue) {
+            setValue(changedValue)
+            onInputChange(changedValue)
+          }
+        }}
+      />
 
       <pre
         className="input-front"
-        ref={ el => { this.frontElement = el } }
-      >{ this.state.password }</pre>
+        ref={frontEl}
+      >{value}</pre>
 
       <style jsx>{`
         .wrapper {
@@ -159,5 +146,5 @@ export default class WaitingInput extends Component {
         }
       `}</style>
     </div>
-  }
+  )
 }

@@ -12,6 +12,10 @@ export const getMyQQNum = () => {
   }
 }
 
+export const clearMyQQNum = () => {
+  delete localStorage[QQ_NUM_KEY]
+}
+
 export const setMyQQNum = qq_num => {
   if (validQQNum(qq_num)) {
     localStorage[QQ_NUM_KEY] = JSON.stringify(qq_num)

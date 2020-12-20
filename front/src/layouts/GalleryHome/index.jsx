@@ -1,5 +1,5 @@
-import React, { Component } from 'react'
-import { observer } from 'mobx-react'
+import React, { useState, useEffect } from 'react'
+
 import vait from 'vait'
 // import store from 'store'
 import Loading from 'components/Loading'
@@ -11,7 +11,7 @@ import Gallery from 'components/Gallery'
 
 import HomeContext from './context'
 
-import { getMyQQNum, setMyQQNum } from 'utils/qq-num'
+import { getMyQQNum, clearMyQQNum, setMyQQNum } from 'utils/qq-num'
 
 import Fade from 'components/Fade'
 import InputPrompt from 'components/InputPrompt'
@@ -19,146 +19,75 @@ import InputPrompt from 'components/InputPrompt'
 import PhotoDetail from 'components/Detail'
 import SubmitButton from 'components/SubmitButton'
 
-@observer
-class GalleryHome extends Component {
-  state = {
-    loaded: false,
-    loading: false,
+function getData() {
+  const qq_num = getMyQQNum()
 
-    selectedGalleryId: null,
-    selectedIdList: [],
-    list: [],
+  if (qq_num) {
+    return fetchListWithQQNum(qq_num).catch(err => {
+      if ((err.status === 404) && (err.message === '成员不存在')) {
+        clearMyQQNum()
+        return getData()
+      }
+    })
+  } else {
+    return fetchList()
+  }
+}
 
-    submittedPool: {},
+const useStateObject = (initObj) => {
+  const [obj, setObj] = useState(initObj)
+  
+  let newObj = { ...obj }
+  return [obj, (appendObj) => {
+    newObj = { ...obj, ...newObj, ...appendObj }
+    return setObj(newObj)
+  }]
+}
 
+export default (props) => {
+  const [selectedGalleryId, setSelectedGalleryId] = useState(null)
+  const [selectedIdList, setSelectedIdList] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  const [list, setList] = useState([])
+  const [submittedPool, setSubmittedPool] = useState({})
+
+  const [showDetail, setShowDetail] = useState(false)
+  const [detailImageUrl, setDetailImageUrl] = useState('')
+
+  const [inputState, setInputState] = useStateObject({
     showInputPrompt: false,
     submitSuccess: false,
     submitLoading: false,
     submitError: null,
     disableInput: false,
+  })
 
-    showDetail: false,
-    detailImageUrl: 'http://localhost:7001/static/src/1575647894663.png'
-  }
-
-  constructor(props) {
-    super(props)
-
-    this.managerRef = React.createRef()
-  }
-
-  detectSubmit = async qq_num => {
-    try {
-      this.setState({
-        submitLoading: true,
-        disableInput: true,
-      })
-
-      await vait.timeout(500)
-
-      const { selectedGalleryId: gallery_id, selectedIdList: photo_id_list } = this.state.showInputPrompt
-
-      await vote({
-        gallery_id,
-        photo_id_list,
-        qq_num: Number(qq_num)
-      })
-
-      setMyQQNum(Number(qq_num))
-
-      this.setState({
-        submittedPool: {
-          ...this.state.submittedPool,
-          [gallery_id]: true
-        },
-
-        submitSuccess: true
-      })
-
-      setTimeout(() => {
-        this.setState({
-          showInputPrompt: false
-        })
-      }, 1000)
-    } catch (err) {
-      if (err.status === 409) {
-        // 已经投过票了
-
-        if (!getMyQQNum()) {
-          // 首次输入 Q 号进入
-          setMyQQNum(Number(qq_num))
-        }
-
-        try {
-          await this.refresh()
-        } finally {
-          this.setState({
-            showInputPrompt: false
-          })
-        }
-
-        return
-      }
-
-      console.error('vote error', err)
-
-      if (err.status === 403 && /Ʊ��/.test(err.message)) {
-        alert('你已经没票了，朋友，明年再来吧')
-        return
-      }
-
-      this.setState({
-        submitError: err
-      })
-    } finally {
-      this.setState({
-        submitLoading: false,
-        disableInput: false,
-      })
-    }
-  }
-
-  fetchList() {
-    const qq_num = getMyQQNum()
-
-    if (qq_num) {
-      return fetchListWithQQNum(qq_num)
-    } else {
-      return fetchList()
-    }
-  }
-
-  refresh = async () => {
-    console.warn('refresh')
-    try {
-      // this.setState({ loaded: false })
-      const list = await this.fetchList()
-      console.warn('list', list)
-      this.setState({ loaded: true, list })
-    } catch (err) {
+  const refresh = () => {
+    // 获取相册数据
+    getData().then(list => {
+      setList(list)
+      setLoaded(true)
+    }).catch(err => {
       console.error('获取相册数据失败', err)
       alert(`获取相册数据失败: ${err.message}`)
-      this.setState({ loaded: false })
-    }
+      setLoaded(false)
+    })
   }
 
-  componentDidMount() {
-    this.refresh()
-  }
+  useEffect(() => {
+    refresh()
+  }, [])
 
-  handleClickSubmit = async () => {
-    const { selectedGalleryId, selectedIdList } = this.state
-
+  const handleClickSubmit = async () => {
     try {
-      this.setState({
-        loading: true
-      })
+      setLoading(true)
 
       let qq_num = getMyQQNum()
 
       if (!qq_num) {
         // 未缓存 Q 号
-        this.setState({
+        setInputState({
           showInputPrompt: {
             selectedGalleryId, selectedIdList
           }
@@ -170,112 +99,95 @@ class GalleryHome extends Component {
           qq_num: Number(qq_num)
         })
 
-        this.setState({
-          submittedPool: {
-            ...this.state.submittedPool,
-            [selectedGalleryId]: true
-          }
+        setSubmittedPool({
+          submittedPool,
+          [selectedGalleryId]: true
         })
       }
     } catch (err) {
       console.error(err.message)
       alert(err.message)
     } finally {
-      this.setState({
-        loading: false
-      })
+      setLoading(false)
     }
   }
 
-  handleClickVote = async (gallery, photo) => {
-    console.warn('handleClickVote', gallery.vote_submitted, photo)
-
-    const isSubmitted = this.state.submittedPool[gallery.id]
-
-    if (isSubmitted) {
-      return
-    }
-
-    if (gallery.is_expired) {
-      return
-    }
-
-    if (gallery.vote_submitted) {
-      return
-    }
-
-    const { id, gallery_id } = photo
-    let { selectedGalleryId, selectedIdList } = this.state
-    selectedIdList = [...selectedIdList]
-
-    if (selectedGalleryId && (gallery_id !== selectedGalleryId)) {
-      return alert('different gallery_id')
-    } else {
-      selectedGalleryId = gallery_id
-    }
-
-    const idx = selectedIdList.indexOf(id)
-
-    if (idx === -1) {
-      if (gallery.vote_limit && (selectedIdList.length >= gallery.vote_limit)) {
-        // alert('enough')
-        return
-      } else {
-        selectedIdList.push(id)
-      }
-    } else {
-      selectedIdList.splice(idx, 1)
-    }
-
-    this.setState({
+  return (
+    <HomeContext.Provider value={{
       selectedGalleryId,
-      selectedIdList
-    })
-  }
-
-  handleToDetail = ({ imageUrl: detailImageUrl }) => {
-    console.warn('detailImageUrl', detailImageUrl)
-    this.setState({
-      showDetail: true,
-      detailImageUrl
-    })
-  }
-
-  render() {
-    const { showDetail, detailImageUrl, selectedIdList, loading } = this.state
-
-    console.log('render', this.state.list, this.state.list.map)
-    // const { firstLoaded, firstLoading, firstLoadingError } = this.state
-
-    return <HomeContext.Provider value={{
-      selectedGalleryId: this.state.selectedGalleryId,
       selectedIdList,
-      handleClickVote: this.handleClickVote,
-      toDetail: this.handleToDetail
+      handleClickVote: async (gallery, photo) => {
+        console.warn('handleClickVote', gallery.vote_submitted, photo)
+
+        const isSubmitted = submittedPool[gallery.id]
+
+        if (isSubmitted) {
+          return
+        }
+
+        if (gallery.is_expired) {
+          return
+        }
+
+        if (gallery.vote_submitted) {
+          return
+        }
+
+        const { id, gallery_id } = photo
+  
+        let newSelectedIdList = [...selectedIdList]
+        let newSelectedGalleryId = selectedGalleryId
+
+        if (selectedGalleryId && (gallery_id !== selectedGalleryId)) {
+          return alert('different gallery_id')
+        } else {
+          newSelectedGalleryId = gallery_id
+        }
+
+        const idx = newSelectedIdList.indexOf(id)
+
+        if (idx === -1) {
+          if (gallery.vote_limit && (newSelectedIdList.length >= gallery.vote_limit)) {
+            // alert('enough')
+            return
+          } else {
+            newSelectedIdList.push(id)
+          }
+        } else {
+          newSelectedIdList.splice(idx, 1)
+        }
+
+        setSelectedGalleryId(newSelectedGalleryId)
+        setSelectedIdList(newSelectedIdList)
+      },
+      toDetail: ({ imageUrl: detailImageUrl }) => {
+        setDetailImageUrl(detailImageUrl)
+        setShowDetail(true)
+      }
     }}>
-      <div className={ `gallery-home` }>
+      <div className={`gallery-home`}>
         {
           (() => {
-            if (this.state.loaded) {
+            if (loaded) {
               return <div className="body">
                 {
-                  this.state.list.map(gallery => {
+                  list.map(gallery => {
                     const showSubmitButton = !gallery.vote_submitted
-                    let isSubmitted = this.state.submittedPool[gallery.id]
+                    let isSubmitted = submittedPool[gallery.id]
                     // isSubmitted = true
 
                     let buttonMode = ''
 
                     if (isSubmitted) {
                       buttonMode = 'done'
-                    } else if (this.state.showInputPrompt) {
+                    } else if (inputState.showInputPrompt) {
                       buttonMode = 'blue'
-                    } else if (this.state.selectedIdList.length) {
+                    } else if (selectedIdList.length) {
                       buttonMode = 'blue ring'
                     }
 
-                    return <div className="gallery-wrapper" key={ gallery.id }>
-                      <Gallery gallery={ gallery } />
+                    return <div className="gallery-wrapper" key={gallery.id}>
+                      <Gallery gallery={gallery} />
 
                       {
                         !gallery.is_expired && showSubmitButton &&
@@ -285,8 +197,8 @@ class GalleryHome extends Component {
                               return <div className="submitted">感谢你的投票</div>
                             } else {
                               return <SubmitButton
-                                mode={ buttonMode }
-                                clickButton={ e => {
+                                mode={buttonMode}
+                                clickButton={e => {
                                   if (!showSubmitButton) {
                                     return
                                   }
@@ -303,7 +215,7 @@ class GalleryHome extends Component {
                                     return
                                   }
 
-                                  return this.handleClickSubmit(e)
+                                  return handleClickSubmit()
                                 }}
                               />
                             }
@@ -315,28 +227,98 @@ class GalleryHome extends Component {
                 }
 
                 <InputPrompt
-                  in={ this.state.showInputPrompt }
-                  isDone={ this.state.submitSuccess }
-                  isLoading={ this.state.submitLoading }
-                  isFailure={ this.state.submitError }
-                  disabled={ this.state.disableInput }
-                  handleInputChange={ () => {
-                    this.setState({
+                  in={inputState.showInputPrompt}
+                  isDone={inputState.submitSuccess}
+                  isLoading={inputState.submitLoading}
+                  isFailure={inputState.submitError}
+                  disabled={inputState.disableInput}
+                  handleInputChange={() => {
+                    setInputState({
                       submitError: null
                     })
-                  } }
-                  handlesubmitDetect={ this.detectSubmit }
+                  }}
+                  handlesubmitDetect={async qq_num => {
+                    console.error('inputState.submitSuccess', inputState.submitSuccess)
+
+                    try {
+                      setInputState({
+                        submitLoading: true,
+                        disableInput: true,
+                      })
+
+                      await vait.timeout(500)
+
+                      const { selectedGalleryId: gallery_id, selectedIdList: photo_id_list } = inputState.showInputPrompt
+                      await vote({
+                        gallery_id,
+                        photo_id_list,
+                        qq_num: Number(qq_num)
+                      })
+
+                      setMyQQNum(Number(qq_num))
+
+                      setInputState({
+                        submitSuccess: true
+                      })
+
+                      setSubmittedPool({
+                        ...submittedPool,
+                        [gallery_id]: true
+                      })
+
+                      setTimeout(() => {
+                        setInputState({
+                          showInputPrompt: false
+                        })
+                      }, 1500)
+                    } catch (err) {
+                      if (err.status === 409) {
+                        // 已经投过票了
+
+                        if (!getMyQQNum()) {
+                          // 首次输入 Q 号进入
+                          setMyQQNum(Number(qq_num))
+                        }
+
+                        try {
+                          await refresh()
+                        } finally {
+                          setInputState({
+                            showInputPrompt: false
+                          })
+                        }
+
+                        return
+                      }
+
+                      console.error('vote error', err)
+
+                      if (err.status === 403 && /已过投票截止时间/.test(err.message)) {
+                        alert('已经超时了，朋友，明年再来吧')
+                        return
+                      }
+
+                      setInputState({
+                        submitError: err
+                      })
+                    } finally {
+                      setInputState({
+                        submitLoading: false,
+                        disableInput: false,
+                      })
+                    }
+                  }}
                 />
 
                 {
                   <Fade
-                    in={ showDetail }
+                    in={showDetail}
                     appendStyle={{
                       zIndex: 1000,
                       position: 'relative'
                     }}
                   >
-                    <PhotoDetail imageUrl={ detailImageUrl } onCancel={ () => this.setState({ showDetail: false }) } />
+                    <PhotoDetail imageUrl={detailImageUrl} onCancel={() => setShowDetail(false)} />
                   </Fade>
                 }
               </div>
@@ -379,7 +361,5 @@ class GalleryHome extends Component {
         `}</style>
       </div>
     </HomeContext.Provider>
-  }
+  )
 }
-
-export default GalleryHome

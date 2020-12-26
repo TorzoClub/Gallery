@@ -14,7 +14,11 @@ module.exports = app => {
         },
       });
 
-      const list = await ctx.app.model.Gallery.findAll();
+      const list = await ctx.app.model.Gallery.findAll({
+        order: [
+          ['index', 'DESC'],
+        ],
+      });
 
       const photos_list = await Promise.all(
         list.map(gallery => {

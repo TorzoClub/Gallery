@@ -16,7 +16,7 @@
     "react-scripts": "2.1.8",
     "react-transition-group": "^4.0.1",
     "styled-jsx": "^3.2.1",
-    "vait": "^0.2.0"
+    "vait": "^0.2.3"
   },
   "scripts": {
     "start-old": "react-scripts start",

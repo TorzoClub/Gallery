@@ -4,9 +4,8 @@ import WaitingInput from './WaitingInput'
 
 export default class WaitingInputFrame extends Component {
   state = {
-    loading: false,
     latestInputTimeStamp: 0,
-    status: 'none'
+    isFocus: false
   }
 
   setQuickTriggerEvent(action, handler) {
@@ -53,6 +52,7 @@ export default class WaitingInputFrame extends Component {
     if (submitValue && submitValue.length) {
       // 空密码不会跳转的
       this.props.handlesubmitDetect && this.props.handlesubmitDetect(submitValue)
+      this.setState({ isFocus: false })
     }
   }
 
@@ -61,8 +61,11 @@ export default class WaitingInputFrame extends Component {
       <WaitingInput
         isFailure={ this.props.isFailure }
         disabled={ this.props.disabled }
-        status={ this.state.status }
+        placeholder={ this.props.placeholder }
         onInputChange={ this.handleInputChange }
+        isFocus={ this.state.isFocus }
+        onBlur={() => this.setState({ isFocus: false })}
+        onFocus={() => this.setState({ isFocus: true })}
       />
     )
   }

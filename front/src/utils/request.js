@@ -3,7 +3,7 @@ import store from 'store'
 
 const config = {
   baseURL: process.env.REACT_APP_API_PREFIX,
-  timeout: 5000
+  timeout: 100000
 }
 
 const request = axios.create(config)

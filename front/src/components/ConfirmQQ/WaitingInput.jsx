@@ -3,7 +3,12 @@ import React, { useRef, useState, useEffect } from 'react'
 export default ({
   disabled,
   isFailure,
-  onInputChange = () => undefined
+  onInputChange = () => undefined,
+  placeholder = '',
+  onBlur = () => undefined,
+  onFocus = () => undefined,
+
+  isFocus = false
 }) => {
   const inputEl = useRef(null)
   const frontEl = useRef(null)
@@ -13,35 +18,54 @@ export default ({
     inputEl.current.style.width = `${frontEl.current.offsetWidth}px`
   })
 
+  useEffect(() => {
+    if (isFocus) {
+      inputEl.current.focus()
+    } else {
+      inputEl.current.blur()
+    }
+  }, [isFocus])
+
+  // const inputNode = (
+    
+  // )
+
   return (
     <div className={`wrapper ${isFailure ? 'failure' : ''}`}>
-      <input
-        className="input-mask"
-        ref={inputEl}
-        disabled={disabled}
-        value={value}
-        spellCheck="false"
-        onChange={(e) => {
-          e.preventDefault()
-          const changedValue = e.target.value
-
-          const isInvalidValue = /[^0-9/?]/.test(changedValue)
-          if (!isInvalidValue) {
-            setValue(changedValue)
-            onInputChange(changedValue)
-          }
-        }}
-      />
-
       <pre
         className="input-front"
         ref={frontEl}
-      >{value}</pre>
+      >
+        {value}
+        <div className={`placeholder ${value.length ? 'placeholder-hide' : ''}`}>{placeholder}</div>
+      </pre>
+
+      {disabled ? null : (
+        <input
+          className="input-mask"
+          ref={inputEl}
+          disabled={disabled}
+          value={value}
+          inputMode="numeric"
+          spellCheck="false"
+          onBlur={onBlur}
+          onFocus={onFocus}
+          onChange={(e) => {
+            e.preventDefault()
+            const changedValue = e.target.value
+
+            const isInvalidValue = /[^0-9/?]/.test(changedValue)
+            if (!isInvalidValue) {
+              setValue(changedValue)
+              onInputChange(changedValue)
+            }
+          }}
+        />
+      )}
 
       <style jsx>{`
         .wrapper {
           position: relative;
-          margin-top: 6px;
         }
 
         @keyframes shake {
@@ -143,6 +167,50 @@ export default ({
 
           border-top: solid 1px transparent !important;
           border-bottom: solid 1px rgba(0, 0, 0, 0.2);
+
+          position: relative;
+        }
+
+        @keyframes shine{
+          0% {
+          }
+          100% {
+            opacity: 0.382;
+          }
+        }
+
+        .placeholder {
+          animation: shine 2s infinite;
+          animation-timing-function: ease-in-out;
+          animation-direction: alternate;
+          animation-play-state: running;
+        }
+
+        .placeholder-hide {
+          -webkit-filter: blur(8px);
+          color: rgba(255, 255, 255, 0) !important;
+          /* transform: translateY(1em) !important; */
+          animation-play-state: paused !important;
+        }
+
+        .placeholder {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          color: rgba(48, 103, 133, .618);
+          font-style: italic;
+
+          -webkit-filter: blur(0px)
+          transform: translateY(0);
+          transition-property: -webkit-filter color transform;
+          transition-duration: 382ms;
+
+          font-weight: 600;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
         }
       `}</style>
     </div>

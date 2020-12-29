@@ -1,3 +1,11 @@
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
 .detail-frame {
   display: flex;
   align-items: center;
@@ -10,19 +18,27 @@
   width: 100vw;
   height: 100vh;
 
-  background-color: rgba(0, 0, 0, 0.8);
-
   overflow-y: scroll;
   -webkit-overflow-scrolling: touch;
   -webkit-tap-highlight-color: transparent;
 
-  transition: opacity 618ms;
-
   z-index: 10000;
+
+  .bgMask {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+
+    background-color: rgba(0, 0, 0, 0.8);
+    transition: opacity 618ms;
+    animation: fadeIn 618ms;
+  }
   
   .imageFrame {
     &.transition {
-      transition-property: width, height, top, left;
+      transition-property: opacity, transform, width, height, top, left;
       transition-duration: 382ms;
       transition-timing-function: ease;
     }

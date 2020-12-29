@@ -1,5 +1,5 @@
 import vait from 'vait'
-import React, { useEffect, useState } from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 
 import './style.scss'
 
@@ -57,8 +57,13 @@ export default ({
   detail,
   onCancel = () => undefined
 }) => {
-  const [isShow, setIsShow] = useState(false);
-  const [opacity, setOpacity] = useState(0);
+  const detailFrameEl = useRef(null)
+  const imageFrameEl = useRef(null)
+  const [touchStart, setTouchStart] = useState(null)
+  const [touchMove, setTouchMove] = useState(null)
+
+  const [isShow, setIsShow] = useState(false)
+  const [opacity, setOpacity] = useState(1)
 
   const [sourceUrl, setSourceUrl] = useState('')
   const [thumbUrl, setThumbUrl] = useState('')
@@ -69,7 +74,7 @@ export default ({
   useEffect(() => {
     if (detail) {
       setIsShow(true)
-      setOpacity(1)
+      // setOpacity(1)
 
       setThumbUrl(detail.from.thumb)
       setSourceUrl(detail.src)
@@ -83,12 +88,15 @@ export default ({
         height,
       })
 
-      return () => {
-        setOpacity(0)
-      }
+      // return () => {
+      //   setOpacity(0)
+      // }
     } else {
       setImageFrameTransition(true)
       setToPos(null)
+      setTouchMove(null)
+      setTouchStart(null)
+      setOpacity(0)
 
       let firstV = vait.timeout(382)
       let secondV
@@ -107,6 +115,7 @@ export default ({
       })
 
       return () => {
+        setOpacity(1)
         firstV && firstV.clear()
         secondV && secondV.clear()
       }
@@ -146,8 +155,6 @@ export default ({
         return
       }
 
-      console.error('dd', window.innerWidth, window.innerHeight)
-
       setImageFrameTransition(true)
       setToPos({
         ...calcImageFullScreenPos({
@@ -163,6 +170,166 @@ export default ({
     }
   }, [fromPos])
 
+  useEffect(() => {
+    if (!imageFrameEl.current) {
+      return
+    }
+
+    const { current: el } = imageFrameEl
+
+    const touchStartHandler = (e) => {
+      const { touches } = e
+      if (touches.length !== 1) {
+        // 不是单指操作的情况
+        return
+      }
+
+      e.stopPropagation()
+      e.preventDefault()
+
+      const touch = touches[0]
+      
+      setTouchStart({
+        x: touch.clientX,
+        y: touch.clientY
+      })
+    }
+    const touchMoveHandler = (e) => {
+      const { touches } = e
+      if (touches.length !== 1) {
+        // 不是单指操作的情况
+        return
+      }
+
+      e.stopPropagation()
+      e.preventDefault()
+
+      const touch = touches[0]
+      const willWrite = { ...touchMove }
+      if ((touch.clientX >= 0) && (touch.clientX < window.innerWidth)) {
+        willWrite.x = touch.clientX
+      }
+      if ((touch.clientY >= 0) && (touch.clientY < window.innerHeight)) {
+        willWrite.y = touch.clientY
+      }
+      setTouchMove(willWrite)
+    }
+
+    let touchEndVait
+
+    const touchEndHandler = (e) => {
+      const { changedTouches: touches } = e
+      if (touches.length !== 1) {
+        // 不是单指操作的情况
+        return
+      }
+
+      e.stopPropagation()
+      e.preventDefault()
+
+      const touch = touches[0]
+
+      if (!touchStart) {
+        return
+      }
+
+      const diffY = touch.clientY - touchStart.y
+
+      if (diffY > 100) {
+        onCancel()
+      } else if (!touchMove) {
+        // 触屏点击的情况
+        onCancel()
+      } else {
+        setImageFrameTransition(true)
+        setTouchStart(null)
+        setTouchMove(null)
+        touchEndVait = vait.timeout(382).then(() => {
+          setImageFrameTransition(false)
+        })
+      }
+    }
+
+    el.addEventListener('touchstart', touchStartHandler)
+    el.addEventListener('touchmove', touchMoveHandler)
+    el.addEventListener('touchend', touchEndHandler)
+    return () => {
+      el.removeEventListener('touchstart', touchStartHandler)
+      el.removeEventListener('touchmove', touchMoveHandler)
+      el.removeEventListener('touchend', touchEndHandler)
+
+      touchEndVait && touchEndVait.clear()
+    }
+  }, [imageFrameEl.current, touchStart, touchMove])
+
+  useEffect(() => {
+    if (!detailFrameEl.current) {
+      return
+    }
+
+    const { current: el } = detailFrameEl
+    const touchMoveHandler = (e) => {
+      if (detail) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+    el.addEventListener('touchmove', touchMoveHandler)
+
+    return () => {
+      el.removeEventListener('touchmove', touchMoveHandler)
+    }
+  }, [detail, detailFrameEl.current])
+
+  useEffect(() => {
+    if (!detail) {
+      return
+    }
+
+    var keys = { 37: 1, 38: 1, 39: 1, 40: 1 };
+
+    function preventDefault(e) {
+      e.preventDefault();
+    }
+
+    function preventDefaultForScrollKeys(e) {
+      if (keys[e.keyCode]) {
+        preventDefault(e);
+        return false;
+      }
+    }
+
+    // modern Chrome requires { passive: false } when adding event
+    let supportsPassive = false;
+    try {
+      window.addEventListener("test", null, Object.defineProperty({}, 'passive', {
+        // eslint-disable-next-line getter-return
+        get() { supportsPassive = true; }
+      }));
+    } catch (e) { }
+
+    const wheelOpt = supportsPassive ? { passive: false } : false;
+    const wheelEvent = 'onwheel' in document.createElement('div') ? 'wheel' : 'mousewheel';
+
+    function disableScroll() {
+      window.addEventListener('DOMMouseScroll', preventDefault, false); // older FF
+      window.addEventListener(wheelEvent, preventDefault, wheelOpt); // modern desktop
+      window.addEventListener('touchmove', preventDefault, wheelOpt); // mobile
+      window.addEventListener('keydown', preventDefaultForScrollKeys, false);
+    }
+
+    function enableScroll() {
+      window.removeEventListener('DOMMouseScroll', preventDefault, false);
+      window.removeEventListener(wheelEvent, preventDefault, wheelOpt);
+      window.removeEventListener('touchmove', preventDefault, wheelOpt);
+      window.removeEventListener('keydown', preventDefaultForScrollKeys, false);
+    }
+
+    disableScroll()
+
+    return enableScroll
+  }, [detail])
+
   const handleClickFrame = (e) => {
     onCancel()
   }
@@ -171,17 +338,40 @@ export default ({
     return null
   }
 
-  const pos = toPos || fromPos || {}
+  const pos = {
+    ...(toPos || fromPos || {})
+  }
+
+  if (touchStart && touchMove) {
+    // const x = touchMove.x - touchStart.x
+    const x = 0
+    let y = touchMove.y - touchStart.y
+
+    const totalLength = window.innerHeight - (touchMove.y)
+    let b = y / totalLength
+    // console.log('y', y, b)
+
+    if (b > 1) {
+      console.error('bbbbbbbb')
+      b = 1
+    }
+
+    y = b * 100
+
+    pos.transform = `translate(${x}px, ${y}px)`
+  }
 
   return (
     <div
+      ref={detailFrameEl}
       className="detail-frame"
-      style={{ opacity }}
       onClick={handleClickFrame}
     >
+      <div className="bgMask" style={{ opacity }}></div>
       <div
+        ref={imageFrameEl}
         className={`imageFrame ${imageFrameTransition ? 'transition' : ''}`}
-        style={{ ...pos }}
+        style={{ ...pos, opacity: toPos ? 1 : 0 }}
       >
         <img className="thumb" src={thumbUrl} alt="" />
         <img className="source" src={sourceUrl} alt="" />

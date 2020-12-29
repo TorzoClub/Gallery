@@ -1,3 +1,4 @@
+import vait from 'vait'
 import React, { useEffect, useState } from 'react'
 
 import './style.scss'
@@ -29,7 +30,7 @@ const calcImageFullScreenPos = ({ width: imgW, height: imgH }, GLOBAL = window) 
     console.error('<=', newImgH, innerHeight)
     
 
-    if (newImgH / innerHeight > 0.75) {
+    if (newImgH / innerHeight > 0.80) {
       // 图片是否较长，是的话就适当留空白
       const width = newImgW - (IMAGE_PADDING * 2)
       const height = width * imageProportion
@@ -56,6 +57,7 @@ export default ({
   detail,
   onCancel = () => undefined
 }) => {
+  const [isShow, setIsShow] = useState(false);
   const [opacity, setOpacity] = useState(0);
 
   const [sourceUrl, setSourceUrl] = useState('')
@@ -66,12 +68,14 @@ export default ({
 
   useEffect(() => {
     if (detail) {
+      setIsShow(true)
       setOpacity(1)
 
       setThumbUrl(detail.from.thumb)
       setSourceUrl(detail.src)
 
       const { top, left, width, height } = detail.from
+      // setImageFrameTransition(false)
       setFromPos({
         top,
         left,
@@ -83,12 +87,29 @@ export default ({
         setOpacity(0)
       }
     } else {
+      setImageFrameTransition(true)
       setToPos(null)
-      setThumbUrl('')
-      setSourceUrl('')
-      setFromPos(null)
-      setToPos(null)
-      setImageFrameTransition(false)
+
+      let firstV = vait.timeout(382)
+      let secondV
+
+      firstV.then(() => {
+        setThumbUrl('')
+        setSourceUrl('')
+        setFromPos(null)
+        setToPos(null)
+        setImageFrameTransition(false)
+
+        secondV = vait.timeout(382)
+        return secondV
+      }).then(() => {
+        setIsShow(false)
+      })
+
+      return () => {
+        firstV && firstV.clear()
+        secondV && secondV.clear()
+      }
     }
   }, [detail])
 
@@ -97,7 +118,9 @@ export default ({
       return
     }
 
-    setTimeout(() => {
+    let timingV
+
+    window.requestAnimationFrame(() => {
       setImageFrameTransition(true)
       setToPos({
         ...calcImageFullScreenPos({
@@ -105,9 +128,15 @@ export default ({
           height: detail.height
         })
       })
-    }, 100)
+      timingV = vait.timeout(382)
+      timingV.then(() => {
+        setImageFrameTransition(false)
+      })
+    })
 
-    return () => {}
+    return () => {
+      timingV && timingV.clear()
+    }
   }, [fromPos])
 
   useEffect(() => {
@@ -119,6 +148,7 @@ export default ({
 
       console.error('dd', window.innerWidth, window.innerHeight)
 
+      setImageFrameTransition(true)
       setToPos({
         ...calcImageFullScreenPos({
           width: detail.width,
@@ -137,7 +167,7 @@ export default ({
     onCancel()
   }
 
-  if (!detail) {
+  if (!isShow) {
     return null
   }
 

@@ -20,7 +20,7 @@
         >
           <UploadImageBox
             :preview-url="form.avatar_src"
-            @upload-success="data => form.new_avatar_src = data.src"
+            @upload-success="uploadSuccess"
           />
         </ElFormItem>
         <ElFormItem
@@ -123,6 +123,14 @@
         }
       },
 
+      uploadSuccess(data) {
+        if (this.isNew) {
+          this.form.avatar_src = data.src
+        }
+
+        this.form.new_avatar_src = data.src
+      },
+
       async submitEdit() {
         try {
           await this.$refs.form.validate()
@@ -137,9 +145,11 @@
             name: this.form.name,
             qq_num: Number(this.form.qq_num)
           }
+
           if (this.form.new_avatar_src) {
             data.avatar_src = this.form.new_avatar_src
           }
+
           await update(this.id, data)
           this.$router.back()
           this.$message.success(`【${this.form.name}】已更新`)

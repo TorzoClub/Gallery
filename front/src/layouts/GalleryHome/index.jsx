@@ -13,7 +13,6 @@ import Gallery from 'components/Gallery'
 
 import HomeContext from './context'
 
-import Fade from 'components/Fade'
 import ConfirmQQ from 'components/ConfirmQQ'
 
 import PhotoDetail from 'components/Detail'
@@ -37,8 +36,9 @@ export default (props) => {
   const [list, setList] = useState([])
   const [submittedPool, setSubmittedPool] = useState({})
 
-  const [showDetail, setShowDetail] = useState(false)
-  const [detailImageUrl, setDetailImageUrl] = useState('')
+  // const [showDetail, setShowDetail] = useState(false)
+  // const [detailImageUrl, setDetailImageUrl] = useState('')
+  const [imageDetail, setImageDetail] = useState(null)
   const [currentQQNum, setCurrentQQNum] = useState(0)
   const [confirmState, setConfirmState] = useStateObject({
     in: false,
@@ -197,9 +197,11 @@ export default (props) => {
         setSelectedGalleryId(newSelectedGalleryId)
         setSelectedIdList(newSelectedIdList)
       },
-      toDetail: ({ imageUrl: detailImageUrl }) => {
-        setDetailImageUrl(detailImageUrl)
-        setShowDetail(true)
+      toDetail: (detail) => {
+        console.log('detail', detail)
+
+        setImageDetail(detail)
+        // setShowDetail(true)
       }
     }}>
       <div className={`gallery-home`}>
@@ -280,17 +282,13 @@ export default (props) => {
                 })
               }
 
-              {
-                <Fade
-                  in={showDetail}
-                  appendStyle={{
-                    zIndex: 1000,
-                    position: 'relative'
-                  }}
-                >
-                  <PhotoDetail imageUrl={detailImageUrl} onCancel={() => setShowDetail(false)} />
-                </Fade>
-              }
+              <PhotoDetail
+                detail={imageDetail}
+                // imageUrl={detailImageUrl}
+                onCancel={() => {
+                  setImageDetail(null)
+                }}
+              />
             </div>
           )
         }
@@ -299,7 +297,6 @@ export default (props) => {
 
         <style jsx>{`
           .gallery-home {
-            min-height: 100vh;
             padding-bottom: 64px;
             box-sizing: border-box;
           }

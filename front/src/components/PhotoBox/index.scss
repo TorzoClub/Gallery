@@ -64,6 +64,7 @@ $avatar-size-mobile: 36px;
     .cover {
       width: 100%;
       height: 100%;
+      transition: opacity 382ms;
     }
 
     .highlight {
@@ -162,6 +163,18 @@ $avatar-size-mobile: 36px;
           background-position: center center;
           background-size: cover;
           border-radius: 100%;
+
+          overflow: hidden;
+
+          .avatar-inner {
+            width: 100%;
+            height: 100%;
+            background-position: center center;
+            background-size: cover;
+            border-radius: 100%;
+            transition: transform 382ms;
+            transition-timing-function: cubic-bezier(0.42, 0, 0.19, 1.51);
+          }
         }
       }
 

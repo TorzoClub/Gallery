@@ -5,6 +5,7 @@ import Loading from 'components/Loading'
 import Article from './Article'
 import WaitingInputFrame from './WaitingInputFrame'
 import style from './index.scss'
+import useDisableScroll from 'hooks/useDisableScroll'
 
 const duration = Number(style.totalAnimationDuration);
 
@@ -20,6 +21,8 @@ export default (props) => {
     // inputPromptEl.current.style.height = getComputedStyle(bodyEl.current).height
     // bgEl.current.style.height = inputPromptEl.current.style.height
   }, [inProp])
+
+  useDisableScroll(Boolean(inProp))
 
   return (
     <Transition in={ Boolean(inProp) } timeout={duration}>

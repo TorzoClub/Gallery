@@ -204,21 +204,22 @@ export default (props) => {
         // setShowDetail(true)
       }
     }}>
-      <div className={`gallery-home`}>
+      <div className={`gallery-home`} style={{ minHeight: '100vh' }}>
         {
           !loaded ? (
             <div
               style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
-                width: '100%',
-                minHeight: '100vh'
+                width: '100vw',
+                height: '100vh'
               }}
             >
               <Loading />
-
-
             </div>
           ) : (
             <div className="body">

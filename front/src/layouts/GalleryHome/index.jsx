@@ -16,6 +16,7 @@ import HomeContext from './context'
 import ConfirmQQ from 'components/ConfirmQQ'
 
 import PhotoDetail from 'components/Detail'
+import GuideLayout from 'components/GuideLayout'
 import SubmitButton from 'components/SubmitButton'
 
 const useStateObject = (initObj) => {
@@ -29,6 +30,9 @@ const useStateObject = (initObj) => {
 }
 
 export default (props) => {
+  const [showArrow, setShowArrow] = useState(false)
+  const [arrowTickTock, setArrowTickTock] = useState(null)
+  const [hideVoteButton, setHideVoteButton] = useState(true)
   const [selectedGalleryId, setSelectedGalleryId] = useState(null)
   const [selectedIdList, setSelectedIdList] = useState([])
   const [submiting, setSubmiting] = useState(false)
@@ -56,6 +60,7 @@ export default (props) => {
       const inActivityTiming = !list.every(item => item.is_expired)
       if (!inActivityTiming) {
         // 没活动？那没事了
+        setHideVoteButton(false)
         return
       }
 
@@ -64,12 +69,25 @@ export default (props) => {
         setConfirmState({ in: true })
       } else {
         // 有的话就用这个扣号获取已投的照片列表
-        setConfirmState({ isLoading: true })
-        fetchListWithQQNum(Number(currentQQNum)).then(list => {
-          setList(list)
-          setConfirmState({ in: false })
-        }).catch(err => {
-          alert(`获取投票信息失败: ${err.message}`)
+        setConfirmState({
+          isLoading: false,
+          isDone: true
+        })
+
+        const fetchListResult = fetchListWithQQNum(Number(currentQQNum))
+
+        vait.timeout(1500).then(() => {
+          fetchListResult.then(list => {
+            setList(list)
+            setConfirmState({ in: false })
+
+            vait.timeout(618).then(() => {
+              setHideVoteButton(false)
+              setShowArrow(true)
+            })
+          }).catch(err => {
+            alert(`获取投票信息失败: ${err.message}`)
+          })
         })
       }
     }).catch(err => {
@@ -92,13 +110,7 @@ export default (props) => {
           const [exist] = await Promise.all([confirmQQNum(qq_num), vait.timeout(1500)])
 
           if (exist) {
-            setConfirmState({
-              isLoading: false,
-              isDone: true
-            })
-            vait.timeout(500).then(() => {
-              setCurrentQQNum(qq_num)
-            })
+            setCurrentQQNum(qq_num)
           } else {
             setConfirmState({
               isLoading: false,
@@ -188,10 +200,12 @@ export default (props) => {
             // alert('enough')
             return
           } else {
+            setArrowTickTock(Date.now())
             newSelectedIdList.push(id)
           }
         } else {
           newSelectedIdList.splice(idx, 1)
+          setArrowTickTock(-Date.now())
         }
 
         setSelectedGalleryId(newSelectedGalleryId)
@@ -241,7 +255,7 @@ export default (props) => {
 
                   return (
                     <div className="gallery-wrapper" key={gallery.id}>
-                      <Gallery gallery={gallery} />
+                      <Gallery hideVoteButton={hideVoteButton} gallery={gallery} />
 
                       {
                         !gallery.is_expired && showSubmitButton &&
@@ -252,28 +266,35 @@ export default (props) => {
                             } else if (isSubmitted) {
                               return <div className="submitted">感谢你的投票</div>
                             } else {
-                              return <SubmitButton
-                                mode={buttonMode}
-                                clickButton={e => {
-                                  if (!showSubmitButton) {
-                                    return
-                                  }
+                              return (
+                                <GuideLayout
+                                  showArrow={showArrow}
+                                  animatedTickTock={arrowTickTock}
+                                >
+                                  <SubmitButton
+                                    mode={buttonMode}
+                                    clickButton={e => {
+                                      if (!showSubmitButton) {
+                                        return
+                                      }
 
-                                  if (isSubmitted) {
-                                    return
-                                  }
+                                      if (isSubmitted) {
+                                        return
+                                      }
 
-                                  if (!selectedIdList.length) {
-                                    return
-                                  }
+                                      if (!selectedIdList.length) {
+                                        return
+                                      }
 
-                                  if (submiting) {
-                                    return
-                                  }
+                                      if (submiting) {
+                                        return
+                                      }
 
-                                  return handleClickSubmit()
-                                }}
-                              />
+                                      return handleClickSubmit()
+                                    }}
+                                  />
+                                </GuideLayout>
+                              )
                             }
                           })()}
                         </div>

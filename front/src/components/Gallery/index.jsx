@@ -52,13 +52,14 @@ export default (props) => {
   }, [])
 
   const { screen, column_count, gallery_width, column_gutter } = state
-  const { gallery, toDetail } = props
+  const { hideVoteButton, gallery, toDetail } = props
 
   return (
     <div className="gallery">
       <Title>{gallery.name}</Title>
 
       <PhotoStream
+        hideVoteButton={hideVoteButton}
         toDetail={toDetail}
         screen={screen}
         column_count={column_count}

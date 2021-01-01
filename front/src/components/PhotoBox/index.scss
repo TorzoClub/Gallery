@@ -193,8 +193,19 @@ $avatar-size-mobile: 36px;
       }
     }
 
+    @keyframes back-bottom-show {
+      0% {
+        height: 0
+      }
+      100% {
+        height: $back-bottom-height;
+      }
+    }
+
     .back-bottom-wrapper {
       height: $back-bottom-height;
+      animation: back-bottom-show 382ms;
+      animation-timing-function: cubic-bezier(0.88, 0.4, 0.3, 1.01);
     }
 
     .back-bottom {
@@ -225,11 +236,28 @@ $avatar-size-mobile: 36px;
 
         color: #887777;
 
+        @keyframes highlight {
+          0% {
+            transform: perspective(100px) rotate3d(1, 0, 0, 0deg);
+          }
+          50% {
+            transform: perspective(100px) rotate3d(1, 0, 0, -5deg);
+          }
+          100% {
+            transform: perspective(100px) rotate3d(1, 0, 0, 0deg);
+          }
+        }
+
         &.highlight {
+          transform-origin: top center;
+          perspective-origin: top center;
+          animation: highlight 382ms;
+          animation-timing-function: cubic-bezier(0, 0, 0, 1.7);
+
           // background-color: #e7595c;
           // background-color: #e01d1c;
           // background-color: #ca1d1c;
-
+          // transition: background-color 382ms;
           background-color: #ba1616;
 
           box-shadow:

@@ -96,7 +96,7 @@ export default (props) => {
           </div>
 
           {
-            gallery.is_expired || (
+            props.hideVoteButton || (
               <div className="back-bottom-wrapper">
                 <div className="back-bottom">
                   <div className="block-wrapper" onClick={e => {

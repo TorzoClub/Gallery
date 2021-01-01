@@ -34,7 +34,15 @@ const createColumns = (column_count, photos) => {
 }
 
 export default (props) => {
-  const { screen, column_count, photos, total_width, gutter = '0px' } = props
+  const {
+    hideVoteButton,
+    gallery,
+    screen,
+    column_count,
+    photos,
+    total_width,
+    gutter = '0px'
+  } = props
 
   const columns = useMemo(() => {
     return createColumns(column_count, photos)
@@ -79,7 +87,8 @@ export default (props) => {
             {
               column.map(photo => (
                 <PhotoBox
-                  gallery={props.gallery}
+                  hideVoteButton={hideVoteButton || gallery.is_expired}
+                  gallery={gallery}
                   screen={screen}
                   gutter={gutter}
                   photo={photo}

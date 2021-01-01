@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react'
 import { Transition } from 'react-transition-group';
 
 import Loading from 'components/Loading'
+import SubmitButton from 'components/SubmitButton'
 import Article from './Article'
 import WaitingInputFrame from './WaitingInputFrame'
 import style from './index.scss'
@@ -37,7 +38,13 @@ export default (props) => {
 
               {(() => {
                 if (isDone) {
-                  return <div className="prompt-text">{'👍收到'}</div>
+                  return (
+                    <div className="is-done">
+                      可别忘了点
+                      <SubmitButton className="submit-btn" mode="blue ring" />
+                      了，朋友
+                    </div>
+                  )
                 } else {
                   return <>
                     <WaitingInputFrame

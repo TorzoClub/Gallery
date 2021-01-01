@@ -7,15 +7,23 @@
 
 .title {
   font-size: 72px;
-  text-align: center;
   background-color: white;
   color: rgb(48, 103, 133);
   border: solid 6px rgb(48, 103, 133);
+  box-sizing: border-box;
   border-left: 0;
   border-right: 0;
   box-shadow: 0 3px 3px #BBB;
   font-weight: 500;
   font-style: italic;
+  line-height: 1em;
+  height: 96px;
+
+  display: flex;
+  align-items: center;
+  align-content: center;
+  justify-content: center;
+  font-family: sans-serif;
 }
 
 .middle {

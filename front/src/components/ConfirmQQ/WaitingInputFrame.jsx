@@ -25,7 +25,7 @@ export default class WaitingInputFrame extends Component {
       this.setQuickTriggerEvent('remove', this.quickTriggerHandler)
 
       this.submitDetect(receivedValue)
-    }, 800)
+    }, 1200)
 
     this.setQuickTriggerEvent('remove', this.quickTriggerHandler)
     this.quickTriggerHandler = () => {
@@ -37,11 +37,11 @@ export default class WaitingInputFrame extends Component {
       }
 
       const diff = Date.now() - latestInputTimeStamp
-      if ((diff > 500) && (diff < 800)) {
+      if ((diff > 1200) && (diff < 1500)) {
         clearTimeout(this.timer)
         this.setQuickTriggerEvent('remove', this.quickTriggerHandler)
 
-        console.log('(diff > 500) && (diff < 800)')
+        console.log('((diff > 1200) && (diff < 1500))')
         this.submitDetect(receivedValue)
       }
     }

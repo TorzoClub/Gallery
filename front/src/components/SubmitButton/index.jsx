@@ -14,7 +14,8 @@ export default ({ className = '', style = {}, mode, clickButton }) => {
         <div className="loop"></div>
       </div>
       <div className="button-click">
-        <button> </button>
+        {/* <button></button> */}
+        <span>提交</span>
       </div>
     </div>
   )

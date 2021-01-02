@@ -2,6 +2,11 @@ import React, { useRef, useEffect, useState } from 'react'
 
 import s from './index.module.scss'
 
+function getWindowHeight() {
+  const { innerHeight } = window
+  return innerHeight
+}
+
 export default ({ showArrow = true, animatedTickTock, children }) => {
   const WrapperEl = useRef(null)
   const [pos, setPos] = useState(null)
@@ -15,10 +20,10 @@ export default ({ showArrow = true, animatedTickTock, children }) => {
     }
 
     const handler = () => {
-      const { availHeight } = window.screen
+      const winHeight = getWindowHeight()
       const { top: elTop, height: elHeight } = el.getBoundingClientRect()
 
-      if ((elTop - availHeight) > 0) {
+      if ((elTop - winHeight) > 0) {
         setPos('below')
       } else if ((elTop + elHeight) < 0) {
         setPos('above')

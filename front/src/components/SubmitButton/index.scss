@@ -1,8 +1,4 @@
-@keyframes loop{
-  0% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0; transform: scale(1.4); }
-  100% { opacity: 0; transform: scale(2); }
-}
+
 
 .button-frame:hover {
   box-shadow: inset 0px 0px 2px rgba(255, 102, 0, 0.5);
@@ -29,8 +25,27 @@
   transition: box-shadow .618s;
 
   &.ring {
+    @keyframes loop{
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0; transform: scale(1.4); }
+      100% { opacity: 0; transform: scale(2); }
+    }
+
     .loop {
       animation: loop 2s infinite;
+      animation-timing-function: ease-in-out;
+      animation-direction: normal;
+      animation-play-state: pause;
+    }
+
+    @keyframes textLoop {
+      0% { transform: scale(1); }
+      50% { transform: scale(0.9); }
+      100% { transform: scale(1); }
+    }
+
+    .button-click span {
+      animation: textLoop 200ms;
       animation-timing-function: ease-in-out;
       animation-direction: normal;
       animation-play-state: pause;
@@ -42,6 +57,10 @@
 
     .button-click button {
       box-shadow: rgb(48, 103, 133) 0px 0px 2px inset;
+    }
+
+    .button-click span {
+      color: rgba(48, 103, 133, 0.8);
     }
   }
 
@@ -97,5 +116,11 @@
     transition: opacity .382s, box-shadow .382s, transform 1.618s;
     /* transform-origin: bottom center; */
     /* transform: rotate(360deg) scale(2); */
+  }
+
+  span {
+    font-size: 16px;
+    color: rgba(255, 102, 0, 0.8);
+    transition: color .382s;
   }
 }

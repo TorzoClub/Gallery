@@ -2,7 +2,7 @@ $animationDuration: 800;
 $promptBodyDelayTiming: 300;
 
 $totalAnimationDuration: $animationDuration + $promptBodyDelayTiming;
-$InputPromptHeight: 96px;
+$InputPromptHeight: 280px;
 $BGGradientEdgeWidth: 20px;
 
 :export {
@@ -165,25 +165,29 @@ $BGGradientEdgeWidth: 20px;
 .input-prompt-wrapper .input-prompt {
   position: relative;
   width: 100%;
-  height: $InputPromptHeight;
+  // height: $InputPromptHeight;
 
   .bg {
     position: absolute;
     left: 0;
     top: 0;
     // background-color: white;
-    height: $InputPromptHeight;
+    // height: $InputPromptHeight;
+    height: 100%;
     width: calc(100vw + #{$BGGradientEdgeWidth} * 2);
 
     background: linear-gradient(to right, transparent 0px, white #{$BGGradientEdgeWidth}, white calc(100vw + (#{$BGGradientEdgeWidth} * 2) - #{$BGGradientEdgeWidth}), transparent);
+    // z-index: 1;
   }
 
   .ip-body {
-    position: absolute;
-    left: 0;
-    top: 0;
-    height: $InputPromptHeight;
+    // position: absolute;
+    // left: 0;
+    // top: 0;
+    // height: $InputPromptHeight;
     width: 100%;
+    // z-index: 2;
+    padding: 20px 0;
 
     display: flex;
     align-items: center;
@@ -191,8 +195,36 @@ $BGGradientEdgeWidth: 20px;
     justify-content: center;
     flex-direction: column;
 
+    box-shadow: 0 0px 10px grey;
+    overflow: hidden;
+
     .prompt-text {
+      color: rgb(48, 103, 133);
+      font-weight: 600;
       line-height: 20px;
+      margin: 28px 0;
+      margin-bottom: 14px;
+    }
+
+    .is-done {
+      color: rgb(48, 103, 133);
+      font-weight: 600;
+      line-height: 20px;
+      display: flex;
+      align-content: center;
+      align-items: center;
+
+      height: 36px;
+
+      .submit-btn {
+        margin: 0 6px;
+        width: 32px;
+        height: 32px;
+      }
+
+      span {
+        font-size: 10px;
+      }
     }
 
     .loading-wrapper {

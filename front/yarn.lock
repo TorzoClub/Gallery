@@ -10319,10 +10319,10 @@ uuid@^3.0.1, uuid@^3.3.2:
   resolved "https://registry.yarnpkg.com/uuid/-/uuid-3.3.3.tgz#4568f0216e78760ee1dbf3a4d2cf53e224112866"
   integrity sha512-pW0No1RGHgzlpHJO1nsVrHKpOEIxkGg1xB+v0ZmdNH5OAeAwzAVrCnI2/6Mtx+Uys6iaylxa+D3g4j63IKKjSQ==
 
-vait@^0.2.0:
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/vait/-/vait-0.2.0.tgz#b73d4b25ddb495cc54b9ea7b73d016e48b4b3406"
-  integrity sha512-4FkQKSYfMsUekM2Q/8ZsDr44ilo3kjduph/cswUM8hcDFwZW+ln8q6Eu7bXGpLWMXsn14x4iIide1U49N1BJ4Q==
+vait@^0.2.3:
+  version "0.2.3"
+  resolved "https://registry.yarnpkg.com/vait/-/vait-0.2.3.tgz#2ca9516cf623d4fbb8bec6a207b41ade4094abde"
+  integrity sha512-78Zf2lhrzM1qiVMPMsu3stCBOz4qM6NDvrutqKB2VZYGTdtYlIxO91NZGzjSPvBDeDqmX5ih0EgSXL6ov2Q7cA==
   dependencies:
     depd "^1.1.2"
 

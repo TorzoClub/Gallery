@@ -26,7 +26,6 @@ class App extends Component {
           .app {
             background-image: url(${BgImageUrl});
             background-repeat: repeat;
-            min-height: 100vh;
           }
         `}</style>
       </div>

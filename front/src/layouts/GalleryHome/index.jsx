@@ -1,9 +1,11 @@
-import React, { Component } from 'react'
-import { observer } from 'mobx-react'
+import React, { useState, useEffect } from 'react'
+
 import vait from 'vait'
-// import store from 'store'
-import Loading from 'components/Loading'
+
+import { confirmQQNum } from 'api/member'
 import { fetchList, fetchListWithQQNum, vote } from 'api/photo'
+
+import Loading from 'components/Loading'
 
 import Gallery from 'components/Gallery'
 
@@ -11,338 +13,312 @@ import Gallery from 'components/Gallery'
 
 import HomeContext from './context'
 
-import { getMyQQNum, setMyQQNum } from 'utils/qq-num'
-
-import Fade from 'components/Fade'
-import InputPrompt from 'components/InputPrompt'
+import ConfirmQQ from 'components/ConfirmQQ'
 
 import PhotoDetail from 'components/Detail'
+import GuideLayout from 'components/GuideLayout'
 import SubmitButton from 'components/SubmitButton'
 
-@observer
-class GalleryHome extends Component {
-  state = {
-    loaded: false,
-    loading: false,
+const useStateObject = (initObj) => {
+  const [obj, setObj] = useState(initObj)
+  
+  let newObj = { ...obj }
+  return [obj, (appendObj) => {
+    newObj = { ...obj, ...newObj, ...appendObj }
+    return setObj(newObj)
+  }]
+}
 
-    selectedGalleryId: null,
-    selectedIdList: [],
-    list: [],
+export default (props) => {
+  const [showArrow, setShowArrow] = useState(false)
+  const [arrowTickTock, setArrowTickTock] = useState(null)
+  const [hideVoteButton, setHideVoteButton] = useState(true)
+  const [selectedGalleryId, setSelectedGalleryId] = useState(null)
+  const [selectedIdList, setSelectedIdList] = useState([])
+  const [submiting, setSubmiting] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  const [list, setList] = useState([])
+  const [submittedPool, setSubmittedPool] = useState({})
 
-    submittedPool: {},
+  // const [showDetail, setShowDetail] = useState(false)
+  // const [detailImageUrl, setDetailImageUrl] = useState('')
+  const [imageDetail, setImageDetail] = useState(null)
+  const [currentQQNum, setCurrentQQNum] = useState(0)
+  const [confirmState, setConfirmState] = useStateObject({
+    in: false,
+    isDone: false,
+    isLoading: false,
+    isFailure: null,
+    disableInput: false
+  })
 
-    showInputPrompt: false,
-    submitSuccess: false,
-    submitLoading: false,
-    submitError: null,
-    disableInput: false,
+  useEffect(() => {
+    fetchList().then(list => {
+      setList(list)
+      setLoaded(true)
 
-    showDetail: false,
-    detailImageUrl: 'http://localhost:7001/static/src/1575647894663.png'
-  }
+      const inActivityTiming = !list.every(item => item.is_expired)
+      if (!inActivityTiming) {
+        // 没活动？那没事了
+        setHideVoteButton(false)
+        return
+      }
 
-  constructor(props) {
-    super(props)
-
-    this.managerRef = React.createRef()
-  }
-
-  detectSubmit = async qq_num => {
-    try {
-      this.setState({
-        submitLoading: true,
-        disableInput: true,
-      })
-
-      await vait.timeout(500)
-
-      const { selectedGalleryId: gallery_id, selectedIdList: photo_id_list } = this.state.showInputPrompt
-
-      await vote({
-        gallery_id,
-        photo_id_list,
-        qq_num: Number(qq_num)
-      })
-
-      setMyQQNum(Number(qq_num))
-
-      this.setState({
-        submittedPool: {
-          ...this.state.submittedPool,
-          [gallery_id]: true
-        },
-
-        submitSuccess: true
-      })
-
-      setTimeout(() => {
-        this.setState({
-          showInputPrompt: false
+      if (!currentQQNum) {
+        // 没扣号的话就来个弹窗
+        setConfirmState({ in: true })
+      } else {
+        // 有的话就用这个扣号获取已投的照片列表
+        setConfirmState({
+          isLoading: false,
+          isDone: true
         })
-      }, 1000)
-    } catch (err) {
-      if (err.status === 409) {
-        // 已经投过票了
 
-        if (!getMyQQNum()) {
-          // 首次输入 Q 号进入
-          setMyQQNum(Number(qq_num))
-        }
+        const fetchListResult = fetchListWithQQNum(Number(currentQQNum))
 
-        try {
-          await this.refresh()
-        } finally {
-          this.setState({
-            showInputPrompt: false
+        vait.timeout(1500).then(() => {
+          fetchListResult.then(list => {
+            setList(list)
+            setConfirmState({ in: false })
+
+            vait.timeout(618).then(() => {
+              setHideVoteButton(false)
+              setShowArrow(true)
+            })
+          }).catch(err => {
+            alert(`获取投票信息失败: ${err.message}`)
           })
-        }
-
-        return
+        })
       }
+    }).catch(err => {
+      alert(`获取相册信息失败: ${err.message}`)
+    })
+  }, [currentQQNum])
 
-      console.error('vote error', err)
+  const ConfirmQQLayout = (
+    <ConfirmQQ
+      {...confirmState}
+      handleInputChange={() => {
+        setConfirmState({
+          isFailure: null
+        })
+      }}
+      handlesubmitDetect={async qq_num => {
+        try {
+          setConfirmState({ isLoading: true })
 
-      if (err.status === 403 && /Ʊ��/.test(err.message)) {
-        alert('你已经没票了，朋友，明年再来吧')
-        return
-      }
+          const [exist] = await Promise.all([confirmQQNum(qq_num), vait.timeout(1500)])
 
-      this.setState({
-        submitError: err
-      })
-    } finally {
-      this.setState({
-        submitLoading: false,
-        disableInput: false,
-      })
-    }
-  }
-
-  fetchList() {
-    const qq_num = getMyQQNum()
-
-    if (qq_num) {
-      return fetchListWithQQNum(qq_num)
-    } else {
-      return fetchList()
-    }
-  }
-
-  refresh = async () => {
-    console.warn('refresh')
-    try {
-      // this.setState({ loaded: false })
-      const list = await this.fetchList()
-      console.warn('list', list)
-      this.setState({ loaded: true, list })
-    } catch (err) {
-      console.error('获取相册数据失败', err)
-      alert(`获取相册数据失败: ${err.message}`)
-      this.setState({ loaded: false })
-    }
-  }
-
-  componentDidMount() {
-    this.refresh()
-  }
-
-  handleClickSubmit = async () => {
-    const { selectedGalleryId, selectedIdList } = this.state
-
-    try {
-      this.setState({
-        loading: true
-      })
-
-      let qq_num = getMyQQNum()
-
-      if (!qq_num) {
-        // 未缓存 Q 号
-        this.setState({
-          showInputPrompt: {
-            selectedGalleryId, selectedIdList
+          if (exist) {
+            setCurrentQQNum(qq_num)
+          } else {
+            setConfirmState({
+              isLoading: false,
+              isFailure: new Error('朋友，你这个Q号不对，再看看？')
+            })
           }
+        } catch (err) {
+          console.error('handlesubmitDetect error', err)
+          setConfirmState({ isLoading: false, isFailure: err })
+        }
+      }}
+    />
+  )
+
+  const handleClickSubmit = async () => {
+    try {
+      setSubmiting(true)
+
+      if (!currentQQNum) {
+        // 未缓存 Q 号
+        return setConfirmState({
+          in: true,
+          isLoading: false,
+          isFailure: false
         })
       } else {
         await vote({
           gallery_id: selectedGalleryId,
           photo_id_list: selectedIdList,
-          qq_num: Number(qq_num)
+          qq_num: Number(currentQQNum)
         })
 
-        this.setState({
-          submittedPool: {
-            ...this.state.submittedPool,
-            [selectedGalleryId]: true
-          }
+        setSubmittedPool({
+          submittedPool,
+          [selectedGalleryId]: true
         })
       }
     } catch (err) {
+      if (err.status === 403 && /已过投票截止时间/.test(err.message)) {
+        alert('已经过了投票时间了，朋友，下一年一定支持')
+        return
+      }
+
       console.error(err.message)
       alert(err.message)
     } finally {
-      this.setState({
-        loading: false
-      })
+      setSubmiting(false)
     }
   }
 
-  handleClickVote = async (gallery, photo) => {
-    console.warn('handleClickVote', gallery.vote_submitted, photo)
-
-    const isSubmitted = this.state.submittedPool[gallery.id]
-
-    if (isSubmitted) {
-      return
-    }
-
-    if (gallery.is_expired) {
-      return
-    }
-
-    if (gallery.vote_submitted) {
-      return
-    }
-
-    const { id, gallery_id } = photo
-    let { selectedGalleryId, selectedIdList } = this.state
-    selectedIdList = [...selectedIdList]
-
-    if (selectedGalleryId && (gallery_id !== selectedGalleryId)) {
-      return alert('different gallery_id')
-    } else {
-      selectedGalleryId = gallery_id
-    }
-
-    const idx = selectedIdList.indexOf(id)
-
-    if (idx === -1) {
-      if (gallery.vote_limit && (selectedIdList.length >= gallery.vote_limit)) {
-        // alert('enough')
-        return
-      } else {
-        selectedIdList.push(id)
-      }
-    } else {
-      selectedIdList.splice(idx, 1)
-    }
-
-    this.setState({
+  return (
+    <HomeContext.Provider value={{
       selectedGalleryId,
-      selectedIdList
-    })
-  }
-
-  handleToDetail = ({ imageUrl: detailImageUrl }) => {
-    console.warn('detailImageUrl', detailImageUrl)
-    this.setState({
-      showDetail: true,
-      detailImageUrl
-    })
-  }
-
-  render() {
-    const { showDetail, detailImageUrl, selectedIdList, loading } = this.state
-
-    console.log('render', this.state.list, this.state.list.map)
-    // const { firstLoaded, firstLoading, firstLoadingError } = this.state
-
-    return <HomeContext.Provider value={{
-      selectedGalleryId: this.state.selectedGalleryId,
       selectedIdList,
-      handleClickVote: this.handleClickVote,
-      toDetail: this.handleToDetail
+      handleClickVote: async (gallery, photo) => {
+        console.warn('handleClickVote', gallery.vote_submitted, photo)
+
+        const isSubmitted = submittedPool[gallery.id]
+
+        if (isSubmitted) {
+          return
+        }
+
+        if (gallery.is_expired) {
+          return
+        }
+
+        if (gallery.vote_submitted) {
+          return
+        }
+
+        const { id, gallery_id } = photo
+  
+        let newSelectedIdList = [...selectedIdList]
+        let newSelectedGalleryId = selectedGalleryId
+
+        if (selectedGalleryId && (gallery_id !== selectedGalleryId)) {
+          return alert('different gallery_id')
+        } else {
+          newSelectedGalleryId = gallery_id
+        }
+
+        const idx = newSelectedIdList.indexOf(id)
+
+        if (idx === -1) {
+          if (gallery.vote_limit && (newSelectedIdList.length >= gallery.vote_limit)) {
+            // alert('enough')
+            return
+          } else {
+            setArrowTickTock(Date.now())
+            newSelectedIdList.push(id)
+          }
+        } else {
+          newSelectedIdList.splice(idx, 1)
+          setArrowTickTock(-Date.now())
+        }
+
+        setSelectedGalleryId(newSelectedGalleryId)
+        setSelectedIdList(newSelectedIdList)
+      },
+      toDetail: (detail) => {
+        console.log('detail', detail)
+
+        setImageDetail(detail)
+        // setShowDetail(true)
+      }
     }}>
-      <div className={ `gallery-home` }>
+      <div className={`gallery-home`} style={{ minHeight: '100vh' }}>
         {
-          (() => {
-            if (this.state.loaded) {
-              return <div className="body">
-                {
-                  this.state.list.map(gallery => {
-                    const showSubmitButton = !gallery.vote_submitted
-                    let isSubmitted = this.state.submittedPool[gallery.id]
-                    // isSubmitted = true
+          !loaded ? (
+            <div
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                width: '100vw',
+                height: '100vh'
+              }}
+            >
+              <Loading />
+            </div>
+          ) : (
+            <div className="body">
+              {
+                list.map(gallery => {
+                  const showSubmitButton = !gallery.vote_submitted
+                  let isSubmitted = submittedPool[gallery.id]
+                  // isSubmitted = true
 
-                    let buttonMode = ''
+                  let buttonMode = ''
 
-                    if (isSubmitted) {
-                      buttonMode = 'done'
-                    } else if (this.state.showInputPrompt) {
-                      buttonMode = 'blue'
-                    } else if (this.state.selectedIdList.length) {
-                      buttonMode = 'blue ring'
-                    }
+                  if (isSubmitted) {
+                    buttonMode = 'done'
+                  } else if (confirmState.in) {
+                    buttonMode = 'blue'
+                  } else if (selectedIdList.length) {
+                    buttonMode = 'blue ring'
+                  }
 
-                    return <div className="gallery-wrapper" key={ gallery.id }>
-                      <Gallery gallery={ gallery } />
+                  return (
+                    <div className="gallery-wrapper" key={gallery.id}>
+                      <Gallery hideVoteButton={hideVoteButton} gallery={gallery} />
 
                       {
                         !gallery.is_expired && showSubmitButton &&
                         <div className="submit-button-wrapper">
                           {(() => {
-                            if (isSubmitted) {
+                            if (submiting) {
+                              return <Loading />
+                            } else if (isSubmitted) {
                               return <div className="submitted">感谢你的投票</div>
                             } else {
-                              return <SubmitButton
-                                mode={ buttonMode }
-                                clickButton={ e => {
-                                  if (!showSubmitButton) {
-                                    return
-                                  }
+                              return (
+                                <GuideLayout
+                                  showArrow={showArrow}
+                                  animatedTickTock={arrowTickTock}
+                                >
+                                  <SubmitButton
+                                    mode={buttonMode}
+                                    clickButton={e => {
+                                      if (!showSubmitButton) {
+                                        return
+                                      }
 
-                                  if (isSubmitted) {
-                                    return
-                                  }
+                                      if (isSubmitted) {
+                                        return
+                                      }
 
-                                  if (!selectedIdList.length) {
-                                    return
-                                  }
+                                      if (!selectedIdList.length) {
+                                        return
+                                      }
 
-                                  if (loading) {
-                                    return
-                                  }
+                                      if (submiting) {
+                                        return
+                                      }
 
-                                  return this.handleClickSubmit(e)
-                                }}
-                              />
+                                      return handleClickSubmit()
+                                    }}
+                                  />
+                                </GuideLayout>
+                              )
                             }
                           })()}
                         </div>
                       }
                     </div>
-                  })
-                }
+                  )
+                })
+              }
 
-                <InputPrompt
-                  in={ this.state.showInputPrompt }
-                  isDone={ this.state.submitSuccess }
-                  isLoading={ this.state.submitLoading }
-                  isFailure={ this.state.submitError }
-                  disabled={ this.state.disableInput }
-                  handleInputChange={ () => {
-                    this.setState({
-                      submitError: null
-                    })
-                  } }
-                  handlesubmitDetect={ this.detectSubmit }
-                />
-
-                {
-                  <Fade in={ showDetail }>
-                    <PhotoDetail imageUrl={ detailImageUrl } onCancel={ () => this.setState({ showDetail: false }) } />
-                  </Fade>
-                }
-              </div>
-            } else {
-              return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', minHeight: '100vh' }}><Loading /></div>
-            }
-          })()
+              <PhotoDetail
+                detail={imageDetail}
+                // imageUrl={detailImageUrl}
+                onCancel={() => {
+                  setImageDetail(null)
+                }}
+              />
+            </div>
+          )
         }
+
+        {ConfirmQQLayout}
 
         <style jsx>{`
           .gallery-home {
-            min-height: 100vh;
             padding-bottom: 64px;
             box-sizing: border-box;
           }
@@ -373,7 +349,5 @@ class GalleryHome extends Component {
         `}</style>
       </div>
     </HomeContext.Provider>
-  }
+  )
 }
-
-export default GalleryHome

@@ -1,3 +1,11 @@
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
 .detail-frame {
   display: flex;
   align-items: center;
@@ -10,69 +18,45 @@
   width: 100vw;
   height: 100vh;
 
-  background-color: rgba(0, 0, 0, 0.8);
-
   overflow-y: scroll;
   -webkit-overflow-scrolling: touch;
   -webkit-tap-highlight-color: transparent;
 
-  // opacity: 0;
-  transition: opacity 618ms;
-}
+  z-index: 10000;
 
-.detail-box {
-  position: relative;
-  overflow: hidden;
-  background-color: white;
-  border-radius: 1px;
-  box-shadow: 0px 3px 8px -2px hsl(0, 0%, 15%);
+  .bgMask {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
 
-  margin: auto;
-  .detail-image {
-    display: block;
-    margin: auto;
-    max-width: calc(100vw - 3em - 3em);
-    max-height: calc(100vh - 3em - 3em);
+    background-color: rgba(0, 0, 0, 0.8);
+    transition: opacity 618ms;
+    animation: fadeIn 618ms;
   }
-
-  .detail-comment {
-    margin: auto;
-    color: #3a3a45;
-    color: hsl(0, 0%, 20%);
-    padding: 1.125em 1em;
-
-    // max-width: calc(100vw - 3em - 3em - 1.125em);
-    width: 100%;
-
-    box-sizing: border-box;
-    font-size: 14px;
-    font-family: "Noto Sans CJK SC", "Source Han Sans", "Source Han Sans CN", "Helvetica Neue", Helvetica, "Han Heiti", "微软雅黑", "黑体", sans-serif;
-    transition: height 618ms;
-    overflow: hidden;
-
-    h1, h2, h3, h4, h5, h6 {
-      & + p {
-        margin-top: 0;
-      }
+  
+  .imageFrame {
+    &.transition {
+      transition-property: opacity, transform, width, height, top, left;
+      transition-duration: 382ms;
+      transition-timing-function: ease;
     }
-    p {
-      &:first-child {
-        margin-top: 0;
-      }
-      &:last-child {
-        margin-bottom: 0;
-      }
-      line-height: 1.8em;
-      letter-spacing: 0.1em;
-      margin: 1em 0;
 
-      text-align: justify;
-      text-justify: inter-ideographic;
-      -webkit-box-pack: justify;
-      -moz-box-pack: justify;
-      -ms-flex-pack: justify;
-      -webkit-justify-content: space-between;
-      justify-content: space-between;
+    position: absolute;
+    left: 0;
+    top: 0;
+
+    > img {
+      position: absolute;
+      left: 0;
+      top: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
     }
+
+    // .thumb {}
+    // .source {}
   }
 }

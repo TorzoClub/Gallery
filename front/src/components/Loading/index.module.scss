@@ -17,10 +17,12 @@
     .loading-block-line {
       &.highlight {
         background-color: grey;
+        transition-delay: 32ms;
       }
 
-      background-color: #CCC;
+      background-color: #CECECE;
       transition: background-color 200ms;
+      transition-delay: 250ms;
 
       position: absolute;
       top: 0;

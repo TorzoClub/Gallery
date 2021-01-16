@@ -1,6 +1,4 @@
-import React from 'react'
-
-import Loading from 'components/Loading'
+import React, { useState, useContext, useEffect, useRef } from 'react'
 
 import style from './index.scss'
 
@@ -9,146 +7,121 @@ import heartHighlightIMG from 'assets/heart-highlight.png'
 
 import HomeContext from 'layouts/GalleryHome/context'
 
-class ImageBox extends React.Component {
-  static contextType = HomeContext;
+import loadThumb from 'utils/load-thumb'
 
-  constructor(props) {
-    super(props)
-    this.state = {
-      loaded: false,
-      downloading: false
-    }
+export default (props) => {
+  const context = useContext(HomeContext)
+  const [loaded, setLoaded] = useState(false)
+  const [thumb, setThumb] = useState('')
+  const [avatarThumb, setAvatarThumb] = useState('')
+  const coverFrameEl = useRef(null)
+
+  const { screen, gutter, gallery, photo } = props
+  const { member } = photo
+
+  const ratio = (props.height / props.width).toFixed(4)
+
+  const isMobile = screen === 'mobile'
+
+  let height
+  if (isMobile) {
+    height = `calc((${props.boxWidth} - ${gutter} / 2) * ${ratio})`
+  } else {
+    height = `calc((${props.boxWidth} - ${style['avatar-size']} / 2) * ${ratio})`
   }
 
-  loadImage(url) {
-    this.setState({
-      downloading: true
-    })
-    const xhr = new XMLHttpRequest()
-    xhr.onprogress = e => {
-      // const percent = parseFloat((e.loaded / e.total).toFixed(2))
-    }
-    xhr.onload = e => {
-      if (xhr.readyState === 4) {
-        if (xhr.status === 200 || xhr.status === 304) {
-          // const blobObject = new Blob([xhr.response], { type: xhr.getResponseHeader('content-type') })
-          this.interval = Date.now() - this.start_time
-          this.context.toDetail && this.context.toDetail({
-            imageUrl: URL.createObjectURL(xhr.response)
-            // imageData: xhr.response
-          })
-        }
-      }
-    }
-    xhr.onerror = e => {
-      console.error(e, xhr)
-    }
-    xhr.onloadend = e => {
-      this.setState({
-        downloading: false
-      })
-    }
-    xhr.onloadstart = e => {
-      this.start_time = Date.now()
-    }
-    xhr.open('GET', url)
-    xhr.responseType = 'blob'
-    xhr.send()
+  const coverFrameStyle = {
+    height,
+    background: loaded ? 'white' : ''
   }
 
-  handleClickCover = src => {
-    this.loadImage(src)
-  }
+  const { selectedGalleryId, selectedIdList } = context
+  const isChoosed = (selectedGalleryId === photo.gallery_id) && (selectedIdList.indexOf(photo.id) !== -1)
+  const isHighlight = gallery.vote_submitted ? photo.is_voted : isChoosed
 
-  handleClickVote = e => {
-    e.preventDefault()
-    e.stopPropagation()
+  useEffect(() => {
+    loadThumb(member.avatar_thumb).then(setAvatarThumb)
+    loadThumb(photo.thumb).then(setThumb)
+  }, [member.avatar_thumb, photo.thumb])
 
-    const { gallery, photo } = this.props
-    this.context.handleClickVote(gallery, photo)
-  }
+  return (
+    <div className={`image-box-wrapper ${screen}`}>
+      <div className="image-box">
+        <div
+          className="cover-frame"
+          ref={coverFrameEl}
+          style={coverFrameStyle}
+          onClick={async () => {
+            const {
+              height: fromHeight,
+              width: fromWidth,
+              top: fromTop,
+              left: fromLeft
+            } = coverFrameEl.current.getBoundingClientRect()
+            context.toDetail && context.toDetail({
+              from: {
+                thumb,
+                height: fromHeight,
+                width: fromWidth,
+                top: fromTop,
+                left: fromLeft,
+              },
+              src: photo.src,
+              height: photo.height,
+              width: photo.width
+            })
+          }}
+        >
+          <img
+            className="cover"
+            alt="img"
+            src={thumb}
+            style={{ opacity: loaded ? 100 : 0 }}
+            onLoad={() => {
+              setLoaded(true)
+            }}
+          />
 
-  handleImageLoaded = e => {
-    this.setState({ loaded: true })
-  }
-
-  render() {
-    const { props, state } = this
-    const { screen, gutter, gallery, photo } = props
-    const { member } = photo
-
-    const ratio = (props.height / props.width).toFixed(4)
-
-    const isMobile = screen === 'mobile'
-
-    let height
-    if (isMobile) {
-      height = `calc((${props.boxWidth} - ${gutter} / 2) * ${ ratio })`
-    } else {
-      height = `calc((${props.boxWidth} - ${style['avatar-size']} / 2) * ${ ratio })`
-    }
-    console.info('height', height)
-
-    const coverFrameStyle = {
-      height,
-      background: state.loaded ? 'white': ''
-    }
-
-    const { selectedGalleryId, selectedIdList } = this.context
-    const isChoosed = (selectedGalleryId === photo.gallery_id) && (selectedIdList.indexOf(photo.id) !== -1)
-    const isHighlight = gallery.vote_submitted ? photo.is_voted : isChoosed
-
-    return (
-      <div className={`image-box-wrapper ${screen}`}>
-        <div className="image-box">
-          <div className="cover-frame" style={ coverFrameStyle } onClick={ () => this.handleClickCover(photo.src) }>
-            {
-              state.downloading && <div className="box-loading-frame">
-                <Loading
-                  style={ {
-                    opacity: Number(state.downloading)
-                  } }
-                />
-              </div>
-            }
-            <img
-              className="cover"
-              alt="img"
-              src={photo.thumb}
-              style={{ opacity: state.loaded ? 100 : 0 }}
-              onLoad={this.handleImageLoaded}
-            />
-
-            {/* <div className="highlight"></div> */}
-          </div>
-          <div className="bottom-area">
-            <div className="back-bottom">
-              <div className="block-wrapper" onClick={ this.handleClickVote }>
-                {
-                  isHighlight ?
-                  <div className="block highlight">
-                    <div className="heart" style={{ backgroundImage: `url(${heartHighlightIMG})` }} />
-                  </div>
-                  :
-                  <div className="block">
-                    <div className="heart" style={{ backgroundImage: `url(${heartIMG})` }} />
-                  </div>
-                }
+          {/* <div className="highlight"></div> */}
+        </div>
+        <div className="bottom-area">
+          <div className="bottom-block">
+            <div className="avatar-wrapper">
+              <div className="avatar">
+                <div className="avatar-inner" style={{ transform: avatarThumb ? 'translateY(0px)' : 'translateY(-100%)', backgroundImage: `url(${avatarThumb})` }}></div>
               </div>
             </div>
 
-            <div className="bottom-block">
-              <div className="avatar-wrapper">
-                <div className="avatar" alt={ member.name } style={{ backgroundImage: `url(${member.avatar_thumb})` }}></div>
-              </div>
-
-              <div className="member-name"><div className="avatar-float"></div>{ member.name }</div>
-            </div>
+            <div className="member-name"><div className="avatar-float"></div><span className="name-label">{member.name}</span></div>
           </div>
+
+          {
+            props.hideVoteButton || (
+              <div className="back-bottom-wrapper">
+                <div className="back-bottom">
+                  <div className="block-wrapper" onClick={e => {
+                    e.preventDefault()
+                    e.stopPropagation()
+
+                    context.handleClickVote(gallery, photo)
+                  }}>
+                    {
+                      isHighlight ?
+                        <div className="block highlight">
+                          <div className="heart" style={{ backgroundImage: `url(${heartHighlightIMG})` }} />
+                        </div>
+                        :
+                        <div className="block">
+                          <div className="heart" style={{ backgroundImage: `url(${heartIMG})` }} />
+                        </div>
+                    }
+                  </div>
+                </div>
+              </div>
+            )
+          }
         </div>
       </div>
-    )
-  }
+    </div>
+  )
 }
-
-export default ImageBox

@@ -36,14 +36,14 @@ module.exports = app => {
         vote_limit: { type: 'integer', min: 0, required: true },
       }, data);
 
-      const result = await ctx.model.Gallery.create({
+      const newGallery = await ctx.service.gallery.create({
         name: data.name,
         index: data.index,
         vote_expire: new Date(data.vote_expire),
         vote_limit: data.vote_limit,
       });
 
-      ctx.backData(200, result);
+      ctx.backData(200, newGallery);
     }
 
     async remove(ctx) {
@@ -52,17 +52,22 @@ module.exports = app => {
       }, ctx.params);
 
       const { id } = ctx.params;
-      const gallery = await ctx.model.Gallery.findByPk(id);
-      if (gallery) {
-        ctx.backData(200, await gallery.destroy());
-      } else {
-        throw new app.WarningError('相册不存在', 404);
-      }
+      const removedGallery = await ctx.service.gallery.removeById(id);
+      ctx.backData(200, removedGallery);
     }
 
     async show(ctx) {
       const list = await ctx.model.Gallery.findAll();
       ctx.backData(200, list);
+    }
+
+    async get(ctx) {
+      ctx.validate({
+        id: { type: 'id', required: true },
+      }, ctx.params);
+
+      const { id } = ctx.params;
+      ctx.backData(200, await ctx.service.gallery.findById(id));
     }
 
     async edit(ctx) {

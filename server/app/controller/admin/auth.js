@@ -13,7 +13,7 @@ module.exports = app => {
       const token = app.jwt.sign({ permission: 'admin' }, app.config.jwt.secret, {
         expiresIn: app.config.jwt.expiresIn,
       });
-      ctx.backData(200, token);
+      ctx.backData(200, { token });
     }
 
     test(ctx) {

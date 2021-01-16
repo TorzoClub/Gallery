@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = app => {
-  const { INTEGER, STRING, DATE } = app.Sequelize;
+  const { INTEGER, STRING, DATE, VIRTUAL } = app.Sequelize;
 
   const Gallery = app.model.define('gallery', {
     name: {
@@ -20,6 +20,19 @@ module.exports = app => {
       // 投票截止时间
       type: DATE,
       allowNull: false,
+    },
+
+    is_expired: {
+      type: VIRTUAL,
+      get() {
+        const vote_expire = this.getDataValue('vote_expire');
+        const nowDate = new Date();
+
+        const expireTimestamp = vote_expire.valueOf();
+        const nowTimestamp = nowDate.valueOf();
+
+        return nowTimestamp >= expireTimestamp;
+      },
     },
 
     vote_limit: {

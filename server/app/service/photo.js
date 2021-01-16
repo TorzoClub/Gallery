@@ -8,27 +8,23 @@ const getImageSize = filePath => new Promise((res, rej) => {
   });
 });
 
-const { Service } = require('egg');
+const CommonService = require('./common');
 
 module.exports = app =>
-  class PhotoService extends Service {
+  class PhotoService extends CommonService {
+    get OBJECT_NAME() {
+      return '照片';
+    }
+
     get Model() {
-      return this.ctx.model.Photo;
-    }
-
-    get GalleryModel() {
-      return this.ctx.model.Gallery;
-    }
-
-    get ImageService() {
-      return this.ctx.service.image;
+      return this.app.model.Photo;
     }
 
     async getImageDimensions(src) {
       const srcPath = app.serviceClasses.image.toLocalSrcPath(src);
 
       if (!fs.existsSync(srcPath)) {
-        throw new this.ctx.app.WarningError('src不存在', 404);
+        throw new this.app.WarningError('src不存在', 404);
       }
 
       const { width, height } = await getImageSize(srcPath);
@@ -37,56 +33,206 @@ module.exports = app =>
     }
 
     async create(data) {
-      const { gallery_id, src } = data;
-      const gallery = await this.GalleryModel.findByPk(gallery_id);
+      return this.app.model.transaction(async transaction => {
+        const { member_id, gallery_id, src } = data;
 
-      if (!gallery) {
-        throw new this.ctx.app.WarningError('相册不存在', 404);
-      }
+        await this.service.member.detectExistsById(member_id, {
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
 
-      const { width, height } = await this.getImageDimensions(src);
+        await this.service.gallery.detectExistsById(gallery_id, {
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
 
-      return await this.Model.create({
-        gallery_id,
-        author: data.author,
-        desc: data.desc,
-        src,
-        width,
-        height,
+        const { width, height } = await this.getImageDimensions(src);
+
+        return await this.Model.create({
+          member_id,
+          gallery_id,
+          desc: data.desc,
+          src,
+          width,
+          height,
+        }, { transaction });
       });
     }
 
     get editableProperty() {
-      return [ 'gallery_id', 'author', 'desc', 'src' ];
+      return [ 'member_id', 'gallery_id', 'desc', 'src' ];
     }
 
     async edit(id, data) {
-      const photo = await this.Model.findByPk(id);
+      return this.app.model.transaction(async transaction => {
+        const photo = await this.findById(id, { transaction, lock: transaction.LOCK.UPDATE });
 
-      if (!photo) {
-        throw new this.ctx.app.WarningError('找不到该照片', 404);
-      }
-
-      if (data.hasOwnProperty('gallery_id')) {
-        const gallery = await this.GalleryModel.findByPk(data.gallery_id);
-
-        if (!gallery) {
-          throw new this.ctx.app.WarningError('相册不存在', 404);
+        if (data.hasOwnProperty('member_id')) {
+          // 检查相册是否存在
+          await this.service.member.detectExistsById(data.member_id, {
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+          });
         }
-      }
 
-      this.editableProperty.forEach(key => {
-        if (data.hasOwnProperty(key)) {
-          photo[key] = data[key];
+        if (data.hasOwnProperty('gallery_id')) {
+          // 检查相册是否存在
+          await this.service.gallery.detectExistsById(data.gallery_id, {
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+          });
         }
+
+        this.editableProperty.forEach(key => {
+          if (data.hasOwnProperty(key)) {
+            photo[key] = data[key];
+          }
+        });
+
+        if (data.src) {
+          const { width, height } = await this.getImageDimensions(data.src);
+          Object.assign(photo, { width, height });
+        }
+
+        return await photo.save({ transaction });
+      });
+    }
+
+    getListByGalleryId({ gallery_id }) {
+      return this.app.model.transaction(async transaction => {
+        gallery_id = parseInt(gallery_id);
+
+        await this.service.gallery.detectExistsById(gallery_id, { transaction, lock: transaction.LOCK.UPDATE });
+
+        const list = await this.Model.findAll({
+          include: [{
+            model: this.app.model.Member,
+          }],
+
+          where: {
+            gallery_id,
+          },
+
+          transaction,
+        });
+
+        return list;
+      });
+    }
+
+    getVoteOrderListByGalleryId({ gallery_id }) {
+      return this.app.model.transaction(async transaction => {
+        gallery_id = parseInt(gallery_id);
+
+        await this.service.gallery.detectExistsById(gallery_id, {
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+
+        const list = await this.Model.findAll({
+          where: {
+            gallery_id,
+          },
+
+          order: [
+            [ 'vote_count', 'DESC' ],
+          ],
+
+          transaction,
+        });
+
+        return list;
+      });
+    }
+
+    getMemberVoteListByGalleryId({ gallery_id }) {
+      return this.app.model.transaction(async transaction => {
+        gallery_id = parseInt(gallery_id);
+
+        await this.service.gallery.detectExistsById(gallery_id, {
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+
+        const memberList = await this.service.member.Model.findAll({
+          transaction,
+        });
+
+        const votes = memberList.map(member => {
+          return this.service.vote.Model.findAll({
+            where: {
+              member_id: member.id,
+              gallery_id,
+            },
+
+            transaction,
+          });
+        });
+
+        const voteList = await Promise.all(votes);
+
+        return memberList.map((mem, idx) => {
+          const member = {
+            ...mem.toJSON(),
+            votes: voteList[idx],
+          };
+
+          return member;
+        });
+      });
+    }
+
+    sortByVoteCount({ gallery_id }) {
+      return this.app.model.transaction(async transaction => {
+        gallery_id = parseInt(gallery_id);
+
+        await this.service.gallery.detectExistsById(gallery_id, {
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+
+        const photoList = await this.service.photo.Model.findAll({
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+
+          order: [
+            [ 'vote_count', 'DESC' ],
+          ],
+        });
+
+        const saveSeries = photoList.map((photo, idx) => {
+          photo.index = idx;
+
+          return photo.save({
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+          });
+        });
+
+        return Promise.all(saveSeries);
+      });
+    }
+
+    removeById(id) {
+      return this.app.model.transaction(async transaction => {
+        return await this.destroyById(parseInt(id), { transaction });
+      });
+    }
+
+    async reComputeVoteCount({ photo_id }, transactionOptions = {}) {
+      const photo = await this.findById(photo_id, transactionOptions);
+
+      const voteCount = await this.service.vote.Model.count({
+        where: {
+          photo_id: photo.id,
+        },
+
+        ...transactionOptions,
       });
 
-      if (data.src) {
-        const { width, height } = await this.getImageDimensions(data.src);
-        Object.assign(photo, { width, height });
-      }
+      photo.vote_count = voteCount;
 
-      return await photo.save();
+      return photo.save({ ...transactionOptions });
     }
 
     async getListByGalleryId({ gallery_id }) {

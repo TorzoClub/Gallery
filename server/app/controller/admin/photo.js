@@ -5,15 +5,15 @@ module.exports = app => {
     async create(ctx) {
       const { body: data } = ctx.request;
       ctx.validate({
+        member_id: { type: 'integer', required: true },
         gallery_id: { type: 'integer', required: true },
-        author: { type: 'string', required: true },
         desc: { type: 'string', required: true },
         src: { type: 'string', required: true },
       }, data);
 
       const result = await ctx.service.photo.create({
+        member_id: data.member_id,
         gallery_id: data.gallery_id,
-        author: data.author,
         desc: data.desc,
         src: data.src,
       });
@@ -27,12 +27,21 @@ module.exports = app => {
       }, ctx.params);
 
       const { id } = ctx.params;
-      const photo = await ctx.model.Photo.findByPk(id);
-      if (photo) {
-        ctx.backData(200, await photo.destroy());
-      } else {
-        throw new app.WarningError('照片不存在', 404);
-      }
+      ctx.backData(200, await ctx.service.photo.removeById(id));
+    }
+
+    async get(ctx) {
+      ctx.validate({
+        id: { type: 'id', required: true },
+      }, ctx.params);
+
+      const { id } = ctx.params;
+
+      const photo = await ctx.service.photo.findById(id);
+      ctx.backData(200, {
+        ...photo.toJSON(),
+        member: await photo.getMember(),
+      });
     }
 
     async show(ctx) {
@@ -40,13 +49,47 @@ module.exports = app => {
         gallery_id: { type: 'id', required: true },
       }, ctx.params);
 
-      console.warn('ctx.params.gallery_id', ctx.params.gallery_id);
-
       const list = await ctx.service.photo.getListByGalleryId({
         gallery_id: parseInt(ctx.params.gallery_id),
       });
 
       ctx.backData(200, list);
+    }
+
+    async showPhotoVote(ctx) {
+      ctx.validate({
+        gallery_id: { type: 'id', required: true },
+      }, ctx.params);
+
+      const list = await ctx.service.photo.getVoteOrderListByGalleryId({
+        gallery_id: parseInt(ctx.params.gallery_id),
+      });
+
+      ctx.backData(200, list);
+    }
+
+    async showMemberVote(ctx) {
+      ctx.validate({
+        gallery_id: { type: 'id', required: true },
+      }, ctx.params);
+
+      const list = await ctx.service.photo.getMemberVoteListByGalleryId({
+        gallery_id: parseInt(ctx.params.gallery_id),
+      });
+
+      ctx.backData(200, list);
+    }
+
+    async sortByVoteCount(ctx) {
+      ctx.validate({
+        gallery_id: { type: 'id', required: true },
+      }, ctx.params);
+
+      const sortResult = await ctx.service.photo.sortByVoteCount({
+        gallery_id: parseInt(ctx.params.gallery_id),
+      });
+
+      ctx.backData(200, sortResult);
     }
 
     async edit(ctx) {
@@ -58,10 +101,10 @@ module.exports = app => {
       }, ctx.params);
 
       const validOption = {
-        gallery_id: { type: 'integer', required: true },
-        author: { type: 'string', required: true },
-        desc: { type: 'string', required: true },
-        src: { type: 'string', required: true },
+        member_id: { type: 'integer', required: false },
+        gallery_id: { type: 'integer', required: false },
+        desc: { type: 'string', required: false },
+        src: { type: 'string', required: false },
       };
       ctx.validate(validOption, data);
 

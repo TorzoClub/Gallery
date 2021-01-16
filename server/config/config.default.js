@@ -5,6 +5,9 @@
 const path = require('path');
 const absolutePath = inputPath => path.join(__dirname, '../', inputPath);
 
+const imageThumbSavePath = absolutePath('./static/thumb/');
+const imageSavePath = absolutePath('./static/src/');
+
 /**
  * @param {Egg.EggAppInfo} appInfo app info
  */
@@ -14,6 +17,9 @@ module.exports = appInfo => {
    * @type {Egg.EggAppConfig}
    **/
   const config = exports = {};
+
+  // api 前缀，注意要以 / 结尾
+  config.apiPrefix = '/';
 
   // use for cookie sign key, should change to your own and keep security
   config.keys = appInfo.name + '_1570827005712_4094';
@@ -29,15 +35,29 @@ module.exports = appInfo => {
     dir: path.join(__dirname, '../static'),
   };
 
+  config.development = {
+    ...(config.development || {}),
+
+    ignoreDirs: [
+      imageThumbSavePath,
+      imageSavePath,
+    ],
+  };
+
   // add your user config here
   const userConfig = {
     adminPass: '7355608',
 
-    imageThumbSavePath: absolutePath('./static/thumb/'),
-    imageSavePath: absolutePath('./static/src'),
+    startBeforeGenerateThumb: false,
 
-    imageThumbPrefix: 'http://localhost:7001/static/thumb',
-    imagePrefix: 'http://localhost:7001/static/src',
+    imageThumbSize: 640,
+
+    imageThumbSavePath,
+    imageSavePath,
+
+    // imageThumbPrefix、imagePrefix 请在末尾加上斜杠
+    imageThumbPrefix: 'http://localhost:7001/static/thumb/',
+    imagePrefix: 'http://localhost:7001/static/src/',
   };
 
   config.sequelize = {

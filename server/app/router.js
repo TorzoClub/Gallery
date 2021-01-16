@@ -4,10 +4,10 @@
  * @param {Egg.Application} app - egg application
  */
 module.exports = app => {
-  const { controller, middlewares } = app;
+  const { config, controller, middlewares } = app;
 
   const setRouter = (method, path, ...middlewareArgs) => {
-    return app.router[method](`/api/${path}`, ...middlewareArgs);
+    return app.router[method](`${config.apiPrefix}api/${path}`, ...middlewareArgs);
   };
 
   const setAdminRouter = (method, path, ...middlewareArgs) => {
@@ -19,28 +19,42 @@ module.exports = app => {
   setAdminRouter('post', 'image/upload', controller.admin.image.upload);
 
   {
-    const { create, remove, show, edit } = controller.admin.gallery;
+    const { create, remove, get, show, edit } = controller.admin.gallery;
     setAdminRouter('post', 'gallery', create);
     setAdminRouter('delete', 'gallery/:id', remove);
+    setAdminRouter('get', 'gallery/:id', get);
     setAdminRouter('get', 'gallery', show);
     setAdminRouter('patch', 'gallery/:id', edit);
   }
 
   {
-    const { create, remove, show, edit } = controller.admin.member;
+    const { create, remove, get, show, edit, removeMemberGalleryVote } = controller.admin.member;
     setAdminRouter('post', 'member', create);
     setAdminRouter('delete', 'member/:id', remove);
+    setAdminRouter('get', 'member/:id', get);
     setAdminRouter('get', 'member', show);
     setAdminRouter('patch', 'member/:id', edit);
+
+    setAdminRouter('delete', 'member/:id/gallery/:gallery_id/vote', removeMemberGalleryVote);
   }
 
   {
-    const { create, remove, show, edit } = controller.admin.photo;
+    const { create, remove, show, get, showPhotoVote, showMemberVote, sortByVoteCount, edit } = controller.admin.photo;
     setAdminRouter('post', 'photo', create);
     setAdminRouter('delete', 'photo/:id', remove);
+    setAdminRouter('get', 'photo/:id', get);
     setAdminRouter('get', 'gallery/:gallery_id/photo', show);
+    setAdminRouter('get', 'gallery/:gallery_id/photo_vote', showPhotoVote);
+    setAdminRouter('get', 'gallery/:gallery_id/member_vote', showMemberVote);
+    setAdminRouter('put', 'gallery/:gallery_id/photo/sortByVoteCount', sortByVoteCount);
     setAdminRouter('patch', 'photo/:id', edit);
   }
 
-  setRouter('post', 'vote', controller.vote.create);
+  setRouter('post', 'member/photo', controller.member.photo.show);
+  setRouter('post', 'member/vote', controller.member.vote.create);
+
+  setRouter('get', 'member/confirm/:qq_num', controller.member.index.confirm);
+
+  setRouter('get', 'photo', controller.photo.show);
+  setRouter('get', 'photo/:id', controller.photo.get);
 };

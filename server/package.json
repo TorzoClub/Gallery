@@ -10,7 +10,7 @@
     "egg-cors": "^2.2.3",
     "egg-jwt": "^3.1.6",
     "egg-scripts": "^2.11.0",
-    "egg-sequelize": "^5.2.0",
+    "egg-sequelize": "^6.0.0",
     "egg-validate": "^2.0.2",
     "image-size": "^0.8.3",
     "jimp": "^0.8.4",

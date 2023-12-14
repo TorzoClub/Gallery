@@ -4,7 +4,7 @@
   "version": "1.0.2",
   "dependencies": {
     "@types/path-browserify": "^1.0.2",
-    "axios": "^0.24.0",
+    "axios": "^1.6.0",
     "blueimp-md5": "^2.10.0",
     "path-browserify": "^1.0.1",
     "react": "^16.9.0",

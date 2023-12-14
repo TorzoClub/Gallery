@@ -1,0 +1,59 @@
+:export {
+  property: value;
+}
+
+.Wrapper {
+  --ButtonSize: 64px;
+  --BottomShadowColor: rgba(0, 0, 0, 0.1);
+  --box-shadow-color: rgba(0, 0, 0, 0.25);
+}
+.Circle {
+  width: var(--ButtonSize);
+  height: var(--ButtonSize);
+  border-radius: 100%;
+
+  background-color: hsl(0deg 0% 99%);
+  background: linear-gradient(to bottom, hsl(0deg 0% 100%), hsl(0deg 0% 95%));
+  box-shadow:
+    /* 0 10px 10px -10px rgba(0, 0, 0, 0.15), */
+    /* 0 -1px 1px -2px var(--BottomShadowColor),
+    0 0px 1px -1px var(--BottomShadowColor),
+    0 1px 1px -1px var(--BottomShadowColor),
+    0 2px 2px -2px var(--BottomShadowColor),
+    0 1px 1px -2px var(--BottomShadowColor), */
+    0 0 1px 1px rgba(0, 0, 0, 0.1),
+
+    /* inset 0 6px 6px -6px white,*/
+    /* inset 0 -2px 2px -2px white, */
+    inset 0 6px 6px -6px hsl(0deg 0% 100%),
+
+    inset 0 -24px 12px -24px hsl(0deg 0% 90%),
+
+    0 10px 10px -10px rgba(0, 0, 0, 0.2),
+    /* 0 -1px 1px -2px var(--box-shadow-color),
+    0 0px 1px -1px var(--box-shadow-color),
+    0 1px 1px -1px var(--box-shadow-color),
+    0 2px 2px -2px var(--box-shadow-color), */
+    /* 0 1px 1px -2px var(--box-shadow-color) */
+
+    0 0 0 transparent
+
+    /* inset 0 0px 2px rgba(0, 0, 0, 0.618) */
+
+    /* 0 0 0px 16.4px rgba(48, 103 ,133, 0.382) */
+    /* 0 0 0px 6.4px rgba(48, 103 ,133, 0.382) */
+    /* 0 0 0px 5px rgba(48, 103 ,133, 0.382) */
+  ;
+}
+
+
+/*
+Clicked:
+  inset 0 6px 6px -6px rgba(0, 0, 0, 0.2),
+  inset 0 -2px 2px -2px rgba(0, 0, 0, 0.15),
+  0 10px 10px -10px rgba(0, 0, 0, 0.2),
+  0 -1px 1px -2px var(--box-shadow-color),
+  0 0px 1px -1px var(--box-shadow-color),
+  0 1px 1px -1px var(--box-shadow-color),
+  0 2px 2px -2px var(--box-shadow-color),
+  0 1px 1px -2px var(--box-shadow-color) */

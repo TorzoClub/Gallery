@@ -33,7 +33,7 @@
   "scripts": {
     "start": "egg-scripts start --daemon --title=egg-server-photo-api",
     "stop": "egg-scripts stop --title=egg-server-photo-api",
-    "start-dev": "egg-scripts start --daemon --title=egg-server-photo-api-dev",
+    "start-dev": "egg-scripts start --daemon --title=egg-server-photo-api-dev --env=local --workers=1 --port=7500",
     "stop-dev": "egg-scripts stop --title=egg-server-photo-api-dev",
     "dev": "egg-bin dev",
     "debug": "egg-bin debug",

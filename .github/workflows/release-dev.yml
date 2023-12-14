@@ -45,7 +45,7 @@ jobs:
         cd dashboard
         printf "${{secrets.DASHBOARD_ENV_DEVELOPMENT}}" > ./.env.production
         npm install
-        npm run build
+        npm run build:prod
         mv dist dashboard
         mv dashboard ../build/
 

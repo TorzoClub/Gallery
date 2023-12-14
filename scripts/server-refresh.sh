@@ -1,7 +1,7 @@
 #!/bin/bash
 cd ${SERVER_PATH}
 cd server
-nvm use 16.13.1
+nvm use 18.17.0
 npm run stop-dev
 git fetch
 git pull

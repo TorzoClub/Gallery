@@ -1,4 +1,4 @@
-name: Run Code Test
+name: Pull Request Check
 
 on:
   pull_request:
@@ -7,8 +7,8 @@ on:
       - dev
 
 jobs:
-  ServerTest:
-    name: server unitest
+  ServerUnitest:
+    name: Server unitest
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -39,3 +39,66 @@ jobs:
       run: |
         npm install
         npm run test
+
+  DashboardESLint:
+    name: Dashboard ESLint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./dashboard/
+
+    steps:
+    - name: Copy Repo Files
+      uses: actions/checkout@v2
+
+    - name: Use Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: '12'
+
+    - name: ESLint
+      run: |
+        npm install
+        npm run lint
+
+  FrontESlint:
+    name: Front ESlint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./front/
+
+    steps:
+    - name: Copy Repo Files
+      uses: actions/checkout@v2
+
+    - name: Use Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: '16'
+
+    - name: ESLint
+      run: |
+        yarn
+        yarn lint-strict
+
+  FrontTSC:
+    name: Front TSC
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./front/
+
+    steps:
+    - name: Copy Repo Files
+      uses: actions/checkout@v2
+
+    - name: Use Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: '16'
+
+    - name: yarn tsc --noEmit
+      run: |
+        yarn
+        yarn tsc --noEmit

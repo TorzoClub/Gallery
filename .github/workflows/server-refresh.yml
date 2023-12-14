@@ -12,9 +12,6 @@ jobs:
   server-refresh:
     name: Refresh server
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./server/
 
     steps:
     - name: Copy Repo Files

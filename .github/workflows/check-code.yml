@@ -1,4 +1,4 @@
-name: Check Front PR
+name: Code Check
 
 on:
   pull_request:
@@ -7,9 +7,12 @@ on:
       - dev
 
 jobs:
-  ESlint:
-    name: ESlint
+  FrontESlint:
+    name: Front ESlint
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./front/
 
     steps:
     - name: Copy Repo Files
@@ -25,9 +28,12 @@ jobs:
         yarn
         yarn lint-strict
 
-  tsc:
-    name: TSC
+  FrontTSC:
+    name: Front TSC
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./front/
 
     steps:
     - name: Copy Repo Files

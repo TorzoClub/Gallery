@@ -10,6 +10,7 @@ class App extends Component {
   render() {
     return (
       <div className="app">
+        torzo gallery dev
         {/* <CoverScroller /> */}
         <GalleryHome/>
         <style>{`

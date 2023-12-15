@@ -62,7 +62,7 @@ module.exports = app =>
     static async generateThumb(
       src_filename,
       { thumb_size } = {
-        thumb_size: app.config.thumbSize,
+        thumb_size: app.config.imageThumbSize,
       }
     ) {
       const src_path = ImageService.toSrcSavePath(src_filename);

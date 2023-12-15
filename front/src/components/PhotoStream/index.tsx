@@ -28,8 +28,8 @@ const createColumns = (column_count: number, photos: Photo[]) => {
   const columns: Photo[][] = Array.from(Array(column_count)).map(() => [])
 
   photos.forEach(photo => {
-    if (photo.member) globalLoad(photo.member.avatar_thumb)
-    globalLoad(photo.thumb)
+    if (photo.member) globalLoad(photo.member.avatar_thumb_url)
+    globalLoad(photo.thumb_url)
 
     const columnsHeightList: ColumnsHeightList = columns.map(computeColumnHeight)
 

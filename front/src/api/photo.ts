@@ -9,8 +9,8 @@ export type Member = {
   updated_at: DateTimeString
   name: string
   qq_num: number
-  avatar_src: string
-  avatar_thumb: string
+  // avatar_src: string
+  // avatar_thumb: string
   avatar_thumb_url: string
 }
 
@@ -28,12 +28,12 @@ type PhotoCommon = {
 
   height: number
   width: number
-  src: string
-  src_urlpath: string
+  // src: string
+  // src_urlpath: string
   src_url: string
 
-  thumb: string
-  thumb_urlpath: string
+  // thumb: string
+  // thumb_urlpath: string
   thumb_url: string
 }
 export type PhotoNormal = PhotoCommon & {

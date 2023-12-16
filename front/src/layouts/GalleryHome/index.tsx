@@ -14,6 +14,7 @@ import PhotoDetail, { Detail } from 'components/Detail'
 import ConfirmVote from 'components/ConfirmVote'
 import shuffleArray from 'utils/shuffle-array'
 import { updateListItemById } from 'utils/common'
+import { AppCriticalError } from 'App'
 
 export default () => {
   const [loaded, setLoaded] = useState(false)
@@ -116,7 +117,7 @@ export default () => {
         })
       }
     }).catch(err => {
-      alert(`获取相册信息失败: ${err.message}`)
+      AppCriticalError(`获取相册信息失败: ${err.message}`)
     })
   }, [currentQQNum, setActive, setConfirmState])
 

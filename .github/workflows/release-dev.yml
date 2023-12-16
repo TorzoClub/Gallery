@@ -44,7 +44,7 @@ jobs:
       run: |
         cd dashboard
         echo "${{secrets.DASHBOARD_ENV_DEVELOPMENT}}" > ./.env.production
-        echo "REACT_APP_BUILD_DESCRIPTION=Development version.  build:${{ github.run_number }}  commit:${{ github.sha }}"
+        echo "REACT_APP_BUILD_DESCRIPTION=Development version.  build:${{ github.run_number }}  commit:${{ github.sha }}" >> ./.env.production
         npm install
         npm run build:prod
         mv dist dashboard

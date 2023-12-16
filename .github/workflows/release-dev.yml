@@ -84,7 +84,9 @@ jobs:
           path: releases
 
       - name: Display structure of downloaded files
-        run: ls -R releases
+        run: |
+          ls ./releases
+          ls -R releases
 
       - name: Install SSH Key
         uses: shimataro/ssh-key-action@v2

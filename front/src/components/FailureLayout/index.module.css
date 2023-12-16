@@ -258,6 +258,16 @@
   --crt-font-color: hsl(39, 77%, 83%, 0.5);
 }
 
+.FailureLayoutInner {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 3em 0;
+  box-sizing: border-box;
+}
+
 .FailureLayout {
   width: 100vw;
   height: 100vh;
@@ -287,7 +297,13 @@
   src: url(../../assets//guanzhi\ 8x8.ttf);
 }
 
+.Section { margin-bottom: calc((1em + 1em / 8) * 2); }
+.Section:last-child { margin-bottom: 0 }
+
 .Title {
-  padding: 5em 0;
-  padding-bottom: 1em;
+  padding: 0;
+  margin: 0;
+  margin-bottom: 1em;
+  line-height: calc(1em + 1em / 8);
+  font-size: 1em;
 }

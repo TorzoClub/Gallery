@@ -49,7 +49,7 @@ function FailureLayoutContainer({ errors, children }: { errors: unknown[], child
   }, [t])
 
   return (
-    <div className={`${s.FailureLayoutContainer}`} style={{ background: 'black' }}>
+    <div className={`${s.FailureLayoutContainer}`} style={{ background: t ? 'black': undefined }}>
       <div className={t ? s.TurnOffEffect : ''}>
         <div style={t ? { overflow: 'auto', height: '100vh' } : {}}>
           { children }
@@ -132,19 +132,21 @@ export default function FailureLayout({ errors }: { errors: unknown[] }) {
   return (
     <div className={`${s.FailureLayoutWrapper} ${s.crt}`}>
       <article className={`${s.FailureLayout}`}>
-        <section>
-          <p className={s.Title}>TORZO GALLERY FAILURE</p>
-          <p>如果你看到了这个画面，<br />说明《同装相册》已经无法提供正常服务。</p>
-          <p>你可以等会儿再来，说不定就好了。</p>
-          <p>当然，幸灾乐祸也是可以的。</p>
-        </section>
+        <div className={`${s.FailureLayoutInner}`}>
+          <section className={s.Section}>
+            <h1 className={s.Title}>TORZO GALLERY FAILURE</h1>
+            <p>如果你看到了这个画面，<br />说明《同装相册》已经无法提供正常服务。</p>
+            <p>你可以等会儿再来，说不定就好了。</p>
+            <p>当然，幸灾乐祸也是可以的。</p>
+          </section>
 
-        <aside>
-          <p className={s.Title}>ERROR DETAILS</p>
-          {failures.map((f, idx) => {
-            return <DetailsItem key={idx} failure={f} />
-          })}
-        </aside>
+          <section className={s.Section}>
+            <h1 className={s.Title}>ERROR DETAILS</h1>
+            {failures.map((f, idx) => {
+              return <DetailsItem key={idx} failure={f} />
+            })}
+          </section>
+        </div>
       </article>
     </div>
   )

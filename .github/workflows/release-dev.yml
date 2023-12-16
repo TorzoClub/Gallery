@@ -28,7 +28,8 @@ jobs:
         NODE_ENV: development
       run: |
         cd front
-        printf "${{secrets.FRONT_ENV_DEVELOPMENT}}" > ./.env.development
+        echo "${{secrets.FRONT_ENV_DEVELOPMENT}}" > ./.env.development
+        echo "REACT_APP_BUILD_DESCRIPTION=Development version.  build:${{ github.run_number }}  commit:${{ github.sha }}" >> ./.env.production
         yarn install --production=false
         yarn build:development
         mv build ../
@@ -43,8 +44,7 @@ jobs:
         NODE_ENV: development
       run: |
         cd dashboard
-        echo "${{secrets.DASHBOARD_ENV_DEVELOPMENT}}" > ./.env.production
-        echo "REACT_APP_BUILD_DESCRIPTION=Development version.  build:${{ github.run_number }}  commit:${{ github.sha }}" >> ./.env.production
+        echo "${{secrets.DASHBOARD_ENV_DEVELOPMENT}}\n" > ./.env.production
         npm install
         npm run build:prod
         mv dist dashboard

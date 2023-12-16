@@ -30,12 +30,11 @@ jobs:
           echo "${{secrets.DASHBOARD_ENV_DEVELOPMENT}}\n" > ./.env.production
           npm install
           npm run build:prod
-          mv dist dashboard
 
       - uses: actions/upload-artifact@v4
         with:
             name: DashboardBuild
-            path: dashboard
+            path: dashboard/dist
 
   build-front:
     name: Building Front
@@ -60,12 +59,11 @@ jobs:
           echo "REACT_APP_BUILD_DESCRIPTION=Development version.  build:${{ github.run_number }}  commit:${{ github.sha }}" >> ./.env.production
           yarn install --production=false
           yarn build:development
-          mv build ../
 
       - uses: actions/upload-artifact@v4
         with:
           name: FrontBuild
-          path: build
+          path: front/build
 
   upload-build:
     name: upload Builds
@@ -81,30 +79,31 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: FrontBuild
-          path: releases
+          path: releases/dashboard
 
       - name: Display structure of downloaded files
         run: |
           ls ./releases
+          echo "-R"
           ls -R releases
 
-      - name: Install SSH Key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          known_hosts: 'a'
+      # - name: Install SSH Key
+      #   uses: shimataro/ssh-key-action@v2
+      #   with:
+      #     key: ${{ secrets.SSH_PRIVATE_KEY }}
+      #     known_hosts: 'a'
 
-      - name: Upload Builds
-        env:
-          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
-          SSH_HOST: ${{ secrets.SSH_HOST }}
-          REMOTE_UPLOAD_PATH: ${{ secrets.DEV_REMOTE_UPLOAD_PATH }}
-        run: |
-          cd releases
-          mv dashboard build/
-          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-          ../scripts/upload.sh
+      # - name: Upload Builds
+      #   env:
+      #     SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+      #     SSH_HOST: ${{ secrets.SSH_HOST }}
+      #     REMOTE_UPLOAD_PATH: ${{ secrets.DEV_REMOTE_UPLOAD_PATH }}
+      #   run: |
+      #     cd releases
+      #     mv dashboard build/
+      #     ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+      #     ../scripts/upload.sh
 
-      - name: get-npm-version
-        id: package-version
-        uses: martinbeentjes/npm-get-version-action@master
+      # - name: get-npm-version
+      #   id: package-version
+      #   uses: martinbeentjes/npm-get-version-action@master

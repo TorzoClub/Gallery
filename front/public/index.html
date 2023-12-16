@@ -27,9 +27,27 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge;chrome=1;" />
     <meta name="HandheldFriendly" content="true" />
     <title>同装摄影集</title>
+    <style>body, html { margin: 0; padding: 0; }</style>
   </head>
   <body>
-    <noscript>请启用 JavaScript 以运行此网页</noscript>
+    <noscript>
+      <div class="noscript">
+        很抱歉，<br />本站无法在禁用 JavaScript 的情况下使用
+      </div>
+      <style>
+        .noscript {
+          width: 100vw;
+          height: 100vh;
+          background-image: url("bg.png");
+          background-repeat: repeat;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          color: rgba(100, 100, 100, 0.5);
+          font-size: 16px;
+        }
+      </style>
+    </noscript>
     <div id="root"></div>
     <!--
       This HTML file is a template.

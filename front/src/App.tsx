@@ -13,14 +13,7 @@ const err_sig = Signal<string>()
 export const AppCriticalError = err_sig.trigger
 
 export default function App() {
-  const [ showFailure, hasFailure, failure_layout ] = useFailureLayout()
-
-  useEffect(() => {
-    err_sig.receive(showFailure)
-    return () => err_sig.unReceive(showFailure)
-  }, [showFailure])
-
-  return (
+  const app_node = (
     <div className="app">
       {
         process.env.REACT_APP_BUILD_DESCRIPTION && process.env.REACT_APP_BUILD_DESCRIPTION.length && (
@@ -30,7 +23,7 @@ export default function App() {
         )
       }
 
-      {hasFailure ? failure_layout : <GalleryHome />}
+      <GalleryHome />
 
       <style>{`
         .app {
@@ -46,4 +39,13 @@ export default function App() {
       `}</style>
     </div>
   )
+
+  const [ showFailure, , failure_layout ] = useFailureLayout(app_node)
+
+  useEffect(() => {
+    err_sig.receive(showFailure)
+    return () => err_sig.unReceive(showFailure)
+  }, [showFailure])
+
+  return <>{failure_layout}</>
 }

@@ -1,10 +1,10 @@
-import React, {createContext, useMemo, useState } from 'react'
+import React, {ReactNode, createContext, useEffect, useMemo, useState } from 'react'
 import s from './index.module.css'
 
 type FailureLayoutContextType = string[]
 export const FailureLayoutContext = createContext<FailureLayoutContextType>([])
 
-export function useFailureLayout() {
+export function useFailureLayout(innerContent?: ReactNode) {
   const [errors, setErrors] = useState<FailureLayoutContextType>([])
 
   function showFailure(s: string) {
@@ -16,11 +16,54 @@ export function useFailureLayout() {
     })
   }
 
+  console.log(errors)
+
   return [
     showFailure,
     Boolean(errors.length),
-    <FailureLayout errors={errors} />
+    <FailureLayoutContainer errors={errors}>{innerContent}</FailureLayoutContainer>
+    // <>
+    //   { innerContent }
+    //   <FailureLayout errors={errors} />
+    // </>
   ] as const
+}
+
+function FailureLayoutContainer({ errors, children }: { errors: unknown[], children: ReactNode }) {
+  const [t, setT] = useState(false)
+  useEffect(() => {
+    if (errors.length) {
+      const h = setTimeout(() => {
+        setT(true)
+      }, 1000)
+      return () => clearTimeout(h)
+    } else {
+      const h = setTimeout(() => {
+        setT(false)
+      }, 1000)
+      return () => clearTimeout(h)
+    }
+  }, [errors.length])
+
+  const [showErrors, setShowErrors] = useState(false)
+
+  useEffect(() => {
+    const h = setTimeout(() => {
+      setShowErrors(t)
+    }, 1500)
+    return () => clearTimeout(h)
+  }, [t])
+
+  return (
+    <div className={`${s.FailureLayoutContainer}`} style={{ background: 'black' }}>
+      <div className={t ? s.TurnOffEffect : ''}>
+        <div style={t ? { overflow: 'auto', height: '100vh' } : {}}>
+          { children }
+        </div>
+      </div>
+      { !showErrors ? null : <div className={s.TurnOnEffect} style={{ width: '100vw', height: '100vh', position: 'fixed', top: 0, left: 0 }}><FailureLayout key={errors.length} errors={errors} /></div> }
+    </div>
+  )
 }
 
 function DetailsItem({ defaultSpread = true,failure: f }: { defaultSpread?: boolean, failure: FailureInfo }) {
@@ -84,20 +127,22 @@ export default function FailureLayout({ errors }: { errors: unknown[] }) {
     }
   })
   return (
-    <article className={`${s.FailureLayout} ${s.crt}`}>
-      <section>
-        <p className={s.Title}>TORZO GALLERY FAILURE</p>
-        <p>如果你看到了这个画面，<br />说明《同装相册》已经无法提供正常服务。</p>
-        <p>你可以等会儿再来，说不定就好了。</p>
-        <p>当然，幸灾乐祸也是可以的。</p>
-      </section>
+    <div className={`${s.FailureLayoutWrapper} ${s.crt}`}>
+      <article className={`${s.FailureLayout}`}>
+        <section>
+          <p className={s.Title}>TORZO GALLERY FAILURE</p>
+          <p>如果你看到了这个画面，<br />说明《同装相册》已经无法提供正常服务。</p>
+          <p>你可以等会儿再来，说不定就好了。</p>
+          <p>当然，幸灾乐祸也是可以的。</p>
+        </section>
 
-      <aside>
-        <p className={s.Title}>ERROR DETAILS</p>
-        {failures.map((f, idx) => {
-          return <DetailsItem key={idx} failure={f} />
-        })}
-      </aside>
-    </article>
+        <aside>
+          <p className={s.Title}>ERROR DETAILS</p>
+          {failures.map((f, idx) => {
+            return <DetailsItem key={idx} failure={f} />
+          })}
+        </aside>
+      </article>
+    </div>
   )
 }

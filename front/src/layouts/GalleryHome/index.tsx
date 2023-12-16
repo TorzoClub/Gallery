@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import vait from 'vait'
+import { timeout } from 'new-vait'
 
 import { fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
 
@@ -116,7 +117,8 @@ export default () => {
           })
         })
       }
-    }).catch(err => {
+    }).catch(async err => {
+      await timeout(1000)
       AppCriticalError(`获取相册信息失败: ${err.message}`)
     })
   }, [currentQQNum, setActive, setConfirmState])

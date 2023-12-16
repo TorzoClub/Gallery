@@ -12,6 +12,7 @@ jobs:
   server-refresh:
     name: Refresh server
     runs-on: ubuntu-latest
+    if: contains(github.event.commits.*.message, '[skip ci]') == false
 
     steps:
     - name: Copy Repo Files

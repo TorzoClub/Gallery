@@ -37,6 +37,9 @@ jobs:
             name: DashboardBuild
             path: dashboard
 
+      - name: Display Dir
+        run: ls ./
+
   build-front:
     name: Build Front
     runs-on: ubuntu-latest
@@ -60,11 +63,15 @@ jobs:
           echo "REACT_APP_BUILD_DESCRIPTION=Development version.  build:${{ github.run_number }}  commit:${{ github.sha }}" >> ./.env.production
           yarn install --production=false
           yarn build:development
+          ls ./
 
       - uses: actions/upload-artifact@v4
         with:
           name: FrontBuild
           path: build
+
+      - name: Display Dir
+        run: ls ./
 
   upload-build:
     name: upload Builds

@@ -61,7 +61,17 @@ function FailureLayoutContainer({ errors, children }: { errors: unknown[], child
           { children }
         </div>
       </div>
-      { !showErrors ? null : <div className={s.TurnOnEffect} style={{ width: '100vw', height: '100vh', position: 'fixed', top: 0, left: 0 }}><FailureLayout key={errors.length} errors={errors} /></div> }
+      {
+        !errors.length ? null : (
+          <div
+            className={showErrors ? s.TurnOnEffect : ''}
+            style={{ width: '100vw', height: '100vh', position: 'fixed', top: 0, left: 0, opacity: showErrors ? 1: 0 }}
+          >
+            <FailureLayout key={errors.length} errors={errors} />
+          </div>
+          // !showErrors ? null : null
+        )
+      }
     </div>
   )
 }

@@ -16,16 +16,10 @@ export function useFailureLayout(innerContent?: ReactNode) {
     })
   }
 
-  console.log(errors)
-
   return [
     showFailure,
     Boolean(errors.length),
     <FailureLayoutContainer errors={errors}>{innerContent}</FailureLayoutContainer>
-    // <>
-    //   { innerContent }
-    //   <FailureLayout errors={errors} />
-    // </>
   ] as const
 }
 
@@ -69,7 +63,6 @@ function FailureLayoutContainer({ errors, children }: { errors: unknown[], child
           >
             <FailureLayout key={errors.length} errors={errors} />
           </div>
-          // !showErrors ? null : null
         )
       }
     </div>

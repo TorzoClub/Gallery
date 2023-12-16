@@ -160,6 +160,7 @@
   background-size: 100% 2px, 3px 100%;
   pointer-events: none;
 }
+/* 出处： https://aleclownes.com/2017/02/01/crt-display.html */
 .crt {
   animation: textShadow 1.6s infinite;
 }
@@ -224,6 +225,7 @@
   }
 }
 
+/* TurnOnEffect、TurnOffEffect 的出处： https://codepen.io/lbebber/pen/XJRdrV */
 .TurnOnEffect {
   animation: turn-on 4s linear;
   animation-fill-mode:forwards;

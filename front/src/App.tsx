@@ -10,13 +10,25 @@ class App extends Component {
   render() {
     return (
       <div className="app">
-        torzo gallery dev
+        {
+          process.env.REACT_APP_BUILD_DESCRIPTION && process.env.REACT_APP_BUILD_DESCRIPTION.length && (
+            <pre className="build-description">
+              <code>{ process.env.REACT_APP_BUILD_DESCRIPTION }</code>
+            </pre>
+          )
+        }
         {/* <CoverScroller /> */}
         <GalleryHome/>
         <style>{`
           .app {
             background-image: url(${BgImageUrl});
             background-repeat: repeat;
+          }
+          .build-description {
+            color: grey;
+            font-size: 12px;
+            padding: 0;
+            margin: 0;
           }
         `}</style>
       </div>

@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 
-import { timeout } from 'new-vait'
+import { nextTick, timeout } from 'new-vait'
 
-import { fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
-
-// import BgImageUrl from 'assets/bg.png'
+import { Photo, fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
 
 import LoadingLayout from './components/LoadingLayout'
 import ActivityLayout from './components/ActivityLayout'
@@ -16,6 +14,72 @@ import ConfirmVote from 'components/ConfirmVote'
 import shuffleArray from 'utils/shuffle-array'
 import { updateListItemById } from 'utils/common'
 import { AppCriticalError } from 'App'
+import { getGlobalQueue, globalQueueLoad, setGlobalQueue } from 'utils/queue-load'
+
+type MediaID = string | number
+type MediaType = 'AVATAR' | 'PHOTO'
+type Media = { id: MediaID; type: MediaType }
+function usePhotoLoadingPriority(photo_list: Photo[]) {
+  const id_src_map = useMemo(() => {
+    const m = new Map<number, string>()
+    photo_list.forEach(p => m.set(p.id, p.thumb_url))
+    return m
+  }, [photo_list])
+
+  function id(type: MediaType, mid: MediaID) {
+    if (type === 'PHOTO') return `photo-${mid}`
+    else return `avatar-${mid}`
+  }
+
+  useEffect(() => {
+    function _resortHandler() {
+      const in_screen_photos = photo_list.map(photo => {
+        const photo_el = document.getElementById(id('PHOTO', photo.id))
+        if (!photo_el) { return }
+        const bounding = photo_el.getBoundingClientRect()
+        if (
+          (bounding.y > (0 - bounding.height)) &&
+          (bounding.y < window.innerHeight)
+        ) {
+          return { photo, bounding }
+        } else {
+          return
+        }
+      }).filter(p => p) as { photo: Photo, bounding: DOMRect }[]
+
+      const sorted = in_screen_photos.sort((a, b) => {
+        return a.bounding.y > b.bounding.y ? 1 : -1
+      })
+
+      const all_tasks = getGlobalQueue()
+      setGlobalQueue(
+        all_tasks.map((t, idx) => {
+          return { ...t, priority: all_tasks.length - idx }
+        })
+      )
+
+      sorted.forEach(({ photo }, idx) => {
+        const src = id_src_map.get(photo.id)
+        if (!src) return
+        globalQueueLoad(src, 10000 - idx)
+        if (photo.member) {
+          globalQueueLoad(photo.member.avatar_thumb_url, 5000 - idx)
+        }
+      })
+    }
+    const resortHandler = () => {
+      nextTick().then(_resortHandler)
+    }
+    window.addEventListener('resize', resortHandler)
+    window.addEventListener('scroll', resortHandler)
+    resortHandler()
+
+    return () => {
+      window.removeEventListener('resize', resortHandler)
+      window.removeEventListener('scroll', resortHandler)
+    }
+  }, [id_src_map, photo_list])
+}
 
 export default () => {
   const [loaded, setLoaded] = useState(false)
@@ -32,6 +96,13 @@ export default () => {
   const [list, setList] = useState<fetchListResult['galleries']>([])
 
   const [submittedPool, setSubmittedPool] = useState({})
+
+  usePhotoLoadingPriority(
+    useMemo(() => [
+      ...(active ? active.photos : []),
+      ...list.map(g => g.photos).flat(),
+    ], [active, list])
+  )
 
   const [imageDetail, setImageDetail] = useState<Detail | null>(null)
   const [currentQQNum, setCurrentQQNum] = useState(0)

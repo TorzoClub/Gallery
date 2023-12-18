@@ -22,6 +22,8 @@ export type CoverClickEvent = {
   thumbBlobUrl: string
 }
 export type Props = {
+  id: string | number
+
   screen: string
   gutter: CSSProperties['width']
   boxWidth: string
@@ -72,7 +74,10 @@ export default (props: Props) => {
   }, [avatar, loadAvatarThumb, loadPhotoThumb, photo.thumb])
 
   return (
-    <div className={`image-box-wrapper ${screen} ${hideMember ? 'hide-member' : 'has-member'}`}>
+    <div
+      id={`photo-${props.id}`}
+      className={`image-box-wrapper ${screen} ${hideMember ? 'hide-member' : 'has-member'}`}
+    >
       <div className="image-box">
         <div
           className="cover-area"

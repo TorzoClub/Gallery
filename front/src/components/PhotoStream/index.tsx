@@ -1,9 +1,9 @@
-import React, { CSSProperties, useMemo } from 'react'
+import React, { CSSProperties, useEffect, useMemo } from 'react'
 
 import './index.scss'
 
 import PhotoBox, { CoverClickEvent } from 'components/PhotoBox'
-import globalLoad from 'utils/queue-load'
+import { globalQueueLoad } from 'utils/queue-load'
 import { Gallery, Photo } from 'api/photo'
 import { PhotoStreamState } from 'components/Gallery'
 
@@ -27,8 +27,8 @@ const createColumns = (column_count: number, photos: Photo[]) => {
   const columns: Photo[][] = Array.from(Array(column_count)).map(() => [])
 
   photos.forEach((photo, idx) => {
-    if (photo.member) globalLoad(photo.member.avatar_thumb_url, (0 - (photos.length - idx)))
-    globalLoad(photo.thumb_url, photos.length - idx)
+    if (photo.member) globalQueueLoad(photo.member.avatar_thumb_url)
+    globalQueueLoad(photo.thumb_url)
 
     const columnsHeightList: ColumnsHeightList = columns.map(computeColumnHeight)
 
@@ -118,6 +118,7 @@ export default (props: Props) => {
               column.map(photo => (
                 <PhotoBox
                   key={photo.id.toString()}
+                  id={photo.id}
 
                   screen={screen}
                   gutter={gutter}

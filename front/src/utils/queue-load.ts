@@ -28,8 +28,9 @@ type LoadTask = {
   priority: number
 }
 
-const globalQueueLoad = QueueLoad()
-export default globalQueueLoad
+const [ globalQueueLoad, [getGlobalQueue, setGlobalQueue] ] = QueueLoad()
+export { globalQueueLoad, getGlobalQueue, setGlobalQueue }
+
 export function QueueLoad() {
   const [getQueue, setQueue] = Memo<LoadTask[]>([])
   const [getConcurrentTasks, setConcurrentTasks] = Memo<LoadTask[]>([])
@@ -104,7 +105,7 @@ export function QueueLoad() {
     }
   }
 
-  return async function load(src: string, priority?: number): Promise<Load> {
+  async function load(src: string, priority?: number): Promise<Load> {
     const cached_data = cache.get(src)
     if (cached_data) {
       return cached_data
@@ -139,4 +140,6 @@ export function QueueLoad() {
       return data
     }
   }
+
+  return [ load, [ getQueue, setQueue ] ] as const
 }

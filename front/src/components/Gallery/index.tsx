@@ -69,9 +69,13 @@ export default (props: Props) => {
   const { screen, column_count, gallery_width, column_gutter } = state
   const { hideVoteButton, gallery } = props
 
+  const [open, setOpen] = useState(false)
+
   return (
     <div className="gallery">
-      <Title>{gallery.name}</Title>
+      <div onClick={() => { setOpen(!open) }}>
+        <Title title={gallery.name} open={open}>{'hello'}</Title>
+      </div>
 
       <PhotoStream
         hideVoteButton={hideVoteButton}

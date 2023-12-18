@@ -9970,10 +9970,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"new-vait@npm:vait@2.6.0":
-  version: 2.6.0
-  resolution: "vait@npm:2.6.0"
-  checksum: d312a65eeed416feb6718ac2e3b42a726358f2dc5a6ad8cb49fac05708558ed63d67c8fbfd5a0e4c5a02c59b60324c0f401975a2699919357676ffaad79bcfbf
+"new-vait@npm:vait@2.7.0-beta":
+  version: 2.7.0-beta
+  resolution: "vait@npm:2.7.0-beta"
+  checksum: 4df0312c7f6a6cee57c4a9cc640c3621bd24ed4600eb968289d6b9df54eb4e8a491501b20b75c6ace77d7d0dbee0940ba2e6c529fc564f8d1435b92531b13848
   languageName: node
   linkType: hard
 
@@ -13847,7 +13847,7 @@ __metadata:
     axios: ^0.24.0
     blueimp-md5: ^2.10.0
     env-cmd: ^10.1.0
-    new-vait: "npm:vait@2.6.0"
+    new-vait: "npm:vait@2.7.0-beta"
     node-sass: ^7.0.1
     path-browserify: ^1.0.1
     react: ^16.9.0

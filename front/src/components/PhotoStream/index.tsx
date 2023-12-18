@@ -1,5 +1,4 @@
 import React, { CSSProperties, useMemo } from 'react'
-import path from 'path-browserify'
 
 import './index.scss'
 
@@ -27,9 +26,9 @@ const computeColumnHeight = (column: Photo[]) =>
 const createColumns = (column_count: number, photos: Photo[]) => {
   const columns: Photo[][] = Array.from(Array(column_count)).map(() => [])
 
-  photos.forEach(photo => {
-    if (photo.member) globalLoad(photo.member.avatar_thumb_url)
-    globalLoad(photo.thumb_url)
+  photos.forEach((photo, idx) => {
+    if (photo.member) globalLoad(photo.member.avatar_thumb_url, (0 - (photos.length - idx)))
+    globalLoad(photo.thumb_url, photos.length - idx)
 
     const columnsHeightList: ColumnsHeightList = columns.map(computeColumnHeight)
 
@@ -94,7 +93,7 @@ export default (props: Props) => {
     }
   }, [screen])
 
-  return (
+  return useMemo(() => (
     <div
       className={`photo-stream ${screen}`}
       style={{
@@ -155,5 +154,5 @@ export default (props: Props) => {
         ))
       }
     </div>
-  )
+  ), [HorizontalOffset, boxWidth, columns, gallery.is_expired, gutter, hideVoteButton, photoStreamListWidth, props, screen, selectedIdList])
 }

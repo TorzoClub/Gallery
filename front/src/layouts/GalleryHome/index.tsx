@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import vait from 'vait'
+
 import { timeout } from 'new-vait'
 
 import { fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
@@ -95,7 +95,7 @@ export default () => {
 
         const fetchListResult = fetchListWithQQNum(Number(currentQQNum))
 
-        vait.timeout(1500).then(() => {
+        timeout(1500).then(() => {
           fetchListResult.then(({ active, galleries }) => {
             if (!active) return
 
@@ -109,7 +109,7 @@ export default () => {
             )
 
             setConfirmState({ in: false })
-            vait.timeout(618).then(() => {
+            timeout(618).then(() => {
               setShowConfirmVoteLayout(true)
             })
           }).catch(err => {
@@ -163,7 +163,7 @@ export default () => {
 
   const handleClickAnyWhere = useCallback(() => {
     setShowConfirmVoteLayout(false)
-    vait.timeout(618).then(() => {
+    timeout(618).then(() => {
       setHideVoteButton(false)
       setShowArrow(true)
     })

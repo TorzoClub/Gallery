@@ -1,23 +1,28 @@
-import { useCallback, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Wait, Memo, Signal, nextTick } from 'new-vait'
 import { findListByProperty, removeListItemByIdx } from './common'
 
-import DEngine from './d-engine'
+import download from './download'
 
 type Load = {
   blob: Blob;
   blobUrl: string;
 }
 
-export function useQueueload() {
+export function useQueueload(src: string | undefined) {
   const [blobSrc, setBlobSrc] = useState<string>('')
 
-  const loadBlobSrc = useCallback(async (src: string) => {
-    const res = await globalQueueLoad(src)
-    setBlobSrc(res.blobUrl)
-  }, [])
+  useEffect(() => {
+    if (src) {
+      let mounted = true
+      globalQueueLoad(src).then(res => {
+        if (mounted) setBlobSrc(res.blobUrl)
+      })
+      return () => { mounted = false }
+    }
+  }, [src])
 
-  return [blobSrc, loadBlobSrc] as const
+  return blobSrc
 }
 
 export const MAX_PARALLEL_NUMBER = 3
@@ -65,7 +70,7 @@ export function QueueLoad() {
 
       setQueue(remain_queue)
 
-      DEngine({
+      download({
         url: task.src
       }).then(blob => {
         return {

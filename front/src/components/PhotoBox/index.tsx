@@ -45,8 +45,8 @@ export default (props: Props) => {
 
   const [loaded, setLoaded] = useState(false)
 
-  const [thumb, loadPhotoThumb] = useQueueload()
-  const [avatarThumb, loadAvatarThumb] = useQueueload()
+  const thumb = useQueueload(photo.thumb)
+  const avatarThumb = useQueueload(avatar?.thumb)
 
   const coverFrameEl = useRef<HTMLDivElement>(null)
 
@@ -65,13 +65,6 @@ export default (props: Props) => {
     height,
     background: loaded ? 'white' : ''
   }
-
-  useEffect(() => {
-    if (avatar) {
-      loadAvatarThumb(avatar.thumb)
-    }
-    loadPhotoThumb(photo.thumb)
-  }, [avatar, loadAvatarThumb, loadPhotoThumb, photo.thumb])
 
   return (
     <div

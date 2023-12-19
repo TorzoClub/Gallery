@@ -12,7 +12,7 @@ module.exports = {
   getMemberById,
   removeMemberById,
 
-  createGallery,
+  commonCreateGallery,
   getGalleryById,
   updateGalleryById,
   removeGalleryById,
@@ -28,15 +28,17 @@ async function createApp(noSync) {
   //   return globalApp;
   // }
 
-  globalApp = mock.app();
+  const app = mock.app();
   // 等待 app 启动成功，才能执行测试用例
 
   if (!noSync) {
-    await globalApp.ready();
-    await globalApp.model.sync({
+    await app.ready();
+    await app.model.sync({
       force: true,
     });
   }
+
+  globalApp = app;
 
   return globalApp;
 }
@@ -112,23 +114,24 @@ function removeMemberById(token, app, id) {
     .then(res => res.body);
 }
 
-function createGallery(token, app) {
+function commonCreateGallery(token, app, append_data = {}) {
+  const send_data = {
+    name: 'gallery_name',
+    index: 0,
+    vote_limit: 3,
+    event_start: new Date('2023'),
+    submission_expire: new Date('2024'),
+    event_end: new Date('2025'),
+    ...append_data,
+  };
   return app.httpRequest()
     .post('/admin/gallery')
     .set('Authorization', token)
     .type('json')
-    .send({
-      name: 'gallery name',
-      index: 0,
-      vote_expire: new Date(),
-      vote_limit: 3,
-    })
+    .send(send_data)
     .expect(200)
     .then(res => {
       const gallery = res.body;
-      assert(gallery.index === 0);
-      assert(gallery.vote_limit === 3);
-      assert(gallery.name === 'gallery name');
       return gallery;
     });
 }
@@ -165,7 +168,7 @@ function removeGalleryById(token, app, id) {
     });
 }
 
-async function createPhoto(token, app, appendmemberData = {}) {
+async function createPhoto(token, app, appendmemberData = {}, expect_code = 200) {
   if (!appendmemberData.src) {
     const uploadedImage = await uploadImage(token, app);
     appendmemberData.src = uploadedImage.src;
@@ -183,7 +186,7 @@ async function createPhoto(token, app, appendmemberData = {}) {
     .set('Authorization', token)
     .type('json')
     .send(data)
-    .expect(200)
+    .expect(expect_code)
     .then(res => {
       const photo = res.body;
       assert(photo.src === data.src);

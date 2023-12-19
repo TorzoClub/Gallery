@@ -58,7 +58,7 @@ module.exports = app => {
       const galleries = photos_list.map((photos, idx) => {
         const gallery = list[idx];
 
-        if (!gallery.is_expired) {
+        if (gallery.in_event) {
           // 投票期间隐藏成员信息
           photos = photos.map(photo => {
             return { ...photo, member: null, member_id: null };
@@ -71,10 +71,10 @@ module.exports = app => {
         });
       });
 
-      const isNotExpiredGalleries = galleries.filter(gallery => !gallery.is_expired);
+      const [in_event_gallery] = galleries.filter(gallery => gallery.in_event);
       ctx.backData(200, {
-        active: isNotExpiredGalleries.length ? isNotExpiredGalleries[0] : null,
-        galleries: galleries.filter(gallery => gallery.is_expired),
+        active: in_event_gallery ? in_event_gallery : null,
+        galleries: galleries.filter(gallery => !gallery.in_event),
       });
     }
   };

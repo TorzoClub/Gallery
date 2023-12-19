@@ -1,4 +1,6 @@
 {
   "extends": "eslint-config-egg",
-  "ignorePatterns": ["no-else-return"]
+  "rules": {
+    "no-else-return": [0]
+  }
 }

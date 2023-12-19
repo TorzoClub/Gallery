@@ -39,12 +39,12 @@ module.exports = app => {
       // 在 event_start～submission_expire 这个时间范围内才显示为 true
       type: VIRTUAL,
       get() {
-        const now_date = new Date
-        const submission_expire_date = this.getDataValue('submission_expire')
+        const now_date = new Date();
+        const submission_expire_date = this.getDataValue('submission_expire');
         return (
           (now_date.valueOf() < submission_expire_date.valueOf()) &&
           this.in_event
-        )
+        );
       },
     },
 
@@ -52,14 +52,14 @@ module.exports = app => {
       // 正在活动期间
       type: VIRTUAL,
       get() {
-        const now_date = new Date
-        const start_date = this.getDataValue('event_start')
-        const end_date = this.getDataValue('event_end')
+        const now_date = new Date();
+        const start_date = this.getDataValue('event_start');
+        const end_date = this.getDataValue('event_end');
 
         return (
           (now_date.valueOf() >= start_date.valueOf()) &&
           (now_date.valueOf() <= end_date.valueOf())
-        )
+        );
       },
     },
 

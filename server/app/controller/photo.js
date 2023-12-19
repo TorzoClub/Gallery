@@ -59,7 +59,7 @@ module.exports = app => {
         return Object.assign(gallery.toJSON(), { photos });
       });
 
-      const [in_event_gallery] = galleries.filter(gallery => gallery.in_event);
+      const [ in_event_gallery ] = galleries.filter(gallery => gallery.in_event);
       ctx.backData(200, {
         active: in_event_gallery ? in_event_gallery : null,
         galleries: galleries.filter(gallery => !gallery.in_event),

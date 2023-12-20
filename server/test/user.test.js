@@ -3,29 +3,14 @@ const { set: setEnvironmentSystem, reset: resetEnvironmentDate } = require('mock
 const assert = require('assert');
 const mock = require('egg-mock');
 const {
-  getToken,
+  constructEnvironment,
   commonCreateGallery,
+  getHomePagePhotoList,
+  fetchListWithQQNum,
   createMember,
   createPhoto,
-  createApp,
   updateGalleryById
 } = require('./common');
-
-async function getPhotoList(app, expectStatusCode = 200) {
-  return app.httpRequest()
-    .get(`/photo`)
-    .expect(expectStatusCode)
-    .then(res => res.body);
-}
-
-async function fetchListWithQQNum(app, qq_num, expectStatusCode = 200) {
-  return app.httpRequest()
-    .post(`/member/photo`)
-    .type('json')
-    .send({ qq_num })
-    .expect(expectStatusCode)
-    .then(res => res.body);
-}
 
 async function confirmQQNum(app, qqNum, expectStatusCode = 200) {
   return app.httpRequest()
@@ -43,50 +28,6 @@ async function submitVote(app, qq_num, gallery_id, photo_id_list, expectStatusCo
     .then(res => res.body);
 }
 
-async function constructEnvironment({
-  need_sync = true,
-  baseNum = 100,
-  gallery: gallery_init = {},
-}) {
-  const app = mock.app()
-  await app.ready();
-  if (need_sync) {
-    await app.model.sync({
-      force: true,
-    });
-  }
-  const token = await getToken(app)
-
-  const gallery = await commonCreateGallery(token, app, gallery_init)
-
-  const memberA = await createMember(token, app, { name: 'member-A', qq_num: baseNum + 1 })
-  const memberB = await createMember(token, app, { name: 'member-B', qq_num: baseNum + 2 })
-  const memberC = await createMember(token, app, { name: 'member-C', qq_num: baseNum + 3 })
-
-  const authorA = await createMember(token, app, { name: 'author-A', qq_num: baseNum + 4 })
-  const authorB = await createMember(token, app, { name: 'author-B', qq_num: baseNum + 5 })
-  const authorC = await createMember(token, app, { name: 'author-C', qq_num: baseNum + 6 })
-
-  const photoA = await createPhoto(token, app, { member_id: authorA.id, gallery_id: gallery.id, desc: 'A' })
-  const photoB = await createPhoto(token, app, { member_id: authorB.id, gallery_id: gallery.id, desc: 'B' })
-  const photoC = await createPhoto(token, app, { member_id: authorC.id, gallery_id: gallery.id, desc: 'C' })
-
-  return {
-    app,
-    token,
-    gallery,
-    authorA,
-    authorB,
-    authorC,
-    memberA,
-    memberB,
-    memberC,
-    photoA,
-    photoB,
-    photoC,
-  }
-}
-
 function checkEventPeriodMember(active) {
   assert(Array.isArray(active.photos))
   for (let photo of active.photos) {
@@ -95,7 +36,7 @@ function checkEventPeriodMember(active) {
   }
 }
 
-describe('getting Homepage infomation(not within event period)', () => {
+describe('get Homepage infomation(not within event period)', () => {
   before(async () => {
     setEnvironmentSystem('2000/01/01') // 设定时间为 2000/01/01
   })
@@ -103,7 +44,7 @@ describe('getting Homepage infomation(not within event period)', () => {
     resetEnvironmentDate()
   })
 
-  it('before event start date', async () => {
+  it('should correctly get normal infomation before event_start', async () => {
     const { app, gallery } = await constructEnvironment({
       gallery: {
         event_start: new Date('2010'),
@@ -111,12 +52,12 @@ describe('getting Homepage infomation(not within event period)', () => {
         event_end: new Date('2012')
       }
     })
-    const data = await getPhotoList(app)
+    const data = await getHomePagePhotoList(app)
     assert(data.active === null)
     assert(Array.isArray(data.galleries))
   })
 
-  it('after event start date', async () => {
+  it('should correctly get normal infomation after event_end', async () => {
     const { app, gallery } = await constructEnvironment({
       gallery: {
         event_start: new Date('1990'),
@@ -124,13 +65,13 @@ describe('getting Homepage infomation(not within event period)', () => {
         event_end: new Date('1992')
       }
     })
-    const data = await getPhotoList(app)
+    const data = await getHomePagePhotoList(app)
     assert(data.active === null)
     assert(Array.isArray(data.galleries))
   })
 })
 
-describe('getting Homepage infomation(within event period)', () => {
+describe('get Homepage info(within event period)', () => {
   before(async () => {
     setEnvironmentSystem('2000/01/01') // 设定时间为 2000/01/01
   })
@@ -139,7 +80,7 @@ describe('getting Homepage infomation(within event period)', () => {
     resetEnvironmentDate()
   })
 
-  it('before submission_expire', async () => {
+  it('should correctly get event infomation before submission_expire', async () => {
     const { app } = await constructEnvironment({
       gallery: {
         event_start: new Date('1999'),
@@ -147,7 +88,7 @@ describe('getting Homepage infomation(within event period)', () => {
         event_end: new Date('2002')
       }
     })
-    const data = await getPhotoList(app)
+    const data = await getHomePagePhotoList(app)
     assert(typeof data.active === 'object')
     assert(Array.isArray(data.galleries))
 
@@ -159,7 +100,7 @@ describe('getting Homepage infomation(within event period)', () => {
     checkEventPeriodMember(data.active)
   })
 
-  it('after submission_expire', async () => {
+  it('should correctly get event infomation after submission_expire', async () => {
     const { app } = await constructEnvironment({
       gallery: {
         event_start: new Date('1998'),
@@ -167,7 +108,7 @@ describe('getting Homepage infomation(within event period)', () => {
         event_end: new Date('2001')
       }
     })
-    const data = await getPhotoList(app)
+    const data = await getHomePagePhotoList(app)
     assert(typeof data.active === 'object')
     assert(Array.isArray(data.galleries))
 
@@ -177,7 +118,7 @@ describe('getting Homepage infomation(within event period)', () => {
     checkEventPeriodMember(data.active)
   })
 
-  it('edit event end date', async () => {
+  it('should prevent get event infomation when event_end edited', async () => {
     const { app, token, gallery } = await constructEnvironment({
       gallery: {
         event_start: new Date('1997'),
@@ -185,7 +126,7 @@ describe('getting Homepage infomation(within event period)', () => {
         event_end: new Date('2001')
       }
     })
-    const data = await getPhotoList(app)
+    const data = await getHomePagePhotoList(app)
     assert(typeof data.active === 'object')
     assert(Array.isArray(data.galleries))
 
@@ -195,12 +136,12 @@ describe('getting Homepage infomation(within event period)', () => {
     await updateGalleryById(token, app, gallery.id, {
       event_end: new Date('1999')
     })
-    const updated_data = await getPhotoList(app)
-    assert(updated_data.active === null)
+    const updated_home = await getHomePagePhotoList(app)
+    assert(updated_home.active === null)
   })
 })
 
-describe('getting Homepage infomation by QQ(not within event period)', () => {
+describe('get Homepage infomation by QQ(not within event period)', () => {
   before(async () => {
     setEnvironmentSystem('2000/01/01') // 设定时间为 2000/01/01
   })
@@ -208,7 +149,7 @@ describe('getting Homepage infomation by QQ(not within event period)', () => {
     resetEnvironmentDate()
   })
 
-  it('before event start date', async () => {
+  it('should correctly get normal infomation before event_start', async () => {
     const { app, authorA } = await constructEnvironment({
       gallery: {
         event_start: new Date('2010'),
@@ -221,7 +162,7 @@ describe('getting Homepage infomation by QQ(not within event period)', () => {
     assert(Array.isArray(data.galleries))
   })
 
-  it('after event start date', async () => {
+  it('should correctly get normal infomation after event_end', async () => {
     const { app, authorA } = await constructEnvironment({
       gallery: {
         event_start: new Date('1990'),
@@ -235,7 +176,7 @@ describe('getting Homepage infomation by QQ(not within event period)', () => {
   })
 })
 
-describe('getting Homepage infomation by QQ(within event period)', () => {
+describe('get Homepage infomation by QQ(within event period)', () => {
   before(async () => {
     setEnvironmentSystem('2000/01/01') // 设定时间为 2000/01/01
   })
@@ -244,7 +185,7 @@ describe('getting Homepage infomation by QQ(within event period)', () => {
     resetEnvironmentDate()
   })
 
-  it('before submission_expire', async () => {
+  it('should correctly get event infomation before submission_expire', async () => {
     const { app, authorA } = await constructEnvironment({
       gallery: {
         event_start: new Date('1999'),
@@ -262,7 +203,7 @@ describe('getting Homepage infomation by QQ(within event period)', () => {
     checkEventPeriodMember(data.active)
   })
 
-  it('after submission_expire', async () => {
+  it('should correctly get event infomation after submission_expire', async () => {
     const { app, authorA } = await constructEnvironment({
       gallery: {
         event_start: new Date('1998'),
@@ -280,7 +221,7 @@ describe('getting Homepage infomation by QQ(within event period)', () => {
     checkEventPeriodMember(data.active)
   })
 
-  it('edit event end date', async () => {
+  it('should prevent get event infomation when event_end edited', async () => {
     const { app, token, gallery, authorA } = await constructEnvironment({
       gallery: {
         event_start: new Date('1997'),
@@ -298,8 +239,36 @@ describe('getting Homepage infomation by QQ(within event period)', () => {
     await updateGalleryById(token, app, gallery.id, {
       event_end: new Date('1999')
     })
-    const updated_data = await fetchListWithQQNum(app, authorA.qq_num)
-    assert(updated_data.active === null)
+    const updated_home = await fetchListWithQQNum(app, authorA.qq_num)
+    assert(updated_home.active === null)
+  })
+})
+
+describe('QQ Login', () => {
+  it('should successfully login', async () => {
+    const { app, memberA } = await constructEnvironment({
+      gallery: {
+        event_start: new Date('1998'),
+        submission_expire: new Date('1999'),
+        event_end: new Date('2001')
+      }
+    })
+
+    const result = await confirmQQNum(app, memberA.qq_num, 200)
+    assert(result.value === true)
+  })
+
+  it('should prevent login using non-existent QQ num', async () => {
+    const { app, memberA } = await constructEnvironment({
+      gallery: {
+        event_start: new Date('1998'),
+        submission_expire: new Date('1999'),
+        event_end: new Date('2001')
+      }
+    })
+
+    const notFoundResult = await confirmQQNum(app, 404404) // 不存在的号码
+    assert(notFoundResult.value === false)
   })
 })
 
@@ -312,24 +281,8 @@ describe('submit vote', () => {
     resetEnvironmentDate()
   })
 
-  it('QQ login', async () => {
-    const { app, memberA } = await constructEnvironment({
-      gallery: {
-        event_start: new Date('1998'),
-        submission_expire: new Date('1999'),
-        event_end: new Date('2001')
-      }
-    })
-
-    const notFoundResult = await confirmQQNum(app, 404404) // 不存在的号码
-    assert(notFoundResult.value === false)
-
-    const result = await confirmQQNum(app, memberA.qq_num, 200)
-    assert(result.value === true)
-  })
-
-  it('memberA vote authorB', async () => {
-    const { app, token, gallery, memberA, photoA, authorA } = await constructEnvironment({
+  it('should successfully vote(memberA vote authorB)', async () => {
+    const { app, gallery, memberA, photoA, authorA } = await constructEnvironment({
       gallery: {
         event_start: new Date('1998'),
         submission_expire: new Date('1999'),
@@ -353,28 +306,7 @@ describe('submit vote', () => {
     await submitVote(app, memberA.qq_num, gallery.id, [ photoA.id ], 409)
   })
 
-  it('out of vote_limit', async () => {
-    const { app, token, gallery, memberA, photoA, photoB, photoC, authorA } = await constructEnvironment({
-      gallery: {
-        vote_limit: 2,
-        event_start: new Date('1998'),
-        submission_expire: new Date('1999'),
-        event_end: new Date('2003')
-      }
-    })
-
-    assert(gallery.vote_limit === 2)
-
-    await submitVote(
-      app,
-      memberA.qq_num,
-      gallery.id,
-      [ photoA.id, photoB.id, photoC.id ],
-      403
-    )
-  })
-
-  it('unlimited vote', async () => {
+  it('should successfully vote(unlimited vote)', async () => {
     const { app, token, gallery, memberA, photoA, photoB, photoC, authorA } = await constructEnvironment({
       gallery: {
         vote_limit: 0,
@@ -413,7 +345,28 @@ describe('submit vote', () => {
     )
   })
 
-  it('vote another gallery\'s photo', async () => {
+  it('should prevent vote(out of vote_limit)', async () => {
+    const { app, token, gallery, memberA, photoA, photoB, photoC, authorA } = await constructEnvironment({
+      gallery: {
+        vote_limit: 2,
+        event_start: new Date('1998'),
+        submission_expire: new Date('1999'),
+        event_end: new Date('2003')
+      }
+    })
+
+    assert(gallery.vote_limit === 2)
+
+    await submitVote(
+      app,
+      memberA.qq_num,
+      gallery.id,
+      [ photoA.id, photoB.id, photoC.id ],
+      403
+    )
+  })
+
+  it('should prevent vote another photo', async () => {
     const gallery_init = {
       vote_limit: 0,
       event_start: new Date('1998'),
@@ -430,7 +383,7 @@ describe('submit vote', () => {
     await submitVote(app, memberA.qq_num, gallery.id, [ anotherPhoto.id ], 404)
   })
 
-  it('cannot vote before submission_expire', async () => {
+  it('should prevent vote before submission_expire', async () => {
     const { app, token, gallery, memberA, photoA, authorA } = await constructEnvironment({
       gallery: {
         vote_limit: 1,
@@ -443,7 +396,7 @@ describe('submit vote', () => {
     await submitVote(app, memberA.qq_num, gallery.id, [ photoA.id ], 403)
   })
 
-  it('cannot vote before event start date', async () => {
+  it('should prevent vote before event_start', async () => {
     const { app, token, gallery, memberA, photoA, authorA } = await constructEnvironment({
       gallery: {
         event_start: new Date('2010'),
@@ -455,7 +408,7 @@ describe('submit vote', () => {
     await submitVote(app, memberA.qq_num, gallery.id, [ photoA.id ], 403)
   })
 
-  it('cannot vote after event end date', async () => {
+  it('should prevent vote after event_end', async () => {
     const { app, token, gallery, memberA, photoA, authorA } = await constructEnvironment({
       gallery: {
         event_start: new Date('1980'),

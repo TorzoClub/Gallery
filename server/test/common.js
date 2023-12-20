@@ -6,6 +6,9 @@ const mock = require('egg-mock');
 module.exports = {
   createApp,
   getToken,
+  constructEnvironment,
+  getHomePagePhotoList,
+  fetchListWithQQNum,
   uploadImage,
 
   createMember,
@@ -55,6 +58,66 @@ function getToken(app) {
       const { token } = res.body;
       return token;
     });
+}
+
+async function constructEnvironment({
+  need_sync = true,
+  baseNum = 100,
+  gallery: gallery_init = {},
+}) {
+  const app = mock.app();
+  await app.ready();
+  if (need_sync) {
+    await app.model.sync({
+      force: true,
+    });
+  }
+  const token = await getToken(app);
+
+  const gallery = await commonCreateGallery(token, app, gallery_init);
+
+  const memberA = await createMember(token, app, { name: 'member-A', qq_num: baseNum + 1 });
+  const memberB = await createMember(token, app, { name: 'member-B', qq_num: baseNum + 2 });
+  const memberC = await createMember(token, app, { name: 'member-C', qq_num: baseNum + 3 });
+
+  const authorA = await createMember(token, app, { name: 'author-A', qq_num: baseNum + 4 });
+  const authorB = await createMember(token, app, { name: 'author-B', qq_num: baseNum + 5 });
+  const authorC = await createMember(token, app, { name: 'author-C', qq_num: baseNum + 6 });
+
+  const photoA = await createPhoto(token, app, { member_id: authorA.id, gallery_id: gallery.id, desc: 'A' });
+  const photoB = await createPhoto(token, app, { member_id: authorB.id, gallery_id: gallery.id, desc: 'B' });
+  const photoC = await createPhoto(token, app, { member_id: authorC.id, gallery_id: gallery.id, desc: 'C' });
+
+  return {
+    app,
+    token,
+    gallery,
+    authorA,
+    authorB,
+    authorC,
+    memberA,
+    memberB,
+    memberC,
+    photoA,
+    photoB,
+    photoC,
+  };
+}
+
+async function getHomePagePhotoList(app, expectStatusCode = 200) {
+  return app.httpRequest()
+    .get('/photo')
+    .expect(expectStatusCode)
+    .then(res => res.body);
+}
+
+async function fetchListWithQQNum(app, qq_num, expectStatusCode = 200) {
+  return app.httpRequest()
+    .post('/member/photo')
+    .type('json')
+    .send({ qq_num })
+    .expect(expectStatusCode)
+    .then(res => res.body);
 }
 
 async function uploadImage(token, app, imagePath = `${__dirname}/avatar.png`) {

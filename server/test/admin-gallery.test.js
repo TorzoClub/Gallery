@@ -37,11 +37,19 @@ describe('controller/admin/gallery', () => {
       .expect(expect_code)
   }
 
-  it('creating gallery', async () => {
-    await createGalleryRequest(200, default_gallery_data)
+  it('should successfully create a gallery', async () => {
+    const created_res = await createGalleryRequest(200, default_gallery_data)
+    const created = getResData(created_res)
+    assert(typeof created === 'object')
+    assert(typeof created.id === 'number')
+    assert(typeof created.name === 'string')
+    assert(typeof created.vote_limit === 'number')
+    assert(typeof created.event_start === 'string')
+    assert(typeof created.event_end === 'string')
+    assert(typeof created.submission_expire === 'string')
   })
 
-  it('creating gallery with incorrect data format', async () => {
+  it('should prevent creating with incorrect data format', async () => {
     const dup_data = { ...default_gallery_data }
 
     {
@@ -67,7 +75,7 @@ describe('controller/admin/gallery', () => {
     }
   })
 
-  it('geting gallery', async () => {
+  it('should successfully get a gallery', async () => {
     const created_res = await createGalleryRequest(200, default_gallery_data)
     const created = getResData(created_res)
     const gallery = await getGalleryById(token, app, created.id)
@@ -80,7 +88,7 @@ describe('controller/admin/gallery', () => {
     assert(gallery.event_end === created.event_end)
   })
 
-  it('deleting gallery', async () => {
+  it('should successfully delete a gallery', async () => {
     const created_req = await createGalleryRequest(200, default_gallery_data)
     const created = getResData(created_req)
     const deleted = await removeGalleryById(token, app, created.id)
@@ -89,7 +97,7 @@ describe('controller/admin/gallery', () => {
     getGalleryById(token, app, deleted.id, 404)
   })
 
-  it('getting gallery list', () => {
+  it('should successfully get a gallery list', () => {
     return app.httpRequest()
       .get('/admin/gallery')
       .set('Authorization', token)
@@ -100,7 +108,7 @@ describe('controller/admin/gallery', () => {
       })
   })
 
-  it('updating gallery', async () => {
+  it('should successfully update a gallery', async () => {
     const gallery_req = await createGalleryRequest(200, default_gallery_data)
     const created = getResData(gallery_req)
     await updateGalleryById(token, app, created.id, {
@@ -111,7 +119,7 @@ describe('controller/admin/gallery', () => {
     assert(edited.name === 'edited name')
   })
 
-  it('updating non-existent gallery', async () => {
+  it('should prevent updating a non-existent gallery', async () => {
     await app.httpRequest()
       .patch(`/admin/gallery/404404404`)
       .set('Authorization', token)
@@ -120,7 +128,7 @@ describe('controller/admin/gallery', () => {
       .expect(404)
   })
 
-  it('updating gallery with incorrect data format', async () => {
+  it('should prevent updating with incorrect data format', async () => {
     const gallery_req = await createGalleryRequest(200, default_gallery_data)
     const created = getResData(gallery_req)
 
@@ -144,7 +152,7 @@ describe('controller/admin/gallery', () => {
     await getGalleryById(token, app, created.id)
   })
 
-  it('Event date Validation', async () => {
+  it('should prevent creating with incorrect event date', async () => {
     function create(code, [ event_start, submission_expire, event_end ]) {
       return createGalleryRequest(code, {
         ...default_gallery_data,

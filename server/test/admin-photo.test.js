@@ -21,7 +21,7 @@ describe('controller/admin/photo', () => {
     token = await getToken(app)
   })
 
-  it('creating photo', async () => {
+  it('should successfully create a photo', async () => {
     const member = await createMember(token, app, { qq_num: 22222 })
     const gallery = await commonCreateGallery(token, app, {})
     await createPhoto(token, app, {
@@ -30,7 +30,7 @@ describe('controller/admin/photo', () => {
     })
   })
 
-  it('getting photo', async () => {
+  it('should successfully get a photo infomation', async () => {
     let globalQqNum = 8000
     async function createRandomPhoto() {
       const member = await createMember(token, app, { qq_num: ++globalQqNum })
@@ -47,7 +47,7 @@ describe('controller/admin/photo', () => {
     await createRandomPhoto()
   })
 
-  it('deleting photo', async () => {
+  it('should successfully delete a photo', async () => {
     const member = await createMember(token, app, { qq_num: 22224 })
     const gallery = await commonCreateGallery(token, app, {})
     const newPhoto = await createPhoto(token, app, {

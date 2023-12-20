@@ -17,11 +17,11 @@ describe('controller/admin/member', () => {
     token = await getToken(app)
   })
 
-  it('admin create member', async () => {
+  it('should successfully create a member', async () => {
     const member = await createMember(token, app)
   })
 
-  it('admin get member', async () => {
+  it('should successfully get a member infomation', async () => {
     const createdMember = await createMember(token, app, { name: 'get member', qq_num: 2333333 })
     const member = await getMemberById(token, app, createdMember.id)
 
@@ -29,7 +29,7 @@ describe('controller/admin/member', () => {
     assert(member.name === createdMember.name)
   })
 
-  it('admin delete member', async () => {
+  it('should successfully delete a member', async () => {
     const createdMember = await createMember(token, app, { name: 'get member', qq_num: 141421 })
     const deletedMember = await removeMemberById(token, app, createdMember.id)
     assert(deletedMember.id === createdMember.id)
@@ -37,7 +37,7 @@ describe('controller/admin/member', () => {
     getMemberById(token, app, deletedMember.id, 404)
   })
 
-  it('admin show member', () => {
+  it('should successfully get a member list', () => {
     return app.httpRequest()
       .get('/admin/member')
       .set('Authorization', token)

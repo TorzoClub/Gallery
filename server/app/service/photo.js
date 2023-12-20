@@ -36,9 +36,63 @@ module.exports = app =>
       return { width, height };
     }
 
+    async createBySubmission({ imagefile_path, qq_num, gallery_id, desc }) {
+      const created_file = await this.service.image.storeByFilePath(imagefile_path);
+
+      const created_photo = await this.service.photo.createByQQNum({
+        qq_num, gallery_id, desc, src: created_file.src,
+      });
+
+      return created_photo.toJSON();
+    }
+
+    canSubmission(gallery) {
+      if (!gallery.in_event) {
+        throw Object.assign(new app.WarningError('无法投稿，因为该相册不在活动期间', 403), { IS_NOT_EVENT_PERIOD: true });
+      } else if (!gallery.can_submission) {
+        throw Object.assign(new app.WarningError('无法投稿，因为该相册已过投稿期限', 403), { IS_NOT_SUBMISSION_PERIOD: true });
+      }
+    }
+
+    async editSubmission({ photo_id, qq_num, imagefile_path, desc }) {
+      const member = await this.service.member.findOneByOptions({
+        where: { qq_num: parseInt(qq_num) },
+      });
+
+      const photo = await this.service.photo.findById(photo_id);
+
+      if (photo.member_id !== member.id) {
+        throw Object.assign(new app.WarningError('相片不是该成员的投稿', 403), { SUBMISSION_AUTHOR_IS_NOT_CURRENT_MEMBER: true });
+      }
+
+      const gallery = await this.service.gallery.findById(photo.gallery_id);
+      this.canSubmission(gallery);
+
+      const created_file = await this.service.image.storeByFilePath(imagefile_path);
+      return this.edit(photo.id, {
+        src: created_file.src,
+        desc,
+      });
+    }
+
+    async createByQQNum({ qq_num, gallery_id, src, desc }) {
+      const member = await this.service.member.findOneByOptions({
+        where: { qq_num: parseInt(qq_num) },
+      });
+
+      const gallery = await this.service.gallery.findById(gallery_id);
+      this.canSubmission(gallery);
+      return this.create({
+        member_id: member.id,
+        gallery_id,
+        src,
+        desc,
+      });
+    }
+
     async create(data) {
       return this.app.model.transaction(async transaction => {
-        const { member_id, gallery_id, src } = data;
+        const { member_id, gallery_id, src, desc } = data;
 
         await this.service.member.detectExistsById(member_id, {
           transaction,
@@ -50,16 +104,28 @@ module.exports = app =>
           lock: transaction.LOCK.UPDATE,
         });
 
-        const { width, height } = await this.getImageDimensions(src);
+        const exists = await this.Model.findOne({
+          where: {
+            gallery_id,
+            member_id,
+          },
 
-        return await this.Model.create({
-          member_id,
-          gallery_id,
-          desc: data.desc,
-          src,
-          width,
-          height,
-        }, { transaction });
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+        if (exists) {
+          throw new this.ctx.app.WarningError('该成员已经投稿过了，不能重复投稿', 409);
+        } else {
+          const { width, height } = await this.getImageDimensions(src);
+          return await this.Model.create({
+            member_id: parseInt(member_id),
+            gallery_id: parseInt(gallery_id),
+            desc,
+            src,
+            width,
+            height,
+          }, { transaction, lock: transaction.LOCK.UPDATE });
+        }
       });
     }
 
@@ -72,7 +138,7 @@ module.exports = app =>
         const photo = await this.findById(id, { transaction, lock: transaction.LOCK.UPDATE });
 
         if (data.hasOwnProperty('member_id')) {
-          // 检查相册是否存在
+          // 检查成员是否存在
           await this.service.member.detectExistsById(data.member_id, {
             transaction,
             lock: transaction.LOCK.UPDATE,

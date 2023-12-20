@@ -1,5 +1,13 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
+const stream = require('stream');
+const util = require('util');
+const { randomUUID } = require('crypto');
+const pipeline = util.promisify(stream.pipeline);
+const os = require('os');
+
 module.exports = app => {
   return class PhotoController extends app.Controller {
     async get(ctx) {
@@ -8,12 +16,118 @@ module.exports = app => {
       }, ctx.params);
 
       const { id } = ctx.params;
-
       const photo = await ctx.service.photo.findById(id);
       ctx.backData(200, {
         ...photo.toJSON(),
         member: await photo.getMember(),
       });
+    }
+
+    async processingMultipart(ctx) {
+      const parts = ctx.multipart();
+      const fields = {};
+      const files = [];
+
+      let part;
+      while ((part = await parts()) != null) {
+        if (Array.isArray(part)) {
+          // fields
+          const [ field, value ] = part;
+          fields[field] = value;
+        } else {
+          // otherwise, it's a stream
+          const { filename, fieldname, encoding, mime } = part;
+
+          // how to handler?
+          // 1. save to tmpdir with pipeline
+          // 2. or send to oss
+          // 3. or just consume it with another for await
+
+          // WARNING: You should almost never use the origin filename as it could contain malicious input.
+          const temp_path = path.join(os.tmpdir(), randomUUID() + path.extname(filename));
+          await pipeline(part, fs.createWriteStream(temp_path)); // use `pipeline` not `pipe`
+          files.push({
+            temp_path,
+            fieldname,
+            filename,
+            encoding,
+            mime,
+          });
+        }
+      }
+      return [ files, fields ];
+    }
+
+    selectImageFile(files) {
+      if (files.length === 0) {
+        throw new app.WarningError('缺少上传的文件', 400);
+      } else {
+        const [ file ] = files;
+        if (!/^image\//.test(file.mime)) {
+          throw new app.WarningError(`文件需要是图片格式，当前提交mimetype的是: ${file.mime}`, 400);
+        } else {
+          return file;
+        }
+      }
+    }
+
+    async create(ctx) {
+      const [ files, fields ] = await this.processingMultipart(ctx);
+
+      // console.log('done fields', fields);
+      // console.log('done files', files);
+
+      const file = this.selectImageFile(files);
+
+      const parsed_opts = {
+        gallery_id: fields.gallery_id,
+        qq_num: parseInt(fields.qq_num),
+        desc: fields.desc,
+      };
+
+      ctx.validate({
+        gallery_id: { type: 'id', required: true },
+        qq_num: { type: 'int', required: true },
+        desc: { type: 'string', required: true, allowEmpty: true },
+      }, parsed_opts);
+
+      const result = await this.service.photo.createBySubmission({
+        // mime,
+        imagefile_path: file.temp_path,
+        ...parsed_opts,
+      });
+
+      ctx.backData(200, result);
+    }
+
+    async edit(ctx) {
+      const [ files, fields ] = await this.processingMultipart(ctx);
+      const file = this.selectImageFile(files);
+
+      const { photo_id } = ctx.params;
+      ctx.validate({
+        photo_id: { type: 'id', required: true },
+      }, ctx.params);
+
+      const parsed_opts = {
+        qq_num: parseInt(fields.qq_num),
+        desc: fields.desc,
+      };
+
+      ctx.validate({
+        qq_num: { type: 'int', required: true },
+        desc: { type: 'string', required: true, allowEmpty: true },
+      }, parsed_opts);
+
+      ctx.backData(
+        200,
+        await this.service.photo.editSubmission({
+          photo_id,
+          qq_num: parsed_opts.qq_num,
+          imagefile_path: file.temp_path,
+          desc: parsed_opts.desc,
+        })
+      );
     }
 
     async show(ctx) {

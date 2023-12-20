@@ -66,4 +66,6 @@ module.exports = app => {
 
   setRouter('get', 'photo', controller.photo.show);
   setRouter('get', 'photo/:id', controller.photo.get);
+  setRouter('post', 'photo', controller.photo.create);
+  setRouter('post', 'photo/:photo_id', controller.photo.edit);
 };

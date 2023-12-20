@@ -40,6 +40,21 @@ module.exports = appInfo => {
   const imagePath = path.join(config.static.prefix, 'src');
   const imageThumbPath = path.join(config.static.prefix, 'thumb');
 
+  config.multipart = {
+    fieldNameSize: 256,
+    fieldSize: '15MB',
+    fields: 20,
+    fileSize: '16MB',
+    files: 1,
+
+    // 为了保证文件上传的安全，框架限制了支持的文件格式。默认的后缀白名单参见源码。
+    // 开发者可以通过配置 fileExtensions 来新增允许的类型：
+    fileExtensions: [],
+
+    // 如果希望覆盖框架内置的白名单，可以配置 whitelist 属性.当重写了 whitelist 时，fileExtensions 不生效。
+    whitelist: [ '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tif', '.avif' ],
+  };
+
   config.development = {
     ...(config.development || {}),
 

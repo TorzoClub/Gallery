@@ -1,4 +1,4 @@
-import React, { Component, useEffect } from 'react'
+import React, { Component, useEffect, useState } from 'react'
 import { Signal } from 'new-vait'
 
 import GalleryHome from './layouts/GalleryHome'

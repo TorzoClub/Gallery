@@ -1,8 +1,6 @@
 const assert = require('assert');
 const mock = require('egg-mock');
-const { getToken,   createGallery, getGalleryById, removeGalleryById, createApp, updateGalleryById } = require('./common');
-
-
+const { getToken, getGalleryById, removeGalleryById, createApp, updateGalleryById } = require('./common');
 
 describe('controller/admin/gallery', () => {
   let app
@@ -16,30 +14,90 @@ describe('controller/admin/gallery', () => {
     token = await getToken(app)
   })
 
-  it('admin create gallery', () => {
-    return createGallery(token, app)
+  function getResData(res) {
+    const data = res.body;
+    return data;
+  }
+
+  const default_gallery_data = Object.freeze({
+    name: 'gallery_name',
+    index: 0,
+    vote_limit: 3,
+    event_start: new Date('2023'),
+    submission_expire: new Date('2024'),
+    event_end: new Date('2025'),
   })
 
-  it('admin get gallery', async () => {
-    const createdGallery = await createGallery(token, app)
-    const gallery = await getGalleryById(token, app, createdGallery.id)
+  function createGalleryRequest(expect_code, data) {
+    return app.httpRequest()
+      .post('/admin/gallery')
+      .set('Authorization', token)
+      .type('json')
+      .send({ ...data })
+      .expect(expect_code)
+  }
 
-    assert(gallery.id === createdGallery.id)
-    assert(gallery.is_expired === createdGallery.is_expired)
-    assert(gallery.name === createdGallery.name)
-    assert(gallery.index === createdGallery.index)
-    assert(gallery.vote_limit === createdGallery.vote_limit)
+  it('should successfully create a gallery', async () => {
+    const created_res = await createGalleryRequest(200, default_gallery_data)
+    const created = getResData(created_res)
+    assert(typeof created === 'object')
+    assert(typeof created.id === 'number')
+    assert(typeof created.name === 'string')
+    assert(typeof created.vote_limit === 'number')
+    assert(typeof created.event_start === 'string')
+    assert(typeof created.event_end === 'string')
+    assert(typeof created.submission_expire === 'string')
   })
 
-  it('admin delete gallery', async () => {
-    const createdGallery = await createGallery(token, app)
-    const deletedGallery = await removeGalleryById(token, app, createdGallery.id)
-    assert(deletedGallery.id === createdGallery.id)
+  it('should prevent creating with incorrect data format', async () => {
+    const dup_data = { ...default_gallery_data }
 
-    getGalleryById(token, app, deletedGallery.id, 404)
+    {
+      const keys = Object.keys(dup_data)
+      for (const key of keys) {
+        const data = { ...dup_data }
+        delete data[key]
+        const res = await createGalleryRequest(400, data)
+        assert(res.status === 400);
+      }
+    }
+
+    {
+      await createGalleryRequest(400, { ...dup_data, event_start: 'xx00' })
+      await createGalleryRequest(400, { ...dup_data, submission_expire: 'xx00' })
+      await createGalleryRequest(400, { ...dup_data, event_end: 'xx00' })
+      await createGalleryRequest(400, { ...dup_data, vote_limit: -1 })
+    }
+    {
+      await createGalleryRequest(400, { ...dup_data, event_start: 'xx00', submission_expire: 'xx00' })
+      await createGalleryRequest(400, { ...dup_data, event_start: 'xx00', event_end: 'xx00' })
+      await createGalleryRequest(400, { ...dup_data, submission_expire: 'xx00', event_end: 'xx00' })
+    }
   })
 
-  it('admin show gallery', () => {
+  it('should successfully get a gallery', async () => {
+    const created_res = await createGalleryRequest(200, default_gallery_data)
+    const created = getResData(created_res)
+    const gallery = await getGalleryById(token, app, created.id)
+
+    assert(gallery.id === created.id)
+    assert(gallery.name === created.name)
+    assert(gallery.index === created.index)
+    assert(gallery.event_start === created.event_start)
+    assert(gallery.submission_expire === created.submission_expire)
+    assert(gallery.event_end === created.event_end)
+  })
+
+  it('should successfully delete a gallery', async () => {
+    const created_req = await createGalleryRequest(200, default_gallery_data)
+    const created = getResData(created_req)
+    const deleted = await removeGalleryById(token, app, created.id)
+    assert(deleted.id === created.id)
+
+    getGalleryById(token, app, deleted.id, 404)
+  })
+
+  it('should successfully get a gallery list', () => {
     return app.httpRequest()
       .get('/admin/gallery')
       .set('Authorization', token)
@@ -50,13 +108,92 @@ describe('controller/admin/gallery', () => {
       })
   })
 
-  it('admin update gallery', async () => {
-    const gallery = await createGallery(token, app)
-    await updateGalleryById(token, app, gallery.id, {
+  it('should successfully update a gallery', async () => {
+    const gallery_req = await createGalleryRequest(200, default_gallery_data)
+    const created = getResData(gallery_req)
+    await updateGalleryById(token, app, created.id, {
       name: 'edited name'
     })
 
-    const findGallery = await getGalleryById(token, app, gallery.id)
-    assert(findGallery.name === 'edited name')
+    const edited = await getGalleryById(token, app, created.id)
+    assert(edited.name === 'edited name')
+  })
+
+  it('should prevent updating a non-existent gallery', async () => {
+    await app.httpRequest()
+      .patch(`/admin/gallery/404404404`)
+      .set('Authorization', token)
+      .type('json')
+      .send({ name: 'test' })
+      .expect(404)
+  })
+
+  it('should prevent updating with incorrect data format', async () => {
+    const gallery_req = await createGalleryRequest(200, default_gallery_data)
+    const created = getResData(gallery_req)
+
+    function update(expect_code, id, data) {
+      return app.httpRequest()
+        .patch(`/admin/gallery/${id}`)
+        .set('Authorization', token)
+        .type('json')
+        .send({ ...data })
+        .expect(expect_code)
+    }
+    await update(400, created.id, { name: 1 })
+    await update(400, created.id, { index: '1' })
+    await update(400, created.id, { vote_limit: '1' })
+    await update(400, created.id, { vote_limit: -1 })
+    await update(400, created.id, { event_start: 1 })
+    await update(400, created.id, { submission_expire: 1 })
+    await update(400, created.id, { event_end: 1 })
+
+    await update(200, created.id, { id: 10000 }) // 无法修改 id
+    await getGalleryById(token, app, created.id)
+  })
+
+  it('should prevent creating with incorrect event date', async () => {
+    function create(code, [ event_start, submission_expire, event_end ]) {
+      return createGalleryRequest(code, {
+        ...default_gallery_data,
+        event_start: new Date(`${event_start}`),
+        submission_expire: new Date(`${submission_expire}`),
+        event_end: new Date(`${event_end}`),
+      })
+    }
+    async function update(expect_code, data) {
+      const gallery_req = await create(200, [2010, 2020, 2030])
+      const created = getResData(gallery_req)
+
+      await app.httpRequest()
+        .patch(`/admin/gallery/${created.id}`)
+        .set('Authorization', token)
+        .type('json')
+        .send({ ...data })
+        .expect(expect_code)
+    }
+
+    // event_start、submission_expire、event_end 三个属性的关系
+    // 永远是 event_start < submission_expire < event_end
+    // 设定的值如果不能满足这个条件，则返回 http 400
+    await create(200, [2010, 2020, 2030])
+
+    await create(400, [2025, 2020, 2030])
+    await create(400, [2040, 2020, 2030])
+
+    await create(400, [2010, 1999, 2030])
+    await create(400, [2010, 2040, 2030])
+
+    await create(400, [2010, 2020, 1999])
+    await create(400, [2010, 2020, 2015])
+
+    await update(400, { event_start: new Date('2025') })
+    await update(400, { event_start: new Date('2040') })
+
+    await update(400, { submission_expire: new Date('1999') })
+    await update(400, { submission_expire: new Date('2040') })
+
+    await update(400, { event_end: new Date('1999') })
+    await update(400, { event_end: new Date('2015') })
   })
 });

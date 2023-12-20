@@ -21,8 +21,10 @@ module.exports = app =>
 
         const gallery = await this.service.gallery.findById(gallery_id, UpdateLockOptions);
 
-        if (gallery.is_expired) {
-          throw Object.assign(new app.WarningError('已过投票截止时间', 403), { VOTE_EXPIRED: true });
+        if (!gallery.in_event) {
+          throw Object.assign(new app.WarningError('不能在非活动期间投票', 403), { IS_NOT_EVENT_PERIOD: true });
+        } else if (gallery.can_submission) {
+          throw Object.assign(new app.WarningError('不能在投稿期间投票', 403), {});
         }
 
         const photo_list = await this.service.photo.Model.findAll({
@@ -40,7 +42,7 @@ module.exports = app =>
         }
 
         if (photo_list.length !== photo_id_list.length) {
-          throw new app.WarningError('相册和照片数量不匹配', 404);
+          throw new app.WarningError('相册和照片数量不匹配', 403);
         }
 
         const member = await this.service.member.findOneByOptions({

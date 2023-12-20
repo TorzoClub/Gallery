@@ -7,8 +7,7 @@ module.exports = app => {
     async upload(ctx) {
       const stream = await ctx.getFileStream();
       try {
-        const { imagePath, imageThumbPath, src, thumb } = await ctx.service.image.storeWithStream(stream);
-
+        const { imagePath, imageThumbPath, src, thumb } = await ctx.service.image.storeByStream(stream);
         ctx.backData(200, {
           imagePath,
           imageThumbPath,

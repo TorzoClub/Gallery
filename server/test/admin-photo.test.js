@@ -2,7 +2,7 @@ const assert = require('assert');
 const mock = require('egg-mock');
 const {
   getToken,
-  createGallery,
+  commonCreateGallery,
   createMember,
   createPhoto,
   getPhotoById,
@@ -21,37 +21,35 @@ describe('controller/admin/photo', () => {
     token = await getToken(app)
   })
 
-  it('admin create photo', async () => {
+  it('should successfully create a photo', async () => {
     const member = await createMember(token, app, { qq_num: 22222 })
-    const gallery = await createGallery(token, app)
+    const gallery = await commonCreateGallery(token, app, {})
     await createPhoto(token, app, {
       gallery_id: gallery.id,
       member_id: member.id,
     })
   })
 
-  
-  let globalQqNum = 8000
-  async function createRandomPhoto() {
-    const member = await createMember(token, app, { qq_num: ++globalQqNum })
-    const gallery = await createGallery(token, app)
-    
-    const newPhoto = await createPhoto(token, app, {
-      gallery_id: gallery.id,
-      member_id: member.id,
-    })
+  it('should successfully get a photo infomation', async () => {
+    let globalQqNum = 8000
+    async function createRandomPhoto() {
+      const member = await createMember(token, app, { qq_num: ++globalQqNum })
+      const gallery = await commonCreateGallery(token, app, {})
 
-    const findPhoto = await getPhotoById(token, app, newPhoto.id, 200)
-    assert(findPhoto.id === newPhoto.id)
-  }
+      const newPhoto = await createPhoto(token, app, {
+        gallery_id: gallery.id,
+        member_id: member.id,
+      })
 
-  it('admin get photo', async () => {
+      const findPhoto = await getPhotoById(token, app, newPhoto.id, 200)
+      assert(findPhoto.id === newPhoto.id)
+    }
     await createRandomPhoto()
   })
 
-  it('admin delete photo', async () => {
+  it('should successfully delete a photo', async () => {
     const member = await createMember(token, app, { qq_num: 22224 })
-    const gallery = await createGallery(token, app)
+    const gallery = await commonCreateGallery(token, app, {})
     const newPhoto = await createPhoto(token, app, {
       gallery_id: gallery.id,
       member_id: member.id,

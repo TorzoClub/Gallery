@@ -102,7 +102,22 @@ module.exports = app =>
       });
     }
 
-    async storeWithStream(stream) {
+    async storeByFilePath(file_path) {
+      const src_filename = `${Date.now()}${path.extname(file_path)}`;
+      const writePath = ImageService.toSrcSavePath(src_filename);
+      fs.cpSync(file_path, writePath);
+
+      const { thumbFilename } = await ImageService.generateThumb(src_filename);
+
+      return {
+        imagePath: app.config.imagePath,
+        imageThumbPath: app.config.imageThumbPath,
+        src: src_filename,
+        thumb: thumbFilename,
+      };
+    }
+
+    async storeByStream(stream) {
       const src_filename = `${Date.now()}${path.extname(stream.filename)}`;
       const writePath = ImageService.toSrcSavePath(src_filename);
       const writeStream = fs.createWriteStream(writePath);

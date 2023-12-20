@@ -4,6 +4,7 @@ import heartHighlightIMG from 'assets/heart-highlight.png'
 import style from './index.scss'
 
 import { useQueueload } from 'utils/queue-load'
+import { timeout } from 'new-vait'
 
 export type ImageInfo = {
   width: number
@@ -45,8 +46,8 @@ export default (props: Props) => {
 
   const [loaded, setLoaded] = useState(false)
 
-  const thumb = useQueueload(photo.thumb)
-  const avatarThumb = useQueueload(avatar?.thumb)
+  const [,thumb] = useQueueload(photo.thumb)
+  const [,avatarThumb] = useQueueload(avatar?.thumb)
 
   const coverFrameEl = useRef<HTMLDivElement>(null)
 

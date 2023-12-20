@@ -9,20 +9,38 @@ type Load = {
   blobUrl: string;
 }
 
+function searchCache(src: string | undefined): readonly [boolean, string] {
+  if (src === undefined) {
+    return [false, '']
+  } else {
+    const task = global_cache.get(src)
+    if (task) {
+      return [false, task.blobUrl]
+    } else {
+      return [false, '']
+    }
+  }
+}
+
 export function useQueueload(src: string | undefined) {
-  const [blobSrc, setBlobSrc] = useState<string>('')
+  const [ cached, url ] = searchCache(src)
+  const [ loaded, setLoaded ] = useState(cached)
+  const [ blobSrc, setBlobSrc ] = useState<string>(url)
 
   useEffect(() => {
     if (src) {
       let mounted = true
       globalQueueLoad(src).then(res => {
-        if (mounted) setBlobSrc(res.blobUrl)
+        if (mounted) {
+          setBlobSrc(res.blobUrl)
+          setLoaded(true)
+        }
       })
       return () => { mounted = false }
     }
   }, [src])
 
-  return blobSrc
+  return [loaded, blobSrc] as const
 }
 
 export const MAX_PARALLEL_NUMBER = 3
@@ -33,8 +51,8 @@ type LoadTask = {
   priority: number
 }
 
-const [ globalQueueLoad, [getGlobalQueue, setGlobalQueue] ] = QueueLoad()
-export { globalQueueLoad, getGlobalQueue, setGlobalQueue }
+const [ globalQueueLoad, [getGlobalQueue, setGlobalQueue], global_cache ] = QueueLoad()
+export { globalQueueLoad, getGlobalQueue, setGlobalQueue, global_cache }
 
 export function QueueLoad() {
   const [getQueue, setQueue] = Memo<LoadTask[]>([])
@@ -146,5 +164,5 @@ export function QueueLoad() {
     }
   }
 
-  return [ load, [ getQueue, setQueue ] ] as const
+  return [ load, [ getQueue, setQueue ], cache ] as const
 }

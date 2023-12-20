@@ -71,7 +71,7 @@ describe('get Homepage infomation(not within event period)', () => {
   })
 })
 
-describe('get Homepage info(within event period)', () => {
+describe('get Homepage infomation(within event period)', () => {
   before(async () => {
     setEnvironmentSystem('2000/01/01') // 设定时间为 2000/01/01
   })

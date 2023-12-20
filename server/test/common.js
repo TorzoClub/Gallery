@@ -3,7 +3,17 @@
 const assert = require('assert');
 const mock = require('egg-mock');
 
+const test_avatar_image_path = `${__dirname}/avatar.png`;
+const test_image_path = `${__dirname}/test.jpg`;
+const test_image_width = 2970;
+const test_image_height = 4200;
+
 module.exports = {
+  test_avatar_image_path,
+  test_image_path,
+  test_image_width,
+  test_image_height,
+
   createApp,
   getToken,
   constructEnvironment,
@@ -120,7 +130,7 @@ async function fetchListWithQQNum(app, qq_num, expectStatusCode = 200) {
     .then(res => res.body);
 }
 
-async function uploadImage(token, app, imagePath = `${__dirname}/avatar.png`) {
+async function uploadImage(token, app, imagePath = test_avatar_image_path) {
   const { body: newImage } = await app.httpRequest()
     .post('/admin/image/upload')
     .set('Authorization', token)

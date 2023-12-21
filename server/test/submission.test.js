@@ -20,7 +20,7 @@ async function editSubmissionPhoto(app, {
   expect_code = 200
 }) {
   const { body } = await app.httpRequest()
-    .post(`/photo/${photo_id}`)
+    .patch(`/photo/${photo_id}`)
     .field('desc', desc)
     .field('qq_num', `${qq_num}`)
     .attach('image', image_path)
@@ -314,7 +314,7 @@ describe('member submission', () => {
       }
     })
     await app.httpRequest()
-      .post('/photo/submission')
+      .post('/photo')
       // .field('gallery_id', gallery.id)
       .field('qq_num', memberA.qq_num)
       .field('desc', 'descaaa')
@@ -322,7 +322,7 @@ describe('member submission', () => {
       .expect(400);
 
     await app.httpRequest()
-      .post('/photo/submission')
+      .post('/photo')
       .field('gallery_id', gallery.id)
       // .field('qq_num', memberA.qq_num)
       .field('desc', 'descaaa')
@@ -330,7 +330,7 @@ describe('member submission', () => {
       .expect(400);
 
     await app.httpRequest()
-      .post('/photo/submission')
+      .post('/photo')
       .field('gallery_id', gallery.id)
       .field('qq_num', memberA.qq_num)
       // .field('desc', 'descaaa')
@@ -338,7 +338,7 @@ describe('member submission', () => {
       .expect(400);
 
     await app.httpRequest()
-      .post('/photo/submission')
+      .post('/photo')
       .field('gallery_id', gallery.id)
       .field('qq_num', memberA.qq_num)
       .field('desc', 'descaaa')
@@ -407,10 +407,23 @@ describe('member edit submission', () => {
 
     assert(created_photo.id === edited_photo.id)
 
-    const photo = await getPhotoById(token, app, edited_photo.id, 200)
-    assert(photo.desc === 'edited desc')
-    assert(photo.width === test_image_width)
-    assert(photo.height === test_image_height)
+    {
+      const photo = await getPhotoById(token, app, edited_photo.id, 200)
+      assert(photo.desc === 'edited desc')
+      assert(photo.width === test_image_width)
+      assert(photo.height === test_image_height)
+    }
+    {
+      await editSubmissionPhoto(app, {
+        photo_id: created_photo.id,
+        image_path: test_image_path,
+        qq_num: `${memberA.qq_num}`,
+        desc: '',
+        expect_code: 200
+      })
+      const photo = await getPhotoById(token, app, edited_photo.id, 200)
+      assert(photo.desc === '')
+    }
   })
 
   it('should prevent edit a non-existent photo', async () => {
@@ -485,26 +498,52 @@ describe('member edit submission', () => {
     })
   })
 
+  it('should allow edit partial field', async () => {
+    const [ created_photo, { token, app, memberA } ] = await preset('1990', '2005', '2020')
+    const qq_num = memberA.qq_num
+
+    const edited_photo = await app.httpRequest()
+      .patch(`/photo/${created_photo.id}`)
+      .field('qq_num', qq_num)
+      // .field('desc', 'dddd')
+      .attach('image', test_image_path)
+      .expect(200)
+      .then(res => res.body);
+    {
+      const photo = await getPhotoById(token, app, created_photo.id)
+      assert(photo.desc === created_photo.desc)
+      assert(photo.id === created_photo.id)
+      assert(photo.src !== created_photo.src)
+      assert(photo.src === edited_photo.src)
+    }
+
+    await app.httpRequest()
+      .patch(`/photo/${created_photo.id}`)
+      .field('qq_num', qq_num)
+      .field('desc', 'editeddddd')
+      // .attach('image', test_image_path)
+      .expect(200);
+    {
+      const photo = await getPhotoById(token, app, created_photo.id)
+      assert(photo.desc === 'editeddddd')
+      assert(photo.id === created_photo.id)
+      assert(photo.src === edited_photo.src)
+    }
+  })
+
   it('should prevent edit using incorrect data format', async () => {
     const [ created_photo, { app, memberA } ] = await preset('1990', '2005', '2020')
-    const qq_num = memberA.qq_num
     await app.httpRequest()
-      .post(`/photo/${created_photo.id}`)
-      // .field('desc', 'dddd')
-      .field('qq_num', qq_num)
+      .patch(`/photo/${created_photo.id}`)
+      .field('desc', 'dddd')
+      .field('qq_num', 'qq_numincroeect')
       .attach('image', test_image_path)
       .expect(400);
     await app.httpRequest()
-      .post(`/photo/${created_photo.id}`)
+      .patch(`/photo/i23n3cro2221`)
       .field('desc', 'dddd')
-      // .field('qq_num', qq_num)
+      .field('qq_num', `${memberA.qq_num}`)
       .attach('image', test_image_path)
-      .expect(400);
-    await app.httpRequest()
-      .post(`/photo/${created_photo.id}`)
-      .field('desc', 'dddd')
-      .field('qq_num', qq_num)
-      // .attach('image', test_image_path)
       .expect(400);
   })
 })

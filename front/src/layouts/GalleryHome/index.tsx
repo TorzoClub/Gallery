@@ -6,6 +6,7 @@ import { Photo, fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api
 
 import LoadingLayout from './components/LoadingLayout'
 import ActivityLayout from './components/ActivityLayout'
+import EmptyGalleryLayout from './components/EmptyGalleryLayout'
 import useConfirmQQ from './useConfirmQQ'
 
 import Gallery from 'components/Gallery'
@@ -145,16 +146,17 @@ export default () => {
       setList(list)
       setLoaded(true)
 
-      const hasActive = Boolean(active)
-      if (!hasActive) {
+      if (!active) {
         // 没活动？那没事了
-        setHideVoteButton(false)
+        setHideVoteButton(true)
         return
       }
 
       setActive(active)
 
-      if (!currentQQNum) {
+      if (active.can_submission) {
+        // 征集投稿期间
+      } else if (!currentQQNum) {
         // 没扣号的话就来个弹窗
         setConfirmState({ in: true })
       } else {
@@ -246,6 +248,10 @@ export default () => {
       handleClickAnyWhere={handleClickAnyWhere}
     />
   ), [handleClickAnyWhere, showConfirmVoteLayout])
+
+  if (!active && (list.length === 0)) {
+    return <EmptyGalleryLayout />
+  }
 
   return (
     <>

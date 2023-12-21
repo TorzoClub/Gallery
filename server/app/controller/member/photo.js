@@ -4,7 +4,7 @@ module.exports = app => {
   return class PhotoController extends app.Controller {
     async show(ctx) {
       ctx.validate({
-        qq_num: { type: 'integer', required: true },
+        qq_num: { type: 'qq_num', required: true },
       }, ctx.request.body);
 
       const { qq_num } = ctx.request.body;

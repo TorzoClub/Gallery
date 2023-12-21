@@ -58,9 +58,13 @@ module.exports = app => {
       return [ files, fields ];
     }
 
-    selectImageFile(files) {
+    selectImageFile(files, required) {
       if (files.length === 0) {
-        throw new app.WarningError('缺少上传的文件', 400);
+        if (required) {
+          throw new app.WarningError('缺少上传的文件', 400);
+        } else {
+          return null;
+        }
       } else {
         const [ file ] = files;
         if (!/^image\//.test(file.mime)) {
@@ -77,7 +81,7 @@ module.exports = app => {
       // console.log('done fields', fields);
       // console.log('done files', files);
 
-      const file = this.selectImageFile(files);
+      const file = this.selectImageFile(files, true);
 
       const parsed_opts = {
         gallery_id: fields.gallery_id,
@@ -87,7 +91,7 @@ module.exports = app => {
 
       ctx.validate({
         gallery_id: { type: 'id', required: true },
-        qq_num: { type: 'int', required: true },
+        qq_num: { type: 'qq_num', required: true },
         desc: { type: 'string', required: true, allowEmpty: true },
       }, parsed_opts);
 
@@ -115,19 +119,47 @@ module.exports = app => {
       };
 
       ctx.validate({
-        qq_num: { type: 'int', required: true },
-        desc: { type: 'string', required: true, allowEmpty: true },
+        qq_num: { type: 'qq_num', required: true },
+        desc: { type: 'string', required: false, allowEmpty: true },
       }, parsed_opts);
+
+      const edit_data = {
+        desc: parsed_opts.desc,
+        imagefile_path: file ? file.temp_path : null,
+      };
 
       ctx.backData(
         200,
-        await this.service.photo.editSubmission({
+        await this.service.photo.editSubmission(
           photo_id,
-          qq_num: parsed_opts.qq_num,
-          imagefile_path: file.temp_path,
-          desc: parsed_opts.desc,
-        })
+          parsed_opts.qq_num,
+          edit_data
+        )
       );
+    }
+
+    async remove(ctx) {
+      ctx.validate({
+        photo_id: { type: 'id', required: true },
+      }, ctx.params);
+      ctx.validate({
+        qq_num: { type: 'qq_num', required: true },
+      }, ctx.query);
+
+      const photo = await this.service.photo.findById(parseInt(ctx.params.photo_id));
+
+      const gallery = await this.service.gallery.findById(photo.gallery_id);
+      this.service.photo.canSubmission(gallery);
+
+      const member = await this.service.member.findOneByOptions({
+        where: { qq_num: parseInt(ctx.query.qq_num) },
+      });
+
+      if (photo.member_id !== member.id) {
+        throw Object.assign(new app.WarningError('相片不是该成员的投稿', 403), { SUBMISSION_AUTHOR_IS_NOT_CURRENT_MEMBER: true });
+      } else {
+        ctx.backData(200, await photo.destroy());
+      }
     }
 
     async show(ctx) {

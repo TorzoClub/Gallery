@@ -30,6 +30,16 @@ describe('controller/admin/photo', () => {
     })
   })
 
+  it('should successfully create a photo with empty string desc', async () => {
+    const member = await createMember(token, app, { qq_num: 222202 })
+    const gallery = await commonCreateGallery(token, app, {})
+    await createPhoto(token, app, {
+      gallery_id: gallery.id,
+      member_id: member.id,
+      desc: '',
+    })
+  })
+
   it('should successfully get a photo infomation', async () => {
     let globalQqNum = 8000
     async function createRandomPhoto() {

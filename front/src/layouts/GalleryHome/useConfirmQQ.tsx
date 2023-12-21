@@ -33,7 +33,7 @@ export default ({ onConfirmSuccess }: { onConfirmSuccess(qqnum: string): void })
     }
   }, [onConfirmSuccess, setConfirmState])
 
-  const ConfirmQQLayout = (
+  const confirm_qq_layout = (
     <ConfirmQQ
       {...confirmState}
       handleInputChange={() => {
@@ -45,5 +45,5 @@ export default ({ onConfirmSuccess }: { onConfirmSuccess(qqnum: string): void })
     />
   )
 
-  return [ConfirmQQLayout, confirmState, setConfirmState] as const
+  return [confirm_qq_layout, confirmState, setConfirmState] as const
 }

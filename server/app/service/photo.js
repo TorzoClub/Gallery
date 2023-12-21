@@ -36,6 +36,23 @@ module.exports = app =>
       return { width, height };
     }
 
+    async getMemberSubmissionByQQNum(gallery_id, qq_num) {
+      const galleryP = this.service.gallery.findById(parseInt(gallery_id));
+      const memberP = this.service.member.findOneByOptions({
+        where: { qq_num: parseInt(qq_num) },
+      });
+
+      const gallery = await galleryP;
+      const member = await memberP;
+
+      return this.Model.findOne({
+        where: {
+          gallery_id: gallery.id,
+          member_id: member.id,
+        },
+      });
+    }
+
     async createBySubmission({ imagefile_path, qq_num, gallery_id, desc }) {
       const created_file = await this.service.image.storeByFilePath(imagefile_path);
 
@@ -54,7 +71,7 @@ module.exports = app =>
       }
     }
 
-    async editSubmission({ photo_id, qq_num, imagefile_path, desc }) {
+    async editSubmission(photo_id, qq_num, edit_data) {
       const member = await this.service.member.findOneByOptions({
         where: { qq_num: parseInt(qq_num) },
       });
@@ -68,10 +85,18 @@ module.exports = app =>
       const gallery = await this.service.gallery.findById(photo.gallery_id);
       this.canSubmission(gallery);
 
-      const created_file = await this.service.image.storeByFilePath(imagefile_path);
+      const update_data = {};
+      if (edit_data.desc !== undefined) {
+        update_data.desc = edit_data.desc;
+      }
+      if (edit_data.imagefile_path) {
+        const created_file = await this.service.image.storeByFilePath(
+          edit_data.imagefile_path
+        );
+        update_data.src = created_file.src;
+      }
       return this.edit(photo.id, {
-        src: created_file.src,
-        desc,
+        ...update_data,
       });
     }
 

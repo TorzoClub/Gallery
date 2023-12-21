@@ -251,7 +251,8 @@
   left: 0;
 
   background-color: hsl(0 10% 15% / 1);
-  font-family: "guanzhi 8x8";
+  /* font-family: "guanzhi 8x8"; */
+  font-family: "guanzhi 8x8 base";
   font-size: 16px;
   color: wheat;
   --crt-blooming-size: 30px;
@@ -263,7 +264,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: flex-start;
-  min-height: 100vh;
+  /* min-height: 100vh; */
   padding: 3em 0;
   box-sizing: border-box;
 }
@@ -292,10 +293,10 @@
   }
 }
 
-@font-face {
+/* @font-face {
   font-family: 'guanzhi 8x8';
   src: url(../../assets//guanzhi\ 8x8.ttf);
-}
+} */
 
 .Section { margin-bottom: calc((1em + 1em / 8) * 2); }
 .Section:last-child { margin-bottom: 0 }

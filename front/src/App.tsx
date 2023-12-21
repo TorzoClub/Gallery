@@ -47,6 +47,10 @@ function AppInner() {
         padding: 0;
         margin: 0;
         line-height: 1em;
+        max-width: 100vw;
+        word-break: break-all;
+        display: inline-block;
+        white-space: break-spaces;
       }
     `}</style>
   </div>

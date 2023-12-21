@@ -70,4 +70,5 @@ module.exports = app => {
   setRouter('get', 'photo/:id', controller.photo.get);
   setRouter('post', 'photo', controller.photo.create);
   setRouter('patch', 'photo/:photo_id', controller.photo.edit);
+  setRouter('delete', 'photo/:photo_id', controller.photo.remove);
 };

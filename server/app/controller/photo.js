@@ -138,6 +138,30 @@ module.exports = app => {
       );
     }
 
+    async remove(ctx) {
+      ctx.validate({
+        photo_id: { type: 'id', required: true },
+      }, ctx.params);
+      ctx.validate({
+        qq_num: { type: 'qq_num', required: true },
+      }, ctx.query);
+
+      const photo = await this.service.photo.findById(parseInt(ctx.params.photo_id));
+
+      const gallery = await this.service.gallery.findById(photo.gallery_id);
+      this.service.photo.canSubmission(gallery);
+
+      const member = await this.service.member.findOneByOptions({
+        where: { qq_num: parseInt(ctx.query.qq_num) },
+      });
+
+      if (photo.member_id !== member.id) {
+        throw Object.assign(new app.WarningError('相片不是该成员的投稿', 403), { SUBMISSION_AUTHOR_IS_NOT_CURRENT_MEMBER: true });
+      } else {
+        ctx.backData(200, await photo.destroy());
+      }
+    }
+
     async show(ctx) {
       const list = await ctx.app.model.Gallery.findAll({
         order: [

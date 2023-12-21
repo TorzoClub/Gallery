@@ -58,6 +58,42 @@ async function findMyPhoto(app, {
 
   return body
 }
+async function cancelMySubmission(app, {
+  photo_id,
+  qq_num,
+  expect_code = 200
+}) {
+  const { body } = await app.httpRequest()
+    .delete(`/photo/${photo_id}?qq_num=${qq_num}`)
+    .expect(expect_code);
+
+  return body
+}
+function updateGallery(app, token, expect_code, id, data) {
+  return app.httpRequest()
+    .patch(`/admin/gallery/${id}`)
+    .set('Authorization', token)
+    .type('json')
+    .send({ ...data })
+    .expect(expect_code)
+}
+async function preset(start, sub_exp, end) {
+  const { app, gallery, memberA, token, ...remain_env } = await constructEnvironment({
+    gallery: {
+      event_start: new Date(start),
+      submission_expire: new Date(sub_exp),
+      event_end: new Date(end)
+    }
+  })
+
+  const created_photo = await submissionPhoto(app, {
+    gallery_id: `${gallery.id}`,
+    qq_num: `${memberA.qq_num}`,
+    desc: 'description',
+  })
+
+  return [created_photo, { app, gallery, memberA, token, ...remain_env }]
+}
 
 describe('find member submission by QQ Number', () => {
   before(async () => {
@@ -355,33 +391,6 @@ describe('member edit submission', () => {
     resetEnvironmentDate()
   })
 
-  function updateGallery(app, token, expect_code, id, data) {
-    return app.httpRequest()
-      .patch(`/admin/gallery/${id}`)
-      .set('Authorization', token)
-      .type('json')
-      .send({ ...data })
-      .expect(expect_code)
-  }
-
-  async function preset(start, sub_exp, end) {
-    const { app, gallery, memberA, token, ...remain_env } = await constructEnvironment({
-      gallery: {
-        event_start: new Date(start),
-        submission_expire: new Date(sub_exp),
-        event_end: new Date(end)
-      }
-    })
-
-    const created_photo = await submissionPhoto(app, {
-      gallery_id: `${gallery.id}`,
-      qq_num: `${memberA.qq_num}`,
-      desc: 'description',
-    })
-
-    return [created_photo, { app, gallery, memberA, token, ...remain_env }]
-  }
-
   it('should successfully edit submission', async () => {
     const { token, app, gallery, memberA } = await constructEnvironment({
       gallery: {
@@ -545,5 +554,108 @@ describe('member edit submission', () => {
       .field('qq_num', `${memberA.qq_num}`)
       .attach('image', test_image_path)
       .expect(400);
+  })
+})
+
+describe('member request cancel submission', async () => {
+  before(async () => {
+    setEnvironmentSystem('2000/01/01') // 设定时间为 2000/01/01
+  })
+  after(() => {
+    resetEnvironmentDate()
+  })
+  it('should successfully cancel submission', async () => {
+    const { token, app, gallery, memberA } = await constructEnvironment({
+      gallery: {
+        event_start: new Date('1999'),
+        submission_expire: new Date('2000/01/15'),
+        event_end: new Date('2000/01/30')
+      }
+    })
+    const created_photo = await submissionPhoto(app, {
+      gallery_id: `${gallery.id}`,
+      qq_num: `${memberA.qq_num}`,
+      desc: 'description',
+    })
+
+    await cancelMySubmission(app, {
+      photo_id: created_photo.id,
+      qq_num: `${memberA.qq_num}`,
+      expect_code: 200,
+    })
+
+    await getPhotoById(token, app, created_photo.id, 404)
+  })
+  it('should prevent cancel another author\'s photo', async () => {
+    const { token, app, gallery, memberA, authorB, photoB } = await constructEnvironment({
+      gallery: {
+        event_start: new Date('1999'),
+        submission_expire: new Date('2000/01/15'),
+        event_end: new Date('2000/01/30')
+      }
+    })
+    assert(memberA.qq_num !== authorB.qq_num)
+
+    await cancelMySubmission(app, {
+      photo_id: photoB.id,
+      qq_num: `${memberA.qq_num}`,
+      expect_code: 403,
+    })
+
+    await submissionPhoto(app, {
+      gallery_id: `${gallery.id}`,
+      qq_num: `${memberA.qq_num}`,
+      desc: 'description',
+    })
+
+    await cancelMySubmission(app, {
+      photo_id: photoB.id,
+      qq_num: `${memberA.qq_num}`,
+      expect_code: 403,
+    })
+  })
+  it('should prevent cancel a non-existent submission', async () => {
+    const { token, app, gallery, memberA, authorB, photoB } = await constructEnvironment({
+      gallery: {
+        event_start: new Date('1999'),
+        submission_expire: new Date('2000/01/15'),
+        event_end: new Date('2000/01/30')
+      }
+    })
+
+    await cancelMySubmission(app, {
+      photo_id: '114514404404',
+      qq_num: `${memberA.qq_num}`,
+      expect_code: 404,
+    })
+  })
+  it('should prevent cancel when submission out of the allowed period', async () => {
+    {
+      const [ created_photo, { app, token, gallery, memberA } ] = await preset('1990', '2005', '2020')
+      await updateGallery(app, token, 200, gallery.id, { submission_expire: new Date('1995') })
+      await cancelMySubmission(app, {
+        photo_id: created_photo.id,
+        qq_num: `${memberA.qq_num}`,
+        expect_code: 403
+      })
+    }
+    {
+      const [ created_photo, { app, token, gallery, memberA } ] = await preset('1990', '2005', '2020')
+      await updateGallery(app, token, 200, gallery.id, { submission_expire: new Date('1995'), event_end: new Date('1999') })
+      await cancelMySubmission(app, {
+        photo_id: created_photo.id,
+        qq_num: `${memberA.qq_num}`,
+        expect_code: 403
+      })
+    }
+    {
+      const [ created_photo, { app, token, gallery, memberA } ] = await preset('1990', '2005', '2020')
+      await updateGallery(app, token, 200, gallery.id, { event_start: new Date('2010'), submission_expire: new Date('2020'), event_end: new Date('2030') })
+      await cancelMySubmission(app, {
+        photo_id: created_photo.id,
+        qq_num: `${memberA.qq_num}`,
+        expect_code: 403
+      })
+    }
   })
 })

@@ -249,7 +249,7 @@ export default () => {
     />
   ), [handleClickAnyWhere, showConfirmVoteLayout])
 
-  if (!active && (list.length === 0)) {
+  if (loaded && !active && (list.length === 0)) {
     return <EmptyGalleryLayout />
   }
 

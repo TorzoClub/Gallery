@@ -57,7 +57,7 @@ export default function ActivityLayout({
 
     const isSubmitted = submittedPool[gallery.id]
 
-    if (isSubmitted || gallery.is_expired || gallery.vote_submitted) {
+    if (isSubmitted || gallery.in_event || gallery.vote_submitted) {
       return
     }
 
@@ -118,7 +118,7 @@ export default function ActivityLayout({
               return <Loading />
             } else if (isSubmitted) {
               return <div className="submitted">感谢你的投票</div>
-            } else {
+            } else if (!active.can_submission) {
               return (
                 <GuideLayout
                   showArrow={showArrow}

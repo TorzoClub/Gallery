@@ -52,17 +52,21 @@ type GalleryCommon = {
   index: number
   name: string
 
-  vote_expire: DateTimeString
+  event_start: DateTimeString
+  event_end: DateTimeString
+  submission_expire: DateTimeString
   vote_limit: number
   vote_submitted: boolean
 }
 export type GalleryNormal = GalleryCommon & {
   photos: PhotoNormal[]
-  is_expired: true
+  in_event: false
+  can_submission: false
 }
 export type GalleryInActive = GalleryCommon & {
   photos: PhotoInActive[]
-  is_expired: false
+  in_event: true
+  can_submission: boolean
 }
 export type Gallery = GalleryInActive | GalleryNormal
 
@@ -101,4 +105,9 @@ export const vote = ({
     photo_id_list,
     qq_num
   }
+})
+
+export const cancelMySubmission = (p: { qq_num: number | string; photo_id: number | string }) => request({
+  method: 'DELETE',
+  url: `photo/${p.photo_id}?qq_num=${encodeURIComponent(p.qq_num)}`
 })

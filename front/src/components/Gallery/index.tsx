@@ -6,6 +6,7 @@ import Title from 'components/Title'
 import PhotoStream from 'components/PhotoStream'
 import { Gallery, Photo } from 'api/photo'
 import { CoverClickEvent } from 'components/PhotoBox'
+import Submission from 'components/Submission'
 
 export type PhotoStreamState = {
   screen: 'normal' | 'mobile'
@@ -71,10 +72,23 @@ export default (props: Props) => {
 
   const [open, setOpen] = useState(false)
 
+  useEffect(() => {
+    if (gallery.can_submission) {
+      if (!open) {
+        const h = setTimeout(() => {
+          setOpen(true)
+        }, 1000)
+        return () => clearTimeout(h)
+      }
+    }
+  }, [gallery.can_submission, open])
+
   return (
     <div className="gallery">
-      <div onClick={() => { setOpen(!open) }}>
-        <Title title={gallery.name} open={open}>{'hello'}</Title>
+      <div onClick={() => {}}>
+        <Title title={gallery.name} open={open} keepTransition={true}>
+          <Submission gallery={gallery} />
+        </Title>
       </div>
 
       <PhotoStream

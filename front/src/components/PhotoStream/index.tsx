@@ -124,7 +124,7 @@ export default (props: Props) => {
                   gutter={gutter}
                   boxWidth={boxWidth}
 
-                  hideVoteButton={hideVoteButton || gallery.is_expired}
+                  hideVoteButton={hideVoteButton}
                   hideMember={!photo.member}
                   voteIsHighlight={selectedIdList && (selectedIdList.indexOf(photo.id) !== -1)}
 
@@ -155,5 +155,5 @@ export default (props: Props) => {
         ))
       }
     </div>
-  ), [HorizontalOffset, boxWidth, columns, gallery.is_expired, gutter, hideVoteButton, photoStreamListWidth, props, screen, selectedIdList])
+  ), [HorizontalOffset, boxWidth, columns, gutter, hideVoteButton, photoStreamListWidth, props, screen, selectedIdList])
 }

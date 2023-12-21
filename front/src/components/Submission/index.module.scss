@@ -1,0 +1,20 @@
+.Submission {
+  display: flex;
+  justify-content: center;
+}
+
+.ScriptPlayer {
+  padding: 20px 0;
+  width: 320px;
+  box-sizing: border-box;
+}
+.ScriptPlayerSelects {
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+.ScriptPlayerSelects > * {
+  cursor: pointer;
+}
+.ScriptPlayerText {
+  background-color: grey;
+}

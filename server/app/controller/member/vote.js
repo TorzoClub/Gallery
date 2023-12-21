@@ -7,7 +7,7 @@ module.exports = app => {
       ctx.validate({
         gallery_id: { type: 'integer', required: true },
         photo_id_list: { type: 'array', required: true, min: 1, itemType: 'integer' },
-        qq_num: { type: 'integer', required: true },
+        qq_num: { type: 'qq_num', required: true },
       }, data);
 
       const result = await ctx.service.vote.create({

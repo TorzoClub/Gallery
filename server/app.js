@@ -27,6 +27,12 @@ class AppBootHook {
         force: false,
       });
     }
+
+    app.validator.addRule('qq_num', (rule, qq_num) => {
+      if (!Number.isInteger(Number(qq_num))) {
+        return '需要是整数格式';
+      }
+    });
   }
 }
 

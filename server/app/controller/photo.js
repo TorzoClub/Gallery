@@ -87,7 +87,7 @@ module.exports = app => {
 
       ctx.validate({
         gallery_id: { type: 'id', required: true },
-        qq_num: { type: 'int', required: true },
+        qq_num: { type: 'qq_num', required: true },
         desc: { type: 'string', required: true, allowEmpty: true },
       }, parsed_opts);
 
@@ -115,7 +115,7 @@ module.exports = app => {
       };
 
       ctx.validate({
-        qq_num: { type: 'int', required: true },
+        qq_num: { type: 'qq_num', required: true },
         desc: { type: 'string', required: true, allowEmpty: true },
       }, parsed_opts);
 

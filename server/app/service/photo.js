@@ -36,6 +36,23 @@ module.exports = app =>
       return { width, height };
     }
 
+    async getMemberSubmissionByQQNum(gallery_id, qq_num) {
+      const galleryP = this.service.gallery.findById(parseInt(gallery_id));
+      const memberP = this.service.member.findOneByOptions({
+        where: { qq_num: parseInt(qq_num) },
+      });
+
+      const gallery = await galleryP;
+      const member = await memberP;
+
+      return this.Model.findOne({
+        where: {
+          gallery_id: gallery.id,
+          member_id: member.id,
+        },
+      });
+    }
+
     async createBySubmission({ imagefile_path, qq_num, gallery_id, desc }) {
       const created_file = await this.service.image.storeByFilePath(imagefile_path);
 

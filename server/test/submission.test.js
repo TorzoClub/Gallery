@@ -47,6 +47,99 @@ async function submissionPhoto(app, {
 
   return body
 }
+async function findMyPhoto(app, {
+  gallery_id,
+  qq_num,
+  expect_code = 200
+}) {
+  const { body } = await app.httpRequest()
+    .get(`/gallery/${gallery_id}/submission/${qq_num}`)
+    .expect(expect_code);
+
+  return body
+}
+
+describe('find member submission by QQ Number', () => {
+  before(async () => {
+    setEnvironmentSystem('2000/01/01') // 设定时间为 2000/01/01
+  })
+  after(() => {
+    resetEnvironmentDate()
+  })
+
+  it('should successfully find member submission', async () => {
+    const { app, gallery, memberA } = await constructEnvironment({
+      gallery: {
+        event_start: new Date('1999'),
+        submission_expire: new Date('2000/01/15'),
+        event_end: new Date('2000/01/30')
+      }
+    })
+
+    const created_photo = await submissionPhoto(app, {
+      gallery_id: gallery.id,
+      qq_num: memberA.qq_num,
+      desc: 'description',
+    })
+
+    const photo = await findMyPhoto(app, {
+      gallery_id: gallery.id,
+      qq_num: memberA.qq_num
+    })
+    assert(typeof photo === 'object')
+    assert(typeof photo !== null)
+    assert(photo.id === created_photo.id)
+  })
+
+  it('should prevent find with non-existent gallery_id', async () => {
+    const { app, gallery, memberA } = await constructEnvironment({
+      gallery: {
+        event_start: new Date('1999'),
+        submission_expire: new Date('2000/01/15'),
+        event_end: new Date('2000/01/30')
+      }
+    })
+
+    await findMyPhoto(app, {
+      gallery_id: '114514404',
+      qq_num: memberA.qq_num,
+      expect_code: 404
+    })
+  })
+
+  it('should prevent find with non-existent qq_num', async () => {
+    const { app, gallery } = await constructEnvironment({
+      gallery: {
+        event_start: new Date('1999'),
+        submission_expire: new Date('2000/01/15'),
+        event_end: new Date('2000/01/30')
+      }
+    })
+
+    await findMyPhoto(app, {
+      gallery_id: gallery.id,
+      qq_num: '114514404404',
+      expect_code: 404
+    })
+  })
+
+  it('should correctly handle unsubmission', async () => {
+    const { app, gallery, memberA } = await constructEnvironment({
+      gallery: {
+        event_start: new Date('1999'),
+        submission_expire: new Date('2000/01/15'),
+        event_end: new Date('2000/01/30')
+      }
+    })
+
+    const photo = await findMyPhoto(app, {
+      gallery_id: gallery.id,
+      qq_num: memberA.qq_num,
+      expect_code: 200
+    })
+    assert(photo === null)
+  })
+})
 
 describe('member submission', () => {
   before(async () => {

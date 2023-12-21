@@ -56,8 +56,9 @@ export default function ActivityLayout({
     console.warn('handleClickVote', gallery.vote_submitted, photo)
 
     const isSubmitted = submittedPool[gallery.id]
+    const can_vote = gallery.in_event && !gallery.can_submission
 
-    if (isSubmitted || gallery.in_event || gallery.vote_submitted) {
+    if (isSubmitted || !can_vote || gallery.vote_submitted) {
       return
     }
 

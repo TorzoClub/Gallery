@@ -6,7 +6,7 @@ import { Photo, fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api
 
 import LoadingLayout from './components/LoadingLayout'
 import ActivityLayout from './components/ActivityLayout'
-import EmptyLayout from './components/EmptyLayout'
+import EmptyGalleryLayout from './components/EmptyGalleryLayout'
 import useConfirmQQ from './useConfirmQQ'
 
 import Gallery from 'components/Gallery'
@@ -250,7 +250,7 @@ export default () => {
   ), [handleClickAnyWhere, showConfirmVoteLayout])
 
   if (!active && (list.length === 0)) {
-    return <EmptyLayout />
+    return <EmptyGalleryLayout />
   }
 
   return (

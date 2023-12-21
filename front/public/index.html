@@ -55,32 +55,49 @@
       }
     </style>
     <div id="root">
-      <div class="loading-layout">
+      <div style="display: none;" class="loading-layout">
         <span class="text-before"></span>
-        <span class="text">Loading</span>
+        <span class="text"></span>
         <span class="text-after"></span>
       </div>
-      <script async>
-        const h = setInterval(() => {
-          addDot()
-        }, 382)
-        function addDot() {
-          const before_els = document.getElementsByClassName('text-before')
-          const after_els = document.getElementsByClassName('text-after')
-          const before_el = before_els[0]
-          const after_el = after_els[0]
-          if (before_el && after_el) {
-            before_el.innerText += '。'
-            after_el.innerText += '。'
-
-            if (after_el.innerText.length > 7) {
-              before_el.innerText = ''
-              after_el.innerText = ''
+      <script>
+        ;(function () {
+          setTimeout(function () {
+            var loading_layout = document.getElementsByClassName('loading-layout')[0]
+            console.log('loading_layout', loading_layout)
+            if (loading_layout) {
+              loading_layout.style.display = ''
+              loadingEffect()
             }
-          } else {
-            clearInterval(h)
+          }, 1000)
+
+          function loadingEffect() {
+            var h = setInterval(addDot, 382)
+
+            var loading_text_arr = 'Loading'.split('')
+            function addDot() {
+              var before_el = document.getElementsByClassName('text-before')[0]
+              var text_el = document.getElementsByClassName('text')[0]
+              var after_el = document.getElementsByClassName('text-after')[0]
+              if (before_el && text_el && after_el) {
+                var [ ch ] = loading_text_arr.splice(0, 1)
+
+                if (ch !== undefined) {
+                  text_el.innerText += ch
+                } else {
+                  before_el.innerText += '。'
+                  after_el.innerText += '。'
+                  if (after_el.innerText.length > 7) {
+                    before_el.innerText = ''
+                    after_el.innerText = ''
+                  }
+                }
+              } else {
+                clearInterval(h)
+              }
+            }
           }
-        }
+        })();
       </script>
       <style>
         .loading-layout {

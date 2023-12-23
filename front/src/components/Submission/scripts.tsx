@@ -180,12 +180,12 @@ export function init() {
     </>
   })
 
-  const select_我其实是想取消投稿 = select('我其实是想取消投稿……', componentScript(
+  const select_我其实是想取消投稿 = select('我其实是想取消投稿......', componentScript(
     [
       select('是', script_取消投稿),
       select('否', script('你逗我玩是吧？', [
         select('我真的想参加', jumpScript(submissionCheckingScript, ['要做什么'])),
-        select('我只是随便看看', script('呃呃呃……', []))
+        select('我只是随便看看', script('呃呃呃......', []))
       ]))
     ],
     ({ changeScript }) => {
@@ -204,7 +204,7 @@ export function init() {
   const script_听说你在下周会来参加投票: Script = {
     ...script('听说你在下周会来参加投票', [
       select('是', script_同装同装),
-      select('我只是凑巧路过……', script('额额额……', [])),
+      select('我只是凑巧路过......', script('额额额......', [])),
     ]),
     show_content_waittime: 500
   }

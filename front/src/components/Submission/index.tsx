@@ -212,7 +212,11 @@ export function TextContentEffect({
     })
   }, [cursor, textContent])
 
-  return <div className={s.TextContentEffect}>{chel_list}</div>
+  return (
+    <span className={s.TextContentEffect}>
+      {chel_list}
+    </span>
+  )
 }
 
 function RenderContent({

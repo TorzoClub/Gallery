@@ -3,7 +3,7 @@ import { AppCriticalError } from 'App'
 import { confirmQQNum, getSubmissionByQQNum } from 'api/member'
 
 import { componentScript, script, select, Script, Select, Content, useSubmissionStore, jumpScript } from './'
-// import { Script, ComponentScript, Select,  } from './SP'
+
 import WaitingInputFrame from 'components/ConfirmQQ/WaitingInputFrame'
 import { timeout } from 'new-vait'
 import Loading from 'components/Loading'
@@ -87,7 +87,10 @@ export function init() {
         return (
           <>
             {exists_text}
-            <img src={photo.thumb_url} style={{ height: '100px' }} />
+            <img src={photo.thumb_url} style={{
+              width: '320px',
+              height: `${320 / (photo.width / photo.height)}px`
+            }} />
           </>
         )
       })
@@ -168,7 +171,7 @@ export function init() {
 
   const script_同装同装 = componentScript([], () => {
     return <>
-      <img src={image_同装同装} style={{ height: '80px' }} />
+      <img src={image_同装同装} style={{ height: '120px' }} />
     </>
   })
 
@@ -197,10 +200,11 @@ export function init() {
 
       return {
         Content: '听说你要参加摄影大赛',
+        show_content_waittime: 750,
         show_select_timeout: 1000,
         selects: [
           {
-            Content: '是',
+            Content: '是的吧我要参加',
             next_script: {
               Content: ({ changeScript }) => <RequestInputQQNumber loginSuccess={async () => {
                 const my_submission = await updateMySubmission()
@@ -215,7 +219,7 @@ export function init() {
             }
           },
           {
-            Content: '否',
+            Content: '否，我不想参加',
             next_script: script_听说你在下周会来参加投票
           },
           {

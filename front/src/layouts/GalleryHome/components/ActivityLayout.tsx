@@ -69,8 +69,7 @@ export default function ActivityLayout({
     const idx = newSelectedIdList.indexOf(id)
 
     if (idx === -1) {
-      if (gallery.vote_limit && (newSelectedIdList.length >= gallery.vote_limit)) {
-        // alert('enough')
+      if ((gallery.vote_limit > 0) && (newSelectedIdList.length >= gallery.vote_limit)) {
         return
       } else {
         setArrowTickTock(Date.now())

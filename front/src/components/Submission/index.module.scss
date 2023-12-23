@@ -4,17 +4,36 @@
 }
 
 .ScriptPlayer {
-  padding: 20px 0;
+  padding: 40px 0;
   width: 320px;
   box-sizing: border-box;
+  text-align: center;
+
+  color: rgba(58, 58, 69, 0.9);
+  font-family: "Noto Sans CJK SC", "Source Han Sans", "Source Han Sans CN", "Helvetica Neue", Helvetica, "Han Heiti", "微软雅黑", "黑体", sans-serif;
+
+  font-size: 20px;
 }
 .ScriptPlayerSelects {
-  padding-bottom: 0;
+  margin-top: 40px;
   margin-bottom: 0;
+  padding: 0;
+  text-align: left;
 }
-.ScriptPlayerSelects > * {
+.ScriptPlayerSelect {
   cursor: pointer;
+  margin-bottom: 0.5em;
+  font-size: 18px;
+}
+.ScriptPlayerSelect:last-child {
+  margin-bottom: 0;
 }
 .ScriptPlayerText {
   background-color: grey;
+}
+.TextContentEffect {
+  text-align: inherit;
+}
+.TextContentEffectChar {
+  display: inline-block;
 }

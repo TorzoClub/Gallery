@@ -5,13 +5,27 @@ import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 import { Gallery, Member, PhotoInActive, PhotoNormal } from 'api/photo'
 import { init as initScript } from './scripts'
-import { Signal } from 'new-vait'
+import { Memo, Signal } from 'new-vait'
+
+const [ getScriptID, setScriptID ] = Memo(0)
+const generateScriptID = () => {
+  setScriptID(getScriptID() + 1)
+  return getScriptID()
+}
 
 export function script(Content: Content, selects: Select[]): Script {
   return {
+    id: generateScriptID(),
     Content,
     show_select_timeout: 1000,
     selects,
+  }
+}
+
+export function scriptAdvance(opts: Omit<Script, 'id'>): Script {
+  return {
+    id: generateScriptID(),
+    ...opts
   }
 }
 export function select(Content: Content, next_script: Script): Select {
@@ -51,6 +65,7 @@ export type Select = {
 }
 
 export type Script = {
+  id: number | string
   Content: Content
   show_content_waittime?: number
   show_select_timeout: number
@@ -328,10 +343,6 @@ function ScriptPlayer({ script, changeScript }: { script: Script; changeScript: 
   )
 }
 
-type ScriptPlayerContext = {
-  changeCurrentScript(s: Script): Promise<void>
-}
-
 export default function Submission({ gallery }: { gallery: Gallery }) {
   useEffect(() => {
     useSubmissionStore.setState({ gallery_id: gallery.id })
@@ -341,6 +352,7 @@ export default function Submission({ gallery }: { gallery: Gallery }) {
   return (
     <div className={s.Submission}>
       <ScriptPlayer
+        key={current_script.id}
         script={current_script}
         changeScript={s => {
           setTimeout(() => {

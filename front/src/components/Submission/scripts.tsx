@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { AppCriticalError } from 'App'
 import { confirmQQNum, getSubmissionByQQNum } from 'api/member'
 
-import { componentScript, script, select, Script, Select, Content, useSubmissionStore, jumpScript, _EVENT_ } from './'
+import { componentScript, script, select, Script, Select, Content, useSubmissionStore, jumpScript, _EVENT_, scriptAdvance } from './'
 
 import WaitingInputFrame from 'components/ConfirmQQ/WaitingInputFrame'
 import { timeout } from 'new-vait'
@@ -10,7 +10,7 @@ import Loading from 'components/Loading'
 import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
 
 import image_同装同装 from '../../assets/同装 同装.png'
-import { Photo, PhotoInActive, PhotoNormal, cancelMySubmission } from 'api/photo'
+import { PhotoInActive, PhotoNormal, cancelMySubmission } from 'api/photo'
 
 export function init() {
   function RequestInputQQNumber(p: { loginSuccess: (qq_num: string) => Promise<void> }) {
@@ -201,15 +201,13 @@ export function init() {
     </>
   })
 
-  script('听说你在下周会来参加投票', [
-    select('是', script_同装同装),
-    select('我只是凑巧路过……', script('额额额……', [])),
-  ])
-
-  const script_听说你在下周会来参加投票 = script('听说你在下周会来参加投票', [
-    select('是', script_同装同装),
-    select('我只是凑巧路过……', script('额额额……', [])),
-  ])
+  const script_听说你在下周会来参加投票: Script = {
+    ...script('听说你在下周会来参加投票', [
+      select('是', script_同装同装),
+      select('我只是凑巧路过……', script('额额额……', [])),
+    ]),
+    show_content_waittime: 500
+  }
 
   return (
     function initScript(): Script {
@@ -230,60 +228,46 @@ export function init() {
         }
       }
 
-      return {
+      return scriptAdvance({
         Content: '听说你要参加摄影大赛',
-        show_content_waittime: 750,
+        show_content_waittime: 1000,
         show_select_timeout: 1000,
         selects: [
-          {
-            Content: '是的吧我要参加',
-            next_script: {
-              Content: ({ changeScript }) => <RequestInputQQNumber loginSuccess={async () => {
+          select('是的吧我要参加', componentScript([], ({ changeScript }) => {
+            return (
+              <RequestInputQQNumber loginSuccess={async () => {
                 const my_submission = await updateMySubmission()
                 if (my_submission !== undefined) {
                   changeScript(
                     submissionCheckingScript()
                   )
                 }
-              }} />,
-              show_select_timeout: 1000,
-              selects: []
-            }
-          },
-          {
-            Content: '否，我不想参加',
-            next_script: script_听说你在下周会来参加投票
-          },
-          {
-            Content: '啊？我参加了啊',
-            next_script: {
-              Content: ({ changeScript }) => {
-                return (
-                  <>
-                    <div style={{ textAlign: 'center' }}>不可能，别骗我了，你拿出证明啊</div>
-                    <RequestInputQQNumber loginSuccess={async () => {
-                      const my_submission = await updateMySubmission()
-                      if (my_submission) {
-                        changeScript(
-                          iMistake()
-                        )
+              }} />
+            )
+          })),
+          select('否，我不想参加', script_听说你在下周会来参加投票),
+          select('啊？我参加了啊', componentScript([], ({ changeScript }) => {
+            return (
+              <>
+                <div style={{ textAlign: 'center' }}>不可能，别骗我了，你拿出证明啊</div>
+                <RequestInputQQNumber loginSuccess={async () => {
+                  const my_submission = await updateMySubmission()
+                  if (my_submission) {
+                    changeScript(
+                      iMistake()
+                    )
 
-                      } else if (my_submission === null) {
-                        changeScript(
-                          iamJoinAfter('你根本没有参加，骗我。')
-                        )
-                        // iamJoinAfter(')
-                      }
-                    }} />
-                  </>
-                )
-              },
-              show_select_timeout: 1000,
-              selects: []
-            }
-          },
+                  } else if (my_submission === null) {
+                    changeScript(
+                      iamJoinAfter('你根本没有参加，骗我。')
+                    )
+                  }
+                }} />
+              </>
+            )
+          }))
         ]
-      }
+      })
     }
   )
 }

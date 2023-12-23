@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 
 import './index.scss'
 
@@ -83,13 +83,17 @@ export default (props: Props) => {
     }
   }, [gallery.can_submission, open])
 
+  const title_node = useMemo(() => (
+    <div onClick={() => {}}>
+      <Title title={gallery.name} open={open} keepTransition={true}>
+        <Submission gallery={gallery} />
+      </Title>
+    </div>
+  ), [gallery, open])
+
   return (
     <div className="gallery">
-      <div onClick={() => {}}>
-        <Title title={gallery.name} open={open} keepTransition={true}>
-          <Submission gallery={gallery} />
-        </Title>
-      </div>
+      {title_node}
 
       <PhotoStream
         hideVoteButton={hideVoteButton}

@@ -13,9 +13,34 @@ import Gallery from 'components/Gallery'
 import PhotoDetail, { Detail } from 'components/Detail'
 import ConfirmVote from 'components/ConfirmVote'
 import shuffleArray from 'utils/shuffle-array'
-import { updateListItemById } from 'utils/common'
+import { findListByProperty, updateListItemById } from 'utils/common'
 import { AppCriticalError } from 'App'
 import { getGlobalQueue, globalQueueLoad, setGlobalQueue } from 'utils/queue-load'
+import { useSubmissionEvent } from 'components/Submission'
+
+function sortByIdList<
+  ID,
+  T extends Record<'id', ID>
+>(list: T[], sorted_id_list: ID[]): T[] {
+  const nofound = Symbol()
+  const sorted_list = sorted_id_list.map(sorted_id => {
+    const find_idx = findListByProperty(list, 'id', sorted_id)
+    if (find_idx === -1) {
+      return nofound
+    } else {
+      return list[find_idx]
+    }
+  }).filter(item => item !== nofound) as T[]
+
+  const remain = list.filter(item => {
+    sorted_id_list.indexOf(item.id) === -1
+  })
+
+  return [
+    ...sorted_list,
+    ...remain,
+  ]
+}
 
 type MediaID = string | number
 type MediaType = 'AVATAR' | 'PHOTO'
@@ -93,10 +118,14 @@ export default () => {
 
   const [submiting, setSubmiting] = useState(false)
 
-  const [active, _setActive] = useState<null | fetchListResult['active']>(null)
+  const [active, setActive] = useState<null | fetchListResult['active']>(null)
   const [list, setList] = useState<fetchListResult['galleries']>([])
 
   const [submittedPool, setSubmittedPool] = useState({})
+
+  const suffled_idx_list = useMemo(() => {
+    return (active === null) ? [] : active.photos.map(p => p.id)
+  }, [active])
 
   usePhotoLoadingPriority(
     useMemo(() => [
@@ -116,85 +145,92 @@ export default () => {
 
   const [showConfirmVoteLayout, setShowConfirmVoteLayout] = useState(false)
 
-  const setActive = useCallback((newValue: fetchListResult['active']) => {
-    if (!newValue) return
-
-    _setActive((oldActive) => {
-      if (oldActive) {
-        const oldPhotos = [...oldActive.photos]
-        const newPhotos = [...newValue.photos]
-
-        newPhotos.forEach((p) => {
-          updateListItemById(oldPhotos, p.id, { ...p })
-        })
-
-        return {
-          ...newValue,
-          photos: oldPhotos,
-        }
-      } else {
-        return {
-          ...newValue,
-          photos: shuffleArray(newValue.photos)
-        }
-      }
-    })
-  }, [])
-
   useEffect(() => {
+    let mounted = true
+    if (loaded === true) { return }
     fetchList().then(({ active, galleries: list }) => {
+      if (mounted === false) { return }
       setList(list)
       setLoaded(true)
 
-      if (!active) {
-        // 没活动？那没事了
-        setHideVoteButton(true)
-        return
-      }
-
-      setActive(active)
-
-      if (active.can_submission) {
-        // 征集投稿期间
-      } else if (!currentQQNum) {
-        // 没扣号的话就来个弹窗
-        setConfirmState({ in: true })
-      } else {
-        // 有的话就用这个扣号获取已投的照片列表
-        setConfirmState({
-          isLoading: false,
-          isDone: true
+      if (active !== null) {
+        setActive({
+          ...active,
+          photos: shuffleArray(active.photos)
         })
+      }
+    }).catch(err => AppCriticalError(`获取相册列表失败: ${err}`))
+    return () => { mounted = false }
+  }, [loaded, setActive])
 
-        const fetchListResult = fetchListWithQQNum(Number(currentQQNum))
+  const [ event_loaded, setEventLoaded ] = useState(false)
+  useEffect(() => {
+    if (loaded === false) { return }
+    else if (event_loaded === true) { return }
+    else if (!active) {
+      // 没活动？那没事了
+      setHideVoteButton(true)
+      return
+    }
 
-        timeout(1500).then(() => {
-          fetchListResult.then(({ active, galleries }) => {
-            if (!active) return
+    if (active.can_submission) {
+      // 征集投稿期间要隐藏投票按钮
+      setHideVoteButton(true)
+    } else {
+      setHideVoteButton(false)
+    }
 
-            setActive(active)
-            setList(galleries)
+    if (active.can_submission) {
+      // 征集投稿期间
+      return
+    } else if (!currentQQNum) {
+      // 没扣号的话就来个弹窗
+      setConfirmState({ in: true })
+      return
+    } else {
+      let mounted = true
+      // 有的话就用这个扣号获取已投的照片列表
+      setConfirmState({
+        isLoading: false,
+        isDone: true
+      })
 
-            setSelectedIdList(
-              active.photos
-                .filter(photo => photo.is_voted)
-                .map(photo => photo.id)
-            )
+      const fetchListResult = fetchListWithQQNum(Number(currentQQNum))
 
-            setConfirmState({ in: false })
-            timeout(618).then(() => {
-              setShowConfirmVoteLayout(true)
-            })
-          }).catch(err => {
-            alert(`获取投票信息失败: ${err.message}`)
+      timeout(1500).then(() => {
+        fetchListResult.then(({ active: new_active, galleries }) => {
+          if (mounted === false) { return }
+          setEventLoaded(true)
+          if (!new_active) {
+            setActive(null)
+            return
+          }
+
+          setActive({
+            ...active,
+            photos: sortByIdList(new_active.photos, suffled_idx_list)
           })
+          setList(galleries)
+
+          setSelectedIdList(
+            new_active.photos
+              .filter(photo => photo.is_voted)
+              .map(photo => photo.id)
+          )
+
+          setConfirmState({ in: false })
+          timeout(618).then(() => {
+            if (mounted === false) { return }
+            setShowConfirmVoteLayout(true)
+          })
+        }).catch(err => {
+          AppCriticalError(`获取投票信息失败: ${err.message}`)
         })
-      }
-    }).catch(async err => {
-      await timeout(1000)
-      AppCriticalError(`获取相册信息失败: ${err.message}`)
-    })
-  }, [currentQQNum, setActive, setConfirmState])
+      })
+
+      return () => { mounted = false }
+    }
+  }, [active, currentQQNum, event_loaded, loaded, setActive, setConfirmState, suffled_idx_list])
 
   const handleClickSubmit = async () => {
     if (!active) return
@@ -241,6 +277,44 @@ export default () => {
       setShowArrow(true)
     })
   }, [])
+
+  useSubmissionEvent({
+    created: useCallback((created_photo) => {
+      if (active) {
+        setActive({
+          ...active,
+          photos: [
+            created_photo,
+            ...active.photos,
+          ],
+        })
+      }
+    }, [active, setActive]),
+    updated: useCallback((updated_photo) => {
+      if (active) {
+        setActive({
+          ...active,
+          photos: active.photos.map(p => {
+            if (p.id === updated_photo.id) {
+              return updated_photo
+            } else {
+              return p
+            }
+          })
+        })
+      }
+    }, [active, setActive]),
+    canceled: useCallback((canceled_photo_id) => {
+      if (active) {
+        setActive({
+          ...active,
+          photos: active.photos.filter(p => {
+            return p.id !== canceled_photo_id
+          })
+        })
+      }
+    }, [active, setActive]),
+  })
 
   const ConfirmVoteLayout = useMemo(() => (
     <ConfirmVote

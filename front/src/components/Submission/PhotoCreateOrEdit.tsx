@@ -1,7 +1,7 @@
 import React, { CSSProperties, useEffect, useMemo, useState } from 'react'
 import ImageUploading, { ImageType, ImageListType } from 'react-images-uploading'
 import { useSubmissionStore } from '.'
-import { PhotoNormal } from 'api/photo'
+import { PhotoInActive, PhotoNormal } from 'api/photo'
 
 import s from './PhotoCreateOrEdit.module.scss'
 import PhotoBox from 'components/PhotoBox'
@@ -109,7 +109,7 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
 
         if (is_edit_mode) {
           // 编辑请求
-          const photo_id = (photo as PhotoNormal).id
+          const photo_id = (photo as PhotoInActive).id
           const edited_photo = await editSubmission(photo_id, formData)
           onUpdateDone(edited_photo)
         } else {

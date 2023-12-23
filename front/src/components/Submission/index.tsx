@@ -1,6 +1,11 @@
 import React, { ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import s from './index.module.scss'
 import { nth, partialRight, pipe, prop, thunkify } from 'ramda'
+import { create } from 'zustand'
+import { devtools, persist } from 'zustand/middleware'
+import { Gallery, Member, PhotoInActive, PhotoNormal } from 'api/photo'
+import { init as initScript } from './scripts'
+import { Signal } from 'new-vait'
 
 export function script(Content: Content, selects: Select[]): Script {
   return {
@@ -58,20 +63,15 @@ const SubmissionContext = React.createContext<SubmissionContextValue>({
 })
 Object.assign(window, { SubmissionContext })
 
-import { create } from 'zustand'
-import { devtools, persist } from 'zustand/middleware'
-import { Gallery, Member, PhotoNormal } from 'api/photo'
-import { init as initScript } from './scripts'
-
 type QQNum = string | null
 type GalleryID = number | null
 type State = {
   qq_num: QQNum
   gallery_id: GalleryID
-  photo: PhotoNormal | null
+  photo: PhotoInActive | null
   setQQNum(v: QQNum): void
   setGalleryId(v: GalleryID): void
-  setPhoto(v: PhotoNormal): void
+  setPhoto(v: PhotoInActive): void
 }
 
 export const useSubmissionStore = create<State>()(
@@ -87,7 +87,37 @@ export const useSubmissionStore = create<State>()(
     { name: 'submission-store' },
   ),
 )
-Object.assign(window, { useSubmissionStore })
+
+export const _EVENT_ = {
+  created: Signal<PhotoInActive>(),
+  updated: Signal<PhotoInActive>(),
+  canceled: Signal<PhotoInActive['id']>()
+} as const
+
+if (process.env.NODE_ENV === 'development') {
+  Object.assign(window, { useSubmissionStore, _EVENT_ })
+}
+
+export function useSubmissionEvent({
+  created,
+  updated,
+  canceled,
+}: {
+  created(p: PhotoInActive): void
+  updated(p: PhotoInActive): void
+  canceled(p: PhotoInActive['id']): void
+}) {
+  useEffect(() => {
+    _EVENT_.created.receive(created)
+    _EVENT_.updated.receive(updated)
+    _EVENT_.canceled.receive(canceled)
+    return () => {
+      _EVENT_.created.cancelReceive(created)
+      _EVENT_.updated.cancelReceive(updated)
+      _EVENT_.canceled.cancelReceive(canceled)
+    }
+  }, [canceled, created, updated])
+}
 
 function TextContentEffectChar({ show, ch }: { show: boolean; ch: string }) {
   if (show) {
@@ -112,14 +142,17 @@ export function TextContentEffect({
  }: { textContent: string; showContentWaittime: number; onPlaying?(): void }) {
   const [cursor, setShowingCursor] = useState(0)
   const [ is_playing, setPlaying ] = useState(false)
+  const [ is_played, setPlayed ] = useState(false)
 
   useEffect(() => {
     if (is_playing) {
       onPlaying && onPlaying()
     }
-  })
+  }, [is_playing, onPlaying])
 
   useEffect(() => {
+    if (is_played) { return }
+
     let int_handler: undefined | NodeJS.Timeout = undefined
 
     function playInterval() {
@@ -130,6 +163,7 @@ export function TextContentEffect({
             return cursor + 1
           } else {
             setPlaying(false)
+            setPlayed(true)
             return textContent.length
           }
         })
@@ -154,7 +188,7 @@ export function TextContentEffect({
         }
       }
     }
-  }, [cursor, showContentWaittime, textContent.length])
+  }, [cursor, is_played, showContentWaittime, textContent.length])
 
   const chel_list = useMemo(() => {
     return textContent.split('').map((ch, idx) => {
@@ -307,7 +341,6 @@ export default function Submission({ gallery }: { gallery: Gallery }) {
   return (
     <div className={s.Submission}>
       <ScriptPlayer
-        key={Date.now()}
         script={current_script}
         changeScript={s => {
           setTimeout(() => {

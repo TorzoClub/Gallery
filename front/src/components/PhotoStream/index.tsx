@@ -102,7 +102,15 @@ export default (props: Props) => {
       }}
     >
       {
-        columns.map((column, key) => (
+        (photos.length === 0) ? (
+          <div style={{
+            textAlign: 'center',
+            width: '100%',
+            color: 'rgba(0, 0, 0, 0.4)',
+            padding: '30px 0',
+            paddingLeft: HorizontalOffset,
+          }}>暂无投稿作品</div>
+        ) : columns.map((column, key) => (
           <div
             className="steam-column"
             key={String(key)}
@@ -155,5 +163,5 @@ export default (props: Props) => {
         ))
       }
     </div>
-  ), [HorizontalOffset, boxWidth, columns, gutter, hideVoteButton, photoStreamListWidth, props, screen, selectedIdList])
+  ), [HorizontalOffset, boxWidth, columns, gutter, hideVoteButton, photoStreamListWidth, photos.length, props, screen, selectedIdList])
 }

@@ -93,7 +93,7 @@ function Slit(p: SlitProps) {
     <div className="slit-wrapper" ref={ slit_wrapper_ref }>
       <div className="slit" ref={ slit_ref }>
         <div className="slit-inner">
-          { p.children }
+          { p.open ? p.children : null }
         </div>
       </div>
     </div>

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { AppCriticalError } from 'App'
 import { confirmQQNum, getSubmissionByQQNum } from 'api/member'
 
-import { componentScript, script, select, Script, Select, Content, useSubmissionStore, jumpScript } from './'
+import { componentScript, script, select, Script, Select, Content, useSubmissionStore, jumpScript, _EVENT_ } from './'
 
 import WaitingInputFrame from 'components/ConfirmQQ/WaitingInputFrame'
 import { timeout } from 'new-vait'
@@ -10,7 +10,7 @@ import Loading from 'components/Loading'
 import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
 
 import image_同装同装 from '../../assets/同装 同装.png'
-import { cancelMySubmission } from 'api/photo'
+import { Photo, PhotoInActive, PhotoNormal, cancelMySubmission } from 'api/photo'
 
 export function init() {
   function RequestInputQQNumber(p: { loginSuccess: (qq_num: string) => Promise<void> }) {
@@ -97,41 +97,64 @@ export function init() {
       })
     } else {
       return componentScript([], ({ changeScript }) => {
-        return <PhotoCreateOrEdit onUpdateDone={() => changeScript(script_感谢你的参与)} />
+        return <PhotoCreateOrEdit onUpdateDone={(created_photo) => {
+          changeScript(script_感谢你的参与('CREATED', created_photo))
+        }} />
       })
     }
   }
 
-  const script_感谢你的参与 = componentScript([], ({ changeScript }) => {
-    return <>
-      感谢你的参与！
-    </>
-  })
+  const script_感谢你的参与 = (type: 'CREATED' | 'EDITED', photo: PhotoNormal) => {
+    return componentScript([], ({ changeScript }) => {
+      useEffect(() => {
+        setTimeout(() => {
+          if (type === 'CREATED') {
+            _EVENT_.created.trigger({ ...photo, member: null, member_id: null })
+          } else {
+            _EVENT_.updated.trigger({ ...photo, member: null, member_id: null })
+          }
+        }, 1500)
+      }, [])
+      return <>
+        感谢你的参与！
+      </>
+    })
+  }
 
   const script_当然可以修改 = componentScript([], ({ changeScript }) => {
     return <>
       <div style={{ marginBottom: '20px' }}>{'当然可以！'}</div>
-      <PhotoCreateOrEdit onUpdateDone={() => {
-        changeScript(script_感谢你的参与)
+      <PhotoCreateOrEdit onUpdateDone={(edited_photo) => {
+        changeScript(script_感谢你的参与('EDITED', edited_photo))
       }} />
     </>
   })
 
-  const script_你的投稿已成功撤回 = script('你的投稿已成功撤回', [
-    select('你干得好啊。', script('同装摄影大赛，来去自由！', [])),
-    select('我说说的你怎么就当真了？', componentScript([], ({ changeScript }) => {
+  const script_你的投稿已成功撤回 = (canceled_photo_id: PhotoInActive['id']) => {
+    return script(() => {
       useEffect(() => {
-        useSubmissionStore.setState({ photo: null })
+        setTimeout(() => {
+          _EVENT_.canceled.trigger(canceled_photo_id)
+        }, 1500)
       }, [])
-      useEffect(() => {
-        const h = setTimeout(() => {
-          changeScript(submissionCheckingScript())
-        }, 2000)
-        return () => clearTimeout(h)
-      })
-      return <>好吧，那你就再重新投稿咯</>
-    }))
-  ])
+      return <>你的投稿已成功撤回</>
+    }, [
+      select('你干得好啊。', script('同装摄影大赛，来去自由！', [])),
+      select('我说说的你怎么就当真了？', componentScript([], ({ changeScript }) => {
+        useEffect(() => {
+          useSubmissionStore.setState({ photo: null })
+        }, [])
+
+        useEffect(() => {
+          const h = setTimeout(() => {
+            changeScript(submissionCheckingScript())
+          }, 2000)
+          return () => clearTimeout(h)
+        })
+        return <>好吧，那你就再重新投稿咯</>
+      }))
+    ])
+  }
 
   const script_取消投稿 = componentScript([], ({ changeScript }) => {
     const { photo, qq_num } = useSubmissionStore()
@@ -144,7 +167,9 @@ export function init() {
             qq_num,
             photo_id: photo.id,
           }).then(() => {
-            changeScript(script_你的投稿已成功撤回)
+            changeScript(script_你的投稿已成功撤回(photo.id))
+          }).catch(err => {
+            alert(`取消投稿操作失败：${err}`)
           })
         }
       }
@@ -194,7 +219,13 @@ export function init() {
           AppCriticalError(`gallery_id(${gallery_id}) 或者 qq_num${qq_num} 为 null`)
         } else {
           const my_submission = await getSubmissionByQQNum(gallery_id, qq_num)
-          useSubmissionStore.setState({ photo: my_submission })
+          if (my_submission === null) {
+            useSubmissionStore.setState({ photo: null })
+          } else {
+            useSubmissionStore.setState({
+              photo: { ...my_submission, member: null, member_id: null }
+            })
+          }
           return my_submission
         }
       }

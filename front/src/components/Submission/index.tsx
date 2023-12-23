@@ -60,7 +60,7 @@ Object.assign(window, { SubmissionContext })
 
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
-import { Gallery, PhotoNormal } from 'api/photo'
+import { Gallery, Member, PhotoNormal } from 'api/photo'
 import { init as initScript } from './scripts'
 
 type QQNum = string | null
@@ -82,11 +82,12 @@ export const useSubmissionStore = create<State>()(
       photo: null,
       setQQNum: (qq_num) => set(() => ({ qq_num })),
       setGalleryId: (gallery_id) => set(() => ({ gallery_id })),
-      setPhoto: (photo) => set(() => ({ photo }))
+      setPhoto: (photo) => set(() => ({ photo })),
     }),
     { name: 'submission-store' },
   ),
 )
+Object.assign(window, { useSubmissionStore })
 
 function TextContentEffectChar({ show, ch }: { show: boolean; ch: string }) {
   if (show) {

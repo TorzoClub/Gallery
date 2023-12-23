@@ -1,7 +1,11 @@
-import React, { useMemo, useState } from 'react'
+import React, { CSSProperties, useEffect, useMemo, useState } from 'react'
 import ImageUploading, { ImageType, ImageListType } from 'react-images-uploading'
 import { useSubmissionStore } from '.'
 import { PhotoNormal } from 'api/photo'
+
+import s from './PhotoCreateOrEdit.module.scss'
+import PhotoBox from 'components/PhotoBox'
+import Loading from 'components/Loading'
 
 function justUseTemplateString(strs: TemplateStringsArray, ...args: (number | string)[]) {
   const str = strs.reduce((a, b, idx) => {
@@ -65,6 +69,7 @@ type Props = {
   onUpdateDone(data: PhotoNormal): void
 }
 export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
+  const [ isProcessing, setProcessing ] = useState(false)
   const [files, setFiles] = React.useState<ImageListType>([])
   const { photo, gallery_id, qq_num } = useSubmissionStore.getState()
   const [description, setDescription] = useState(photo?.desc || '')
@@ -79,36 +84,43 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
   const is_edit_mode = Boolean(photo)
 
   async function handleSubmit() {
-    const formData = new FormData()
-    formData.append('desc', description)
-    formData.append('gallery_id', `${gallery_id}`)
-    formData.append('qq_num', `${qq_num}`)
-
     if (!is_edit_mode && !will_upload_image) {
       alert('请选择一张图像')
     } else {
-      if (will_upload_image) {
-        const { file } = will_upload_image
-        if (!file) {
-          alert('!file')
-        } else {
-          // onUpdateDone
-          const arrayBuffer = await file.arrayBuffer()
-          const blob = new Blob([new Uint8Array(arrayBuffer)], {type: file.type })
-          formData.append('image', blob, file.name)
-          console.log('blob', blob)
-        }
-      }
+      const formData = new FormData()
+      formData.append('desc', description)
+      formData.append('gallery_id', `${gallery_id}`)
+      formData.append('qq_num', `${qq_num}`)
 
-      if (is_edit_mode) {
-        // 编辑请求
-        const photo_id = (photo as PhotoNormal).id
-        const edited_photo = await editSubmission(photo_id, formData)
-        onUpdateDone(edited_photo)
-      } else {
-        // 创建请求
-        const created_photo = await newSubmission(formData)
-        onUpdateDone(created_photo)
+      try {
+        setProcessing(true)
+        if (will_upload_image) {
+          const { file } = will_upload_image
+          if (!file) {
+            alert('!file')
+          } else {
+            // onUpdateDone
+            const arrayBuffer = await file.arrayBuffer()
+            const blob = new Blob([new Uint8Array(arrayBuffer)], {type: file.type })
+            formData.append('image', blob, file.name)
+            console.log('blob', blob)
+          }
+        }
+
+        if (is_edit_mode) {
+          // 编辑请求
+          const photo_id = (photo as PhotoNormal).id
+          const edited_photo = await editSubmission(photo_id, formData)
+          onUpdateDone(edited_photo)
+        } else {
+          // 创建请求
+          const created_photo = await newSubmission(formData)
+          onUpdateDone(created_photo)
+        }
+      } catch (err) {
+        alert(`错误: ${err}`)
+      } finally {
+        setProcessing(false)
       }
     }
   }
@@ -116,6 +128,9 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
   return (
     <div>
       <ImageUploading
+        inputProps={{
+          // style: { WebkitAppearance: 'none', display: 'none' }
+        }}
         value={files}
         onChange={(e) => {
           console.log('onChange', e)
@@ -134,20 +149,34 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
           return (
             <div className="upload__image-wrapper">
               <button
-                style={isDragging ? { color: 'red' } : undefined}
+                style={{
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  background: 'transparent',
+                  border: 'none',
+                  margin: '0',
+                  padding: '0',
+                }}
                 onClick={onImageUpload}
                 {...dragProps}
               >
-                Click or Drop here
-                {imageList.map((image, index) => (
-                <div key={index} className="image-item">
-                  <img src={image.dataURL} alt="" width="100" />
-                  {/* <div className="image-item__btn-wrapper">
-                    <button onClick={() => onImageUpdate(index)}>Update</button>
-                    <button onClick={() => onImageRemove(index)}>Remove</button>
-                  </div> */}
-                </div>
-              ))}
+                <PreviewBox
+                  previewURL={ selectPreviewPicture(imageList, photo ? photo.thumb_url : null) }
+                  isDragging={ isDragging }
+                />
+                {
+                  // preview_image_url === null ? '点击选择作品，或者拖拽文件到此处' :(
+                  //   imageList.map((image, index) => (
+                  //     <div key={index} className="image-item">
+                  //       <img src={image.dataURL} alt="" width="100" />
+                        /* <div className="image-item__btn-wrapper">
+                          <button onClick={() => onImageUpdate(index)}>Update</button>
+                          <button onClick={() => onImageRemove(index)}>Remove</button>
+                        </div> */
+                  //     </div>
+                  //   ))
+                  // )
+                }
               </button>
               {/* <button onClick={onImageRemoveAll}>Remove all images</button> */}
             </div>
@@ -157,13 +186,76 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
 
       <textarea
         value={description}
+        className={s.Textarea}
         onChange={(e) => {
           setDescription(e.target.value)
         }}
         placeholder='相片介绍，选填'
       />
 
-      <button onClick={handleSubmit}>提交</button>
+      <div className={s.ButtonContainer}>
+        <button
+          className={s.ButtonBefore}
+          onClick={handleSubmit}
+          type="button"
+        >提交</button>
+      </div>
+
+      {
+        isProcessing && <div className="loading-wrapper">
+          <Loading />
+        </div>
+      }
+    </div>
+  )
+}
+
+function selectPreviewPicture(
+  imageList: ImageListType,
+  exists_photo_thumb_url: string | null
+): string | null {
+  if (imageList.length) {
+    const { dataURL } = imageList[0]
+    if (dataURL === undefined) {
+      return exists_photo_thumb_url
+    } else {
+      return dataURL
+    }
+  } else if (exists_photo_thumb_url !== null) {
+    return exists_photo_thumb_url
+  } else {
+    return null
+  }
+}
+
+export function PreviewBox({
+  previewURL,
+  isDragging,
+  height,
+}: {
+  height?: CSSProperties['height'],
+  previewURL: string | null
+  isDragging: boolean
+}) {
+  return (
+    <div className={s.PreviewBox}>
+      {
+        useMemo(() => {
+          if (previewURL === null) {
+            return <div className={[s.EmptyTips, isDragging ? s.IsDragging : ''].join(' ')}>
+              { isDragging ? '对，就是这样，该放手了' : '点击此处选择作品，或者拖拽文件到此处' }
+            </div>
+          } else {
+            return (
+              <img
+                className={[s.PreviewImage, isDragging ? s.IsDragging : ''].join(' ')}
+                style={{ height }}
+                src={previewURL}
+              />
+            )
+          }
+        }, [height, isDragging, previewURL])
+      }
     </div>
   )
 }

@@ -7,7 +7,7 @@ import { componentScript, script, select, Script, Select, Content, useSubmission
 import WaitingInputFrame from 'components/ConfirmQQ/WaitingInputFrame'
 import { timeout } from 'new-vait'
 import Loading from 'components/Loading'
-import PhotoCreateOrEdit from './PhotoCreateOrEdit'
+import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
 
 import image_同装同装 from '../../assets/同装 同装.png'
 import { cancelMySubmission } from 'api/photo'
@@ -86,11 +86,12 @@ export function init() {
       ], () => {
         return (
           <>
-            {exists_text}
-            <img src={photo.thumb_url} style={{
-              width: '320px',
-              height: `${320 / (photo.width / photo.height)}px`
-            }} />
+            <div style={{ marginBottom: '20px' }}>{exists_text}</div>
+            <PreviewBox
+              previewURL={photo.thumb_url}
+              isDragging={false}
+              height={320 / (photo.width / photo.height)}
+            />
           </>
         )
       })
@@ -109,7 +110,7 @@ export function init() {
 
   const script_当然可以修改 = componentScript([], ({ changeScript }) => {
     return <>
-      <div>{'当然可以！'}</div>
+      <div style={{ marginBottom: '20px' }}>{'当然可以！'}</div>
       <PhotoCreateOrEdit onUpdateDone={() => {
         changeScript(script_感谢你的参与)
       }} />

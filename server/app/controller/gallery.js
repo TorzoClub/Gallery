@@ -8,13 +8,22 @@ module.exports = app => {
         qq_num: { type: 'qq_num', required: true },
       }, ctx.params);
 
-      ctx.backData(
-        200,
-        await ctx.service.photo.getMemberSubmissionByQQNum(
-          ctx.params.gallery_id,
-          ctx.params.qq_num
-        )
+      const photo = await ctx.service.photo.getMemberSubmissionByQQNum(
+        ctx.params.gallery_id,
+        ctx.params.qq_num
       );
+
+      if (photo === null) {
+        ctx.backData(200, null);
+      } else {
+        ctx.backData(
+          200,
+          {
+            ...photo.toJSON(),
+            member: await photo.getMember(),
+          }
+        );
+      }
     }
   }
 

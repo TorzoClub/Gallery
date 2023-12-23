@@ -10,7 +10,7 @@ import Loading from 'components/Loading'
 import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
 
 import image_同装同装 from '../../assets/同装 同装.png'
-import { PhotoInActive, PhotoNormal, cancelMySubmission } from 'api/photo'
+import { PhotoInActive, PhotoNormal, cancelMySubmission, normal2InActive } from 'api/photo'
 
 export function init() {
   function RequestInputQQNumber(p: { loginSuccess: (qq_num: string) => Promise<void> }) {
@@ -109,9 +109,9 @@ export function init() {
       useEffect(() => {
         setTimeout(() => {
           if (type === 'CREATED') {
-            _EVENT_.created.trigger({ ...photo, member: null, member_id: null })
+            _EVENT_.created.trigger(normal2InActive(photo))
           } else {
-            _EVENT_.updated.trigger({ ...photo, member: null, member_id: null })
+            _EVENT_.updated.trigger(normal2InActive(photo))
           }
         }, 1500)
       }, [])
@@ -221,7 +221,7 @@ export function init() {
             useSubmissionStore.setState({ photo: null })
           } else {
             useSubmissionStore.setState({
-              photo: { ...my_submission, member: null, member_id: null }
+              photo: normal2InActive(my_submission)
             })
           }
           return my_submission

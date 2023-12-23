@@ -24,7 +24,7 @@ type PhotoCommon = {
   vote_count: number
   desc: string
 
-  is_voted: boolean
+  // is_voted: boolean
 
   height: number
   width: number
@@ -43,8 +43,16 @@ export type PhotoNormal = PhotoCommon & {
 export type PhotoInActive = PhotoCommon & {
   member: null
   member_id: null
+  is_voted: boolean
 }
 export type Photo = PhotoNormal | PhotoInActive
+
+export const normal2InActive = (p: PhotoNormal): PhotoInActive => ({
+  ...p,
+  is_voted: false,
+  member: null,
+  member_id: null,
+})
 
 type GalleryCommon = {
   id: ID

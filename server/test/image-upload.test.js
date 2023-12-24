@@ -117,18 +117,36 @@ describe('controller/admin/image', () => {
 
     const member = await createMember(token, app, { qq_num: 22122 })
     const gallery = await commonCreateGallery(token, app, {})
-    await createPhoto(token, app, {
+    const created_photo = await createPhoto(token, app, {
       gallery_id: gallery.id,
       member_id: member.id,
       src: u_img.src,
     })
 
-    await app.httpRequest()
+    const res = await app.httpRequest()
       .get('/admin/image/refresh-thumb')
       .set('Authorization', token)
       .expect(200)
 
+    const { successes, failures } = res.body
+
+    assert(Array.isArray(successes))
+    assert(successes.length === 2) // 创建了一张照片和一位用户的头像
+    assert(Array.isArray(failures))
+    assert(failures.length === 0)
     assert(fs.existsSync(thumb_path) === true)
+
+    {
+      fs.unlinkSync(path.join(app.config.imageSavePath, created_photo.src))
+      const res = await app.httpRequest()
+        .get('/admin/image/refresh-thumb')
+        .set('Authorization', token)
+        .expect(200)
+
+      const { successes, failures } = res.body
+      assert(successes.length === 1)
+      assert(failures.length === 1)
+    }
   })
 
   // it('check unuse image after refresh thumb', async () => {

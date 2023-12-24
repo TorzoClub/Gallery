@@ -240,7 +240,10 @@ export function PreviewBox({
   previewURL: string | null
   isDragging: boolean
 }) {
-  const [ loaded, blob_url ] = useQueueload((previewURL === null) ? undefined : previewURL)
+  const [ loaded, blob_url ] = useQueueload(
+    (previewURL === null) ? undefined : previewURL,
+    true
+  )
   return (
     <div className={s.PreviewBox}>
       {

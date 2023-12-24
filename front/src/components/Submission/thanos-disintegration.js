@@ -1,6 +1,7 @@
 // 来自： https://gist.github.com/CodeMyUI/cb3293f2cc3fbff5a4ff03d76447ad9e
 
 import html2canvas from 'html2canvas'
+import { timeout } from 'new-vait'
 
 const DEBUG = false
 const REPETITION_COUNT = 2 // number of times each pixel is assigned to a canvas
@@ -8,7 +9,7 @@ const NUM_FRAMES = 128
 
 /**
  * Generates the individual subsets of pixels that are animated to create the effect
- * @param {HTMLCanvasElement} ctx
+ * @param {HTMLCanvasElement} $canvas
  * @param {number} count The higher the frame count, the less grouped the pixels will look - Google use 32, but for our elms we use 128 since we have images near the edges
  * @return {HTMLCanvasElement[]} Each canvas contains a subset of the original pixels
  */
@@ -50,7 +51,7 @@ function generateFrames($canvas, count = 32) {
  * Inserts a new element over an old one, hiding the old one
  */
 function replaceElementVisually($old, $new) {
-  console.log('replaceElementVisually', $old, $new)
+  // console.log('replaceElementVisually', $old, $new)
 
   const $parent = $old.offsetParent
   $new.style.top = `${$old.offsetTop}px`
@@ -65,16 +66,19 @@ function replaceElementVisually($old, $new) {
  * Disintegrates an element
  * @param {HTMLElement} $elm
  */
-export function disintegrate($elm) {
-  html2canvas($elm).then($canvas => {
+export async function disintegrate($elm) {
+  return html2canvas($elm).then(async ($canvas) => {
     // create the container we'll use to replace the element with
     const $container = document.createElement('div')
     $container.classList.add('disintegration-container')
 
     // setup the frames for animation
     const $frames = generateFrames($canvas, NUM_FRAMES)
+
+    const delay = (i) => 1.35 * i / $frames.length
+    const max_delay = delay($frames.length - 1, $frames.length)
     $frames.forEach(($frame, i) => {
-      $frame.style.transitionDelay = `${1.35 * i / $frames.length}s`
+      $frame.style.transitionDelay = `${delay(i)}s`
       $container.appendChild($frame)
     })
 
@@ -90,7 +94,7 @@ export function disintegrate($elm) {
         const randomRadian = 2 * Math.PI * (Math.random() - 0.5)
         $frame.style.transform =
           `rotate(${15 * (Math.random() - 0.5)}deg) translate(${60 * Math.cos(randomRadian)}px, ${30 * Math.sin(randomRadian)}px)
-rotate(${15 * (Math.random() - 0.5)}deg)`
+  rotate(${15 * (Math.random() - 0.5)}deg)`
         $frame.style.opacity = 0
       })
     } else {
@@ -98,6 +102,9 @@ rotate(${15 * (Math.random() - 0.5)}deg)`
         $frame.style.animation = `debug-pulse 1s ease ${$frame.style.transitionDelay} infinite alternate`
       })
     }
+
+    const transition_duration = 1000
+    return timeout(max_delay * 1000 + transition_duration)
   })
 }
 

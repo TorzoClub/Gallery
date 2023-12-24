@@ -112,12 +112,14 @@ export const _EVENT_ = {
 if (process.env.NODE_ENV === 'development') {
   Object.assign(window, { useSubmissionStore, _EVENT_ })
   // useSubmissionStore.setState({
+  //   qq_num: '2333',
   //   photo: {
   //     'src_urlpath':'/src/1703346623310.jpg',
   //     'src_url':'http://127.0.0.1:7001/src/1703346623310.jpg',
   //     'thumb':'1703346623310.jpg',
   //     'thumb_urlpath':'/thumb/1703346623310.jpg',
-  //     'thumb_url':'http://127.0.0.1:7001/thumb/1703346623310.jpg',
+  //     // 'thumb_url':'http://127.0.0.1:7001/thumb/1703346623310.jpg',
+  //     thumb_url: 'https://pache.blog/torzo-gallery-server-dev/thumb/1703432262903.jpg',
   //     'id':203,
   //     'desc':'test',
   //     'src':'1703346623310.jpg',
@@ -310,12 +312,24 @@ function Select({
   return (
     <li
       className={s.ScriptPlayerSelect}
-      onClick={onPress}
       style={{
         listStyleType: show_list_item_icon ? 'disclosure-closed' : 'none'
       }}
     >
-      {inner}
+      <button
+        onClick={onPress}
+        style={{
+          WebkitAppearance: 'none',
+          appearance: 'none',
+          margin: 0,
+          padding: 0,
+          border: 0,
+          background: 'none',
+          fontSize: '16px',
+        }}
+      >
+        {inner}
+      </button>
     </li>
   )
 }

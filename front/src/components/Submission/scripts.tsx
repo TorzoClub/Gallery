@@ -15,6 +15,7 @@ import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
 import image_同装同装 from '../../assets/同装 同装.png'
 import { PhotoInActive, PhotoNormal, cancelMySubmission, normal2InActive } from 'api/photo'
 import { thunkify } from 'ramda'
+import { useQueueload } from 'utils/queue-load'
 
 export function init() {
   function RequestInputQQNumber(p: { loginSuccess: (qq_num: string) => Promise<void> }) {
@@ -206,6 +207,10 @@ export function init() {
         ), [])
 
         const { photo, qq_num } = useSubmissionStore.getState()
+        const [ , blob_url ] = useQueueload(
+          (photo === null) ? undefined : photo.thumb_url
+        )
+
         const [show_photo, showPhoto] = useState(false)
         useEffect(() => {
           const handler = setTimeout(thunkify(showPhoto)(true), timeline['show_picture'])
@@ -223,17 +228,20 @@ export function init() {
                 qq_num,
                 photo_id: photo.id,
               })
-              Promise.all([t, canceling]).finally(() => {
+              Promise.all([t, canceling]).then(() => {
                 canceling.then(() => {
-                  if (unmounted) { return }
-                  setRemoving(false)
-                  setRemoved(true)
-                  _EVENT_.canceled.trigger(photo.id)
-                }).catch(err => {
-                  if (unmounted) { return }
-                  setRemoving(false)
-                  alert(`取消投稿操作失败：${err}`)
+                  if (unmounted) {
+                    _EVENT_.canceled.trigger(photo.id)
+                  } else {
+                    setRemoving(false)
+                    setRemoved(true)
+                    _EVENT_.canceled.trigger(photo.id)
+                  }
                 })
+              }).catch(err => {
+                if (unmounted) { return }
+                setRemoving(false)
+                alert(`取消投稿操作失败：${err}`)
               })
             }
           }
@@ -241,7 +249,7 @@ export function init() {
           return () => { unmounted = true }
         }, [photo, qq_num])
 
-        const bottom_node = useMemo(() => {
+        const confirm_node = useMemo(() => {
           let removing_node: ReactNode = null
           const removing_node_style: CSSProperties = {
             marginTop: '40px',
@@ -276,6 +284,7 @@ export function init() {
           )
         }, [changeScript, handleRemove, removed, removing, selects])
 
+        const [remove_effect_played, setPlayed] = useState(false)
         useEffect(() => {
           if (photo && removed) {
             const targets = document.querySelectorAll('.disintegration-target')
@@ -283,13 +292,17 @@ export function init() {
               const $elm = targets[i] as any
               if ($elm.disintegrated) { return }
               $elm.disintegrated = true
-              setTimeout(() => {
-                disintegrate($elm)
-              }, 1000)
+              timeout(100).then(() => {
+                disintegrate($elm).catch(err => {
+                  console.warn('disintegrate', err)
+                  AppCriticalError(`disintegrate error: ${err}`)
+                }).finally(() => {
+                  setTimeout(() => {
+                    setPlayed(true)
+                  }, 500)
+                })
+              })
             }
-            setTimeout(() => {
-
-            }, 2500)
           }
         }, [photo, removed])
 
@@ -315,12 +328,14 @@ export function init() {
                 showContentWaittime={timeline['撤回没逼品']}
               />
             </div>
+
             <div>
               <TextContentEffect
                 textContent="额，好吧。可以取消的，你确定真的要这样做吗？"
                 showContentWaittime={timeline['可以的']}
               />
             </div>
+
             <div style={{
               ...(show_photo ? {
                 marginTop: '20px'
@@ -342,15 +357,16 @@ export function init() {
                 )
               }
             </div>
-            {bottom_node}
+
+            {confirm_node}
 
             {
-              removed && (
+              remove_effect_played && (
                 <ScriptPlayerSelects
                   selects={removed_selects}
                   onClickSelect={(i) => { changeScript(removed_selects[i].next_script) }}
                   changeScript={changeScript}
-                  waittime={3000}
+                  waittime={1000}
                 />
               )
             }

@@ -22,25 +22,47 @@ function searchCache(src: string | undefined): readonly [boolean, string] {
   }
 }
 
-export function useQueueload(src: string | undefined) {
-  const [ cached, url ] = searchCache(src)
+function blobToBase64(blob: Blob) {
+  return new Promise<string>((resolve, _) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result)
+      } else {
+        _(new Error('reader.result !== "string"'))
+      }
+    }
+    reader.readAsDataURL(blob)
+    reader.onerror = _
+  })
+}
+
+export function useQueueload(loadsrc: string | undefined, need_base64_url: boolean = false) {
+  const [ cached, url ] = searchCache(loadsrc)
   const [ loaded, setLoaded ] = useState(cached)
-  const [ blobSrc, setBlobSrc ] = useState<string>(url)
+  const [ back_src, setBackSrc ] = useState<string>(url)
 
   useEffect(() => {
-    if (src) {
-      let mounted = true
-      globalQueueLoad(src).then(res => {
-        if (mounted) {
-          setBlobSrc(res.blobUrl)
+    if (loadsrc) {
+      let unmounted = false
+      globalQueueLoad(loadsrc).then(res => {
+        if (unmounted) { return }
+        if (need_base64_url) {
+          return blobToBase64(res.blob).then((base64_url) => {
+            if (unmounted) { return }
+            setBackSrc(base64_url)
+            setLoaded(true)
+          })
+        } else {
+          setBackSrc(res.blobUrl)
           setLoaded(true)
         }
       })
-      return () => { mounted = false }
+      return () => { unmounted = true }
     }
-  }, [src])
+  }, [loadsrc, need_base64_url])
 
-  return [loaded, blobSrc] as const
+  return [loaded, back_src] as const
 }
 
 export const MAX_PARALLEL_NUMBER = 3

@@ -3,7 +3,7 @@ import { Signal } from 'new-vait'
 
 import GalleryHome from './layouts/GalleryHome'
 // import CoverScroller from './layouts/CoverScroller'
-import BgImageUrl from 'assets/bg.png'
+// import BgImageUrl from 'assets/bg.png'
 import { useFailureLayout } from './components/FailureLayout'
 
 import './App.css'
@@ -38,7 +38,6 @@ function AppInner() {
 
     <style>{`
       .app {
-        background-image: url(${BgImageUrl});
         background-repeat: repeat;
       }
       .build-description {

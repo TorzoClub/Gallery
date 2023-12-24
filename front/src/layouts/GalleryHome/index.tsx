@@ -98,7 +98,7 @@ function usePhotoLoadingPriority(photo_list: Photo[]) {
     }
     window.addEventListener('resize', resortHandler)
     window.addEventListener('scroll', resortHandler)
-    resortHandler()
+    _resortHandler()
 
     return () => {
       window.removeEventListener('resize', resortHandler)
@@ -150,7 +150,6 @@ export default () => {
     if (loaded === true) { return }
     fetchList().then(({ active, galleries: list }) => {
       if (mounted === false) { return }
-      setList(list)
       setLoaded(true)
 
       if (active !== null) {
@@ -158,6 +157,9 @@ export default () => {
           ...active,
           photos: shuffleArray(active.photos)
         })
+      } else {
+        setActive(null)
+        setList(list)
       }
     }).catch(err => AppCriticalError(`获取相册列表失败: ${err}`))
     return () => { mounted = false }
@@ -203,6 +205,7 @@ export default () => {
           setEventLoaded(true)
           if (!new_active) {
             setActive(null)
+            setList(galleries)
             return
           }
 
@@ -210,7 +213,6 @@ export default () => {
             ...active,
             photos: sortByIdList(new_active.photos, suffled_idx_list)
           })
-          setList(galleries)
 
           setSelectedIdList(
             new_active.photos

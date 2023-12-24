@@ -228,7 +228,7 @@
 /* TurnOnEffect、TurnOffEffect 的出处： https://codepen.io/lbebber/pen/XJRdrV */
 .TurnOnEffect {
   animation: turn-on 4s linear;
-  animation-fill-mode:forwards;
+  animation-fill-mode: forwards;
 }
 
 .TurnOffEffect {

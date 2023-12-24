@@ -111,6 +111,30 @@ export const _EVENT_ = {
 
 if (process.env.NODE_ENV === 'development') {
   Object.assign(window, { useSubmissionStore, _EVENT_ })
+  // useSubmissionStore.setState({
+  //   photo: {
+  //     'src_urlpath':'/src/1703346623310.jpg',
+  //     'src_url':'http://127.0.0.1:7001/src/1703346623310.jpg',
+  //     'thumb':'1703346623310.jpg',
+  //     'thumb_urlpath':'/thumb/1703346623310.jpg',
+  //     'thumb_url':'http://127.0.0.1:7001/thumb/1703346623310.jpg',
+  //     'id':203,
+  //     'desc':'test',
+  //     'src':'1703346623310.jpg',
+  //     'width':692,
+  //     'height':642,
+  //     'vote_count':0,
+  //     'index':0,
+  //     'created_at':'2023-12-23T15:50:23.000Z',
+  //     'updated_at':'2023-12-23T15:50:23.000Z',
+  //     'gallery_id':17,
+  //     member_id: null,
+  //     member: null,
+  //     is_voted: false,
+  //     // '_member_id':12,
+  //     // '_member':{'avatar_thumb':'1639559679733.jpg','avatar_thumb_url':'http://127.0.0.1:7001/thumb/1639559679733.jpg','id':12,'qq_num':498302569,'avatar_src':'1639559679733.jpg','name':'Vec','created_at':'2020-01-08T23:50:00.000Z','updated_at':'2021-12-15T09:14:42.000Z', member: null, member_id: null }
+  //   }
+  // })
 }
 
 export function useSubmissionEvent({
@@ -134,27 +158,47 @@ export function useSubmissionEvent({
   }, [canceled, created, updated])
 }
 
-function TextContentEffectChar({ show, ch }: { show: boolean; ch: string }) {
+function TextContentEffectChar({
+  show,
+  ch,
+  hideClassName,
+  showClassName
+}: { show: boolean; ch: string; hideClassName: string; showClassName: string }) {
   if (show) {
-    return <span style={{ opacity: 0 }} className={s.TextContentEffectChar}>{ch}</span>
+    return <span className={[s.TextContentEffectChar, hideClassName].join(' ')}>{ch}</span>
   } else {
-    return <span className={s.TextContentEffectChar}>{ch}</span>
+    return <span className={[s.TextContentEffectChar, showClassName].join(' ')}>{ch}</span>
   }
 }
 
 const INTERVAL_TIME = 42
-export function textContentEffectTotalTime(init_time: number, Content: Content): number {
+export function textContentEffectTotalTime(
+  init_time: number,
+  Content: Content,
+  interval = INTERVAL_TIME
+): number {
   if (typeof Content === 'string') {
-    return init_time + (Content.length * INTERVAL_TIME)
+    return init_time + (Content.length * interval)
   } else {
     return 0
   }
+}
+type TextContentEffectProps = {
+  textContent: string
+  showContentWaittime: number
+  interval?: number,
+  onPlaying?(): void
+  hideClassName?: string;
+  showClassName?: string
 }
 export function TextContentEffect({
   textContent,
   showContentWaittime,
   onPlaying,
- }: { textContent: string; showContentWaittime: number; onPlaying?(): void }) {
+  interval = INTERVAL_TIME,
+  hideClassName = s.TextContentEffectCharHide,
+  showClassName = s.TextContentEffectCharShow,
+ }: TextContentEffectProps) {
   const [cursor, setShowingCursor] = useState(0)
   const [ is_playing, setPlaying ] = useState(false)
   const [ is_played, setPlayed ] = useState(false)
@@ -182,7 +226,7 @@ export function TextContentEffect({
             return textContent.length
           }
         })
-      }, INTERVAL_TIME)
+      }, interval)
     }
 
     if (cursor === 0) {
@@ -203,14 +247,22 @@ export function TextContentEffect({
         }
       }
     }
-  }, [cursor, is_played, showContentWaittime, textContent.length])
+  }, [cursor, interval, is_played, showContentWaittime, textContent.length])
 
   const chel_list = useMemo(() => {
     return textContent.split('').map((ch, idx) => {
       const show = cursor <= idx
-      return <TextContentEffectChar show={show} ch={ch} key={`${idx}-${ch}`} />
+      return (
+        <TextContentEffectChar
+          key={`${idx}-${ch}`}
+          showClassName={showClassName}
+          hideClassName={hideClassName}
+          show={show}
+          ch={ch}
+        />
+      )
     })
-  }, [cursor, textContent])
+  }, [cursor, hideClassName, showClassName, textContent])
 
   return (
     <span className={s.TextContentEffect}>
@@ -219,7 +271,7 @@ export function TextContentEffect({
   )
 }
 
-function RenderContent({
+export function RenderContent({
   Content,
   changeScript,
   showContentWaittime,
@@ -268,7 +320,7 @@ function Select({
   )
 }
 
-function ScriptPlayerSelects({
+export function ScriptPlayerSelects({
   selects,
   onClickSelect,
   changeScript,

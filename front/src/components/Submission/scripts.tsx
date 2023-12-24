@@ -1,8 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { CSSProperties, ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
 import { AppCriticalError } from 'App'
 import { confirmQQNum, getSubmissionByQQNum } from 'api/member'
 
-import { componentScript, script, select, Script, Select, Content, useSubmissionStore, jumpScript, _EVENT_, scriptAdvance } from './'
+import s from './scripts.module.scss'
+import { disintegrate } from './thanos-disintegration'
+
+import { componentScript, script, select, Script, Select, Content, useSubmissionStore, jumpScript, _EVENT_, scriptAdvance, TextContentEffect, textContentEffectTotalTime, ScriptPlayerSelects, RenderContent } from './'
 
 import WaitingInputFrame from 'components/ConfirmQQ/WaitingInputFrame'
 import { timeout } from 'new-vait'
@@ -11,6 +14,7 @@ import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
 
 import image_同装同装 from '../../assets/同装 同装.png'
 import { PhotoInActive, PhotoNormal, cancelMySubmission, normal2InActive } from 'api/photo'
+import { thunkify } from 'ramda'
 
 export function init() {
   function RequestInputQQNumber(p: { loginSuccess: (qq_num: string) => Promise<void> }) {
@@ -64,7 +68,7 @@ export function init() {
       select('下次注意点，不要又忘了',
         script('好的！', [])
       ),
-      select('话说，我想修改一下投稿，可以吗？', script_当然可以修改),
+      select('话说，我想修改一下投稿，可以吗？', script_PhotoCreateOrEditWithTitle('当然可以！', true)),
       select_我其实是想取消投稿
     ])
   }
@@ -81,7 +85,7 @@ export function init() {
     if (photo) {
       // 已经投稿了
       return componentScript([
-        select('哦，我其实想修改的', script_当然可以修改),
+        select('哦，我其实想修改的', script_PhotoCreateOrEditWithTitle('当然可以修改！', true)),
         select_我其实是想取消投稿
       ], () => {
         return (
@@ -116,84 +120,266 @@ export function init() {
         }, 1500)
       }, [])
       return <>
-        感谢你的参与！
+        <TextContentEffect textContent='感谢你的参与！' showContentWaittime={300} />
       </>
     })
   }
 
-  const script_当然可以修改 = componentScript([], ({ changeScript }) => {
+  const script_PhotoCreateOrEditWithTitle = (title: string, immediately = false) => componentScript([], ({ changeScript }) => {
+    const [show_form, showForm] = useState(false)
+    useEffect(() => {
+      if (immediately == false) {
+        const handler = setTimeout(() => {
+          showForm(true)
+        }, textContentEffectTotalTime(300 + 500, title))
+        return () => clearTimeout(handler)
+      }
+    }, [])
     return <>
-      <div style={{ marginBottom: '20px' }}>{'当然可以！'}</div>
-      <PhotoCreateOrEdit onUpdateDone={(edited_photo) => {
-        changeScript(script_感谢你的参与('EDITED', edited_photo))
-      }} />
+      <div style={{ marginBottom: '20px' }}>
+        <TextContentEffect textContent={title} showContentWaittime={immediately ? 0 : 300} />
+      </div>
+      {
+        (show_form || immediately) && (
+          <PhotoCreateOrEdit onUpdateDone={(edited_photo) => {
+            changeScript(script_感谢你的参与('EDITED', edited_photo))
+          }} />
+        )
+      }
     </>
   })
 
-  const script_你的投稿已成功撤回 = (canceled_photo_id: PhotoInActive['id']) => {
-    return script(() => {
-      useEffect(() => {
-        setTimeout(() => {
-          _EVENT_.canceled.trigger(canceled_photo_id)
-        }, 1500)
-      }, [])
-      return <>你的投稿已成功撤回</>
-    }, [
-      select('你干得好啊。', script('同装摄影大赛，来去自由！', [])),
-      select('我说说的你怎么就当真了？', componentScript([], ({ changeScript }) => {
+  const script_撤回确认 = () => {
+    const timeline = {
+      '什么？！你想取消投稿？': 500,
+      get '撤回没逼品'() {
+        return textContentEffectTotalTime(
+          timeline['什么？！你想取消投稿？'],
+          '什么？！你想取消投稿？'
+        )
+      },
+      get '额好吧'() {
+        return textContentEffectTotalTime(
+          timeline['撤回没逼品'],
+          '撤回没逼品',
+          500
+        )
+      },
+      get 'delete_line'() {
+        return timeline['额好吧'] + 1000
+      },
+      get '可以的'() {
+        return timeline['delete_line'] + 1000
+      },
+      get show_picture() {
+        return 1000 + textContentEffectTotalTime(
+          timeline['可以的'],
+          '额，好吧。可以取消的，你确定真的要这样做吗？'
+        )
+      },
+      get select_waittime() {
+        return 1000 + timeline['show_picture']
+      }
+    }
+
+    return scriptAdvance({
+      show_select_timeout: 0,
+      selects: [
+      ],
+      Content: ({ changeScript }) => {
+        const [delete_line, setDeleteLine] = useState(false)
         useEffect(() => {
-          useSubmissionStore.setState({ photo: null })
+          const handler = setTimeout(() => {
+            setDeleteLine(true)
+          }, timeline.delete_line)
+          return () => clearTimeout(handler)
         }, [])
 
+        const selects = useMemo(() => (
+          [
+            select('是，取消掉吧', script('', [])),
+            select('否，不要取消', script('你逗我玩是吧？', [
+              select('我真的想参加', jumpScript(submissionCheckingScript, ['要做什么'])),
+              select('我只是随便看看', script('呃呃呃......', []))
+            ]))
+          ]
+        ), [])
+
+        const { photo, qq_num } = useSubmissionStore.getState()
+        const [show_photo, showPhoto] = useState(false)
         useEffect(() => {
-          const h = setTimeout(() => {
-            changeScript(submissionCheckingScript())
-          }, 2000)
-          return () => clearTimeout(h)
-        })
-        return <>好吧，那你就再重新投稿咯</>
-      }))
-    ])
+          const handler = setTimeout(thunkify(showPhoto)(true), timeline['show_picture'])
+          return () => clearTimeout(handler)
+        }, [])
+
+        const [removing, setRemoving] = useState(false)
+        const [removed, setRemoved] = useState(false)
+        const handleRemove = useCallback(() => {
+          setRemoving(true)
+          if (photo) {
+            if (qq_num) {
+              const t = timeout(1500)
+              const canceling = cancelMySubmission({
+                qq_num,
+                photo_id: photo.id,
+              })
+              Promise.all([t, canceling]).finally(() => {
+                canceling.then(() => {
+                  if (unmounted) { return }
+                  setRemoving(false)
+                  setRemoved(true)
+                  _EVENT_.canceled.trigger(photo.id)
+                }).catch(err => {
+                  if (unmounted) { return }
+                  setRemoving(false)
+                  alert(`取消投稿操作失败：${err}`)
+                })
+              })
+            }
+          }
+          let unmounted = false
+          return () => { unmounted = true }
+        }, [photo, qq_num])
+
+        const bottom_node = useMemo(() => {
+          let removing_node: ReactNode = null
+          const removing_node_style: CSSProperties = {
+            marginTop: '40px',
+          }
+          if (removed) {
+            removing_node = <div style={removing_node_style}>
+              <TextContentEffect
+                textContent="你的投稿已撤回"
+                showContentWaittime={0}
+              />
+            </div>
+          } else if (removing) {
+            removing_node = <div style={removing_node_style}><Loading /></div>
+          }
+          return (
+            <div style={{ position: 'relative' }}>
+              {removing_node ? removing_node : (
+                <ScriptPlayerSelects
+                  selects={selects}
+                  waittime={timeline.select_waittime}
+                  onClickSelect={i => {
+                    if (i === 0) {
+                      handleRemove()
+                    } else {
+                      changeScript(selects[i].next_script)
+                    }
+                  }}
+                  changeScript={changeScript}
+                />
+              )}
+            </div>
+          )
+        }, [changeScript, handleRemove, removed, removing, selects])
+
+        useEffect(() => {
+          if (photo && removed) {
+            const targets = document.querySelectorAll('.disintegration-target')
+            for (let i = 0; i < targets.length; ++i) {
+              const $elm = targets[i] as any
+              if ($elm.disintegrated) { return }
+              $elm.disintegrated = true
+              setTimeout(() => {
+                disintegrate($elm)
+              }, 1000)
+            }
+            setTimeout(() => {
+
+            }, 2500)
+          }
+        }, [photo, removed])
+
+        const removed_selects = useMemo(() => [
+          select('你干得好啊。', script('同装摄影大赛，来去自由！', [])),
+          select_我说说的你怎么就当真了()
+        ], [])
+
+        return (
+          <>
+            <div>
+              <TextContentEffect
+                textContent="什么？！你想取消投稿？"
+                showContentWaittime={timeline['什么？！你想取消投稿？']}
+              />
+            </div>
+            <div>
+              <TextContentEffect
+                textContent="撤回没逼品"
+                interval={500}
+                hideClassName={s.CancelSubmissionEffectCharHide}
+                showClassName={[s.CancelSubmissionEffectCharShow, delete_line ? s.DeleteLine : ''].join(' ')}
+                showContentWaittime={timeline['撤回没逼品']}
+              />
+            </div>
+            <div>
+              <TextContentEffect
+                textContent="额，好吧。可以取消的，你确定真的要这样做吗？"
+                showContentWaittime={timeline['可以的']}
+              />
+            </div>
+            <div style={{
+              ...(show_photo ? {
+                marginTop: '20px'
+              } : {
+                overflow: 'hidden',
+                height: '0px'
+              }),
+            }}>
+              {
+                photo && (
+                  <div className="disintegration-target">
+                    <PreviewBox
+                      previewURL={photo.thumb_url}
+                      imageAppendClassName={ removed ? s.PhotoRemoving : '' }
+                      height={320 / (photo.width / photo.height)}
+                      isDragging={false}
+                    />
+                  </div>
+                )
+              }
+            </div>
+            {bottom_node}
+
+            {
+              removed && (
+                <ScriptPlayerSelects
+                  selects={removed_selects}
+                  onClickSelect={(i) => { changeScript(removed_selects[i].next_script) }}
+                  changeScript={changeScript}
+                  waittime={3000}
+                />
+              )
+            }
+
+            <style>{`
+
+            `}</style>
+          </>
+        )
+      },
+    })
   }
-
-  const script_取消投稿 = componentScript([], ({ changeScript }) => {
-    const { photo, qq_num } = useSubmissionStore()
-    const [ processing, setProcessing ] = useState(true)
-
+  const select_我说说的你怎么就当真了 = () => select('我说说的你怎么就当真了？', componentScript([], ({ changeScript }) => {
     useEffect(() => {
-      if (photo) {
-        if (qq_num) {
-          cancelMySubmission({
-            qq_num,
-            photo_id: photo.id,
-          }).then(() => {
-            changeScript(script_你的投稿已成功撤回(photo.id))
-          }).catch(err => {
-            alert(`取消投稿操作失败：${err}`)
-          })
-        }
-      }
-    }, [changeScript, photo, qq_num])
+      useSubmissionStore.setState({ photo: null })
+    }, [])
 
-    return <>
-      {processing ? <Loading /> : 'deleted'}
-    </>
-  })
+    return (
+      <>
+        <RenderContent
+          Content={script_PhotoCreateOrEditWithTitle('好吧，那你就再重新投稿咯').Content}
+          changeScript={changeScript}
+          showContentWaittime={0}
+        />
+      </>
+    )
+  }))
 
-  const select_我其实是想取消投稿 = select('我其实是想取消投稿......', componentScript(
-    [
-      select('是', script_取消投稿),
-      select('否', script('你逗我玩是吧？', [
-        select('我真的想参加', jumpScript(submissionCheckingScript, ['要做什么'])),
-        select('我只是随便看看', script('呃呃呃......', []))
-      ]))
-    ],
-    ({ changeScript }) => {
-      return (
-        <>'什么？！你想取消投稿？撤回没逼品！ 额，好吧，\n\n可以的，你真的要取消吗？'</>
-      )
-    },
-  ))
+  const select_我其实是想取消投稿 = select('我其实是想取消投稿......', script_撤回确认())
 
   const script_同装同装 = componentScript([], () => {
     return <>
@@ -208,6 +394,8 @@ export function init() {
     ]),
     show_content_waittime: 500
   }
+
+  // return script_撤回确认
 
   return (
     function initScript(): Script {
@@ -247,22 +435,33 @@ export function init() {
           })),
           select('否，我不想参加', script_听说你在下周会来参加投票),
           select('啊？我参加了啊', componentScript([], ({ changeScript }) => {
+            const [show_input, showInput] = useState(false)
+            const title = '不可能，别骗我了，你拿出证明啊'
+            const title_waittime = 300
+            useEffect(() => {
+              const handler = setTimeout(() => {
+                showInput(true)
+              }, 300 + textContentEffectTotalTime(title_waittime, title))
+              return () => clearTimeout(handler)
+            }, [])
             return (
               <>
-                <div style={{ textAlign: 'center' }}>不可能，别骗我了，你拿出证明啊</div>
-                <RequestInputQQNumber loginSuccess={async () => {
-                  const my_submission = await updateMySubmission()
-                  if (my_submission) {
-                    changeScript(
-                      iMistake()
-                    )
+                <TextContentEffect textContent={title} showContentWaittime={title_waittime} />
+                { show_input && (
+                  <RequestInputQQNumber loginSuccess={async () => {
+                    const my_submission = await updateMySubmission()
+                    if (my_submission) {
+                      changeScript(
+                        iMistake()
+                      )
 
-                  } else if (my_submission === null) {
-                    changeScript(
-                      iamJoinAfter('你根本没有参加，骗我。')
-                    )
-                  }
-                }} />
+                    } else if (my_submission === null) {
+                      changeScript(
+                        iamJoinAfter('你根本没有参加，骗我。')
+                      )
+                    }
+                  }} />
+                )}
               </>
             )
           }))

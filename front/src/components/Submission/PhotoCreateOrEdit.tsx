@@ -6,6 +6,7 @@ import { PhotoInActive, PhotoNormal } from 'api/photo'
 import s from './PhotoCreateOrEdit.module.scss'
 import PhotoBox from 'components/PhotoBox'
 import Loading from 'components/Loading'
+import { useQueueload } from 'utils/queue-load'
 
 function justUseTemplateString(strs: TemplateStringsArray, ...args: (number | string)[]) {
   const str = strs.reduce((a, b, idx) => {
@@ -232,11 +233,14 @@ export function PreviewBox({
   previewURL,
   isDragging,
   height,
+  imageAppendClassName = '',
 }: {
+  imageAppendClassName?: HTMLElement['className']
   height?: CSSProperties['height'],
   previewURL: string | null
   isDragging: boolean
 }) {
+  const [ loaded, blob_url ] = useQueueload((previewURL === null) ? undefined : previewURL)
   return (
     <div className={s.PreviewBox}>
       {
@@ -246,15 +250,28 @@ export function PreviewBox({
               { isDragging ? '对，就是这样，该放手了' : '点击此处选择作品，或者拖拽文件到此处' }
             </div>
           } else {
-            return (
-              <img
-                className={[s.PreviewImage, isDragging ? s.IsDragging : ''].join(' ')}
-                style={{ height }}
-                src={previewURL}
-              />
-            )
+            if (loaded) {
+              return (
+                <img
+                  className={[s.PreviewImage, isDragging ? s.IsDragging : '', imageAppendClassName].join(' ')}
+                  style={{ height }}
+                  src={blob_url}
+                />
+              )
+            } else {
+              return (
+                <div
+                  className={[s.PreviewImage, isDragging ? s.IsDragging : '', imageAppendClassName].join(' ')}
+                  style={{ height }}
+                >
+                  <div className="loading-wrapper">
+                    <Loading />
+                  </div>
+                </div>
+              )
+            }
           }
-        }, [height, isDragging, previewURL])
+        }, [blob_url, height, imageAppendClassName, isDragging, loaded, previewURL])
       }
     </div>
   )

@@ -87,9 +87,17 @@ module.exports = app =>
     }
 
     async generateThumbs(src_list, options) {
+      const successes = [];
+      const failures = [];
       for (const src of src_list) {
-        await ImageService.generateThumb(src, options);
+        try {
+          await ImageService.generateThumb(src, options);
+          successes.push(src);
+        } catch (err) {
+          failures.push(src);
+        }
       }
+      return [ successes, failures ];
     }
 
     async removeAllThumbs() {

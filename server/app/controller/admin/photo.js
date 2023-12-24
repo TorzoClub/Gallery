@@ -7,7 +7,7 @@ module.exports = app => {
       ctx.validate({
         member_id: { type: 'integer', required: true },
         gallery_id: { type: 'integer', required: true },
-        desc: { type: 'string', required: true },
+        desc: { type: 'string', required: true, allowEmpty: true },
         src: { type: 'string', required: true },
       }, data);
 

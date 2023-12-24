@@ -6,7 +6,10 @@ module.exports = app => {
   const { INTEGER, VIRTUAL, STRING, TEXT } = app.Sequelize;
 
   const Photo = app.model.define('photo', {
-    desc: TEXT,
+    desc: {
+      type: TEXT,
+      allowNull: false,
+    },
 
     src: {
       type: STRING(2048),

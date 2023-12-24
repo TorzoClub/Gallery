@@ -59,6 +59,8 @@ module.exports = app => {
     setAdminRouter('patch', 'photo/:id', edit);
   }
 
+  setRouter('get', 'gallery/:gallery_id/submission/:qq_num', controller.gallery.submission);
+
   setRouter('post', 'member/photo', controller.member.photo.show);
   setRouter('post', 'member/vote', controller.member.vote.create);
 
@@ -66,4 +68,7 @@ module.exports = app => {
 
   setRouter('get', 'photo', controller.photo.show);
   setRouter('get', 'photo/:id', controller.photo.get);
+  setRouter('post', 'photo', controller.photo.create);
+  setRouter('patch', 'photo/:photo_id', controller.photo.edit);
+  setRouter('delete', 'photo/:photo_id', controller.photo.remove);
 };

@@ -46,7 +46,7 @@ export default ({ showArrow = true, animatedTickTock, children }: {
   }, [])
 
   useEffect(() => {
-    if (animatedTickTock < 0) {
+    if (Number(animatedTickTock) < 0) {
       // 设定反向播放
       setReserveAnimated(true)
     }

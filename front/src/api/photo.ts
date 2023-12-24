@@ -9,8 +9,8 @@ export type Member = {
   updated_at: DateTimeString
   name: string
   qq_num: number
-  avatar_src: string
-  avatar_thumb: string
+  // avatar_src: string
+  // avatar_thumb: string
   avatar_thumb_url: string
 }
 
@@ -24,7 +24,7 @@ type PhotoCommon = {
   vote_count: number
   desc: string
 
-  is_voted: boolean
+  // is_voted: boolean
 
   height: number
   width: number
@@ -43,8 +43,16 @@ export type PhotoNormal = PhotoCommon & {
 export type PhotoInActive = PhotoCommon & {
   member: null
   member_id: null
+  is_voted: boolean
 }
 export type Photo = PhotoNormal | PhotoInActive
+
+export const normal2InActive = (p: PhotoNormal): PhotoInActive => ({
+  ...p,
+  is_voted: false,
+  member: null,
+  member_id: null,
+})
 
 type GalleryCommon = {
   id: ID
@@ -52,17 +60,21 @@ type GalleryCommon = {
   index: number
   name: string
 
-  vote_expire: DateTimeString
+  event_start: DateTimeString
+  event_end: DateTimeString
+  submission_expire: DateTimeString
   vote_limit: number
   vote_submitted: boolean
 }
 export type GalleryNormal = GalleryCommon & {
   photos: PhotoNormal[]
-  is_expired: true
+  in_event: false
+  can_submission: false
 }
 export type GalleryInActive = GalleryCommon & {
   photos: PhotoInActive[]
-  is_expired: false
+  in_event: true
+  can_submission: boolean
 }
 export type Gallery = GalleryInActive | GalleryNormal
 
@@ -101,4 +113,9 @@ export const vote = ({
     photo_id_list,
     qq_num
   }
+})
+
+export const cancelMySubmission = (p: { qq_num: number | string; photo_id: number | string }) => request({
+  method: 'DELETE',
+  url: `photo/${p.photo_id}?qq_num=${encodeURIComponent(p.qq_num)}`
 })

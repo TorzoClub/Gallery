@@ -4,6 +4,7 @@ import heartHighlightIMG from 'assets/heart-highlight.png'
 import style from './index.scss'
 
 import { useQueueload } from 'utils/queue-load'
+import { timeout } from 'new-vait'
 
 export type ImageInfo = {
   width: number
@@ -22,6 +23,8 @@ export type CoverClickEvent = {
   thumbBlobUrl: string
 }
 export type Props = {
+  id: string | number
+
   screen: string
   gutter: CSSProperties['width']
   boxWidth: string
@@ -43,8 +46,8 @@ export default (props: Props) => {
 
   const [loaded, setLoaded] = useState(false)
 
-  const [thumb, loadPhotoThumb] = useQueueload()
-  const [avatarThumb, loadAvatarThumb] = useQueueload()
+  const [,thumb] = useQueueload(photo.thumb)
+  const [,avatarThumb] = useQueueload(avatar?.thumb)
 
   const coverFrameEl = useRef<HTMLDivElement>(null)
 
@@ -64,15 +67,11 @@ export default (props: Props) => {
     background: loaded ? 'white' : ''
   }
 
-  useEffect(() => {
-    if (avatar) {
-      loadAvatarThumb(avatar.thumb)
-    }
-    loadPhotoThumb(photo.thumb)
-  }, [avatar, loadAvatarThumb, loadPhotoThumb, photo.thumb])
-
   return (
-    <div className={`image-box-wrapper ${screen} ${hideMember ? 'hide-member' : 'has-member'}`}>
+    <div
+      id={`photo-${props.id}`}
+      className={`image-box-wrapper ${screen} ${hideMember ? 'hide-member' : 'has-member'}`}
+    >
       <div className="image-box">
         <div
           className="cover-area"

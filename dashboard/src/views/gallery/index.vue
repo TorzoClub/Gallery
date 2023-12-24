@@ -17,22 +17,23 @@
 
     <ElMain>
       <ElTable :data="list" border style="width: 100%" stripe>
-        <ElTableColumn prop="id" label="id" align="center" width="64" />
+        <ElTableColumn prop="id" label="id" align="right" width="48" />
         <ElTableColumn prop="name" label="相册名" align="center" />
         <ElTableColumn prop="vote_limit" label="限制票数" align="center" width="90" />
-        <ElTableColumn prop="vote_expire" label="投票截止时间" align="center" width="150">
+        <ElTableColumn prop="event_end" label="开始时间" align="center" width="150">
           <template slot-scope="scope">
-            {{ toDateTime(scope.row.vote_expire) }}
+            {{ toDateTime(scope.row.event_start) }}
           </template>
         </ElTableColumn>
-        <ElTableColumn prop="created_at" label="创建时间" align="center" width="150">
+        <ElTableColumn prop="event_end" label="投稿期限" align="center" width="150">
           <template slot-scope="scope">
-            {{ toDateTime(scope.row.created_at) }}
+            {{ toDateTime(scope.row.submission_expire) }}
           </template>
         </ElTableColumn>
-        <ElTableColumn prop="updated_at" label="修改时间" align="center" width="150">
+
+        <ElTableColumn prop="event_end" label="结束时间" align="center" width="150">
           <template slot-scope="scope">
-            {{ toDateTime(scope.row.updated_at) }}
+            {{ toDateTime(scope.row.event_end) }}
           </template>
         </ElTableColumn>
 
@@ -61,24 +62,39 @@
       </ElTable>
 
       <ElDialog :title="(choosedGalleryIdx === 'new') ? '创建相册' : '查看/编辑相册信息'" :visible="(choosedGalleryIdx === 'new') || (choosedGalleryIdx >= 0)">
-        <ElForm :model="choosedGalleryForm">
-          <ElFormItem label="相册名称" :label-width="'120px'">
+        <ElForm ref="galleryForm" :model="choosedGalleryForm" :rules="rules">
+          <ElFormItem label="相册名称" :label-width="'120px'" prop="name" required>
             <el-input v-model="choosedGalleryForm.name" autocomplete="off"></el-input>
           </ElFormItem>
-          <ElFormItem label="投票限制票数" :label-width="'120px'">
-            <ElInputNumber v-model="choosedGalleryForm.vote_limit" :min="0" :max="10" label="票数" />
-          </ElFormItem>
-          <ElFormItem label="投票截止日期" :label-width="'120px'">
+          <ElFormItem label="活动时间范围" :label-width="'120px'" required prop="event_end">
             <ElDatePicker
-              v-model="choosedGalleryForm.vote_expire"
+              :value="[ new Date(choosedGalleryForm.event_start), new Date(choosedGalleryForm.event_end) ]"
+              type="datetimerange"
+              start-placeholder="活动开始时间"
+              end-placeholder="活动结束时间"
+              @input="daterangeChange"
+            />
+          </ElFormItem>
+          <ElFormItem label="投稿期限" :label-width="'120px'" required prop="submission_expire">
+            <ElDatePicker
+              v-model="choosedGalleryForm.submission_expire"
               type="datetime"
-              placeholder="选择日期时间"
-            ></ElDatePicker>
+              placeholder="请选择投稿截止时间"
+              validate-event
+            />
+          </ElFormItem>
+          <ElFormItem label="投票限制票数" :label-width="'120px'">
+            <ElInputNumber v-model="choosedGalleryForm.vote_limit" :min="0" label="票数" />
+          </ElFormItem>
+
+          <ElFormItem label="" :label-width="'120px'">
+            <div class="info-text"><i class="el-icon-info"></i> 投票限制票数为0时，则为不限制</div>
+            <div class="info-text"><i class="el-icon-warning"></i> 投稿期限要在活动开始时间~活动结束时间以内</div>
           </ElFormItem>
         </ElForm>
         <div slot="footer" class="dialog-footer">
           <el-button @click="choosedGalleryIdx = -1">取 消</el-button>
-          <el-button type="primary" @click="submitGalleryInfomation">确 定</el-button>
+          <el-button type="primary" @click="submitGalleryForm">确 定</el-button>
         </div>
       </ElDialog>
     </ElMain>
@@ -89,34 +105,59 @@
 .line{
   text-align: center;
 }
+.info-text {
+  color: hsl(220 3% 61% / 1);
+  line-height: 1.5em;
+}
+::v-deep .el-dialog__body {
+    /* width: 100%;
+    height: 100%; */
+    padding-top: 10px;
+    padding-bottom: 0px;
+
+    /* .el-upload-dragger {
+      width: 100%;
+      height: 100%;
+    } */
+  }
 </style>
 
 <script>
   import { toDateTimeWithMinuteString } from '@/utils/date-format'
   import { create, remove, getList, update } from '@/api/gallery'
 
+  const plain_form = {
+    name: '',
+    vote_limit: 0,
+    event_start: '',
+    event_end: '',
+    submission_expire: '',
+  }
+  const rules = {
+    name: [{ required: true, message: '请输入相册名称', trigger: 'blur' }],
+    event_start: [{ required: true, message: '请设置活动开始时间', trigger: 'blur' }],
+    event_end: [{ required: true, message: '请设置活动结束时间', trigger: 'blur' }],
+    submission_expire: [{ required: true, message: '请设置投稿时限', trigger: 'blur' }]
+  }
+
   export default {
     data: () => ({
       loading: false,
       list: [],
+      value: '',
 
       choosedGalleryIdx: -1,
       choosedGalleryForm: {
-        name: '',
-        vote_limit: 0,
-        vote_expire: ''
+        ...plain_form,
       },
+      rules,
     }),
 
     watch: {
       choosedGalleryIdx(idx) {
         if (idx === 'new') {
           Object.assign(this, {
-            choosedGalleryForm: {
-              name: '',
-              vote_limit: 0,
-              vote_expire: ''
-            }
+            choosedGalleryForm: { ...plain_form }
           })
         } else if (idx >= 0) {
           const gallery = this.list[idx]
@@ -133,6 +174,61 @@
     },
 
     methods: {
+      daterangeChange(date_arr) {
+        if (Array.isArray(date_arr)) {
+          const [event_start, event_end] = date_arr
+          Object.assign(this.choosedGalleryForm, {
+            event_start,
+            event_end
+          })
+        }
+      },
+      async submitGalleryForm() {
+        const res = await this.$refs.galleryForm.validate()
+        if (res !== true) {
+          return
+        }
+        const {
+          name,
+          vote_limit,
+          event_start,
+          event_end,
+          submission_expire,
+        } = this.choosedGalleryForm
+
+        try {
+          this.loading = true
+
+          const send_data = {
+            name,
+            vote_limit,
+            event_start,
+            event_end,
+            submission_expire,
+          }
+
+          if (this.choosedGalleryIdx === 'new') {
+            await create({
+              ...send_data,
+              index: this.list.length,
+            })
+            this.$message.success(`【${name}】已创建`)
+          } else {
+            const { id } = this.list[this.choosedGalleryIdx]
+            await update(id, { ...send_data })
+            this.$message.info(`【${name}】已更新`)
+          }
+
+          this.choosedGalleryIdx = -1
+
+          this.refresh()
+        } catch (err) {
+          console.error('更新相册信息失败', err)
+          this.$message.error(`更新相册信息失败: ${err.message}`)
+        } finally {
+          this.loading = false
+        }
+      },
       toDateTime(jsonStr) {
         const d = new Date(jsonStr)
 
@@ -183,45 +279,6 @@
         } catch (err) {
           console.error('获取相册列表失败', err)
           this.$message.error(`获取相册列表失败: ${err.message}`)
-        } finally {
-          this.loading = false
-        }
-      },
-
-      async submitGalleryInfomation() {
-        const {
-          name,
-          vote_limit,
-          vote_expire
-        } = this.choosedGalleryForm
-
-        try {
-          this.loading = true
-
-          if (this.choosedGalleryIdx === 'new') {
-            await create({
-              name,
-              vote_limit,
-              vote_expire, // (typeof vote_expire === 'object') ? JSON.stringify(vote_expire) : vote_expire
-              index: this.list.length
-            })
-            this.$message.success(`【${name}】已创建`)
-          } else {
-            const { id } = this.list[this.choosedGalleryIdx]
-            await update(id, {
-              name,
-              vote_limit,
-              vote_expire // (typeof vote_expire === 'object') ? JSON.stringify(vote_expire) : vote_expire
-            })
-            this.$message.info(`【${name}】已更新`)
-          }
-
-          this.choosedGalleryIdx = -1
-
-          this.refresh()
-        } catch (err) {
-          console.error('更新相册信息失败', err)
-          this.$message.error(`更新相册信息失败: ${err.message}`)
         } finally {
           this.loading = false
         }

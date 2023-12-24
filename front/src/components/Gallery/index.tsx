@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 
 import './index.scss'
 
@@ -6,6 +6,7 @@ import Title from 'components/Title'
 import PhotoStream from 'components/PhotoStream'
 import { Gallery, Photo } from 'api/photo'
 import { CoverClickEvent } from 'components/PhotoBox'
+import Submission from 'components/Submission'
 
 export type PhotoStreamState = {
   screen: 'normal' | 'mobile'
@@ -69,9 +70,30 @@ export default (props: Props) => {
   const { screen, column_count, gallery_width, column_gutter } = state
   const { hideVoteButton, gallery } = props
 
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (gallery.can_submission) {
+      if (!open) {
+        const h = setTimeout(() => {
+          setOpen(true)
+        }, 1000)
+        return () => clearTimeout(h)
+      }
+    }
+  }, [gallery.can_submission, open])
+
+  const title_node = useMemo(() => (
+    <div onClick={() => {}}>
+      <Title title={gallery.name} open={open} keepTransition={true}>
+        <Submission gallery={gallery} />
+      </Title>
+    </div>
+  ), [gallery, open])
+
   return (
     <div className="gallery">
-      <Title>{gallery.name}</Title>
+      {title_node}
 
       <PhotoStream
         hideVoteButton={hideVoteButton}

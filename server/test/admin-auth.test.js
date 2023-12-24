@@ -11,7 +11,7 @@ describe('controller/admin/auth', () => {
     // return app.ready();
   });
 
-  it('correct admin password', () => {
+  it('should successfully login with correct admin password', () => {
     return app.httpRequest()
       .post('/admin/login')
       .type('json')
@@ -21,7 +21,7 @@ describe('controller/admin/auth', () => {
       .expect(200)
   })
 
-  it('incorrect admin password', () => {
+  it('should prevent login with incorrect admin password', () => {
     return app.httpRequest()
       .post('/admin/login')
       .type('json')
@@ -31,7 +31,7 @@ describe('controller/admin/auth', () => {
       .expect(403)
   })
 
-  it('correct admin token', () => {
+  it('should successfully aceess admin API with admin token', () => {
     return app.httpRequest()
       .post('/admin/login')
       .type('json')
@@ -48,7 +48,8 @@ describe('controller/admin/auth', () => {
           .expect(200)
       })
   })
-  it('incorrect admin token', () => {
+
+  it('should prevent access admin API with incorrect admin token', () => {
     return app.httpRequest()
       .get('/admin/gallery')
       .set('Authorization', 'failure token')

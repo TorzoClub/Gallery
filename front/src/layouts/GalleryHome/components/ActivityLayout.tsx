@@ -56,8 +56,9 @@ export default function ActivityLayout({
     console.warn('handleClickVote', gallery.vote_submitted, photo)
 
     const isSubmitted = submittedPool[gallery.id]
+    const can_vote = gallery.in_event && !gallery.can_submission
 
-    if (isSubmitted || gallery.is_expired || gallery.vote_submitted) {
+    if (isSubmitted || !can_vote || gallery.vote_submitted) {
       return
     }
 
@@ -68,8 +69,7 @@ export default function ActivityLayout({
     const idx = newSelectedIdList.indexOf(id)
 
     if (idx === -1) {
-      if (gallery.vote_limit && (newSelectedIdList.length >= gallery.vote_limit)) {
-        // alert('enough')
+      if ((gallery.vote_limit > 0) && (newSelectedIdList.length >= gallery.vote_limit)) {
         return
       } else {
         setArrowTickTock(Date.now())
@@ -118,7 +118,7 @@ export default function ActivityLayout({
               return <Loading />
             } else if (isSubmitted) {
               return <div className="submitted">感谢你的投票</div>
-            } else {
+            } else if (!active.can_submission) {
               return (
                 <GuideLayout
                   showArrow={showArrow}

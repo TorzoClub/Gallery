@@ -1,19 +1,111 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import vait from 'vait'
 
-import { fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
+import { nextTick, timeout } from 'new-vait'
 
-// import BgImageUrl from 'assets/bg.png'
+import { Photo, fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
 
 import LoadingLayout from './components/LoadingLayout'
 import ActivityLayout from './components/ActivityLayout'
+import EmptyGalleryLayout from './components/EmptyGalleryLayout'
 import useConfirmQQ from './useConfirmQQ'
 
 import Gallery from 'components/Gallery'
 import PhotoDetail, { Detail } from 'components/Detail'
 import ConfirmVote from 'components/ConfirmVote'
 import shuffleArray from 'utils/shuffle-array'
-import { updateListItemById } from 'utils/common'
+import { findListByProperty, updateListItemById } from 'utils/common'
+import { AppCriticalError } from 'App'
+import { getGlobalQueue, globalQueueLoad, setGlobalQueue } from 'utils/queue-load'
+import { useSubmissionEvent } from 'components/Submission'
+
+function sortByIdList<
+  ID,
+  T extends Record<'id', ID>
+>(list: T[], sorted_id_list: ID[]): T[] {
+  const nofound = Symbol()
+  const sorted_list = sorted_id_list.map(sorted_id => {
+    const find_idx = findListByProperty(list, 'id', sorted_id)
+    if (find_idx === -1) {
+      return nofound
+    } else {
+      return list[find_idx]
+    }
+  }).filter(item => item !== nofound) as T[]
+
+  const remain = list.filter(item => {
+    sorted_id_list.indexOf(item.id) === -1
+  })
+
+  return [
+    ...sorted_list,
+    ...remain,
+  ]
+}
+
+type MediaID = string | number
+type MediaType = 'AVATAR' | 'PHOTO'
+type Media = { id: MediaID; type: MediaType }
+function usePhotoLoadingPriority(photo_list: Photo[]) {
+  const id_src_map = useMemo(() => {
+    const m = new Map<number, string>()
+    photo_list.forEach(p => m.set(p.id, p.thumb_url))
+    return m
+  }, [photo_list])
+
+  function id(type: MediaType, mid: MediaID) {
+    if (type === 'PHOTO') return `photo-${mid}`
+    else return `avatar-${mid}`
+  }
+
+  useEffect(() => {
+    function _resortHandler() {
+      const in_screen_photos = photo_list.map(photo => {
+        const photo_el = document.getElementById(id('PHOTO', photo.id))
+        if (!photo_el) { return }
+        const bounding = photo_el.getBoundingClientRect()
+        if (
+          (bounding.y > (0 - bounding.height)) &&
+          (bounding.y < window.innerHeight)
+        ) {
+          return { photo, bounding }
+        } else {
+          return
+        }
+      }).filter(p => p) as { photo: Photo, bounding: DOMRect }[]
+
+      const sorted = in_screen_photos.sort((a, b) => {
+        return a.bounding.y > b.bounding.y ? 1 : -1
+      })
+
+      const all_tasks = getGlobalQueue()
+      setGlobalQueue(
+        all_tasks.map((t, idx) => {
+          return { ...t, priority: all_tasks.length - idx }
+        })
+      )
+
+      sorted.forEach(({ photo }, idx) => {
+        const src = id_src_map.get(photo.id)
+        if (!src) return
+        globalQueueLoad(src, 10000 - idx)
+        if (photo.member) {
+          globalQueueLoad(photo.member.avatar_thumb_url, 5000 - idx)
+        }
+      })
+    }
+    const resortHandler = () => {
+      nextTick().then(_resortHandler)
+    }
+    window.addEventListener('resize', resortHandler)
+    window.addEventListener('scroll', resortHandler)
+    _resortHandler()
+
+    return () => {
+      window.removeEventListener('resize', resortHandler)
+      window.removeEventListener('scroll', resortHandler)
+    }
+  }, [id_src_map, photo_list])
+}
 
 export default () => {
   const [loaded, setLoaded] = useState(false)
@@ -26,10 +118,21 @@ export default () => {
 
   const [submiting, setSubmiting] = useState(false)
 
-  const [active, _setActive] = useState<null | fetchListResult['active']>(null)
+  const [active, setActive] = useState<null | fetchListResult['active']>(null)
   const [list, setList] = useState<fetchListResult['galleries']>([])
 
   const [submittedPool, setSubmittedPool] = useState({})
+
+  const suffled_idx_list = useMemo(() => {
+    return (active === null) ? [] : active.photos.map(p => p.id)
+  }, [active])
+
+  usePhotoLoadingPriority(
+    useMemo(() => [
+      ...(active ? active.photos : []),
+      ...list.map(g => g.photos).flat(),
+    ], [active, list])
+  )
 
   const [imageDetail, setImageDetail] = useState<Detail | null>(null)
   const [currentQQNum, setCurrentQQNum] = useState(0)
@@ -42,83 +145,94 @@ export default () => {
 
   const [showConfirmVoteLayout, setShowConfirmVoteLayout] = useState(false)
 
-  const setActive = useCallback((newValue: fetchListResult['active']) => {
-    if (!newValue) return
-
-    _setActive((oldActive) => {
-      if (oldActive) {
-        const oldPhotos = [...oldActive.photos]
-        const newPhotos = [...newValue.photos]
-
-        newPhotos.forEach((p) => {
-          updateListItemById(oldPhotos, p.id, { ...p })
-        })
-
-        return {
-          ...newValue,
-          photos: oldPhotos,
-        }
-      } else {
-        return {
-          ...newValue,
-          photos: shuffleArray(newValue.photos)
-        }
-      }
-    })
-  }, [])
-
   useEffect(() => {
+    let mounted = true
+    if (loaded === true) { return }
     fetchList().then(({ active, galleries: list }) => {
-      setList(list)
+      if (mounted === false) { return }
       setLoaded(true)
 
-      const hasActive = Boolean(active)
-      if (!hasActive) {
-        // 没活动？那没事了
-        setHideVoteButton(false)
-        return
-      }
-
-      setActive(active)
-
-      if (!currentQQNum) {
-        // 没扣号的话就来个弹窗
-        setConfirmState({ in: true })
+      if (active !== null) {
+        setActive({
+          ...active,
+          photos: shuffleArray(active.photos)
+        })
       } else {
-        // 有的话就用这个扣号获取已投的照片列表
-        setConfirmState({
-          isLoading: false,
-          isDone: true
-        })
-
-        const fetchListResult = fetchListWithQQNum(Number(currentQQNum))
-
-        vait.timeout(1500).then(() => {
-          fetchListResult.then(({ active, galleries }) => {
-            if (!active) return
-
-            setActive(active)
-            setList(galleries)
-
-            setSelectedIdList(
-              active.photos
-                .filter(photo => photo.is_voted)
-                .map(photo => photo.id)
-            )
-
-            setConfirmState({ in: false })
-            vait.timeout(618).then(() => {
-              setShowConfirmVoteLayout(true)
-            })
-          }).catch(err => {
-            alert(`获取投票信息失败: ${err.message}`)
-          })
-        })
+        setActive(null)
+        setList(list)
       }
-    }).catch(err => {
-      alert(`获取相册信息失败: ${err.message}`)
-    })
-  }, [currentQQNum, setActive, setConfirmState])
+    }).catch(err => AppCriticalError(`获取相册列表失败: ${err}`))
+    return () => { mounted = false }
+  }, [loaded, setActive])
+
+  const [ event_loaded, setEventLoaded ] = useState(false)
+  useEffect(() => {
+    if (loaded === false) { return }
+    else if (event_loaded === true) { return }
+    else if (!active) {
+      // 没活动？那没事了
+      setHideVoteButton(true)
+      return
+    }
+
+    if (active.can_submission) {
+      // 征集投稿期间要隐藏投票按钮
+      setHideVoteButton(true)
+    } else {
+      setHideVoteButton(false)
+    }
+
+    if (active.can_submission) {
+      // 征集投稿期间
+      return
+    } else if (!currentQQNum) {
+      // 没扣号的话就来个弹窗
+      setConfirmState({ in: true })
+      return
+    } else {
+      let mounted = true
+      // 有的话就用这个扣号获取已投的照片列表
+      setConfirmState({
+        isLoading: false,
+        isDone: true
+      })
+
+      const fetchListResult = fetchListWithQQNum(Number(currentQQNum))
+
+      timeout(1500).then(() => {
+        fetchListResult.then(({ active: new_active, galleries }) => {
+          if (mounted === false) { return }
+          setEventLoaded(true)
+          if (!new_active) {
+            setActive(null)
+            setList(galleries)
+            return
+          }
+
+          setActive({
+            ...active,
+            photos: sortByIdList(new_active.photos, suffled_idx_list)
+          })
+
+          setSelectedIdList(
+            new_active.photos
+              .filter(photo => photo.is_voted)
+              .map(photo => photo.id)
+          )
+
+          setConfirmState({ in: false })
+          timeout(618).then(() => {
+            if (mounted === false) { return }
+            setShowConfirmVoteLayout(true)
+          })
+        }).catch(err => {
+          AppCriticalError(`获取投票信息失败: ${err.message}`)
+        })
+      })
+
+      return () => { mounted = false }
+    }
+  }, [active, currentQQNum, event_loaded, loaded, setActive, setConfirmState, suffled_idx_list])
 
   const handleClickSubmit = async () => {
     if (!active) return
@@ -160,11 +274,49 @@ export default () => {
 
   const handleClickAnyWhere = useCallback(() => {
     setShowConfirmVoteLayout(false)
-    vait.timeout(618).then(() => {
+    timeout(618).then(() => {
       setHideVoteButton(false)
       setShowArrow(true)
     })
   }, [])
+
+  useSubmissionEvent({
+    created: useCallback((created_photo) => {
+      if (active) {
+        setActive({
+          ...active,
+          photos: [
+            created_photo,
+            ...active.photos,
+          ],
+        })
+      }
+    }, [active, setActive]),
+    updated: useCallback((updated_photo) => {
+      if (active) {
+        setActive({
+          ...active,
+          photos: active.photos.map(p => {
+            if (p.id === updated_photo.id) {
+              return updated_photo
+            } else {
+              return p
+            }
+          })
+        })
+      }
+    }, [active, setActive]),
+    canceled: useCallback((canceled_photo_id) => {
+      if (active) {
+        setActive({
+          ...active,
+          photos: active.photos.filter(p => {
+            return p.id !== canceled_photo_id
+          })
+        })
+      }
+    }, [active, setActive]),
+  })
 
   const ConfirmVoteLayout = useMemo(() => (
     <ConfirmVote
@@ -172,6 +324,10 @@ export default () => {
       handleClickAnyWhere={handleClickAnyWhere}
     />
   ), [handleClickAnyWhere, showConfirmVoteLayout])
+
+  if (loaded && !active && (list.length === 0)) {
+    return <EmptyGalleryLayout />
+  }
 
   return (
     <>

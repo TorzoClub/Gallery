@@ -1,5 +1,9 @@
 # Torzo Gallery
 
+# 环境要求
+
+node v18.17.0
+
 ## QuickStart
 
 <!-- add docs here for user -->

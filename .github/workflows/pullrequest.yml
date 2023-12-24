@@ -1,0 +1,104 @@
+name: Pull Request Check
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  ServerUnitest:
+    name: Server unitest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./server/
+
+    steps:
+    - uses: mirromutth/mysql-action@v1.1
+      with:
+        host port: 3306 # Optional, default value is 3306. The port of host
+        container port: 3307 # Optional, default value is 3306. The port of container
+        character set server: 'utf8' # Optional, default value is 'utf8mb4'. The '--character-set-server' option for mysqld
+        collation server: 'utf8_general_ci' # Optional, default value is 'utf8mb4_general_ci'. The '--collation-server' option for mysqld
+        mysql version: '5' # Optional, default value is "latest". The version of the MySQL
+        mysql database: 'torzo_photo_test' # Optional, default value is "test". The specified database which will be create
+        mysql root password: 'vechk123' # Required if "mysql user" is empty, default is empty. The root superuser password
+        mysql user: 'developer' # Required if "mysql root password" is empty, default is empty. The superuser for the specified database. Can use secrets, too
+        mysql password: 123 # Required if "mysql user" exists. The password for the "mysql user"
+
+    - name: Copy Repo Files
+      uses: actions/checkout@v2
+
+    - name: Use Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: '18.17.0'
+
+    - name: test
+      run: |
+        npm install
+        npm run test
+
+  DashboardESLint:
+    name: Dashboard ESLint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./dashboard/
+
+    steps:
+    - name: Copy Repo Files
+      uses: actions/checkout@v2
+
+    - name: Use Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: '12'
+
+    - name: ESLint
+      run: |
+        npm install
+        npm run lint
+
+  FrontESlint:
+    name: Front ESlint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./front/
+
+    steps:
+    - name: Copy Repo Files
+      uses: actions/checkout@v2
+
+    - name: Use Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: '16'
+
+    - name: ESLint
+      run: |
+        yarn
+        yarn lint-strict
+
+  FrontTSC:
+    name: Front TSC
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./front/
+
+    steps:
+    - name: Copy Repo Files
+      uses: actions/checkout@v2
+
+    - name: Use Node.js
+      uses: actions/setup-node@v1
+      with:
+        node-version: '16'
+
+    - name: yarn tsc --noEmit
+      run: |
+        yarn
+        yarn tsc --noEmit

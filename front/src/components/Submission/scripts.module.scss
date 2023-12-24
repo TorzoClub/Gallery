@@ -1,0 +1,32 @@
+@keyframes charshow {
+  0% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.CancelSubmissionEffectCharShow {
+  animation: charshow 382ms;
+  animation-fill-mode: forwards;
+  transform-origin: center bottom;
+  font-size: 30px;
+  font-weight: bold;
+}
+
+.CancelSubmissionEffectCharHide {
+  opacity: 0;
+  transform: scale(1.5);
+}
+
+.DeleteLine {
+  text-decoration: line-through;
+}
+
+.PhotoRemoving {
+  transition: box-shadow 382ms;
+  box-shadow: 0 0 0 transparent !important;
+}

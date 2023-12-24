@@ -2,7 +2,7 @@ import { confirmQQNum } from 'api/member'
 import ConfirmQQ, { ConfirmQQState } from 'components/ConfirmQQ'
 import React, { useCallback } from 'react'
 import { useAssignState } from 'utils/common'
-import vait from 'vait'
+import { timeout } from 'new-vait'
 
 export default ({ onConfirmSuccess }: { onConfirmSuccess(qqnum: string): void }) => {
   const [confirmState, setConfirmState] = useAssignState<ConfirmQQState>({
@@ -17,7 +17,7 @@ export default ({ onConfirmSuccess }: { onConfirmSuccess(qqnum: string): void })
     try {
       setConfirmState({ isLoading: true })
 
-      const [confirmResult] = await Promise.all([confirmQQNum(Number(qq_num)), vait.timeout(1500)])
+      const [confirmResult] = await Promise.all([confirmQQNum(Number(qq_num)), timeout(1500)])
 
       if (confirmResult) {
         onConfirmSuccess(qq_num)
@@ -33,7 +33,7 @@ export default ({ onConfirmSuccess }: { onConfirmSuccess(qqnum: string): void })
     }
   }, [onConfirmSuccess, setConfirmState])
 
-  const ConfirmQQLayout = (
+  const confirm_qq_layout = (
     <ConfirmQQ
       {...confirmState}
       handleInputChange={() => {
@@ -45,5 +45,5 @@ export default ({ onConfirmSuccess }: { onConfirmSuccess(qqnum: string): void })
     />
   )
 
-  return [ConfirmQQLayout, confirmState, setConfirmState] as const
+  return [confirm_qq_layout, confirmState, setConfirmState] as const
 }

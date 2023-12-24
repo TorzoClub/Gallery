@@ -7,7 +7,7 @@ module.exports = app => {
       ctx.validate({
         name: { type: 'string', required: true },
         avatar_src: { type: 'string', required: true },
-        qq_num: { type: 'integer', required: true },
+        qq_num: { type: 'qq_num', required: true },
       }, data);
 
       const result = await ctx.service.member.create({
@@ -53,7 +53,7 @@ module.exports = app => {
       const validOption = {
         name: { type: 'string', required: false },
         avatar_src: { type: 'string', required: false },
-        qq_num: { type: 'integer', required: false },
+        qq_num: { type: 'qq_num', required: false },
       };
       ctx.validate(validOption, data);
 

@@ -1,10 +1,9 @@
-import React, { CSSProperties, useMemo } from 'react'
-import path from 'path-browserify'
+import React, { CSSProperties, useEffect, useMemo } from 'react'
 
 import './index.scss'
 
 import PhotoBox, { CoverClickEvent } from 'components/PhotoBox'
-import globalLoad from 'utils/queue-load'
+import { globalQueueLoad } from 'utils/queue-load'
 import { Gallery, Photo } from 'api/photo'
 import { PhotoStreamState } from 'components/Gallery'
 
@@ -27,9 +26,9 @@ const computeColumnHeight = (column: Photo[]) =>
 const createColumns = (column_count: number, photos: Photo[]) => {
   const columns: Photo[][] = Array.from(Array(column_count)).map(() => [])
 
-  photos.forEach(photo => {
-    if (photo.member) globalLoad(photo.member.avatar_thumb)
-    globalLoad(photo.thumb)
+  photos.forEach((photo, idx) => {
+    if (photo.member) globalQueueLoad(photo.member.avatar_thumb_url)
+    globalQueueLoad(photo.thumb_url)
 
     const columnsHeightList: ColumnsHeightList = columns.map(computeColumnHeight)
 
@@ -94,7 +93,7 @@ export default (props: Props) => {
     }
   }, [screen])
 
-  return (
+  return useMemo(() => (
     <div
       className={`photo-stream ${screen}`}
       style={{
@@ -103,7 +102,15 @@ export default (props: Props) => {
       }}
     >
       {
-        columns.map((column, key) => (
+        (photos.length === 0) ? (
+          <div style={{
+            textAlign: 'center',
+            width: '100%',
+            color: 'rgba(0, 0, 0, 0.4)',
+            padding: '30px 0',
+            paddingLeft: HorizontalOffset,
+          }}>暂无投稿作品</div>
+        ) : columns.map((column, key) => (
           <div
             className="steam-column"
             key={String(key)}
@@ -119,12 +126,13 @@ export default (props: Props) => {
               column.map(photo => (
                 <PhotoBox
                   key={photo.id.toString()}
+                  id={photo.id}
 
                   screen={screen}
                   gutter={gutter}
                   boxWidth={boxWidth}
 
-                  hideVoteButton={hideVoteButton || gallery.is_expired}
+                  hideVoteButton={hideVoteButton}
                   hideMember={!photo.member}
                   voteIsHighlight={selectedIdList && (selectedIdList.indexOf(photo.id) !== -1)}
 
@@ -155,5 +163,5 @@ export default (props: Props) => {
         ))
       }
     </div>
-  )
+  ), [HorizontalOffset, boxWidth, columns, gutter, hideVoteButton, photoStreamListWidth, photos.length, props, screen, selectedIdList])
 }

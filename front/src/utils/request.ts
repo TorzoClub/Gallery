@@ -32,9 +32,7 @@ export class RequestError extends Error {
   }
 }
 
-type b = AxiosResponse
-
-type BackData = { isError: true, message: string } | Record<string, unknown>
+type BackData = { isError: true, message: string } | Record<string, unknown> | null
 
 export default request
 async function request<Data extends BackData>(
@@ -47,7 +45,11 @@ async function request<Data extends BackData>(
 
   const { data, status } = response
   if (status !== 200) {
-    throw new RequestError(data.message as string, status, opts, false, apiRequestDescription)
+    if (data !== null) {
+      throw new RequestError(data.message as string, status, opts, false, apiRequestDescription)
+    } else {
+      throw new RequestError('request failure', status, opts, false, apiRequestDescription)
+    }
   } else {
     return data
   }

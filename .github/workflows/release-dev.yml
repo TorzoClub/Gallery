@@ -1,0 +1,93 @@
+name: Release Development
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+# events but only for the master branch
+on:
+  push:
+    branches:
+      - dev
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  building-dashboard:
+    name: Building Dashboard
+    runs-on: ubuntu-latest
+    if: contains(github.event.commits.*.message, '[skip ci]') == false
+    steps:
+      - name: Copy Repo Files
+        uses: actions/checkout@v2
+
+      - name: Use Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: '12.14.0'
+
+      - name: npm run build:prod
+        env:
+          NODE_ENV: development
+        run: |
+          cd dashboard
+          echo "${{secrets.DASHBOARD_ENV_DEVELOPMENT}}\n" > ./.env.production
+          npm install
+          npm run build:prod
+
+      - uses: actions/upload-artifact@v4
+        with:
+            name: DashboardBuild
+            path: dashboard/dist
+
+  building-front:
+    name: Building Front
+    runs-on: ubuntu-latest
+    if: contains(github.event.commits.*.message, '[skip ci]') == false
+
+    steps:
+      - name: Copy Repo Files
+        uses: actions/checkout@v2
+
+      - name: Use Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: '16'
+
+      - name: yarn build:development
+        env:
+          NODE_ENV: development
+        run: |
+          cd front
+          echo "${{secrets.FRONT_ENV_DEVELOPMENT}}" > ./.env.development
+          echo "REACT_APP_BUILD_DESCRIPTION=Development version.  build:${{ github.run_number }}  commit:${{ github.sha }}" >> ./.env.production
+          yarn install --production=false
+          yarn build:development
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FrontBuild
+          path: front/build
+
+  upload-builds:
+    name: upload Builds
+    needs: [building-front, building-dashboard]
+    runs-on: ubuntu-latest
+    if: contains(github.event.commits.*.message, '[skip ci]') == false
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: FrontBuild
+          path: releases
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: DashboardBuild
+          path: releases/dashboard
+
+      - name: Install SSH Key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          known_hosts: 'a'
+
+      - name: Upload Builds
+        run: |
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+          scp -r releases/* ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEV_REMOTE_UPLOAD_PATH }}

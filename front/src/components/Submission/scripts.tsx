@@ -69,7 +69,7 @@ export function init() {
       select('下次注意点，不要又忘了',
         script('好的！', [])
       ),
-      select('话说，我想修改一下投稿，可以吗？', script_PhotoCreateOrEditWithTitle('当然可以！', true)),
+      select('话说，我想修改一下投稿，可以吗？', script_PhotoCreateOrEditWithTitle('当然可以！', 'EDIT', true)),
       select_我其实是想取消投稿
     ])
   }
@@ -86,7 +86,7 @@ export function init() {
     if (photo) {
       // 已经投稿了
       return componentScript([
-        select('哦，我其实想修改的', script_PhotoCreateOrEditWithTitle('当然可以修改！', true)),
+        select('哦，我其实想修改的', script_PhotoCreateOrEditWithTitle('当然可以修改！', 'EDIT', true)),
         select_我其实是想取消投稿
       ], () => {
         return (
@@ -103,30 +103,34 @@ export function init() {
     } else {
       return componentScript([], ({ changeScript }) => {
         return <PhotoCreateOrEdit onUpdateDone={(created_photo) => {
-          changeScript(script_感谢你的参与('CREATED', created_photo))
+          changeScript(script_感谢你的参与('CREATE', created_photo))
         }} />
       })
     }
   }
 
-  const script_感谢你的参与 = (type: 'CREATED' | 'EDITED', photo: PhotoNormal) => {
+  const script_感谢你的参与 = (type: 'CREATE' | 'EDIT', photo: PhotoNormal) => {
     return componentScript([], ({ changeScript }) => {
       useEffect(() => {
         setTimeout(() => {
-          if (type === 'CREATED') {
+          console.log(type, photo)
+          if (type === 'CREATE') {
             _EVENT_.created.trigger(normal2InActive(photo))
           } else {
             _EVENT_.updated.trigger(normal2InActive(photo))
           }
         }, 1500)
       }, [])
-      return <>
-        <TextContentEffect textContent='感谢你的参与！' showContentWaittime={300} />
-      </>
+      return (
+        <TextContentEffect
+          textContent='感谢你的参与！'
+          showContentWaittime={300}
+        />
+      )
     })
   }
 
-  const script_PhotoCreateOrEditWithTitle = (title: string, immediately = false) => componentScript([], ({ changeScript }) => {
+  const script_PhotoCreateOrEditWithTitle = (title: string, type: 'CREATE' | 'EDIT', immediately = false) => componentScript([], ({ changeScript }) => {
     const [show_form, showForm] = useState(false)
     useEffect(() => {
       if (immediately == false) {
@@ -142,8 +146,8 @@ export function init() {
       </div>
       {
         (show_form || immediately) && (
-          <PhotoCreateOrEdit onUpdateDone={(edited_photo) => {
-            changeScript(script_感谢你的参与('EDITED', edited_photo))
+          <PhotoCreateOrEdit onUpdateDone={(updated_photo) => {
+            changeScript(script_感谢你的参与(type, updated_photo))
           }} />
         )
       }
@@ -292,7 +296,10 @@ export function init() {
               const $elm = targets[i] as any
               if ($elm.disintegrated) { return }
               $elm.disintegrated = true
-              timeout(100).then(() => {
+              timeout(
+                500 +
+                textContentEffectTotalTime(0, '你的投稿已撤回')
+              ).then(() => {
                 disintegrate($elm).catch(err => {
                   console.warn('disintegrate', err)
                   AppCriticalError(`disintegrate error: ${err}`)
@@ -387,7 +394,7 @@ export function init() {
     return (
       <>
         <RenderContent
-          Content={script_PhotoCreateOrEditWithTitle('好吧，那你就再重新投稿咯').Content}
+          Content={script_PhotoCreateOrEditWithTitle('好吧，那你就再重新投稿咯', 'CREATE').Content}
           changeScript={changeScript}
           showContentWaittime={0}
         />

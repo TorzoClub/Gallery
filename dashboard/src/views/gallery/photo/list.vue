@@ -1,7 +1,7 @@
 <template>
   <ElContainer
     v-loading="loading"
-    style="padding-top: 20px; width: 1120px"
+    style="padding-top: 20px; max-width: 1120px"
     direction="vertical"
   >
     <ElHeader height="32px">

@@ -1,10 +1,10 @@
 <template>
   <ElContainer
     v-loading="loading"
-    style="padding-top: 20px;"
+    style="padding-top: 20px; max-width: 500px"
     direction="vertical"
   >
-    <ElMain v-if="inited" style="width: 640px">
+    <ElMain v-if="inited">
       <ElForm ref="form" :model="form" label-width="6em" class="tab-style">
         <ElFormItem
           label="作者"

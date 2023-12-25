@@ -1,10 +1,10 @@
 <template>
   <ElContainer
     v-loading="loading"
-    style="padding-top: 20px"
+    style="padding-top: 20px; max-width: 480px"
     direction="vertical"
   >
-    <ElMain style="width: 640px">
+    <ElMain>
       <ElForm ref="form" :model="form" class="tab-style" label-width="6em">
         <ElFormItem
           label="成员名称"
@@ -34,7 +34,7 @@
       </ElForm>
     </ElMain>
 
-    <ElFooter style="width: 640px" align="center">
+    <ElFooter align="center">
       <ElButton @click="$router.back()">取消</ElButton>
       <ElButton v-if="isNew" @click="submitCreate">创建</ElButton>
       <ElButton v-else @click="submitEdit">提交</ElButton>

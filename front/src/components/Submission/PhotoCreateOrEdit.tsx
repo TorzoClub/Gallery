@@ -199,7 +199,7 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
           className={s.ButtonBefore}
           onClick={handleSubmit}
           type="button"
-        >提交</button>
+        >提 交</button>
       </div>
 
       {

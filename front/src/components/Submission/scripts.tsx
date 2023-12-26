@@ -103,28 +103,30 @@ export function init() {
     } else {
       return componentScript([], ({ changeScript }) => {
         return <PhotoCreateOrEdit onUpdateDone={(created_photo) => {
-          changeScript(script_感谢你的参与('CREATE', created_photo))
+          changeScript(script_大感谢('CREATE', created_photo))
         }} />
       })
     }
   }
 
-  const script_感谢你的参与 = (type: 'CREATE' | 'EDIT', photo: PhotoNormal) => {
+  const script_大感谢 = (type: 'CREATE' | 'EDIT', photo: PhotoNormal) => {
     return componentScript([], ({ changeScript }) => {
       useEffect(() => {
         setTimeout(() => {
           console.log(type, photo)
           if (type === 'CREATE') {
             _EVENT_.created.trigger(normal2InActive(photo))
-          } else {
+          } else if (type === 'EDIT') {
             _EVENT_.updated.trigger(normal2InActive(photo))
           }
         }, 1500)
       }, [])
       return (
         <TextContentEffect
-          textContent='感谢你的参与！'
+          textContent='大感谢'
           showContentWaittime={300}
+          showClassName={s.ThanksShow}
+          hideClassName={s.ThanksHide}
         />
       )
     })
@@ -147,7 +149,7 @@ export function init() {
       {
         (show_form || immediately) && (
           <PhotoCreateOrEdit onUpdateDone={(updated_photo) => {
-            changeScript(script_感谢你的参与(type, updated_photo))
+            changeScript(script_大感谢(type, updated_photo))
           }} />
         )
       }

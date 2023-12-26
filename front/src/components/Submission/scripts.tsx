@@ -19,6 +19,7 @@ import { useQueueload } from 'utils/queue-load'
 import { dateDiffInDays, isInvalidDate, isNextMonth, isNextWeek, monthDiff, stringifyWeekDay } from 'utils/date'
 
 type InitArgs = {
+  gallery_photo_count: number
   submission_expire: GalleryCommon['submission_expire']
 }
 export function init(init_args : InitArgs) {
@@ -33,7 +34,7 @@ export function init(init_args : InitArgs) {
       <div style={{ position: 'relative', height: '100px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
         <div style={{ width: '200px' }}>
           <WaitingInputFrame
-            initFocus={true}
+            initFocus={false}
             isFailure={Boolean(failure)}
             disabled={false}
             placeholder="输入你的 QQ 号"
@@ -492,57 +493,77 @@ export function init(init_args : InitArgs) {
         }
       }
 
-      return scriptAdvance({
-        Content: '听说你要参加摄影大赛',
-        show_content_waittime: 1000,
-        show_select_timeout: 1000,
-        selects: [
-          select('是的吧我要参加', componentScript([], ({ changeScript }) => {
-            return (
-              <RequestInputQQNumber loginSuccess={async () => {
-                const my_submission = await updateMySubmission()
-                if (my_submission !== undefined) {
-                  changeScript(
-                    submissionCheckingScript()
-                  )
-                }
-              }} />
-            )
-          })),
-          select('否，我不想参加', script_听说你在下周会来参加投票()),
-          select('啊？我参加了啊', componentScript([], ({ changeScript }) => {
-            const [show_input, showInput] = useState(false)
-            const title = '不可能，别骗我了，你拿出证明啊'
-            const title_waittime = 300
-            useEffect(() => {
-              const handler = setTimeout(() => {
-                showInput(true)
-              }, 300 + textContentEffectTotalTime(title_waittime, title))
-              return () => clearTimeout(handler)
-            }, [])
-            return (
-              <>
-                <TextContentEffect textContent={title} showContentWaittime={title_waittime} />
-                { show_input && (
-                  <RequestInputQQNumber loginSuccess={async () => {
-                    const my_submission = await updateMySubmission()
-                    if (my_submission) {
-                      changeScript(
-                        iMistake()
-                      )
+      const select_是的吧我要参加 = (): Select => (
+        select('是的吧我要参加', componentScript([], ({ changeScript }) => {
+          return (
+            <RequestInputQQNumber loginSuccess={async () => {
+              const my_submission = await updateMySubmission()
+              if (my_submission !== undefined) {
+                changeScript(
+                  submissionCheckingScript()
+                )
+              }
+            }} />
+          )
+        }))
+      )
+      const select_啊我参加了啊 = (): Select => (
+        select('啊？我参加了啊', componentScript([], ({ changeScript }) => {
+          const [show_input, showInput] = useState(false)
+          const title = '不可能，别骗我了，你拿出证明啊'
+          const title_waittime = 300
+          useEffect(() => {
+            const handler = setTimeout(() => {
+              showInput(true)
+            }, 300 + textContentEffectTotalTime(title_waittime, title))
+            return () => clearTimeout(handler)
+          }, [])
+          return (
+            <>
+              <TextContentEffect textContent={title} showContentWaittime={title_waittime} />
+              { show_input && (
+                <RequestInputQQNumber loginSuccess={async () => {
+                  const my_submission = await updateMySubmission()
+                  if (my_submission) {
+                    changeScript(
+                      iMistake()
+                    )
 
-                    } else if (my_submission === null) {
-                      changeScript(
-                        iamJoinAfter('你根本没有参加，骗我。')
-                      )
-                    }
-                  }} />
-                )}
-              </>
-            )
-          }))
-        ]
-      })
+                  } else if (my_submission === null) {
+                    changeScript(
+                      iamJoinAfter('你根本没有参加，骗我。')
+                    )
+                  }
+                }} />
+              )}
+            </>
+          )
+        }))
+      )
+
+      if (init_args.gallery_photo_count === 0) {
+        return scriptAdvance({
+          Content: '听说你是第一个参加摄影大赛的',
+          show_content_waittime: 1000,
+          show_select_timeout: 1000,
+          selects: [
+            select_是的吧我要参加(),
+            select('否，我不想参加', script_听说你在下周会来参加投票())
+          ]
+        })
+      } else {
+        return scriptAdvance({
+          Content: '听说你要参加摄影大赛',
+          show_content_waittime: 1000,
+          show_select_timeout: 1000,
+          selects: [
+            select_是的吧我要参加(),
+            select('否，我不想参加', script_听说你在下周会来参加投票()),
+            select_啊我参加了啊()
+          ]
+        })
+      }
+
     }
   )
 }

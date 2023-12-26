@@ -83,7 +83,8 @@ type GalleryID = number | null
 type State = {
   qq_num: QQNum
   gallery_id: GalleryID
-  submission_expire: GalleryCommon['submission_expire'] | null
+  // submission_expire: GalleryCommon['submission_expire'] | null
+  // gallery_photo_count: number
   photo: PhotoInActive | null
   setQQNum(v: QQNum): void
   // setGalleryId(v: GalleryID): void
@@ -95,7 +96,8 @@ export const useSubmissionStore = create<State>()(
     (set) => ({
       qq_num: null,
       gallery_id: null,
-      submission_expire: null,
+      // submission_expire: null,
+      // gallery_photo_count: 0,
       photo: null,
       setQQNum: (qq_num) => set(() => ({ qq_num })),
       // setGalleryId: (gallery_id) => set(() => ({ gallery_id })),
@@ -419,12 +421,16 @@ export default function Submission({ gallery }: { gallery: Gallery }) {
   useEffect(() => {
     useSubmissionStore.setState({
       gallery_id: gallery.id,
-      submission_expire: gallery.submission_expire
+      // gallery_photo_count: gallery.photos.length,
+      // submission_expire: gallery.submission_expire
     })
   }, [gallery.id, gallery.photos.length, gallery.submission_expire])
   const first_script = useMemo(() => (
-    initScript({ submission_expire: gallery.submission_expire })()
-  ), [gallery.submission_expire])
+    initScript({
+      submission_expire: gallery.submission_expire,
+      gallery_photo_count: gallery.photos.length
+    })()
+  ), [gallery.photos.length, gallery.submission_expire])
 
   const [current_script, setCurrentScript] = useState<Script>(first_script)
   return (

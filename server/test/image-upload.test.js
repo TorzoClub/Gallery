@@ -5,8 +5,6 @@ const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 const {
-  createApp,
-  getToken,
   uploadImage,
   commonCreateGallery,
   createMember,
@@ -14,22 +12,15 @@ const {
   test_image_path,
   test_image_width,
   test_image_height,
+  constructPlainEnvironment,
 } = require('./common');
 
 
-
 describe('controller/admin/image', () => {
-  let app
-  let token
-
   const pixel_rotated_image_path = `${__dirname}/static/temp.jpg`;
   const ori6_image_path = `${__dirname}/static/test-ori-6.jpg`
 
   before(async () => {
-    app = await createApp()
-    // // 等待 app 启动成功，才能执行测试用例
-    token = await getToken(app)
-
     await sharp(test_image_path).rotate(-90).toFile(pixel_rotated_image_path)
     // 创建 ori6_image_path 图像，以 pixel_rotated_image_path 为基础添加了 exif 信息
     await sharp(pixel_rotated_image_path)
@@ -38,6 +29,8 @@ describe('controller/admin/image', () => {
   })
 
   it('should successfully upload image', async () => {
+    const { app, token } = await constructPlainEnvironment(true)
+
     const img_meta = await sharp(test_image_path).metadata()
     assert(test_image_width, img_meta.width)
     assert(test_image_height, img_meta.height)
@@ -70,6 +63,8 @@ describe('controller/admin/image', () => {
   // 第二种方式旋转过的图片，用 sharp 读取的时候不会得到正确的宽度和高度，而是没有改动的位图的宽高
   // 这就需要处理了
   it('should correctly handle rotated image(rotate by exif Orientation)', async () => {
+    const { app, token } = await constructPlainEnvironment(true)
+
     const ori6_backdata = await uploadImage(token, app, ori6_image_path)
 
     const member = await createMember(token, app, { qq_num: 22252 })
@@ -89,6 +84,8 @@ describe('controller/admin/image', () => {
   // 这也需要处理
   // 因为缩略图需要经过重新压缩，所以直接从第二种旋转方式转为使用第一种旋转方式即可
   it('should correctly handle rotated thumb image(rotate by exif Orientation)', async () => {
+    const { app, token } = await constructPlainEnvironment(true)
+
     const ori6_backdata = await uploadImage(token, app, ori6_image_path)
 
     const down_res = await app.httpRequest()
@@ -103,6 +100,8 @@ describe('controller/admin/image', () => {
   })
 
   it('should successfuly refresh thumb image', async () => {
+    const { app, token } = await constructPlainEnvironment(true)
+
     const u_img = await uploadImage(token, app, test_image_path)
 
     const thumb_path = app.serviceClasses.image.toThumbSavePath(u_img.src)

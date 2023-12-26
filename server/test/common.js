@@ -16,6 +16,7 @@ module.exports = {
 
   createApp,
   getToken,
+  constructPlainEnvironment,
   constructEnvironment,
   getHomePagePhotoList,
   fetchListWithQQNum,
@@ -69,12 +70,7 @@ function getToken(app) {
       return token;
     });
 }
-
-async function constructEnvironment({
-  need_sync = true,
-  baseNum = 100,
-  gallery: gallery_init = {},
-}) {
+async function constructPlainEnvironment(need_sync = true) {
   const app = mock.app();
   await app.ready();
   if (need_sync) {
@@ -83,6 +79,14 @@ async function constructEnvironment({
     });
   }
   const token = await getToken(app);
+  return { app, token };
+}
+async function constructEnvironment({
+  need_sync = true,
+  baseNum = 100,
+  gallery: gallery_init = {},
+}) {
+  const { app, token } = await constructPlainEnvironment(need_sync);
 
   const gallery = await commonCreateGallery(token, app, gallery_init);
 

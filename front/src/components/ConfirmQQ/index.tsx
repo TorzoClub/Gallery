@@ -5,7 +5,7 @@ import DialogLayout, { Props as DialogLayoutProps } from 'components/DialogLayou
 
 import Article from './Article'
 import WaitingInputFrame from './WaitingInputFrame'
-import Loading from 'components/Loading'
+import Loading, { LoadingMask } from 'components/Loading'
 import SubmitButton from 'components/SubmitButton'
 
 export type ConfirmQQState = Pick<DialogLayoutProps, 'in'> & {
@@ -54,13 +54,9 @@ export default (props: Props) => {
           )
         } else {
           return <>
-            {wifNode}
+            { wifNode }
 
-            {
-              props.isLoading && <div className="loading-wrapper">
-                <Loading />
-              </div>
-            }
+            { props.isLoading && <LoadingMask /> }
           </>
         }
       })()}

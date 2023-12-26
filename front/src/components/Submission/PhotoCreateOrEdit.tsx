@@ -5,7 +5,7 @@ import { PhotoInActive, PhotoNormal } from 'api/photo'
 
 import s from './PhotoCreateOrEdit.module.scss'
 import PhotoBox from 'components/PhotoBox'
-import Loading from 'components/Loading'
+import Loading, { LoadingMask } from 'components/Loading'
 import { useQueueload } from 'utils/queue-load'
 
 function justUseTemplateString(strs: TemplateStringsArray, ...args: (number | string)[]) {
@@ -203,9 +203,7 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
       </div>
 
       {
-        isProcessing && <div className="loading-wrapper">
-          <Loading />
-        </div>
+        isProcessing && <LoadingMask />
       }
     </div>
   )
@@ -267,9 +265,7 @@ export function PreviewBox({
                   className={[s.PreviewImage, isDragging ? s.IsDragging : '', imageAppendClassName].join(' ')}
                   style={{ height }}
                 >
-                  <div className="loading-wrapper">
-                    <Loading />
-                  </div>
+                  <LoadingMask />
                 </div>
               )
             }

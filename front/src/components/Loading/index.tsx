@@ -1,13 +1,19 @@
 import React, { useEffect, useState } from 'react'
 import style from './index.module.scss'
 
+export const LoadingMask = () => (
+  <div className={style['loading-mask']}>
+    <Loading />
+  </div>
+)
+
 const GeneratePlainLineList = () => [
   0, 0, 0, 0,
   0, 0, 0, 0,
   0, 0, 0, 0
 ]
 
-export default () => {
+export default function Loading() {
   const [lineList, setLineList] = useState(GeneratePlainLineList())
 
   useEffect(() => {

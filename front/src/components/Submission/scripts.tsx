@@ -9,7 +9,7 @@ import { componentScript, script, select, Script, Select, Content, useSubmission
 
 import WaitingInputFrame from 'components/ConfirmQQ/WaitingInputFrame'
 import { timeout } from 'new-vait'
-import Loading from 'components/Loading'
+import Loading, { LoadingMask } from 'components/Loading'
 import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
 
 import image_同装同装 from '../../assets/同装 同装.png'
@@ -32,9 +32,9 @@ export function init() {
             initFocus={true}
             isFailure={Boolean(failure)}
             disabled={false}
+            placeholder="输入你的 QQ 号"
             handleInputChange={() => {
               console.log('handleInputChange')
-              setLoading(false)
               setFailure(null)
             }}
             handlesubmitDetect={async (qq_num) => {
@@ -54,13 +54,10 @@ export function init() {
                 setLoading(false)
               }
             }}
-            placeholder="输入你的 QQ 号"
           />
         </div>
         { failure && failure.message }
-        {loading && <div className="loading-wrapper">
-          <Loading />
-        </div>}
+        {loading && <LoadingMask />}
       </div>
     )
   }

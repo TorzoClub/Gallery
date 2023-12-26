@@ -54,7 +54,7 @@ export const normal2InActive = (p: PhotoNormal): PhotoInActive => ({
   member_id: null,
 })
 
-type GalleryCommon = {
+export type GalleryCommon = {
   id: ID
   created_at: DateTimeString
   index: number

@@ -13,11 +13,15 @@ import Loading, { LoadingMask } from 'components/Loading'
 import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
 
 import image_同装同装 from '../../assets/同装 同装.png'
-import { PhotoInActive, PhotoNormal, cancelMySubmission, normal2InActive } from 'api/photo'
+import { GalleryCommon, PhotoInActive, PhotoNormal, cancelMySubmission, normal2InActive } from 'api/photo'
 import { thunkify } from 'ramda'
 import { useQueueload } from 'utils/queue-load'
+import { dateDiffInDays, isInvalidDate, isNextMonth, isNextWeek, monthDiff, stringifyWeekDay } from 'utils/date'
 
-export function init() {
+type InitArgs = {
+  submission_expire: GalleryCommon['submission_expire']
+}
+export function init(init_args : InitArgs) {
   function RequestInputQQNumber(p: { loginSuccess: (qq_num: string) => Promise<void> }) {
     const [ failure, setFailure ] = useState<Error | null>(null)
     const [ loading, setLoading ] = useState(false)
@@ -75,7 +79,7 @@ export function init() {
   const iamJoinAfter = (PresetContent: Content): Script => {
     return script(PresetContent, [
       select('那我参加', submissionCheckingScript()),
-      select('那好吧，我就随便看看', script_听说你在下周会来参加投票),
+      select('那好吧，我就随便看看', script_听说你在下周会来参加投票()),
     ])
   }
 
@@ -410,12 +414,61 @@ export function init() {
     </>
   })
 
-  const script_听说你在下周会来参加投票: Script = {
-    ...script('听说你在下周会来参加投票', [
-      select('是', script_同装同装),
-      select('我只是凑巧路过......', script('额额额......', [])),
-    ]),
-    show_content_waittime: 500
+  function computeExpectTime(submission_expire: null | GalleryCommon['submission_expire']): null | string {
+    if (submission_expire === null) {
+      throw new Error('computeExpectTime failure: submission_expire is null')
+    } else {
+      const submission_expire_date = new Date(submission_expire)
+      const currentDate = new Date
+      if (isInvalidDate(submission_expire_date)) {
+        throw new Error(`computeExpectTime failure: submission_expire('${submission_expire}') is invalid date`)
+      } else if (currentDate > submission_expire_date) {
+        return null
+      } else {
+        const day = dateDiffInDays(currentDate, submission_expire_date)
+        if (day === 1) {
+          return '明天'
+        } else if (day === 2) {
+          return '后天'
+        } else if (isNextWeek(currentDate, submission_expire_date)) {
+          const week_day = submission_expire_date.getDay()
+          return `下${stringifyWeekDay(week_day)}`
+        } else if (isNextMonth(currentDate, submission_expire_date)) {
+          const d = submission_expire_date.getDate()
+          return `下个月${d}号`
+        } else {
+          const m = monthDiff(currentDate, submission_expire_date)
+          if (m === 0) {
+            return `${day}天后`
+          } else {
+            return `${m}个月后`
+          }
+        }
+      }
+    }
+  }
+
+  const script_听说你在下周会来参加投票 = (): Script => {
+    function tips(): string {
+      const expect_time = computeExpectTime(init_args.submission_expire)
+      if (expect_time === null) {
+        return '听说投票活动已经开始了，而你还没有刷新页面'
+      } else {
+        return `听说你在${expect_time}会来参加投票`
+      }
+    }
+    try {
+      return {
+        ...script(tips(), [
+          select('是', script_同装同装),
+          select('我只是凑巧路过......', script('额额额......', [])),
+        ]),
+        show_content_waittime: 500
+      }
+    } catch (err) {
+      AppCriticalError(`${err}`)
+      throw err
+    }
   }
 
   // return script_撤回确认
@@ -456,7 +509,7 @@ export function init() {
               }} />
             )
           })),
-          select('否，我不想参加', script_听说你在下周会来参加投票),
+          select('否，我不想参加', script_听说你在下周会来参加投票()),
           select('啊？我参加了啊', componentScript([], ({ changeScript }) => {
             const [show_input, showInput] = useState(false)
             const title = '不可能，别骗我了，你拿出证明啊'

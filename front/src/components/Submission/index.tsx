@@ -3,7 +3,7 @@ import s from './index.module.scss'
 import { nth, partialRight, pipe, prop, thunkify } from 'ramda'
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
-import { Gallery, Member, PhotoInActive, PhotoNormal } from 'api/photo'
+import { Gallery, GalleryCommon, Member, PhotoInActive, PhotoNormal } from 'api/photo'
 import { init as initScript } from './scripts'
 import { Memo, Signal } from 'new-vait'
 
@@ -83,10 +83,11 @@ type GalleryID = number | null
 type State = {
   qq_num: QQNum
   gallery_id: GalleryID
+  submission_expire: GalleryCommon['submission_expire'] | null
   photo: PhotoInActive | null
   setQQNum(v: QQNum): void
-  setGalleryId(v: GalleryID): void
-  setPhoto(v: PhotoInActive): void
+  // setGalleryId(v: GalleryID): void
+  // setPhoto(v: PhotoInActive): void
 }
 
 export const useSubmissionStore = create<State>()(
@@ -94,10 +95,11 @@ export const useSubmissionStore = create<State>()(
     (set) => ({
       qq_num: null,
       gallery_id: null,
+      submission_expire: null,
       photo: null,
       setQQNum: (qq_num) => set(() => ({ qq_num })),
-      setGalleryId: (gallery_id) => set(() => ({ gallery_id })),
-      setPhoto: (photo) => set(() => ({ photo })),
+      // setGalleryId: (gallery_id) => set(() => ({ gallery_id })),
+      // setPhoto: (photo) => set(() => ({ photo })),
     }),
     { name: 'submission-store' },
   ),
@@ -415,9 +417,15 @@ function ScriptPlayer({ script, changeScript }: { script: Script; changeScript: 
 
 export default function Submission({ gallery }: { gallery: Gallery }) {
   useEffect(() => {
-    useSubmissionStore.setState({ gallery_id: gallery.id })
-  }, [gallery.id])
-  const first_script = initScript()()
+    useSubmissionStore.setState({
+      gallery_id: gallery.id,
+      submission_expire: gallery.submission_expire
+    })
+  }, [gallery.id, gallery.photos.length, gallery.submission_expire])
+  const first_script = useMemo(() => (
+    initScript({ submission_expire: gallery.submission_expire })()
+  ), [gallery.submission_expire])
+
   const [current_script, setCurrentScript] = useState<Script>(first_script)
   return (
     <div className={s.Submission}>

@@ -29,6 +29,7 @@ export function init() {
       <div style={{ position: 'relative', height: '100px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
         <div style={{ width: '200px' }}>
           <WaitingInputFrame
+            initFocus={true}
             isFailure={Boolean(failure)}
             disabled={false}
             handleInputChange={() => {

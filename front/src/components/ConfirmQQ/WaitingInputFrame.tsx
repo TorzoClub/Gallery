@@ -1,85 +1,53 @@
-import React, { Component } from 'react'
-
+import React, { useCallback, useEffect, useState } from 'react'
+import { thunkify } from 'ramda'
 import WaitingInput from './WaitingInput'
 
-type Timer =  ReturnType<typeof setTimeout>
-
+export const __INPUT_WAITTIME__ = 1200
 export type WaitingInputFrameProps = {
+  initFocus?: boolean
   isFailure: boolean
   disabled: boolean
   placeholder: string
   handleInputChange: (v: string) => void
   handlesubmitDetect: (v: string) => void
 }
-export default class WaitingInputFrame extends Component<WaitingInputFrameProps> {
-  state = {
-    latestInputTimeStamp: 0,
-    isFocus: false
-  }
+export default function WaitingInputFrame(props: WaitingInputFrameProps) {
+  const [ is_focus, setFocus ] = useState(Boolean(props.initFocus))
+  const [ input_text, setInputText ] = useState('')
+  const [ submit_detectd, setDetected ] = useState(false)
 
-  public timer?: Timer
-
-  quickTriggerHandler() {}
-
-  setQuickTriggerEvent(action: 'remove' | 'add', handler: () => void) {
-    window[`${action}EventListener`]('mousemove', handler)
-    window[`${action}EventListener`]('touchstart', handler)
-  }
-
-  handleInputChange = (receivedValue: string) => {
-    this.props.handleInputChange && this.props.handleInputChange(receivedValue)
-
-    this.setState({
-      latestInputTimeStamp: Date.now()
-    })
-
-    clearTimeout(this.timer as Timer)
-    this.timer = setTimeout(() => {
-      this.setQuickTriggerEvent('remove', this.quickTriggerHandler)
-
-      this.submitDetect(receivedValue)
-    }, 1200)
-
-    this.setQuickTriggerEvent('remove', this.quickTriggerHandler)
-    this.quickTriggerHandler = () => {
-      console.log('quickTriggerHandler')
-
-      const { latestInputTimeStamp } = this.state
-      if (!latestInputTimeStamp) {
-        return
-      }
-
-      const diff = Date.now() - latestInputTimeStamp
-      if ((diff > 1200) && (diff < 1500)) {
-        clearTimeout(this.timer as Timer)
-        this.setQuickTriggerEvent('remove', this.quickTriggerHandler)
-
-        console.log('((diff > 1200) && (diff < 1500))')
-        this.submitDetect(receivedValue)
-      }
-    }
-    this.setQuickTriggerEvent('add', this.quickTriggerHandler)
-  }
-
-  submitDetect(submitValue: string) {
-    if (submitValue && submitValue.length) {
+  const submitDetect = useCallback(() => {
+    setDetected(true)
+    if (input_text && input_text.length) {
       // 空密码不会跳转的
-      this.props.handlesubmitDetect && this.props.handlesubmitDetect(submitValue)
-      this.setState({ isFocus: false })
+      props.handlesubmitDetect(input_text)
+      setFocus(false)
     }
-  }
+  }, [props, input_text])
 
-  render() {
-    return (
-      <WaitingInput
-        isFailure={ this.props.isFailure }
-        disabled={ this.props.disabled }
-        placeholder={ this.props.placeholder }
-        onInputChange={ this.handleInputChange }
-        isFocus={ this.state.isFocus }
-        onBlur={() => this.setState({ isFocus: false })}
-        onFocus={() => this.setState({ isFocus: true })}
-      />
-    )
-  }
+  useEffect(() => {
+    if (input_text.length && !submit_detectd) {
+      const timer = setTimeout(submitDetect, __INPUT_WAITTIME__)
+      return () => clearTimeout(timer)
+    }
+  }, [input_text, submitDetect, submit_detectd])
+
+  const handleInputChange = useCallback((new_input: string) => {
+    setDetected(false)
+    setInputText(new_input)
+    props.handleInputChange(new_input)
+  }, [props])
+
+  return (
+    <WaitingInput
+      isFailure={ props.isFailure }
+      disabled={ props.disabled }
+      placeholder={ props.placeholder }
+      value={ input_text }
+      onChange={ handleInputChange }
+      isFocus={ is_focus }
+      onBlur={ thunkify(setFocus)(false) }
+      onFocus={ thunkify(setFocus)(true) }
+    />
+  )
 }

@@ -1,29 +1,18 @@
-const randomNum = (length: number) => Math.floor(Math.random() * length)
-
 export default shuffleArray
-function shuffleArray<T>(arr: T[]): T[] {
-  if (arr.length < 2) {
-    return arr
-  } else {
-    return _shuffleArray(arr, 0)
-  }
+
+export function shuffleArray<T>(arr: T[]): T[] {
+  return (arr.length < 2) ? arr: shuffleArrayUnpure([...arr])
 }
 
-function _shuffleArray<T>(arr: T[], idx: number) {
-  if (idx < arr.length) {
-    return _shuffleArray(
-      exchangePos(arr, idx, randomNum(arr.length)),
-      idx + 1
-    )
-  } else {
-    return arr
+export function shuffleArrayUnpure<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    exchangePos(arr, i, randomNum(i))
   }
-}
-
-function exchangePos<T>(arr: T[], idxA: number, idxB: number) {
-  arr = [...arr]
-  const tmp = arr[idxA]
-  arr[idxA] = arr[idxB]
-  arr[idxB] = tmp
   return arr
+}
+
+const randomNum = (range: number) => Math.floor(Math.random() * (range + 1))
+
+const exchangePos = <T>(arr: T[], idxA: number, idxB: number) => {
+  [arr[idxA], arr[idxB]] = [arr[idxB], arr[idxA]]
 }

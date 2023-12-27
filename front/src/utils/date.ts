@@ -1,3 +1,5 @@
+import padLeft from 'pad-left'
+
 export function dateDiffInDays(a: Date, b: Date) {
   // 将日期字符串转换为日期对象
   const dateA = new Date(a)
@@ -41,20 +43,22 @@ export function isInvalidDate(d: Date) {
   return isNaN(d as any as number)
 }
 
-function day(d: number) {
-  if (d === 0) {
-    return 7
-  } else {
-    return d
-  }
+function weekday(d: Date): number {
+  const day = d.getDay()
+  return (day === 0) ? 7 : day
 }
 
-function equalYearMonthDay(d1: Date, d2: Date) {
-  return d1.toISOString().slice(0, 10) === d2.toISOString().slice(0, 10)
-}
+const toYearMonthDayString = (d: Date): string => [
+  `${d.getFullYear()}`,
+  padLeft(`${d.getMonth() + 1}`, 2, '0'),
+  padLeft(`${d.getDate()}`, 2, '0')
+].join('/')
+
+const equalYearMonthDay = (d1: Date, d2: Date) =>
+  toYearMonthDayString(d1) === toYearMonthDayString(d2)
 
 function setMonday(d: Date) {
-  d.setDate(d.getDate()-(day(d.getDay()) - 1))
+  d.setDate(d.getDate()-(weekday(d) - 1))
   return d
 }
 function toMonday(input: Date) {
@@ -85,10 +89,7 @@ function setMoonthFirstDay(d: Date) {
   d.setDate(1)
   return d
 }
-
-function toCurrentMonthFirstDay(input: Date) {
-  return setMoonthFirstDay(new Date(input))
-}
+const toCurrentMonthFirstDay = (input: Date) => setMoonthFirstDay(new Date(input))
 
 export function isNextMonth(current_date: Date, d: Date) {
   return equalYearMonthDay(

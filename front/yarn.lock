@@ -2870,6 +2870,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/pad-left@npm:^2.1.3":
+  version: 2.1.3
+  resolution: "@types/pad-left@npm:2.1.3"
+  checksum: 54e2e5885cd2af9e6f0473424b7b59a0f4edaa8b78e9c4494fda4408eeee35fc425da548212a07c77241f552595191c6801e1b64a086bb3f533a12a8fb854679
+  languageName: node
+  linkType: hard
+
 "@types/parse-json@npm:^4.0.0":
   version: 4.0.2
   resolution: "@types/parse-json@npm:4.0.2"
@@ -9758,6 +9765,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"pad-left@npm:^2.1.0":
+  version: 2.1.0
+  resolution: "pad-left@npm:2.1.0"
+  dependencies:
+    repeat-string: ^1.5.4
+  checksum: a1605c3cb0ebd9be1a74f7f895524d3bf30f24492db87421c2fda9b8c0fcee17b3b594dacfb5eb1d3189d59c69d2f969677bc04b8280a7ef6303566154dbd078
+  languageName: node
+  linkType: hard
+
 "pako@npm:^0.2.5":
   version: 0.2.9
   resolution: "pako@npm:0.2.9"
@@ -11478,6 +11494,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"repeat-string@npm:^1.5.4":
+  version: 1.6.1
+  resolution: "repeat-string@npm:1.6.1"
+  checksum: 1b809fc6db97decdc68f5b12c4d1a671c8e3f65ec4a40c238bc5200e44e85bcc52a54f78268ab9c29fcf5fe4f1343e805420056d1f30fa9a9ee4c2d93e3cc6c0
+  languageName: node
+  linkType: hard
+
 "require-directory@npm:^2.1.1":
   version: 2.1.1
   resolution: "require-directory@npm:2.1.1"
@@ -12894,6 +12917,7 @@ __metadata:
   resolution: "torzo-gallery@workspace:."
   dependencies:
     "@babel/plugin-proposal-do-expressions": ^7.5.0
+    "@types/pad-left": ^2.1.3
     "@types/path-browserify": ^1.0.2
     "@types/ramda": ^0.29.9
     "@types/react": ^17.0.38
@@ -12905,6 +12929,7 @@ __metadata:
     fontkit: ^2.0.2
     html2canvas: ^1.4.1
     new-vait: "npm:vait@2.7.0-beta"
+    pad-left: ^2.1.0
     path-browserify: ^1.0.1
     ramda: ^0.29.1
     react: ^16.9.0

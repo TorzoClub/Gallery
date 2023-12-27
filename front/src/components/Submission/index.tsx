@@ -1,9 +1,9 @@
-import React, { ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import s from './index.module.scss'
 import { nth, partialRight, pipe, prop, thunkify } from 'ramda'
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
-import { Gallery, GalleryCommon, Member, PhotoInActive, PhotoNormal } from 'api/photo'
+import { Gallery, PhotoInActive } from 'api/photo'
 import { init as initScript } from './scripts'
 import { Memo, Signal } from 'new-vait'
 
@@ -71,12 +71,6 @@ export type Script = {
   show_select_timeout: number
   selects: Select[]
 }
-
-export type SubmissionContextValue = { stored_qq_num: string | null }
-const SubmissionContext = React.createContext<SubmissionContextValue>({
-  stored_qq_num: null
-})
-Object.assign(window, { SubmissionContext })
 
 type QQNum = string | null
 type GalleryID = number | null

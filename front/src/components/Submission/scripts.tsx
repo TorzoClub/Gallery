@@ -67,7 +67,7 @@ export function init(init_args : InitArgs) {
     )
   }
 
-  const iMistake = (): Script => {
+  const script_iMistake = (): Script => {
     return script('哦哦不好意思搞错了，感谢参加！', [
       select('下次注意点，不要又忘了',
         script('好的！', [])
@@ -77,7 +77,7 @@ export function init(init_args : InitArgs) {
     ])
   }
 
-  const iamJoinAfter = (PresetContent: Content): Script => {
+  const script_iamJoinAfter = (PresetContent: Content): Script => {
     return script(PresetContent, [
       select('那我参加', submissionCheckingScript()),
       select('那好吧，我就随便看看', script_听说你在下周会来参加投票()),
@@ -116,7 +116,6 @@ export function init(init_args : InitArgs) {
     return componentScript([], ({ changeScript }) => {
       useEffect(() => {
         setTimeout(() => {
-          console.log(type, photo)
           if (type === 'CREATE') {
             _EVENT_.created.trigger(normal2InActive(photo))
           } else if (type === 'EDIT') {
@@ -526,12 +525,11 @@ export function init(init_args : InitArgs) {
                   const my_submission = await updateMySubmission()
                   if (my_submission) {
                     changeScript(
-                      iMistake()
+                      script_iMistake()
                     )
-
                   } else if (my_submission === null) {
                     changeScript(
-                      iamJoinAfter('你根本没有参加，骗我。')
+                      script_iamJoinAfter('你根本没有参加，骗我。')
                     )
                   }
                 }} />

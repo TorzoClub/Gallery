@@ -14,7 +14,7 @@ $title-height: 16px;
 
   .slit-wrapper {
     position: relative;
-    top: -$title-height / 2;
+    top: calc(-1 * $title-height / 2);
     left: 0;
     width: 100vw;
     height: 0;

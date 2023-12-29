@@ -178,6 +178,10 @@ function useGuanzhiCompleteFont() {
   useEffect(() => {
     globalQueueLoad(guanzhi_font_url).then((loaded) => {
       setURL(loaded.blobUrl)
+    }).catch(() => {
+      // 也要考虑出现加载失败的情况，这时候就不要考虑什么字体美观度了
+      // 能显示出错误信息才重要
+      setURL(guanzhi_font_url)
     })
   }, [])
   return url

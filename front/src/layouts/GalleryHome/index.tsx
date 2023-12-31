@@ -210,7 +210,7 @@ export default () => {
           }
 
           setActive({
-            ...active,
+            ...new_active,
             photos: sortByIdList(new_active.photos, suffled_idx_list)
           })
 

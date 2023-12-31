@@ -1,5 +1,29 @@
 import { useCallback, useState } from 'react'
 
+const __NO_FOUND__ = Symbol()
+export function sortByIdList<ID, T extends Record<'id', ID>>(
+  list: T[],
+  sorted_id_list: ID[]
+): T[] {
+  const sorted_list = sorted_id_list.map(sorted_id => {
+    const find_idx = findListByProperty(list, 'id', sorted_id)
+    if (find_idx === -1) {
+      return __NO_FOUND__
+    } else {
+      return list[find_idx]
+    }
+  }).filter(item => item !== __NO_FOUND__) as T[]
+
+  const remain = list.filter(item => {
+    sorted_id_list.indexOf(item.id) === -1
+  })
+
+  return [
+    ...sorted_list,
+    ...remain,
+  ]
+}
+
 export function updateListItem<
   P extends string,
   PV,

@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-
 import { nextTick, timeout } from 'new-vait'
+
+import { getGlobalQueue, globalQueueLoad, setGlobalQueue } from 'utils/queue-load'
+import { sortByIdList } from 'utils/common'
+import { AppCriticalError } from 'App'
 
 import { Photo, fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
 
@@ -8,39 +11,12 @@ import LoadingLayout from './components/LoadingLayout'
 import ActivityLayout from './components/ActivityLayout'
 import EmptyGalleryLayout from './components/EmptyGalleryLayout'
 import useConfirmQQ from './useConfirmQQ'
+import { useSubmissionEvent } from 'components/Submission'
 
 import Gallery from 'components/Gallery'
 import PhotoDetail, { Detail } from 'components/Detail'
 import ConfirmVote from 'components/ConfirmVote'
 import shuffleArray from 'utils/shuffle-array'
-import { findListByProperty, updateListItemById } from 'utils/common'
-import { AppCriticalError } from 'App'
-import { getGlobalQueue, globalQueueLoad, setGlobalQueue } from 'utils/queue-load'
-import { useSubmissionEvent } from 'components/Submission'
-
-function sortByIdList<
-  ID,
-  T extends Record<'id', ID>
->(list: T[], sorted_id_list: ID[]): T[] {
-  const nofound = Symbol()
-  const sorted_list = sorted_id_list.map(sorted_id => {
-    const find_idx = findListByProperty(list, 'id', sorted_id)
-    if (find_idx === -1) {
-      return nofound
-    } else {
-      return list[find_idx]
-    }
-  }).filter(item => item !== nofound) as T[]
-
-  const remain = list.filter(item => {
-    sorted_id_list.indexOf(item.id) === -1
-  })
-
-  return [
-    ...sorted_list,
-    ...remain,
-  ]
-}
 
 type MediaID = string | number
 type MediaType = 'AVATAR' | 'PHOTO'

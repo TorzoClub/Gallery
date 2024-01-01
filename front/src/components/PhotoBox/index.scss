@@ -224,6 +224,8 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
         padding-left: 8px;
         padding-right: 8px;
         font-size: 12px;
+        overflow-x: hidden;
+        overflow-y: hidden;
         word-wrap: normal;
         white-space: normal;
         text-wrap: wrap;

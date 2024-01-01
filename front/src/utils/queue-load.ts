@@ -15,7 +15,7 @@ function searchCache(src: string | undefined): readonly [boolean, string] {
   } else {
     const task = global_cache.get(src)
     if (task) {
-      return [false, task.blobUrl]
+      return [true, task.blobUrl]
     } else {
       return [false, '']
     }

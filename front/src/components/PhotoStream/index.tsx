@@ -1,8 +1,8 @@
-import { CSSProperties, Fragment, FunctionComponent, useEffect, useMemo } from 'react'
+import { CSSProperties, Fragment, FunctionComponent, useEffect, useMemo, useState } from 'react'
 
 import './index.scss'
 
-import { CoverClickEvent, UsePhotoBox, usePhotoBox } from 'components/PhotoBox'
+import PhotoBox, { CoverClickEvent, PhotoGroupItem, usePhotoBoxGroup } from 'components/PhotoBox'
 import { globalQueueLoad } from 'utils/queue-load'
 import { Gallery, Photo } from 'api/photo'
 import { PhotoStreamState } from 'components/Gallery'
@@ -17,27 +17,37 @@ type ColumnsHeightList = number[]
 const whichMinimum = (columns: ColumnsHeightList) =>
   columns.indexOf(Math.min(...columns))
 
-const computeColumnHeight = (columns: UsePhotoBox[]) =>
-  columns
-    .map(([, [ width, height ], { photo }]) => {
-      return SAME_HEIGHT * (photo.height / photo.width)
+const computeColumnHeight = (list: PhotoGroupItem[]) =>
+  list
+    .map(({ dim: [width, height] }) => {
+      return SAME_HEIGHT * (height / width)
     })
     .reduce((a, b) => a + b, 0)
 
-const createColumns = (column_count: number, upb_list: UsePhotoBox[]) => {
-  const init_columns: UsePhotoBox[][] = Array.from(Array(column_count)).map(() => [])
-  return upb_list.reduce((columns, upb) => {
-    const [, , { photo, avatar }] = upb
+let __ID__ = 0
+const columnId = () => ++__ID__
+type Column = { id: number; items: PhotoGroupItem[] }
+const plainColumn = () => ({ id: columnId(), items: [] })
+const createColumns = (column_count: number, pb_group: PhotoGroupItem[]) => {
+  const init_columns: Column[] = Array.from(Array(column_count)).map(plainColumn)
+  return pb_group.reduce((columns, group_item) => {
+    const { pb_node, dim: [ , height ], props: { avatar, photo } } = group_item
+
     if (avatar) globalQueueLoad(avatar.thumb)
     globalQueueLoad(photo.thumb)
 
-    const height_list: ColumnsHeightList = columns.map(computeColumnHeight)
+    const height_list: ColumnsHeightList = columns.map((column) => {
+      return computeColumnHeight(column.items)
+    })
 
     const min_height_index = whichMinimum(height_list)
 
     return columns.map((col, idx) => {
       if (idx === min_height_index) {
-        return [ ...col, upb ]
+        return {
+          ...col,
+          items: [ ...col.items, group_item ]
+        }
       } else {
         return col
       }
@@ -107,8 +117,8 @@ export default (props: Props) => {
     }
   }, [screen])
 
-  const upb_list = photos.map(photo => (
-    usePhotoBox({
+  const ub_group = usePhotoBoxGroup(
+    photos.map(photo => ({
       id: photo.id,
       screen,
       gutter,
@@ -136,14 +146,12 @@ export default (props: Props) => {
       onClickCover: (fromInfo) => {
         props.onClickCover(fromInfo, photo.id)
       },
-    })
-  ))
+    }))
+  )
 
-  const columns = useMemo(() => {
-    return createColumns(column_count, upb_list)
-  }, [column_count, upb_list])
+  const columns = createColumns(column_count, ub_group)
 
-  return useMemo(() => (
+  return (
     <div
       className={`photo-stream ${screen}`}
       style={{
@@ -154,26 +162,30 @@ export default (props: Props) => {
       {
         (photos.length === 0) ? (
           <Empty horizontalOffset={HorizontalOffset} />
-        ) : columns.map((column, key) => (
-          <div
-            className="steam-column"
-            key={String(key)}
-            style={{
-              width: `calc(${boxWidth})`
-              // marginLeft: key ? '' : gutter,
-              // marginRight: gutter,
-              // paddingLeft: key ? '' : gutter,
-              // paddingRight: gutter
-            }}
-          >
-            {
-              column.map(([photo_box, , { id }]) => {
-                return <Fragment key={id}>{photo_box}</Fragment>
-              })
-            }
-          </div>
-        ))
+        ) : (
+          <>
+            {columns.map((column, idx) => (
+              <div
+                className="steam-column"
+                key={idx}
+                style={{
+                  width: `calc(${boxWidth})`
+                  // marginLeft: key ? '' : gutter,
+                  // marginRight: gutter,
+                  // paddingLeft: key ? '' : gutter,
+                  // paddingRight: gutter
+                }}
+              >
+                {
+                  column.items.map(({ pb_node, props }) => {
+                    return <Fragment key={`${props.id}`}>{pb_node}</Fragment>
+                  })
+                }
+              </div>
+            ))}
+          </>
+        )
       }
     </div>
-  ), [HorizontalOffset, boxWidth, columns, photoStreamListWidth, photos.length, screen])
+  )
 }

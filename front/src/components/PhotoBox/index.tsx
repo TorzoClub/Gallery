@@ -1,22 +1,23 @@
-import { forwardRef, useState, useEffect, useRef, CSSProperties } from 'react'
+import { forwardRef, useState, useEffect, useRef, CSSProperties, useCallback, FunctionComponent, useMemo } from 'react'
 import heartIMG from 'assets/heart.png'
 import heartHighlightIMG from 'assets/heart-highlight.png'
 import style from './index.scss'
 
-import { useQueueload } from 'utils/queue-load'
+import { global_cache, useQueueload } from 'utils/queue-load'
 import useMeasure from 'hooks/useMeasure'
+import { Photo } from 'api/photo'
 
-function postDimesions(
+type DimensionUnknown = Dimension | null
+type Dimension = readonly [number, number]
+const postDimesions = (
   width: null | number,
   height: null | number,
   default_width: number,
   default_height: number,
-) {
-  return [
-    width ?? default_width,
-    height ?? default_height
-  ] as const
-}
+): Dimension => [
+  width ?? default_width,
+  height ?? default_height
+] as const
 
 export type ImageInfo = {
   width: number
@@ -54,27 +55,102 @@ export type Props = {
   handleClickVote(): void
   onClickCover(clickInfo: CoverClickEvent): void
 }
-export type UsePhotoBox = ReturnType<typeof usePhotoBox>
-export function usePhotoBox(p: Props) {
-  const [ref, dimensions] = useMeasure()
-
-  return [
-    <PhotoBox {...p} ref={ref} />,
-    postDimesions(
-      dimensions.width, dimensions.height,
-      p.photo.width, p.photo.height,
-    ),
-    p
-  ] as const
+export type PhotoGroupItem = {
+  pb_node: JSX.Element
+  dim: Dimension
+  props: Props
 }
+export const usePhotoBoxGroup = (props_list: Props[]): PhotoGroupItem[] => {
+  const [dim_map, refreshDimMap] = useState<Record<string, Dimension>>({})
+
+  const dim_list = props_list.map(props => {
+    const dim = dim_map[String(props.id)]
+    if (dim === undefined) {
+      return [props.photo.width, props.photo.height] as const
+    } else {
+      return dim
+    }
+  })
+
+  const refFn = useCallback((dim: DimensionUnknown, props: Props) => {
+    if (dim !== null) {
+      const [ new_w, new_h ] = dim
+      if (dim_map[String(props.id)]) {
+        const [ old_w, old_h ] = dim_map[String(props.id)]
+        if ((old_w !== new_w) || (old_h !== new_h)) {
+          refreshDimMap(old => ({
+            ...old,
+            [String(props.id)]: postDimesions(
+              dim[0], dim[1],
+              props.photo.width, props.photo.height
+            )
+          }))
+        }
+      } else {
+        refreshDimMap(old => ({
+          ...old,
+          [String(props.id)]: postDimesions(
+            dim[0], dim[1],
+            props.photo.width, props.photo.height
+          )
+        }))
+      }
+    } else {
+      refreshDimMap(old => {
+        const new_dim_map = { ...old }
+        delete new_dim_map[String(props.id)]
+        return new_dim_map
+      })
+    }
+  }, [dim_map])
+
+  const pb_list = props_list.map(props => (
+    <PhotoBoxHeight
+      {...props}
+      ref={dim => refFn(dim, props)}
+    />
+  ))
+
+  return pb_list.map((pb_node, idx) => {
+    return { pb_node, dim: dim_list[idx], props: props_list[idx] }
+  })
+}
+
+const PhotoBoxHeight = forwardRef< DimensionUnknown, Props>((props, ref) => {
+  const [measure_ref, dimensions] = useMeasure()
+
+  const _setRef = useCallback((val: DimensionUnknown) => {
+    if (typeof ref === 'function') {
+      ref(val)
+    } else if ((ref !== null) && (typeof ref === 'object')) {
+      ref.current = val
+    }
+  }, [ref])
+
+  const setRef = useCallback(({ width, height }: {
+    width: number | null;
+    height: number | null;
+  }) => {
+    if ((width !== null) && (height !== null)) {
+      const dim = [ width, height ] as const
+      _setRef(dim)
+    } else {
+      _setRef(null)
+    }
+  }, [_setRef])
+
+  useEffect(() => {
+    setRef(dimensions)
+  }, [dimensions, setRef])
+
+  return <PhotoBox {...props} ref={measure_ref} />
+})
 
 const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
   const { screen, gutter, boxWidth, photo, hideMember, avatar, desc } = props
 
-  const [loaded, setLoaded] = useState(false)
-
-  const [,thumb] = useQueueload(photo.thumb)
-  const [,avatarThumb] = useQueueload(avatar?.thumb)
+  const [thumb_loaded, thumb] = useQueueload(photo.thumb)
+  const [avatar_loaded, avatarThumb] = useQueueload(avatar?.thumb)
 
   const coverFrameEl = useRef<HTMLDivElement>(null)
 
@@ -89,10 +165,10 @@ const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
     height = `calc((${boxWidth} - ${style['avatar-size']} / 2) * ${ratio})`
   }
 
-  const coverFrameStyle = {
+  const coverFrameStyle = useMemo(() => ({
     height,
-    background: loaded ? 'white' : ''
-  }
+    background: avatar_loaded ? 'white' : ''
+  }), [avatar_loaded, height])
 
   const show_desc = Boolean(desc.trim().length)
   const show_bottom_block = !hideMember || show_desc
@@ -129,10 +205,7 @@ const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
             className="cover"
             alt="img"
             src={thumb}
-            style={{ opacity: loaded ? 100 : 0 }}
-            onLoad={() => {
-              setLoaded(true)
-            }}
+            style={{ opacity: thumb_loaded ? 100 : 0 }}
           />
 
           {/* <div className="highlight"></div> */}

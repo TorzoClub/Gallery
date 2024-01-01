@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { nextTick, timeout } from 'new-vait'
 
 import { getGlobalQueue, globalQueueLoad, setGlobalQueue } from 'utils/queue-load'
-import { sortByIdList } from 'utils/common'
+import { findListByProperty, removeListItemByIdx, sortByIdList, updateListItemById } from 'utils/common'
 import { AppCriticalError } from 'App'
 
 import { Photo, fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
@@ -147,15 +147,8 @@ export default () => {
     else if (event_loaded === true) { return }
     else if (!active) {
       // 没活动？那没事了
-      setHideVoteButton(true)
+      // setHideVoteButton(true)
       return
-    }
-
-    if (active.can_submission) {
-      // 征集投稿期间要隐藏投票按钮
-      setHideVoteButton(true)
-    } else {
-      setHideVoteButton(false)
     }
 
     if (active.can_submission) {
@@ -168,14 +161,11 @@ export default () => {
     } else {
       let mounted = true
       // 有的话就用这个扣号获取已投的照片列表
-      setConfirmState({
-        isLoading: false,
-        isDone: true
-      })
+      setConfirmState({ isLoading: true })
 
       const fetchListResult = fetchListWithQQNum(Number(currentQQNum))
 
-      timeout(1500).then(() => {
+      Promise.allSettled([fetchListResult, timeout(1000)]).finally(() => {
         fetchListResult.then(({ active: new_active, galleries }) => {
           if (mounted === false) { return }
           if (!new_active) {
@@ -265,7 +255,7 @@ export default () => {
   }, [])
 
   useSubmissionEvent({
-    created: useCallback((created_photo) => {
+    created(created_photo) {
       if (active) {
         setActive({
           ...active,
@@ -275,31 +265,26 @@ export default () => {
           ],
         })
       }
-    }, [active, setActive]),
-    updated: useCallback((updated_photo) => {
+    },
+    updated(updated_photo) {
       if (active) {
         setActive({
           ...active,
-          photos: active.photos.map(p => {
-            if (p.id === updated_photo.id) {
-              return updated_photo
-            } else {
-              return p
-            }
-          })
+          photos: updateListItemById(active.photos, updated_photo.id, updated_photo)
         })
       }
-    }, [active, setActive]),
-    canceled: useCallback((canceled_photo_id) => {
+    },
+    canceled(canceled_photo_id) {
       if (active) {
         setActive({
           ...active,
-          photos: active.photos.filter(p => {
-            return p.id !== canceled_photo_id
-          })
+          photos: removeListItemByIdx(
+            active.photos,
+            findListByProperty(active.photos, 'id', canceled_photo_id)
+          )
         })
       }
-    }, [active, setActive]),
+    },
   })
 
   const ConfirmVoteLayout = useMemo(() => (

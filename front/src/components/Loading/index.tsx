@@ -1,8 +1,14 @@
-import React, { useEffect, useState } from 'react'
+import React, { FunctionComponent, useEffect, useState } from 'react'
 import style from './index.module.scss'
 
-export const LoadingMask = () => (
-  <div className={style['loading-mask']}>
+export const LoadingMask: FunctionComponent<{
+  backgroundOpacity?: number | string
+}> = ({
+  backgroundOpacity = 0.8
+}) => (
+  <div className={style['loading-mask']} style={{
+    backgroundColor: `rgba(255, 255, 255, ${backgroundOpacity})`,
+  }}>
     <Loading />
   </div>
 )

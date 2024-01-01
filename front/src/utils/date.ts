@@ -19,29 +19,20 @@ export function monthDiff(date1: Date, date2: Date) {
   return months
 }
 
-export const week_day_map = Object.freeze({
-  0: '周日',
-  1: '周一',
-  2: '周二',
-  3: '周三',
-  4: '周四',
-  5: '周五',
-  6: '周六',
-})
+const DATE_DAY_MAP = Object.freeze([
+  '周日', '周一', '周二', '周三', '周四', '周五', '周六',
+])
 
-export function stringifyWeekDay(week_day: number) {
-  if (week_day < 0) {
-    throw Error('stringifyWeekDay failure: week_day less than 0')
-  } else if (week_day > 6) {
-    throw Error('stringifyWeekDay failure: week_day more than 6')
+export function stringifyWeekDay(date_day: number) {
+  const str = DATE_DAY_MAP[date_day] as undefined | string
+  if (str === undefined) {
+    throw RangeError('date_day can only accept integer numbers from 0 to 6')
   } else {
-    return week_day_map[week_day]
+    return str
   }
 }
 
-export function isInvalidDate(d: Date) {
-  return isNaN(d as any as number)
-}
+export const isInvalidDate = (d: Date) => isNaN(Number(d))
 
 function weekday(d: Date): number {
   const day = d.getDay()
@@ -70,26 +61,26 @@ function toNextMonday(input: Date) {
   return setMonday(d)
 }
 
-export function isNextWeek(current_date: Date, d: Date) {
+export function isNextWeek(current: Date, d: Date) {
   return equalYearMonthDay(
-    toNextMonday(current_date),
+    toNextMonday(current),
     toMonday(d)
   )
 }
 
 function toNextMonthFirstDay(input: Date) {
   const d = new Date(input)
-  setMoonthFirstDay(d)
+  setMonthFirstDay(d)
   d.setDate(32)
-  setMoonthFirstDay(d)
+  setMonthFirstDay(d)
   return d
 }
 
-function setMoonthFirstDay(d: Date) {
+function setMonthFirstDay(d: Date) {
   d.setDate(1)
   return d
 }
-const toCurrentMonthFirstDay = (input: Date) => setMoonthFirstDay(new Date(input))
+const toCurrentMonthFirstDay = (input: Date) => setMonthFirstDay(new Date(input))
 
 export function isNextMonth(current_date: Date, d: Date) {
   return equalYearMonthDay(

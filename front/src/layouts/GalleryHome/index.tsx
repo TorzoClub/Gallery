@@ -178,10 +178,10 @@ export default () => {
       timeout(1500).then(() => {
         fetchListResult.then(({ active: new_active, galleries }) => {
           if (mounted === false) { return }
-          setEventLoaded(true)
           if (!new_active) {
             setActive(null)
             setList(galleries)
+            setEventLoaded(true)
             return
           }
 
@@ -197,10 +197,7 @@ export default () => {
           )
 
           setConfirmState({ in: false })
-          timeout(618).then(() => {
-            if (mounted === false) { return }
-            setShowConfirmVoteLayout(true)
-          })
+          setEventLoaded(true)
         }).catch(err => {
           AppCriticalError(`获取投票信息失败: ${err.message}`)
         })
@@ -209,6 +206,17 @@ export default () => {
       return () => { mounted = false }
     }
   }, [active, currentQQNum, event_loaded, loaded, setActive, setConfirmState, suffled_idx_list])
+
+  useEffect(() => {
+    if ((event_loaded === true)) {
+      let unmounted = false
+      timeout(618).then(() => {
+        if (unmounted) { return }
+        setShowConfirmVoteLayout(true)
+      })
+      return () => { unmounted = true }
+    }
+  }, [event_loaded])
 
   const handleClickSubmit = async () => {
     if (!active) return

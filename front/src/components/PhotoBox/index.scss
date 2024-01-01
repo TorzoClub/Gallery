@@ -11,9 +11,10 @@ $avatar-size-mobile: 36px;
 .image-box-wrapper {
   width: calc(100% - #{$avatar-size} / 2);
   padding-left: calc(#{$avatar-size} / 2);
+  box-sizing: border-box;
 
   &:not(:last-child) {
-    margin-bottom: 24px;
+    padding-bottom: 24px;
   }
 }
 
@@ -227,7 +228,7 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
         overflow-x: hidden;
         overflow-y: hidden;
         word-wrap: normal;
-        white-space: normal;
+        white-space: pre-line;
         text-wrap: wrap;
         text-align: justify;
 
@@ -373,7 +374,7 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
   width: 100%;
 
   &:not(:last-child) {
-    // margin-bottom: 12px;
+    // padding-bottom: 12px;
   }
 
   &:first-child {

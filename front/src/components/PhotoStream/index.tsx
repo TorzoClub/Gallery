@@ -2,42 +2,60 @@ import React, { CSSProperties, useEffect, useMemo } from 'react'
 
 import './index.scss'
 
-import PhotoBox, { CoverClickEvent } from 'components/PhotoBox'
+import { CoverClickEvent, UsePhotoBox, usePhotoBox } from 'components/PhotoBox'
 import { globalQueueLoad } from 'utils/queue-load'
 import { Gallery, Photo } from 'api/photo'
 import { PhotoStreamState } from 'components/Gallery'
 
 import PhotoBoxStyle from '../PhotoBox/index.scss'
+import { updateListItem } from 'utils/common'
 
 const SAME_HEIGHT = 100
 
 type ColumnsHeightList = number[]
 
-const witchHeightIsMinimum = (columns: ColumnsHeightList) =>
+const whichMinimum = (columns: ColumnsHeightList) =>
   columns.indexOf(Math.min(...columns))
 
-const computeColumnHeight = (column: Photo[]) =>
-  column
-    .map(photo => {
+const computeColumnHeight = (columns: UsePhotoBox[]) =>
+  columns
+    .map(([, [ width, height ], { photo }]) => {
       return SAME_HEIGHT * (photo.height / photo.width)
     })
     .reduce((a, b) => a + b, 0)
 
-const createColumns = (column_count: number, photos: Photo[]) => {
-  const columns: Photo[][] = Array.from(Array(column_count)).map(() => [])
+const createColumns = (column_count: number, upb_list: UsePhotoBox[]) => {
+  const init_columns: UsePhotoBox[][] = Array.from(Array(column_count)).map(() => [])
+  return upb_list.reduce((columns, upb) => {
+    const [, , { photo, avatar }] = upb
+    if (avatar) globalQueueLoad(avatar.thumb)
+    globalQueueLoad(photo.thumb)
 
-  photos.forEach((photo, idx) => {
-    if (photo.member) globalQueueLoad(photo.member.avatar_thumb_url)
-    globalQueueLoad(photo.thumb_url)
+    const height_list: ColumnsHeightList = columns.map(computeColumnHeight)
 
-    const columnsHeightList: ColumnsHeightList = columns.map(computeColumnHeight)
+    const min_height_index = whichMinimum(height_list)
 
-    const min_height_index = witchHeightIsMinimum(columnsHeightList)
-    columns[min_height_index].push(photo)
-  })
-
-  return columns
+    return columns.map((col, idx) => {
+      if (idx === min_height_index) {
+        return [ ...col, upb ]
+      } else {
+        return col
+      }
+    })
+  }, init_columns)
 }
+
+const Empty: React.FC<{
+  horizontalOffset: CSSProperties['width']
+}> = ({ horizontalOffset }) => (
+  <div style={{
+    textAlign: 'center',
+    width: '100%',
+    color: 'rgba(0, 0, 0, 0.4)',
+    padding: '30px 0',
+    paddingLeft: horizontalOffset,
+  }}>暂无投稿作品</div>
+)
 
 export type Props = {
   hideVoteButton: boolean
@@ -53,6 +71,7 @@ export type Props = {
 
   selectedIdList: number[]
 }
+
 export default (props: Props) => {
   const {
     hideVoteButton,
@@ -64,23 +83,18 @@ export default (props: Props) => {
     gutter = '0px',
     selectedIdList
   } = props
-
-  const columns = useMemo(() => {
-    return createColumns(column_count, photos)
-  }, [column_count, photos])
-
   const isMobile = screen === 'mobile'
 
   let photoStreamListWidth: CSSProperties['width']
   if (isMobile) {
-    photoStreamListWidth = `calc(100vw - ${gutter} * ${column_count} + (${gutter} / 2))`
+    photoStreamListWidth = `${total_width} - (${gutter} * 2)`
   } else {
-    photoStreamListWidth = `calc(${total_width} + ${gutter} * ${column_count - 1})`
+    photoStreamListWidth = `${total_width} + ${gutter} * ${column_count - 1}`
   }
 
   let boxWidth: string
   if (isMobile) {
-    boxWidth = `(${total_width} / ${column_count} - ${gutter})`
+    boxWidth = `(((${photoStreamListWidth}) / ${column_count}) - (${gutter} / ${column_count}))`
   } else {
     boxWidth = `(${total_width} / ${column_count})`
   }
@@ -93,23 +107,53 @@ export default (props: Props) => {
     }
   }, [screen])
 
+  const upb_list = photos.map(photo => (
+    usePhotoBox({
+      id: photo.id,
+      screen,
+      gutter,
+      boxWidth,
+      hideVoteButton,
+      hideMember: !photo.member,
+      voteIsHighlight: selectedIdList && (selectedIdList.indexOf(photo.id) !== -1),
+      name: photo.member ? photo.member.name : null,
+      desc: photo.desc,
+      photo: {
+        width: photo.width,
+        height: photo.height,
+        src: photo.src_url,
+        thumb: photo.thumb_url,
+      },
+      avatar: photo.member ? {
+        width: 0,
+        height: 0,
+        thumb: photo.member.avatar_thumb_url,
+        src: photo.member.avatar_thumb_url,
+      } : null,
+      handleClickVote: () => {
+        props.onClickVote(photo.id)
+      },
+      onClickCover: (fromInfo) => {
+        props.onClickCover(fromInfo, photo.id)
+      },
+    })
+  ))
+
+  const columns = useMemo(() => {
+    return createColumns(column_count, upb_list)
+  }, [column_count, upb_list])
+
   return useMemo(() => (
     <div
       className={`photo-stream ${screen}`}
       style={{
-        width: photoStreamListWidth,
+        width: `calc(${photoStreamListWidth})`,
         paddingRight: HorizontalOffset,
       }}
     >
       {
         (photos.length === 0) ? (
-          <div style={{
-            textAlign: 'center',
-            width: '100%',
-            color: 'rgba(0, 0, 0, 0.4)',
-            padding: '30px 0',
-            paddingLeft: HorizontalOffset,
-          }}>暂无投稿作品</div>
+          <Empty horizontalOffset={HorizontalOffset} />
         ) : columns.map((column, key) => (
           <div
             className="steam-column"
@@ -123,45 +167,13 @@ export default (props: Props) => {
             }}
           >
             {
-              column.map(photo => (
-                <PhotoBox
-                  key={photo.id.toString()}
-                  id={photo.id}
-
-                  screen={screen}
-                  gutter={gutter}
-                  boxWidth={boxWidth}
-
-                  hideVoteButton={hideVoteButton}
-                  hideMember={!photo.member}
-                  voteIsHighlight={selectedIdList && (selectedIdList.indexOf(photo.id) !== -1)}
-
-                  name={photo.member ? photo.member.name : null}
-                  photo={{
-                    width: photo.width,
-                    height: photo.height,
-                    src: photo.src_url,
-                    thumb: photo.thumb_url,
-                  }}
-                  avatar={photo.member ? {
-                    width: 0,
-                    height: 0,
-                    thumb: photo.member.avatar_thumb_url,
-                    src: photo.member.avatar_thumb_url,
-                  } : null}
-
-                  handleClickVote={() => {
-                    props.onClickVote(photo.id)
-                  }}
-                  onClickCover={(fromInfo) => {
-                    props.onClickCover(fromInfo, photo.id)
-                  }}
-                />
-              ))
+              column.map(([photo_box, , { id }]) => {
+                return <React.Fragment key={id}>{photo_box}</React.Fragment>
+              })
             }
           </div>
         ))
       }
     </div>
-  ), [HorizontalOffset, boxWidth, columns, gutter, hideVoteButton, photoStreamListWidth, photos.length, props, screen, selectedIdList])
+  ), [HorizontalOffset, boxWidth, columns, photoStreamListWidth, photos.length, screen])
 }

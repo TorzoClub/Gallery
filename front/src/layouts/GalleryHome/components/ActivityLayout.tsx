@@ -110,7 +110,6 @@ export default function ActivityLayout({
           })
         }}
       />
-
       {showSubmitButton && (
         <div className="submit-button-wrapper">
           {(() => {

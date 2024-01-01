@@ -5,11 +5,11 @@ import './index.scss'
 import Title from 'components/Title'
 import PhotoStream from 'components/PhotoStream'
 import { Gallery, Photo } from 'api/photo'
-import { CoverClickEvent } from 'components/PhotoBox'
+import { CoverClickEvent, Props as PhotoBoxProps } from 'components/PhotoBox'
 import Submission from 'components/Submission'
 
 export type PhotoStreamState = {
-  screen: 'normal' | 'mobile'
+  screen: PhotoBoxProps['screen']
   column_count: number
   gallery_width: string
   column_gutter: string
@@ -34,7 +34,7 @@ const getPhotoStreamState = (): PhotoStreamState => {
       screen: 'mobile',
       column_count: 2,
       gallery_width: '100vw',
-      column_gutter: '12px'
+      column_gutter: '8px'
     }
   }
 }

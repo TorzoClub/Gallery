@@ -20,13 +20,13 @@ $avatar-size-mobile: 36px;
 $horizontalPhotoShadowOffset: 3px;
 $horizontalPhotoShadowSize: 5px;
 $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
-.image-box-wrapper.has-member .image-box {
-  box-shadow:
-    #{$horizontalPhotoShadowOffset} 0px #{$horizontalPhotoShadowSize} -#{$horizontalPhotoShadowSize} #{$horizontalPhotoShadowColor},
-    -#{$horizontalPhotoShadowOffset} 0px #{$horizontalPhotoShadowSize} -#{$horizontalPhotoShadowSize} #{$horizontalPhotoShadowColor}
-  ;
-}
-.image-box-wrapper.hide-member .image-box {
+// .image-box-wrapper.has-bottom-block .image-box {
+//   box-shadow:
+//     #{$horizontalPhotoShadowOffset} 0px #{$horizontalPhotoShadowSize} -#{$horizontalPhotoShadowSize} #{$horizontalPhotoShadowColor},
+//     -#{$horizontalPhotoShadowOffset} 0px #{$horizontalPhotoShadowSize} -#{$horizontalPhotoShadowSize} #{$horizontalPhotoShadowColor}
+//   ;
+// }
+.image-box-wrapper.none-bottom-block .image-box {
   $BottomShadowColor: rgba(0, 0, 0, 0.1);
 
   .cover-area {
@@ -124,7 +124,7 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
       position: relative;
       z-index: 1;
 
-      height: $bottom-block-height;
+      min-height: $bottom-block-height;
       width: 100%;
 
       background-color: white;
@@ -212,6 +212,39 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
           float: left;
           width: calc(#{$avatar-size} / 2 + 8px);
           height: calc(#{$avatar-size} / 2);
+        }
+      }
+
+      .desc-block {
+        margin-top: 8px;
+        padding-top: 8px;
+        color: rgba(0, 0, 0, 0.5);
+        margin: 0;
+        padding-bottom: 8px;
+        padding-left: 8px;
+        padding-right: 8px;
+        font-size: 12px;
+        word-wrap: normal;
+        white-space: normal;
+        text-wrap: wrap;
+        text-align: justify;
+
+        &::before, &::after {
+          display: inline-block;
+          font-size: 1.5em;
+          font-weight: 900;
+          color: rgba(0, 0, 0, 0.2);
+          line-height: 0px;
+          vertical-align: middle;
+        }
+        &::before {
+          content: "“";
+          text-align: right;
+          width: calc((#{$avatar-size} / 2 + 8px) / 2);
+        }
+        &::after {
+          content: "”";
+          text-align: left;
         }
       }
     }
@@ -337,51 +370,66 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
   padding-left: 0px;
   width: 100%;
 
+  &:not(:last-child) {
+    // margin-bottom: 12px;
+  }
+
   &:first-child {
   }
 
   .bottom-area {
     .bottom-block {
-      display: flex;
-      justify-content: space-between;
       padding: calc((#{$avatar-size} - #{$avatar-size-mobile}) / 2) 10px;
       box-sizing: border-box;
-
-      .avatar-wrapper {
-        position: relative;
-        top: 0;
-        left: 0;
-        width: $avatar-size-mobile;
-        height: $avatar-size-mobile;
-        min-width: $avatar-size-mobile;
-        min-height: $avatar-size-mobile;
-        padding: 0;
-        box-shadow: inset 0 -1px 1px rgba(0, 0, 0, 0.2), 0 0 1px rgba(0, 0, 0, 0.3);
-      }
-
-      .member-name {
-        margin-left: 10px;
-        flex-grow: 2;
-
+      .member-info {
         display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        font-size: 15px;
-
-        text-shadow: 2px 1.5px 0 #F0F0F0;
-
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-
-        .avatar-float {
-          display: none;
+        justify-content: space-between;
+        .avatar-wrapper {
+          position: relative;
+          top: 0;
+          left: 0;
+          width: $avatar-size-mobile;
+          height: $avatar-size-mobile;
+          min-width: $avatar-size-mobile;
+          min-height: $avatar-size-mobile;
+          padding: 0;
+          box-shadow: inset 0 -1px 1px rgba(0, 0, 0, 0.2), 0 0 1px rgba(0, 0, 0, 0.3);
         }
 
-        .name-label {
+        .member-name {
+          margin-left: 10px;
+          flex-grow: 2;
+
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          font-size: 15px;
+
+          text-shadow: 2px 1.5px 0 #F0F0F0;
+
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+
+          .avatar-float {
+            display: none;
+          }
+
+          .name-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+      }
+      .member-info + .desc-block {
+        margin-top: calc((#{$avatar-size} - #{$avatar-size-mobile}) / 2);
+      }
+      .desc-block {
+        // border-top: solid 1px rgba(0, 0, 0, 0.3);
+        padding: 0;
+        &::before {
+          width: auto;
         }
       }
     }

@@ -6,6 +6,55 @@ import style from './index.scss'
 import { useQueueload } from 'utils/queue-load'
 import { timeout } from 'new-vait'
 
+// 来自于 @uidotdev/usehooks，直接导入这个模块不知道为什么会报错
+function useMeasure() {
+  const [dimensions, setDimensions] = React.useState<{
+    width: null | number, height: null | number,
+  }>({ width: null, height: null, })
+
+  const previousObserver = React.useRef<ResizeObserver | null>(null)
+
+  const customRef = React.useCallback((node) => {
+    if (previousObserver.current) {
+      previousObserver.current.disconnect()
+      previousObserver.current = null
+    }
+
+    if (node?.nodeType === Node.ELEMENT_NODE) {
+      const observer = new ResizeObserver(([entry]) => {
+        // 原版的程序中会出现“ResizeObserver loop completed with undelivered”的错误
+        // 在这里使用了 requestAnimationFrame 来回避这种错误
+        // ref: https://stackoverflow.com/questions/76187282/react-resizeobserver-loop-completed-with-undelivered-notifications
+        requestAnimationFrame(() => {
+          if (entry && entry.borderBoxSize) {
+            const { inlineSize: width, blockSize: height } =
+              entry.borderBoxSize[0]
+
+            setDimensions({ width, height })
+          }
+        })
+      })
+
+      observer.observe(node)
+      previousObserver.current = observer
+    }
+  }, [])
+
+  return [customRef, dimensions] as const
+}
+
+function postDimesions(
+  width: null | number,
+  height: null | number,
+  default_width: number,
+  default_height: number,
+) {
+  return [
+    width ?? default_width,
+    height ?? default_height
+  ] as const
+}
+
 export type ImageInfo = {
   width: number
   height: number
@@ -22,10 +71,11 @@ export type CoverClickEvent = {
   },
   thumbBlobUrl: string
 }
+
 export type Props = {
   id: string | number
 
-  screen: string
+  screen: 'normal' | 'mobile'
   gutter: CSSProperties['width']
   boxWidth: string
 
@@ -36,13 +86,27 @@ export type Props = {
   name: string | null
   photo: ImageInfo
   avatar: ImageInfo | null
+  desc: string
 
   handleClickVote(): void
   onClickCover(clickInfo: CoverClickEvent): void
 }
+export type UsePhotoBox = ReturnType<typeof usePhotoBox>
+export function usePhotoBox(p: Props) {
+  const [ref, dimensions] = useMeasure()
 
-export default (props: Props) => {
-  const { screen, gutter, boxWidth, photo, hideMember, avatar } = props
+  return [
+    <PhotoBox {...p} ref={ref} />,
+    postDimesions(
+      dimensions.width, dimensions.height,
+      p.photo.width, p.photo.height,
+    ),
+    p
+  ] as const
+}
+
+const PhotoBox = React.forwardRef<HTMLDivElement, Props>((props, ref) => {
+  const { screen, gutter, boxWidth, photo, hideMember, avatar, desc } = props
 
   const [loaded, setLoaded] = useState(false)
 
@@ -67,37 +131,35 @@ export default (props: Props) => {
     background: loaded ? 'white' : ''
   }
 
+  const show_desc = Boolean(desc.trim().length)
+  const show_bottom_block = !hideMember || show_desc
+  const none_bottom_block = !show_bottom_block
+
   return (
     <div
+      ref={ref}
       id={`photo-${props.id}`}
-      className={`image-box-wrapper ${screen} ${hideMember ? 'hide-member' : 'has-member'}`}
+      className={`image-box-wrapper ${screen} ${none_bottom_block ? 'none-bottom-block' : 'has-bottom-block'}`}
     >
       <div className="image-box">
         <div
           className="cover-area"
           ref={coverFrameEl}
           style={coverFrameStyle}
-          onClick={async () => {
-            if (!coverFrameEl.current) {
-              return
+          onClick={(e) => {
+            e.preventDefault()
+            if (coverFrameEl.current) {
+              const {
+                height, width, top, left
+              } = coverFrameEl.current.getBoundingClientRect()
+
+              props.onClickCover({
+                from: {
+                  height, width, top, left,
+                },
+                thumbBlobUrl: thumb
+              })
             }
-
-            const {
-              height,
-              width,
-              top,
-              left
-            } = coverFrameEl.current.getBoundingClientRect()
-
-            props.onClickCover({
-              from: {
-                height,
-                width,
-                top,
-                left,
-              },
-              thumbBlobUrl: thumb
-            })
           }}
         >
           <img
@@ -115,15 +177,27 @@ export default (props: Props) => {
 
         <div className="bottom-area">
           {
-            hideMember || (
+            show_bottom_block && (
               <div className="bottom-block">
-                <div className="avatar-wrapper">
-                  <div className="avatar">
-                    <div className="avatar-inner" style={{ transform: avatarThumb ? 'translateY(0px)' : 'translateY(-100%)', backgroundImage: `url(${avatarThumb})` }}></div>
-                  </div>
-                </div>
+                {hideMember || (
+                  <div className="member-info">
+                    <div className="avatar-wrapper">
+                      <div className="avatar">
+                        <div className="avatar-inner" style={{ transform: avatarThumb ? 'translateY(0px)' : 'translateY(-100%)', backgroundImage: `url(${avatarThumb})` }}></div>
+                      </div>
+                    </div>
 
-                <div className="member-name"><div className="avatar-float"></div><span className="name-label">{props.name}</span></div>
+                    <div className="member-name">
+                      <div className="avatar-float"></div>
+                      <span className="name-label">{props.name}</span>
+                    </div>
+                  </div>
+                )}
+                {show_desc && (
+                  <pre className="desc-block">
+                    {desc}
+                  </pre>
+                )}
               </div>
             )
           }
@@ -157,4 +231,5 @@ export default (props: Props) => {
       </div>
     </div>
   )
-}
+})
+export default PhotoBox

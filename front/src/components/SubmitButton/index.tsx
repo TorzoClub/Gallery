@@ -1,10 +1,10 @@
-import React from 'react'
+import { CSSProperties } from 'react'
 
 import './index.scss'
 
 export default ({ className = '', style = {}, mode, clickButton }: {
   className?: string
-  style?: React.CSSProperties
+  style?: CSSProperties
   mode: string
   clickButton?: () => void
 }) => {

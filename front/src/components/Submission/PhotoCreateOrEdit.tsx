@@ -1,11 +1,10 @@
-import React, { CSSProperties, useEffect, useMemo, useState } from 'react'
+import { CSSProperties, useEffect, useMemo, useState } from 'react'
 import ImageUploading, { ImageType, ImageListType } from 'react-images-uploading'
 import { useSubmissionStore } from '.'
 import { PhotoInActive, PhotoNormal } from 'api/photo'
 
 import s from './PhotoCreateOrEdit.module.scss'
-import PhotoBox from 'components/PhotoBox'
-import Loading, { LoadingMask } from 'components/Loading'
+import { LoadingMask } from 'components/Loading'
 import { useQueueload } from 'utils/queue-load'
 
 function justUseTemplateString(strs: TemplateStringsArray, ...args: (number | string)[]) {
@@ -71,7 +70,7 @@ type Props = {
 }
 export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
   const [ isProcessing, setProcessing ] = useState(false)
-  const [files, setFiles] = React.useState<ImageListType>([])
+  const [files, setFiles] = useState<ImageListType>([])
   const { photo, gallery_id, qq_num } = useSubmissionStore.getState()
   const [description, setDescription] = useState(photo?.desc || '')
   const will_upload_image = useMemo(() => {

@@ -57,7 +57,7 @@ export function componentScript(selects: Select[], Content: Content): Script {
 }
 
 export type ChangeScript = (s: Script) => void
-export type Content = string | ((p: { changeScript: ChangeScript }) => React.JSX.Element)
+export type Content = string | ((p: { changeScript: ChangeScript }) => JSX.Element)
 
 export type Select = {
   Content: Content

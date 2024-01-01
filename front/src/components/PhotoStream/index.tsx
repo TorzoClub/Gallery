@@ -1,4 +1,4 @@
-import React, { CSSProperties, useEffect, useMemo } from 'react'
+import { CSSProperties, Fragment, FunctionComponent, useEffect, useMemo } from 'react'
 
 import './index.scss'
 
@@ -45,7 +45,7 @@ const createColumns = (column_count: number, upb_list: UsePhotoBox[]) => {
   }, init_columns)
 }
 
-const Empty: React.FC<{
+const Empty: FunctionComponent<{
   horizontalOffset: CSSProperties['width']
 }> = ({ horizontalOffset }) => (
   <div style={{
@@ -168,7 +168,7 @@ export default (props: Props) => {
           >
             {
               column.map(([photo_box, , { id }]) => {
-                return <React.Fragment key={id}>{photo_box}</React.Fragment>
+                return <Fragment key={id}>{photo_box}</Fragment>
               })
             }
           </div>

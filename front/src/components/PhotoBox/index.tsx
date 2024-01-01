@@ -1,47 +1,10 @@
-import React, { useState, useEffect, useRef, CSSProperties } from 'react'
+import { forwardRef, useState, useEffect, useRef, CSSProperties } from 'react'
 import heartIMG from 'assets/heart.png'
 import heartHighlightIMG from 'assets/heart-highlight.png'
 import style from './index.scss'
 
 import { useQueueload } from 'utils/queue-load'
-import { timeout } from 'new-vait'
-
-// 来自于 @uidotdev/usehooks，直接导入这个模块不知道为什么会报错
-function useMeasure() {
-  const [dimensions, setDimensions] = React.useState<{
-    width: null | number, height: null | number,
-  }>({ width: null, height: null, })
-
-  const previousObserver = React.useRef<ResizeObserver | null>(null)
-
-  const customRef = React.useCallback((node) => {
-    if (previousObserver.current) {
-      previousObserver.current.disconnect()
-      previousObserver.current = null
-    }
-
-    if (node?.nodeType === Node.ELEMENT_NODE) {
-      const observer = new ResizeObserver(([entry]) => {
-        // 原版的程序中会出现“ResizeObserver loop completed with undelivered”的错误
-        // 在这里使用了 requestAnimationFrame 来回避这种错误
-        // ref: https://stackoverflow.com/questions/76187282/react-resizeobserver-loop-completed-with-undelivered-notifications
-        requestAnimationFrame(() => {
-          if (entry && entry.borderBoxSize) {
-            const { inlineSize: width, blockSize: height } =
-              entry.borderBoxSize[0]
-
-            setDimensions({ width, height })
-          }
-        })
-      })
-
-      observer.observe(node)
-      previousObserver.current = observer
-    }
-  }, [])
-
-  return [customRef, dimensions] as const
-}
+import useMeasure from 'hooks/useMeasure'
 
 function postDimesions(
   width: null | number,
@@ -105,7 +68,7 @@ export function usePhotoBox(p: Props) {
   ] as const
 }
 
-const PhotoBox = React.forwardRef<HTMLDivElement, Props>((props, ref) => {
+const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
   const { screen, gutter, boxWidth, photo, hideMember, avatar, desc } = props
 
   const [loaded, setLoaded] = useState(false)

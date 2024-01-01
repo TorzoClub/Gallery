@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { GalleryInActive, Photo } from 'api/photo'
 import { ConfirmQQState } from 'components/ConfirmQQ'
 import { Detail } from 'components/Detail'
@@ -7,7 +7,7 @@ import { Gallery as GalleryType } from 'api/photo'
 import Gallery from 'components/Gallery'
 import Loading from 'components/Loading'
 import GuideLayout from 'components/GuideLayout'
-import SubmitButton from 'components/SubmitButton'
+import SkeuomorphismButton from 'components/SkeuomorphismButton'
 
 type ActivityLayoutProps = {
   active: GalleryInActive
@@ -40,20 +40,27 @@ export default function ActivityLayout({
 }: ActivityLayoutProps) {
   const [arrowTickTock, setArrowTickTock] = useState(0)
 
-  const showSubmitButton = !active.vote_submitted
-  const isSubmitted = submittedPool[active.id]
-  let buttonMode = ''
+  const showSubmitButton = useMemo(() => {
+    if (active.can_submission || active.vote_submitted) {
+      return false
+    } else {
+      return true
+    }
+  }, [active.can_submission, active.vote_submitted])
+  const vote_is_submitted = submittedPool[active.id]
 
-  if (isSubmitted) {
-    buttonMode = 'done'
-  } else if (confirmState.in) {
-    buttonMode = 'blue'
-  } else if (selectedIdList.length) {
-    buttonMode = 'blue ring'
-  }
+  const buttonState = useMemo(() => {
+    if (confirmState.in) {
+      return 'disabled'
+    } else if (selectedIdList.length === 0) {
+      return 'disabled'
+    } else {
+      return 'highlight'
+    }
+  }, [confirmState.in, selectedIdList.length])
 
   const handleClickVote = (gallery: GalleryType, photo: Photo) => {
-    console.warn('handleClickVote', gallery.vote_submitted, photo)
+    // console.log('handleClickVote', gallery.vote_submitted, photo)
 
     const isSubmitted = submittedPool[gallery.id]
     const can_vote = gallery.in_event && !gallery.can_submission
@@ -111,25 +118,27 @@ export default function ActivityLayout({
         }}
       />
       {showSubmitButton && (
-        <div className="submit-button-wrapper">
+        <div className="submit-button-area">
           {(() => {
             if (submiting) {
               return <Loading />
-            } else if (isSubmitted) {
+            } else if (vote_is_submitted) {
               return <div className="submitted">感谢你的投票</div>
-            } else if (!active.can_submission) {
+            } else {
               return (
                 <GuideLayout
                   showArrow={showArrow}
                   animatedTickTock={arrowTickTock}
                 >
                   <SubmitButton
-                    mode={buttonMode}
-                    clickButton={() => {
-                      if (!showSubmitButton || isSubmitted || !selectedIdList.length || submiting) {
-                        return
-                      } else {
-                        onClickSubmit()
+                    buttonState={buttonState}
+                    onClick={() => {
+                      if (!vote_is_submitted && !submiting) {
+                        if (selectedIdList.length === 0) {
+                          alert('你需要选择至少一部作品才能提交投票')
+                        } else {
+                          onClickSubmit()
+                        }
                       }
                     }}
                   />
@@ -139,7 +148,10 @@ export default function ActivityLayout({
           })()}
 
           <style>{`
-            .submit-button-wrapper {
+            .submitted {
+              color: #999999;
+            }
+            .submit-button-area {
               margin-top: 32px;
 
               height: 64px;
@@ -150,13 +162,51 @@ export default function ActivityLayout({
               align-content: center;
               justify-content: center;
             }
-
-            .submit-button-wrapper .submitted {
-              color: #999999;
-            }
           `}</style>
         </div>
       )}
     </div>
   )
 }
+
+type ButttonState = 'disabled' | 'highlight' | 'normal'
+export const SubmitButton = ({ onClick, buttonState }: {
+  onClick?(): void
+  buttonState?: ButttonState
+}) => (
+  <>
+    <div className={`grayscale-wrap ${buttonState === 'disabled' && 'enabled'}`}>
+      <div className={`submit-button-wrap ${buttonState}`}>
+        <SkeuomorphismButton onClick={onClick}>提交</SkeuomorphismButton>
+      </div>
+    </div>
+    <style>{`
+      .grayscale-wrap {
+        transition: filter 382ms;
+      }
+      .grayscale-wrap.enabled {
+        filter: grayscale(1) brightness(1) opacity(0.75);
+      }
+
+      .submit-button-wrap {
+        animation: submitbuttonhighlight 3s infinite;
+        animation-timing-function: ease-in-out;
+        animation-direction: normal;
+        animation-fill-mode: forwards;
+        animation-play-state: paused;
+        animation-delay: 500ms;
+      }
+      .submit-button-wrap.disabled {
+
+      }
+      @keyframes submitbuttonhighlight {
+        0% { filter: brightness(1) }
+        50% { filter: brightness(1.2) }
+        100% { filter: brightness(1) }
+      }
+      .submit-button-wrap.highlight {
+        animation-play-state: running;
+      }
+    `}</style>
+  </>
+)

@@ -6,7 +6,7 @@ import DialogLayout, { Props as DialogLayoutProps } from 'components/DialogLayou
 import Article from './Article'
 import WaitingInputFrame from './WaitingInputFrame'
 import Loading, { LoadingMask } from 'components/Loading'
-import SubmitButton from 'components/SubmitButton'
+import { SubmitButton } from 'layouts/GalleryHome/components/ActivityLayout'
 
 export type ConfirmQQState = Pick<DialogLayoutProps, 'in'> & {
   isLoading: boolean
@@ -48,7 +48,9 @@ export default (props: Props) => {
           return (
             <div className="is-done">
               可别忘了点
-              <SubmitButton className="submit-btn" mode="blue ring" />
+              <div style={{ margin: '0 5px' }}>
+                <SubmitButton />
+              </div>
               了，朋友
             </div>
           )

@@ -6,6 +6,7 @@ import { PhotoInActive, PhotoNormal } from 'api/photo'
 import s from './PhotoCreateOrEdit.module.scss'
 import { LoadingMask } from 'components/Loading'
 import { useQueueload } from 'utils/queue-load'
+import SkeuomorphismButton from 'components/SkeuomorphismButton'
 
 function justUseTemplateString(strs: TemplateStringsArray, ...args: (number | string)[]) {
   const str = strs.reduce((a, b, idx) => {
@@ -193,12 +194,8 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
         placeholder='相片介绍，选填'
       />
 
-      <div className={s.ButtonContainer}>
-        <button
-          className={s.ButtonBefore}
-          onClick={handleSubmit}
-          type="button"
-        >提 交</button>
+      <div style={{ marginTop: '20px' }}>
+        <SkeuomorphismButton onClick={handleSubmit}>提 交</SkeuomorphismButton>
       </div>
 
       {

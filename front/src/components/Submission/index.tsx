@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { FunctionComponent, useEffect, useMemo, useState } from 'react'
 import s from './index.module.scss'
 import { nth, partialRight, pipe, prop, thunkify } from 'ramda'
 import { create } from 'zustand'
@@ -144,7 +144,7 @@ export function useSubmissionEvent({
 }: {
   created(p: PhotoInActive): void
   updated(p: PhotoInActive): void
-  canceled(p: PhotoInActive['id']): void
+  canceled(id: PhotoInActive['id']): void
 }) {
   useEffect(() => {
     _EVENT_.created.receive(created)
@@ -158,18 +158,16 @@ export function useSubmissionEvent({
   }, [canceled, created, updated])
 }
 
-function TextContentEffectChar({
-  show,
-  ch,
-  hideClassName,
-  showClassName
-}: { show: boolean; ch: string; hideClassName: string; showClassName: string }) {
-  if (show) {
-    return <span className={[s.TextContentEffectChar, hideClassName].join(' ')}>{ch}</span>
-  } else {
-    return <span className={[s.TextContentEffectChar, showClassName].join(' ')}>{ch}</span>
-  }
-}
+const TextContentEffectChar: FunctionComponent<{
+  show: boolean; ch: string; showClassName: string; hideClassName: string
+}> = ({
+  show, ch, showClassName, hideClassName,
+}) => (
+  <span className={[
+    s.TextContentEffectChar,
+    show ? showClassName : hideClassName
+  ].join(' ')}>{ch}</span>
+)
 
 const INTERVAL_TIME = 42
 export function textContentEffectTotalTime(
@@ -230,9 +228,7 @@ export function TextContentEffect({
     }
 
     if (cursor === 0) {
-      const h = setTimeout(() => {
-        playInterval()
-      }, showContentWaittime)
+      const h = setTimeout(playInterval, showContentWaittime)
       return () => {
         clearTimeout(h)
         if (int_handler !== undefined) {
@@ -249,24 +245,21 @@ export function TextContentEffect({
     }
   }, [cursor, interval, is_played, showContentWaittime, textContent.length])
 
-  const chel_list = useMemo(() => {
-    return textContent.split('').map((ch, idx) => {
-      const show = cursor <= idx
-      return (
-        <TextContentEffectChar
-          key={`${idx}-${ch}`}
-          showClassName={showClassName}
-          hideClassName={hideClassName}
-          show={show}
-          ch={ch}
-        />
-      )
-    })
-  }, [cursor, hideClassName, showClassName, textContent])
-
   return (
     <span className={s.TextContentEffect}>
-      {chel_list}
+      {
+        useMemo(() => (
+          textContent.split('').map((ch, idx) => (
+            <TextContentEffectChar
+              key={`${idx}-${ch}`}
+              ch={ch}
+              show={cursor > idx}
+              showClassName={showClassName}
+              hideClassName={hideClassName}
+            />
+          ))
+        ), [cursor, hideClassName, showClassName, textContent])
+      }
     </span>
   )
 }

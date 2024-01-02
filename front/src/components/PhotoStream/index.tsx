@@ -149,6 +149,14 @@ export default (props: Props) => {
     }))
   )
 
+  // const [columns, setColumns] = useState(createColumns(column_count, ub_group))
+  // useEffect(() => {
+  //   const h = requestAnimationFrame(() => {
+  //     setColumns(createColumns(column_count, ub_group))
+  //   })
+  //   return () => cancelAnimationFrame(h)
+  // }, [column_count, ub_group])
+
   const columns = createColumns(column_count, ub_group)
 
   return (
@@ -178,7 +186,8 @@ export default (props: Props) => {
               >
                 {
                   column.items.map(({ pb_node, props }) => {
-                    return <Fragment key={`${props.id}`}>{pb_node}</Fragment>
+                    return <PhotoBox key={`${props.id}`} {...props} />
+                    // return <Fragment key={`${props.id}`}>{pb_node}</Fragment>
                   })
                 }
               </div>

@@ -8,6 +8,8 @@ export default function useMeasure() {
     width: null | number, height: null | number,
   }>({ width: null, height: null })
 
+  const animation_frame_handler = useRef<number | null>(null)
+
   const previousObserver = useRef<ResizeObserver | null>(null)
 
   const customRef = useCallback((node) => {
@@ -24,18 +26,24 @@ export default function useMeasure() {
         // 因为使用了 requestAnimationFrame，这里是一个异步的操作
         // 在这个异步的情况下可能组件已经 unmount 了，为了避免 unmount 的情况下还 setState，所以要进行一个判断吧
         // 这里使用了 useSafeState，它只会在组件 mount 的情况下才会执行 setState，可回避上述的问题
-        requestAnimationFrame(() => {
-          if (entry && entry.borderBoxSize) {
-            const [{ inlineSize: width, blockSize: height }] = entry.borderBoxSize
-            setDimensions({ width, height })
+        if (entry && entry.borderBoxSize) {
+          const [{ inlineSize: width, blockSize: height }] = entry.borderBoxSize
+          if ((dimensions.width !== width) || (dimensions.height !== height)) {
+              if (animation_frame_handler.current !== null) {
+                cancelAnimationFrame(animation_frame_handler.current)
+              }
+              animation_frame_handler.current = requestAnimationFrame(() => {
+                setDimensions(() => ({ width, height }))
+              })
+            }
           }
-        })
       })
 
       observer.observe(node)
       previousObserver.current = observer
     }
-  }, [setDimensions])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return [customRef, dimensions] as const
 }

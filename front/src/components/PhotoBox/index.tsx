@@ -73,11 +73,13 @@ export const usePhotoBoxGroup = (props_list: Props[]): PhotoGroupItem[] => {
   })
 
   const refFn = useCallback((dim: DimensionUnknown, props: Props) => {
+    console.log('refFn', dim)
     if (dim !== null) {
       const [ new_w, new_h ] = dim
       if (dim_map[String(props.id)]) {
         const [ old_w, old_h ] = dim_map[String(props.id)]
         if ((old_w !== new_w) || (old_h !== new_h)) {
+          // console.log('dim ref change', old_w, old_h, ...dim)
           refreshDimMap(old => ({
             ...old,
             [String(props.id)]: postDimesions(
@@ -104,10 +106,19 @@ export const usePhotoBoxGroup = (props_list: Props[]): PhotoGroupItem[] => {
     }
   }, [dim_map])
 
+  // useEffect(() => {
+  //   console.log('dim_map', {...dim_map})
+  // }, [dim_map])
+
+  const refcallback = useCallback((props: Props) => {
+    // console.log('cal')
+    return (dim: DimensionUnknown) => refFn(dim, props)
+  }, [refFn])
+
   const pb_list = props_list.map(props => (
     <PhotoBoxHeight
       {...props}
-      ref={dim => refFn(dim, props)}
+      ref={refcallback(props)}
     />
   ))
 
@@ -140,10 +151,10 @@ const PhotoBoxHeight = forwardRef< DimensionUnknown, Props>((props, ref) => {
   }, [_setRef])
 
   useEffect(() => {
-    setRef(dimensions)
-  }, [dimensions, setRef])
+    setRef({ width: dimensions.width, height: dimensions.height})
+  }, [dimensions.height, dimensions.width, setRef])
 
-  return <PhotoBox {...props} ref={measure_ref} />
+  return useMemo(() => <PhotoBox {...props} ref={measure_ref} />, [measure_ref, props])
 })
 
 const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {

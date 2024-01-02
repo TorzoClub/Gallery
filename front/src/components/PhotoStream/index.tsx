@@ -5,8 +5,7 @@ import { Gallery, Photo } from 'api/photo'
 import './index.scss'
 import PhotoBoxStyle from '../PhotoBox/index.scss'
 
-import { PhotoStreamLayout } from 'components/Gallery'
-import { CoverClickEvent, Dimension, DimensionUnknown, PhotoBoxDimension, PhotoGroupItem, postDimesions } from 'components/PhotoBox'
+import { Props as PhotoBoxProps, CoverClickEvent, Dimension, DimensionUnknown, PhotoBoxDimension, PhotoGroupItem, postDimesions } from 'components/PhotoBox'
 
 import useSafeState from 'hooks/useSafeState'
 
@@ -16,22 +15,6 @@ type PosMap = {
     left: string
     zIndex: number
   }
-}
-
-type ColumnsHeightList = number[]
-
-const whichMinimum = (columns: ColumnsHeightList) =>
-  columns.indexOf(Math.min(...columns))
-
-const computeColumnHeight = (list: DimessionInfo[]) =>
-  list
-    .map(({ height, width }) => height)
-    .reduce((a, b) => a + b, 0)
-
-type DimessionInfo = {
-  id: number
-  height: number
-  width: number
 }
 
 const Empty: FunctionComponent<{
@@ -46,6 +29,14 @@ const Empty: FunctionComponent<{
   }}>暂无投稿作品</div>
 )
 
+export type PhotoStreamLayout = {
+  box_type: PhotoBoxProps['type']
+  vertial_gutter: PhotoBoxProps['vertial_gutter']
+  column_count: number
+  gallery_width: number
+  column_gutter: number
+}
+
 export type Props = {
   hideVoteButton: boolean
   photoStreamLayout: PhotoStreamLayout
@@ -57,15 +48,14 @@ export type Props = {
   selectedIdList: number[]
 }
 
-function calcTotalWidth(
-  column_count: number,
-  column_gutter: number,
-  gallery_width: number,
-) {
+function calcTotalBoxWidth({
+  column_count,
+  column_gutter,
+  gallery_width,
+}: PhotoStreamLayout) {
   const gutter_total_len = column_gutter * (column_count - 1)
-  const box_width = (gallery_width - gutter_total_len) / column_gutter
-  const total_width = box_width + gutter_total_len
-  return [ total_width, box_width, gutter_total_len ]
+  const box_width = (gallery_width - gutter_total_len) / column_count
+  return [ box_width, gutter_total_len ] as const
 }
 
 export default (props: Props) => {
@@ -75,50 +65,23 @@ export default (props: Props) => {
     photos,
     selectedIdList
   } = props
-  const {
-    screen,
-    column_count,
-    column_gutter = '0px',
-    gallery_width: total_width,
-  } = photoStreamLayout
-  const isMobile = screen === 'mobile'
+  const { box_type, vertial_gutter, gallery_width } = photoStreamLayout
+  const [ box_width ] = calcTotalBoxWidth(photoStreamLayout)
 
-  let photo_stream_width: CSSProperties['width']
-  if (isMobile) {
-    if (column_count > 2) {
-      photo_stream_width = `${total_width} + ${column_gutter} * ${column_count - 1}`
-    } else {
-      photo_stream_width = `${total_width} - (${column_gutter} * 2)`
-    }
-  } else {
-    photo_stream_width = `${total_width} + ${column_gutter} * ${column_count - 1}`
-  }
-
-  let box_width: string
-  if (isMobile) {
-    if (column_count > 2) {
-      box_width = `(${total_width} / ${column_count})`
-    } else {
-      box_width = `(((${photo_stream_width}) / ${column_count}) - (${column_gutter} / ${column_count}))`
-    }
-  } else {
-    box_width = `(${total_width} / ${column_count})`
-  }
-
-  const { refFn, photo_stream_height, pos_map } = useRefreshLayout({
+  const { refFn, photo_stream_height, pos_map } = useLayout({
     photos, box_width, photoStreamLayout
   })
 
   return (
     <div className="photo-stream-wrap" style={{
-      width: `calc(${photo_stream_width})`,
+      width: `${gallery_width}px`,
       margin: 'auto',
     }}>
       {(photos.length === 0) ? (
         <Empty horizontalOffset={0} />
       ) : (
         <div
-          className={`photo-stream ${screen}`}
+          className="photo-stream"
           style={{
             width: '100%',
             height: `${photo_stream_height}px`
@@ -142,10 +105,9 @@ export default (props: Props) => {
                     }}
                     {...{
                       id: photo.id,
-                      // photoStreamLayout,
-                      screen,
-                      column_gutter,
-                      boxWidth: box_width,
+                      type: box_type,
+                      vertial_gutter,
+                      box_width,
                       hideVoteButton,
                       hideMember: !photo.member,
                       voteIsHighlight: selectedIdList && (selectedIdList.indexOf(photo.id) !== -1),
@@ -181,7 +143,23 @@ export default (props: Props) => {
   )
 }
 
-function useRefreshLayout({
+type ColumnsHeightList = number[]
+
+const whichMinimum = (columns: ColumnsHeightList) =>
+  columns.indexOf(Math.min(...columns))
+
+const computeColumnHeight = (list: DimessionInfo[]) =>
+  list
+    .map(({ height, width }) => height)
+    .reduce((a, b) => a + b, 0)
+
+type DimessionInfo = {
+  id: number
+  height: number
+  width: number
+}
+
+function useLayout({
   photos,
   box_width,
   photoStreamLayout: {
@@ -190,7 +168,7 @@ function useRefreshLayout({
   }
 }: {
   photoStreamLayout: PhotoStreamLayout
-  box_width: string
+  box_width: number
   photos: Photo[]
 }) {
   const [ refFn, dim_map_changed_signal, getDimMap ] = useDimensionMap()
@@ -226,7 +204,7 @@ function useRefreshLayout({
   const calcPosMap = useCallback(() => {
     const init_pos: PosMap = {}
     return getPhotoStreamColumns().reduce((pos_info, column, x) => {
-      const left = `(${box_width} * ${x} + ${column_gutter} * ${x})`
+      const left = `(${box_width}px * ${x} + ${column_gutter}px * ${x})`
       return column.reduce((pos_info, heightInfo, y) => {
         const h = computeColumnHeight(column.slice(0, y))
         const top = `${h}px`

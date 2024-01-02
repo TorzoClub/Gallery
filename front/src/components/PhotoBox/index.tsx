@@ -39,9 +39,9 @@ export type CoverClickEvent = {
 export type Props = {
   id: string | number
 
-  screen: 'normal' | 'mobile'
-  column_gutter: CSSProperties['width']
-  boxWidth: string
+  type: 'normal' | 'compact'
+  vertial_gutter: number
+  box_width: number
 
   style?: Partial<CSSProperties>
 
@@ -91,7 +91,7 @@ export const PhotoBoxDimension = forwardRef< DimensionUnknown, Props>((props, re
 })
 
 const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
-  const { screen, column_gutter, boxWidth, photo, hideMember, avatar, desc, style } = props
+  const { type, vertial_gutter, box_width, photo, hideMember, avatar, desc, style } = props
 
   const [thumb_loaded, thumb] = useQueueload(photo.thumb)
   const [avatar_loaded, avatarThumb] = useQueueload(avatar?.thumb)
@@ -100,14 +100,7 @@ const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
 
   const ratio = (photo.height / photo.width).toFixed(4)
 
-  const isMobile = screen === 'mobile'
-
-  let height: CSSProperties['height']
-  if (isMobile) {
-    height = `calc((${boxWidth} - ${column_gutter} / 2) * ${ratio})`
-  } else {
-    height = `calc((${boxWidth}) * ${ratio})`
-  }
+  const height = `calc((${box_width}px) * ${ratio})`
 
   const coverFrameStyle = useMemo(() => ({
     height,
@@ -122,8 +115,11 @@ const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
     <div
       ref={ref}
       id={`photo-${props.id}`}
-      className={`image-box-wrapper ${screen} ${none_bottom_block ? 'none-bottom-block' : 'has-bottom-block'}`}
-      style={{ width: `calc(${boxWidth})`, ...(style ?? {}) }}
+      className={`image-box-wrapper ${(type === 'compact') && 'compact'} ${none_bottom_block ? 'none-bottom-block' : 'has-bottom-block'}`}
+      style={{
+        '--vertical-gutter': `${vertial_gutter}px`,
+        width: `calc(${box_width}px)`, ...(style ?? {})
+      } as React.CSSProperties}
     >
       <div className="image-box">
         <div

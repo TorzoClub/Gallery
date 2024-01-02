@@ -3,68 +3,90 @@ import React, { useEffect, useMemo, useState } from 'react'
 import './index.scss'
 
 import Title from 'components/Title'
-import PhotoStream from 'components/PhotoStream'
+import PhotoStream, { PhotoStreamLayout } from 'components/PhotoStream'
 import { Gallery, Photo } from 'api/photo'
 import { CoverClickEvent, Props as PhotoBoxProps } from 'components/PhotoBox'
 import Submission from 'components/Submission'
 import useSafeState from 'hooks/useSafeState'
 
-export type PhotoStreamLayout = {
-  screen: PhotoBoxProps['screen']
-  column_count: number
-  gallery_width: string
-  column_gutter: string
-}
-const photoStreamLayout = (): PhotoStreamLayout => {
-  const viewport_width = getViewportWidth()
-  if (viewport_width > 2100) {
-    return {
-      screen: 'normal',
-      column_count: 6,
-      gallery_width: '1750px',
-      column_gutter: '54px'
-    }
-  } else if (viewport_width > 1450) {
-    return {
-      screen: 'normal',
-      column_count: 4,
-      gallery_width: '1200px',
-      column_gutter: '54px'
-    }
-  } else if (viewport_width > 1150) {
-    return {
-      screen: 'normal',
-      column_count: 4,
-      gallery_width: '900px',
-      column_gutter: '54px'
-    }
-  } else if (viewport_width > 900) {
-    return {
-      screen: 'normal',
-      column_count: 3,
-      gallery_width: '700px',
-      column_gutter: '54px'
-    }
-  } else if (viewport_width > 640) {
-    return {
-      screen: 'mobile',
-      column_count: 3,
-      gallery_width: '600px',
-      column_gutter: '12px'
-    }
-  } else {
-    return {
-      screen: 'mobile',
-      column_count: 2,
-      gallery_width: '100vw',
-      column_gutter: '8px'
-    }
-  }
-}
-
 function getViewportWidth() {
   const { innerWidth } = window
   return innerWidth
+}
+
+const normalLayout = ({
+  column_count,
+  gallery_width,
+}: Pick<PhotoStreamLayout, 'column_count' | 'gallery_width'>): PhotoStreamLayout => {
+  const column_gutter = 54
+  const vertial_gutter = column_gutter / 2
+  return {
+    box_type: 'normal',
+    column_count,
+    gallery_width,
+    column_gutter,
+    vertial_gutter,
+  }
+}
+
+const compactLayout = (g: Gallery, {
+  column_count,
+  column_gutter,
+  vote_event_vertial_gutter,
+  gallery_width = getViewportWidth() - (column_gutter * column_count)
+}: Pick<PhotoStreamLayout, 'column_count' | 'column_gutter'> & {
+  vote_event_vertial_gutter: number
+  gallery_width?: number
+}): PhotoStreamLayout => {
+  const is_vote_date = g.in_event && !g.can_submission
+  const vertial_gutter = is_vote_date ? vote_event_vertial_gutter : column_gutter
+
+  return {
+    box_type: 'compact',
+    column_count: column_count,
+    gallery_width,
+    column_gutter: column_gutter,
+    vertial_gutter,
+  }
+}
+
+const photoStreamLayout = (gallery: Gallery): PhotoStreamLayout => {
+  const viewport_width = getViewportWidth()
+  if (viewport_width > 2100) {
+    return compactLayout(gallery, {
+      column_count: 8,
+      column_gutter: 27,
+      vote_event_vertial_gutter: 27
+    })
+  } else if (viewport_width > 1450) {
+    return normalLayout({
+      column_count: 4,
+      gallery_width: 1200,
+    })
+  } else if (viewport_width > 1150) {
+    return normalLayout({
+      column_count: 4,
+      gallery_width: 900,
+    })
+  } else if (viewport_width > 900) {
+    return normalLayout({
+      column_count: 3,
+      gallery_width: 750,
+    })
+  } else if (viewport_width > 640) {
+    return compactLayout(gallery, {
+      column_count: 3,
+      column_gutter: 8,
+      gallery_width: 640 - 8 * 2,
+      vote_event_vertial_gutter: 27
+    })
+  } else {
+    return compactLayout(gallery, {
+      column_count: 2,
+      column_gutter: 8,
+      vote_event_vertial_gutter: 27
+    })
+  }
 }
 
 export type Props = {
@@ -74,51 +96,53 @@ export type Props = {
   onClickVote?: (photo_id: Photo['id']) => void
   onClickCover: (clickInfo: CoverClickEvent, photo: Photo['id']) => void
 }
-export default (props: Props) => {
-  const [layout, refreshLayout] = useSafeState(photoStreamLayout())
+export default ({
+  hideVoteButton, gallery, selectedIdList, onClickVote, onClickCover,
+}: Props) => {
+  const layout = usePhotoStreamLayout(gallery)
 
-  console.log('gallery render')
+  const title_node = useTitleNode(gallery)
+
+  const waterfall_layout_node = useMemo(() => (
+    <PhotoStream
+      photoStreamLayout={layout}
+      photos={gallery.photos}
+      selectedIdList={selectedIdList}
+      hideVoteButton={hideVoteButton}
+      onClickVote={(photoId) => {
+        if (onClickVote) onClickVote(photoId)
+      }}
+      onClickCover={onClickCover}
+    />
+  ), [gallery.photos, hideVoteButton, layout, onClickCover, onClickVote, selectedIdList])
+
+  return (
+    <div className="gallery">
+      { title_node }
+      { waterfall_layout_node }
+    </div>
+  )
+}
+
+function usePhotoStreamLayout(gallery: Gallery) {
+  const [layout, refreshLayout] = useSafeState(photoStreamLayout(gallery))
 
   useEffect(() => {
     let latest_width: number | undefined
-    // setState(getPhotoStreamState())
     updateState()
 
     function updateState() {
       const viewport_width = getViewportWidth()
       if (latest_width !== viewport_width) {
         latest_width = viewport_width
-        refreshLayout(photoStreamLayout())
+        refreshLayout(photoStreamLayout(gallery))
       }
     }
     window.addEventListener('resize', updateState)
     return () => window.removeEventListener('resize', updateState)
-  }, [refreshLayout])
+  }, [gallery, refreshLayout])
 
-  const { screen, column_count, gallery_width, column_gutter } = layout
-  const { hideVoteButton, gallery } = props
-
-  const title_node = useTitleNode(gallery)
-
-  return (
-    <div className="gallery">
-      { title_node }
-      {
-        useMemo(() => (
-          <PhotoStream
-            photoStreamLayout={layout}
-            photos={gallery.photos}
-            selectedIdList={props.selectedIdList}
-            hideVoteButton={hideVoteButton}
-            onClickVote={(photoId) => {
-              if (props.onClickVote) props.onClickVote(photoId)
-            }}
-            onClickCover={props.onClickCover}
-          />
-        ), [gallery.photos, hideVoteButton, props, layout])
-      }
-    </div>
-  )
+  return layout
 }
 
 function useTitleNode(gallery: Gallery) {

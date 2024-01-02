@@ -13,6 +13,8 @@ $avatar-size-mobile: 36px;
   padding-left: calc(#{$avatar-size} / 2);
   box-sizing: border-box;
 
+  position: absolute;
+
   &:not(:last-child) {
     padding-bottom: 24px;
   }

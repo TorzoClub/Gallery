@@ -1,15 +1,15 @@
 import { forwardRef, useState, useEffect, useRef, CSSProperties, useCallback, FunctionComponent, useMemo } from 'react'
 import heartIMG from 'assets/heart.png'
 import heartHighlightIMG from 'assets/heart-highlight.png'
-import style from './index.scss'
+import s from './index.scss'
 
 import { global_cache, useQueueload } from 'utils/queue-load'
 import useMeasure from 'hooks/useMeasure'
 import { Photo } from 'api/photo'
 
-type DimensionUnknown = Dimension | null
-type Dimension = readonly [number, number]
-const postDimesions = (
+export type DimensionUnknown = Dimension | null
+export type Dimension = readonly [number, number]
+export const postDimesions = (
   width: null | number,
   height: null | number,
   default_width: number,
@@ -43,6 +43,8 @@ export type Props = {
   gutter: CSSProperties['width']
   boxWidth: string
 
+  style?: Partial<CSSProperties>
+
   hideVoteButton: boolean
   hideMember: boolean
   voteIsHighlight: boolean
@@ -60,115 +62,7 @@ export type PhotoGroupItem = {
   dim: Dimension
   props: Props
 }
-export const usePhotoBoxGroup = (props_list: Props[]): PhotoGroupItem[] => {
-  const dim_map_ref = useRef<Record<string, Dimension>>({})
-  const [dim_latest, refreshDim] = useState(0)
-  // const [dim_map, refreshDimMap] = useState<Record<string, Dimension>>({})
-
-  useEffect(() => {
-    console.log('dim_latest', dim_latest)
-  }, [dim_latest])
-
-  const dim_list = props_list.map(props => {
-    const dim_map = dim_map_ref.current
-    const dim = dim_map[String(props.id)]
-    if (dim === undefined) {
-      return [props.photo.width, props.photo.height] as const
-    } else {
-      return dim
-    }
-  })
-
-  const refFn = useCallback((dim: DimensionUnknown, props: Props) => {
-    const dim_map = dim_map_ref.current
-    console.log('refFn', dim)
-    if (dim !== null) {
-      const [ new_w, new_h ] = dim
-      if (dim_map[String(props.id)]) {
-        const [ old_w, old_h ] = dim_map[String(props.id)]
-        if ((old_w !== new_w) || (old_h !== new_h)) {
-          Object.assign(dim_map, {
-            ...dim_map,
-            [String(props.id)]: postDimesions(
-              dim[0], dim[1],
-              props.photo.width, props.photo.height
-            )
-          })
-          // refreshDim(Object.keys(dim_map).reduce((val, key) => {
-          //   const new_val = dim_map[key]
-          //   if (new_val) {
-          //     const [ width, height ] = new_val
-          //     return val + (width + height)
-          //   } else {
-          //     return val
-          //   }
-          // }, 0))
-          // dim_map({})
-          // console.log('dim ref change', old_w, old_h, ...dim)
-          // refreshDimMap(old => ({
-          //   ...old,
-          //   [String(props.id)]: postDimesions(
-          //     dim[0], dim[1],
-          //     props.photo.width, props.photo.height
-          //   )
-          // }))
-        }
-      } else {
-        Object.assign(dim_map, {
-          ...dim_map,
-          [String(props.id)]: postDimesions(
-            dim[0], dim[1],
-            props.photo.width, props.photo.height
-          )
-        })
-        // refreshDim(Object.keys(dim_map).reduce((val, key) => {
-        //   const new_val = dim_map[key]
-        //   if (new_val) {
-        //     const [ width, height ] = new_val
-        //     return val + (width + height)
-        //   } else {
-        //     return val
-        //   }
-        // }, 0))
-        // refreshDimMap(old => ({
-        //   ...old,
-        //   [String(props.id)]: postDimesions(
-        //     dim[0], dim[1],
-        //     props.photo.width, props.photo.height
-        //   )
-        // }))
-      }
-    } else {
-      // refreshDimMap(old => {
-      //   const new_dim_map = { ...old }
-      //   delete new_dim_map[String(props.id)]
-      //   return new_dim_map
-      // })
-    }
-  }, [])
-
-  // useEffect(() => {
-  //   console.log('dim_map', {...dim_map})
-  // }, [dim_map])
-
-  const refcallback = useCallback((props: Props) => {
-    // console.log('cal')
-    return (dim: DimensionUnknown) => refFn(dim, props)
-  }, [refFn])
-
-  const pb_list = props_list.map(props => (
-    <PhotoBoxHeight
-      {...props}
-      ref={refcallback(props)}
-    />
-  ))
-
-  return pb_list.map((pb_node, idx) => {
-    return { pb_node, dim: dim_list[idx], props: props_list[idx] }
-  })
-}
-
-const PhotoBoxHeight = forwardRef< DimensionUnknown, Props>((props, ref) => {
+export const PhotoBoxDimension = forwardRef< DimensionUnknown, Props>((props, ref) => {
   const [measure_ref, dimensions] = useMeasure()
 
   const _setRef = useCallback((val: DimensionUnknown) => {
@@ -199,7 +93,7 @@ const PhotoBoxHeight = forwardRef< DimensionUnknown, Props>((props, ref) => {
 })
 
 const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
-  const { screen, gutter, boxWidth, photo, hideMember, avatar, desc } = props
+  const { screen, gutter, boxWidth, photo, hideMember, avatar, desc, style } = props
 
   const [thumb_loaded, thumb] = useQueueload(photo.thumb)
   const [avatar_loaded, avatarThumb] = useQueueload(avatar?.thumb)
@@ -214,7 +108,7 @@ const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
   if (isMobile) {
     height = `calc((${boxWidth} - ${gutter} / 2) * ${ratio})`
   } else {
-    height = `calc((${boxWidth} - ${style['avatar-size']} / 2) * ${ratio})`
+    height = `calc((${boxWidth} - ${s['avatar-size']} / 2) * ${ratio})`
   }
 
   const coverFrameStyle = useMemo(() => ({
@@ -231,6 +125,7 @@ const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
       ref={ref}
       id={`photo-${props.id}`}
       className={`image-box-wrapper ${screen} ${none_bottom_block ? 'none-bottom-block' : 'has-bottom-block'}`}
+      style={{ width: `calc(${boxWidth})`, ...(style ?? {}) }}
     >
       <div className="image-box">
         <div

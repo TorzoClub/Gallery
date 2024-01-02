@@ -1,17 +1,22 @@
 import { CSSProperties, Fragment, FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Memo, MemoGetter, MemoSetter, Signal, nextTick } from 'new-vait'
+import { Gallery, Photo } from 'api/photo'
 
 import './index.scss'
-
-import PhotoBox, { CoverClickEvent, Dimension, DimensionUnknown, PhotoBoxDimension, PhotoGroupItem, postDimesions } from 'components/PhotoBox'
-import { globalQueueLoad } from 'utils/queue-load'
-import { Gallery, Photo } from 'api/photo'
-import { PhotoStreamState } from 'components/Gallery'
-
 import PhotoBoxStyle from '../PhotoBox/index.scss'
-import { findListByProperty, updateListItem } from 'utils/common'
-import useMeasure from 'hooks/useMeasure'
 
-const SAME_HEIGHT = 272
+import { PhotoStreamState } from 'components/Gallery'
+import { CoverClickEvent, Dimension, DimensionUnknown, PhotoBoxDimension, PhotoGroupItem, postDimesions } from 'components/PhotoBox'
+
+import useSafeState from 'hooks/useSafeState'
+
+type PosMap = {
+  [K: number]: {
+    top: string
+    left: string
+    zIndex: number
+  }
+}
 
 type ColumnsHeightList = number[]
 
@@ -43,7 +48,6 @@ const Empty: FunctionComponent<{
 
 export type Props = {
   hideVoteButton: boolean
-  gallery: Gallery
   screen: PhotoStreamState['screen']
   gutter: PhotoStreamState['column_gutter']
   column_count: PhotoStreamState['column_count']
@@ -59,7 +63,6 @@ export type Props = {
 export default (props: Props) => {
   const {
     hideVoteButton,
-    gallery,
     screen,
     column_count,
     photos,
@@ -69,18 +72,18 @@ export default (props: Props) => {
   } = props
   const isMobile = screen === 'mobile'
 
-  let photoStreamListWidth: CSSProperties['width']
+  let photo_stream_width: CSSProperties['width']
   if (isMobile) {
-    photoStreamListWidth = `${total_width} - (${gutter} * 2)`
+    photo_stream_width = `${total_width} - (${gutter} * 2)`
   } else {
-    photoStreamListWidth = `${total_width} + ${gutter} * ${column_count - 1}`
+    photo_stream_width = `${total_width} + ${gutter} * ${column_count - 1}`
   }
 
-  let boxWidth: string
+  let box_width: string
   if (isMobile) {
-    boxWidth = `(((${photoStreamListWidth}) / ${column_count}) - (${gutter} / ${column_count}))`
+    box_width = `(((${photo_stream_width}) / ${column_count}) - (${gutter} / ${column_count}))`
   } else {
-    boxWidth = `(${total_width} / ${column_count})`
+    box_width = `(${total_width} / ${column_count})`
   }
 
   const HorizontalOffset: CSSProperties['width'] = useMemo(() => {
@@ -91,142 +94,15 @@ export default (props: Props) => {
     }
   }, [screen])
 
-  const dim_map_ref = useRef<Record<string, Dimension>>({})
-  const [dim_latest, refreshDim] = useState(0)
-  // Object.assign(window, { refreshDim })
-  const refFn = useCallback((dim: DimensionUnknown, id: string, photo: { width: number, height: number }) => {
-    const dim_map = dim_map_ref.current
-    // console.log('refFn', dim)
-    if (dim !== null) {
-      const [ new_w, new_h ] = dim
-      if (dim_map[String(id)]) {
-        const [ old_w, old_h ] = dim_map[String(id)]
-        if ((old_w !== new_w) || (old_h !== new_h)) {
-          Object.assign(dim_map, {
-            ...dim_map,
-            [String(id)]: postDimesions(
-              dim[0], dim[1],
-              photo.width, photo.height
-            )
-          })
-          refreshDim(Object.keys(dim_map).reduce((val, key) => {
-            const new_val = dim_map[key]
-            if (new_val) {
-              const [ width, height ] = new_val
-              return val + (width + height)
-            } else {
-              return val
-            }
-          }, 0))
-          // dim_map({})
-          // console.log('dim ref change', old_w, old_h, ...dim)
-          // refreshDimMap(old => ({
-          //   ...old,
-          //   [String(props.id)]: postDimesions(
-          //     dim[0], dim[1],
-          //     props.photo.width, props.photo.height
-          //   )
-          // }))
-        }
-      } else {
-        Object.assign(dim_map, {
-          ...dim_map,
-          [String(id)]: postDimesions(
-            dim[0], dim[1],
-            photo.width, photo.height
-          )
-        })
-        refreshDim(Object.keys(dim_map).reduce((val, key) => {
-          const new_val = dim_map[key]
-          if (new_val) {
-            const [ width, height ] = new_val
-            return val + (width + height)
-          } else {
-            return val
-          }
-        }, 0))
-        // refreshDimMap(old => ({
-        //   ...old,
-        //   [String(props.id)]: postDimesions(
-        //     dim[0], dim[1],
-        //     props.photo.width, props.photo.height
-        //   )
-        // }))
-      }
-    } else {
-      // refreshDimMap(old => {
-      //   const new_dim_map = { ...old }
-      //   delete new_dim_map[String(props.id)]
-      //   return new_dim_map
-      // })
-    }
-  }, [])
-
-  const photo_stream_columns = useMemo(() => {
-    const dim_map = dim_map_ref.current
-    console.log('dim_map', { ...dim_map })
-
-    const init_columns: DimessionInfo[][] = Array.from(Array(column_count)).map(() => [])
-    return photos.reduce((columns, photo) => {
-      const height_list = columns.map(col => {
-        return computeColumnHeight(col)
-      })
-
-      const min_height_index = whichMinimum(height_list)
-
-      return columns.map((col, idx) => {
-        if (idx === min_height_index) {
-          const dim = dim_map[photo.id]
-          if (dim) {
-            const [ width, height ] = dim
-            return [...col, { id: photo.id, width, height }]
-          } else {
-            return col
-          }
-        } else {
-          return col
-        }
-      })
-    }, init_columns)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dim_latest, column_count, photos])
-
-  type PosMap = {
-    [K: number]: {
-      top: string
-      left: string
-      zIndex: number
-    }
-  }
-  const pos_map: PosMap = useMemo(() => {
-    console.log('photo_stream_columns', photo_stream_columns)
-
-    const init_pos: PosMap = {}
-    return photo_stream_columns.reduce((pos_info, column, x) => {
-      const left = `(${boxWidth} * ${x} + ${gutter} * ${x})`
-      return column.reduce((pos_info, heightInfo, y) => {
-        const h = computeColumnHeight(column.slice(0, y))
-        const top = `${h}px`
-        return {
-          ...pos_info,
-          [heightInfo.id]: { top, left, zIndex: h }
-        }
-      }, pos_info)
-    }, init_pos)
-  }, [boxWidth, gutter, photo_stream_columns])
-
-  const photo_stream_height = useMemo(() => {
-    const height_list = photo_stream_columns.map(col => {
-      return computeColumnHeight(col)
-    })
-    return Math.max(...height_list)
-  }, [photo_stream_columns])
+  const { refFn, photo_stream_height, pos_map } = useRefreshLayout({
+    photos, column_count, box_width, gutter
+  })
 
   return (
     <div
       className={`photo-stream ${screen}`}
       style={{
-        width: `calc(${photoStreamListWidth})`,
+        width: `calc(${photo_stream_width})`,
         height: `${photo_stream_height}px`,
         paddingRight: HorizontalOffset,
       }}
@@ -244,6 +120,7 @@ export default (props: Props) => {
                     top: pos_map[photo.id] && `calc(${pos_map[photo.id].top})`,
                     left: pos_map[photo.id] && `calc(${pos_map[photo.id].left})`,
                     zIndex: pos_map[photo.id] && `calc(${pos_map[photo.id].zIndex})`,
+                    opacity: pos_map[photo.id] ? 1 : 0,
                     // transition: pos_map[photo.id] && 'left 382ms, top 382ms'
                   }}
                   ref={(dim) => {
@@ -253,7 +130,7 @@ export default (props: Props) => {
                     id: photo.id,
                     screen,
                     gutter,
-                    boxWidth,
+                    boxWidth: box_width,
                     hideVoteButton,
                     hideMember: !photo.member,
                     voteIsHighlight: selectedIdList && (selectedIdList.indexOf(photo.id) !== -1),
@@ -286,4 +163,137 @@ export default (props: Props) => {
       }
     </div>
   )
+}
+
+function useRefreshLayout({
+  photos,
+  column_count,
+  box_width,
+  gutter,
+}: {
+  photos: Photo[]
+  column_count: number
+  box_width: string
+  gutter: string
+}) {
+  const [ refFn, dim_map_changed_signal, getDimMap ] = useDimensionMap()
+
+  const getPhotoStreamColumns = useCallback(() => {
+    const dim_map = getDimMap()
+
+    const init_columns: DimessionInfo[][] = Array.from(Array(column_count)).map(() => [])
+    return photos.reduce((columns, photo) => {
+      const height_list = columns.map(col => {
+        return computeColumnHeight(col)
+      })
+
+      const min_height_index = whichMinimum(height_list)
+
+      return columns.map((col, idx) => {
+        if (idx === min_height_index) {
+          const dim = dim_map[photo.id]
+          if (dim) {
+            const [ width, height ] = dim
+            return [...col, { id: photo.id, width, height }]
+          } else {
+            return col
+          }
+        } else {
+          return col
+        }
+      })
+    }, init_columns)
+  }, [column_count, getDimMap, photos])
+
+  const [pos_map, refreshPosMap] = useSafeState<PosMap>({})
+  const calcPosMap = useCallback(() => {
+    const init_pos: PosMap = {}
+    return getPhotoStreamColumns().reduce((pos_info, column, x) => {
+      const left = `(${box_width} * ${x} + ${gutter} * ${x})`
+      return column.reduce((pos_info, heightInfo, y) => {
+        const h = computeColumnHeight(column.slice(0, y))
+        const top = `${h}px`
+        return {
+          ...pos_info,
+          [heightInfo.id]: { top, left, zIndex: h }
+        }
+      }, pos_info)
+    }, init_pos)
+  }, [box_width, getPhotoStreamColumns, gutter])
+
+  const [ photo_stream_height, setPhotoStreamHeight ] = useSafeState(0)
+  const computePhotoStreamHeight = useCallback(() => {
+    const height_list = getPhotoStreamColumns().map(col => {
+      return computeColumnHeight(col)
+    })
+    return Math.max(...height_list)
+  }, [getPhotoStreamColumns])
+
+  const refreshLayout = useCallback(() => {
+    const dim_map = getDimMap()
+    refreshPosMap(calcPosMap())
+    setPhotoStreamHeight(computePhotoStreamHeight())
+  }, [calcPosMap, computePhotoStreamHeight, getDimMap, refreshPosMap, setPhotoStreamHeight])
+
+  useEffect(() => {
+    dim_map_changed_signal.receive(refreshLayout)
+    return () => dim_map_changed_signal.cancelReceive(refreshLayout)
+  }, [dim_map_changed_signal, refreshLayout])
+
+  useEffect(refreshLayout, [refreshLayout])
+
+  return {
+    refFn,
+    photo_stream_height, pos_map
+  } as const
+}
+
+function useDimensionMap() {
+  const dim_map_changed_signal = useMemo(() => Signal(), [])
+  const dim_map_ref = useRef(
+    Memo<Record<string, Dimension>>({})
+  )
+  const getDimMap = useCallback(() => {
+    const [ getDimMap ] = dim_map_ref.current
+    return getDimMap()
+  }, [])
+  const setDimMap = useCallback<MemoSetter<Record<string, Dimension>>>((...args) => {
+    const [ ,setDimMap ] = dim_map_ref.current
+    return setDimMap(...args)
+  }, [])
+
+  const refFn = useCallback((dim: DimensionUnknown, id: string, photo: { width: number, height: number }) => {
+    const dim_map = getDimMap()
+    if (dim !== null) {
+      const [ new_w, new_h ] = dim
+      if (dim_map[id]) {
+        const [ old_w, old_h ] = dim_map[id]
+        if ((old_w !== new_w) || (old_h !== new_h)) {
+          setDimMap({
+            ...dim_map,
+            [String(id)]: postDimesions(
+              dim[0], dim[1],
+              photo.width, photo.height
+            )
+          })
+          dim_map_changed_signal.trigger()
+        }
+      } else {
+        setDimMap({
+          ...dim_map,
+          [id]: postDimesions(
+            dim[0], dim[1],
+            photo.width, photo.height
+          )
+        })
+        dim_map_changed_signal.trigger()
+      }
+    } else {
+      const new_dim_map = { ...dim_map }
+      delete new_dim_map[String(id)]
+      setDimMap(new_dim_map)
+    }
+  }, [dim_map_changed_signal, getDimMap, setDimMap])
+
+  return [ refFn, dim_map_changed_signal, getDimMap ] as const
 }

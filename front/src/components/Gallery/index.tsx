@@ -7,6 +7,7 @@ import PhotoStream from 'components/PhotoStream'
 import { Gallery, Photo } from 'api/photo'
 import { CoverClickEvent, Props as PhotoBoxProps } from 'components/PhotoBox'
 import Submission from 'components/Submission'
+import useSafeState from 'hooks/useSafeState'
 
 export type PhotoStreamState = {
   screen: PhotoBoxProps['screen']
@@ -39,6 +40,11 @@ const getPhotoStreamState = (): PhotoStreamState => {
   }
 }
 
+function getViewportWidth() {
+  const { innerWidth } = window
+  return innerWidth
+}
+
 export type Props = {
   hideVoteButton: boolean
   gallery: Gallery
@@ -47,31 +53,57 @@ export type Props = {
   onClickCover: (clickInfo: CoverClickEvent, photo: Photo['id']) => void
 }
 export default (props: Props) => {
-  const [state, setState] = useState(getPhotoStreamState())
+  const [state, setState] = useSafeState(getPhotoStreamState())
+
+  console.log('gallery render')
 
   useEffect(() => {
-    let lastWidth: number
+    let latest_width: number | undefined
+    // setState(getPhotoStreamState())
+    updateState()
 
-    setState(getPhotoStreamState())
-
-    const resizeHandler = () => {
-      // const { lastWidth } = this
-      const { innerWidth } = window
-      if (lastWidth !== innerWidth) {
-        lastWidth = innerWidth
+    function updateState() {
+      const viewport_width = getViewportWidth()
+      if (latest_width !== viewport_width) {
+        latest_width = viewport_width
         setState(getPhotoStreamState())
       }
     }
-    window.addEventListener('resize', resizeHandler)
-
-    return () => window.removeEventListener('resize', resizeHandler)
-  }, [])
+    window.addEventListener('resize', updateState)
+    return () => window.removeEventListener('resize', updateState)
+  }, [setState])
 
   const { screen, column_count, gallery_width, column_gutter } = state
   const { hideVoteButton, gallery } = props
 
-  const [open, setOpen] = useState(false)
+  const title_node = useTitleNode(gallery)
 
+  return (
+    <div className="gallery">
+      { title_node }
+      {
+        useMemo(() => (
+          <PhotoStream
+            screen={screen}
+            column_count={column_count}
+            total_width={gallery_width}
+            gutter={column_gutter}
+            photos={gallery.photos}
+            selectedIdList={props.selectedIdList}
+            hideVoteButton={hideVoteButton}
+            onClickVote={(photoId) => {
+              if (props.onClickVote) props.onClickVote(photoId)
+            }}
+            onClickCover={props.onClickCover}
+          />
+        ), [column_count, column_gutter, gallery.photos, gallery_width, hideVoteButton, props, screen])
+      }
+    </div>
+  )
+}
+
+function useTitleNode(gallery: Gallery) {
+  const [open, setOpen] = useState(false)
   useEffect(() => {
     if (gallery.can_submission) {
       if (!open) {
@@ -91,25 +123,5 @@ export default (props: Props) => {
     </div>
   ), [gallery, open])
 
-  return (
-    <div className="gallery">
-      {title_node}
-
-      <PhotoStream
-        hideVoteButton={hideVoteButton}
-        screen={screen}
-        column_count={column_count}
-        total_width={gallery_width}
-        gallery={gallery}
-        photos={gallery.photos}
-        gutter={column_gutter}
-        selectedIdList={props.selectedIdList}
-
-        onClickVote={(photoId) => {
-          if (props.onClickVote) props.onClickVote(photoId)
-        }}
-        onClickCover={props.onClickCover}
-      />
-    </div>
-  )
+  return title_node
 }

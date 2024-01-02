@@ -63,8 +63,6 @@ export type PhotoGroupItem = {
   props: Props
 }
 export const PhotoBoxDimension = forwardRef< DimensionUnknown, Props>((props, ref) => {
-  const [measure_ref, dimensions] = useMeasure()
-
   const _setRef = useCallback((val: DimensionUnknown) => {
     if (typeof ref === 'function') {
       ref(val)
@@ -85,11 +83,11 @@ export const PhotoBoxDimension = forwardRef< DimensionUnknown, Props>((props, re
     }
   }, [_setRef])
 
-  useEffect(() => {
-    setRef({ width: dimensions.width, height: dimensions.height})
-  }, [dimensions.height, dimensions.width, setRef])
+  const [measure_ref] = useMeasure(({ width, height }) => {
+    setRef({ width, height })
+  })
 
-  return useMemo(() => <PhotoBox {...props} ref={measure_ref} />, [measure_ref, props])
+  return <PhotoBox {...props} ref={measure_ref} />
 })
 
 const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {

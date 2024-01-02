@@ -1,33 +1,29 @@
-import { CSSProperties, Fragment, FunctionComponent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { FunctionComponent, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Memo, MemoGetter, MemoSetter, Signal, nextTick } from 'new-vait'
 import { Gallery, Photo } from 'api/photo'
 
 import './index.scss'
-import PhotoBoxStyle from '../PhotoBox/index.scss'
 
 import { Props as PhotoBoxProps, CoverClickEvent, Dimension, DimensionUnknown, PhotoBoxDimension, PhotoGroupItem, postDimesions } from 'components/PhotoBox'
 
 import useSafeState from 'hooks/useSafeState'
 
-type PosMap = {
-  [K: number]: {
-    top: string
-    left: string
-    zIndex: number
-  }
+type Pos = {
+  top: string
+  left: string
+  zIndex: number
 }
 
-const Empty: FunctionComponent<{
-  horizontalOffset: CSSProperties['width']
-}> = ({ horizontalOffset }) => (
+type PosMap = Record<number, Pos>
+
+const Empty: FunctionComponent = memo(() => (
   <div style={{
     textAlign: 'center',
     width: '100%',
     color: 'rgba(0, 0, 0, 0.4)',
     padding: '30px 0',
-    paddingLeft: horizontalOffset,
   }}>暂无投稿作品</div>
-)
+))
 
 export type WaterfallLayoutConfigure = {
   box_type: PhotoBoxProps['type']
@@ -72,13 +68,28 @@ export default (props: Props) => {
     photos, box_width, layout_configure
   })
 
+  const posStyle = useCallback((id: Photo['id']) => {
+    const pos: Pos | undefined = pos_map[id]
+    if (pos) {
+      return {
+        top: `calc(${pos.top})`,
+        left: `calc(${pos.left})`,
+        zIndex: `calc(${pos.zIndex})`,
+        opacity: 1,
+        // transition: pos_map[photo.id] && 'left 382ms, top 382ms'
+      }
+    } else {
+      return { opacity: 0 }
+    }
+  }, [pos_map])
+
   return (
     <div className="waterfall-wrap" style={{
       width: `${gallery_width}px`,
       margin: 'auto',
     }}>
       {(photos.length === 0) ? (
-        <Empty horizontalOffset={0} />
+        <Empty />
       ) : (
         <div
           className="waterfall"
@@ -88,54 +99,38 @@ export default (props: Props) => {
           }}
         >
           {
-            <>
-              {photos.map(photo => {
-                return (
-                  <PhotoBoxDimension
-                    key={`${photo.id}`}
-                    style={{
-                      top: pos_map[photo.id] && `calc(${pos_map[photo.id].top})`,
-                      left: pos_map[photo.id] && `calc(${pos_map[photo.id].left})`,
-                      zIndex: pos_map[photo.id] && `calc(${pos_map[photo.id].zIndex})`,
-                      opacity: pos_map[photo.id] ? 1 : 0,
-                      // transition: pos_map[photo.id] && 'left 382ms, top 382ms'
-                    }}
-                    ref={(dim) => {
-                      refFn(dim, String(photo.id), { width: photo.width, height: photo.height, })
-                    }}
-                    {...{
-                      id: photo.id,
-                      type: box_type,
-                      vertial_gutter,
-                      box_width,
-                      hideVoteButton,
-                      hideMember: !photo.member,
-                      voteIsHighlight: selectedIdList && (selectedIdList.indexOf(photo.id) !== -1),
-                      name: photo.member ? photo.member.name : null,
-                      desc: photo.desc,
-                      photo: {
-                        width: photo.width,
-                        height: photo.height,
-                        src: photo.src_url,
-                        thumb: photo.thumb_url,
-                      },
-                      avatar: photo.member ? {
-                        width: 0,
-                        height: 0,
-                        thumb: photo.member.avatar_thumb_url,
-                        src: photo.member.avatar_thumb_url,
-                      } : null,
-                      handleClickVote: () => {
-                        props.onClickVote(photo.id)
-                      },
-                      onClickCover: (fromInfo) => {
-                        props.onClickCover(fromInfo, photo.id)
-                      },
-                    }}
-                  />
-                )
-              })}
-            </>
+            photos.map(photo => (
+              <PhotoBoxDimension
+                key={String(photo.id)}
+                style={posStyle(photo.id)}
+                ref={dim => refFn(dim, String(photo.id), photo)}
+                handleClickVote={() => props.onClickVote(photo.id)}
+                onClickCover={(click_info) => props.onClickCover(click_info, photo.id)}
+                {...{
+                  id: photo.id,
+                  type: box_type,
+                  vertial_gutter,
+                  box_width,
+                  hideVoteButton,
+                  hideMember: !photo.member,
+                  voteIsHighlight: selectedIdList && (selectedIdList.indexOf(photo.id) !== -1),
+                  name: photo.member ? photo.member.name : null,
+                  desc: photo.desc,
+                  photo: {
+                    width: photo.width,
+                    height: photo.height,
+                    src: photo.src_url,
+                    thumb: photo.thumb_url,
+                  },
+                  avatar: photo.member ? {
+                    width: 0,
+                    height: 0,
+                    thumb: photo.member.avatar_thumb_url,
+                    src: photo.member.avatar_thumb_url,
+                  } : null,
+                }}
+              />
+            ))
           }
         </div>
       )}

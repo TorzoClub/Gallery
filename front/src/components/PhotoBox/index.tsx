@@ -1,7 +1,7 @@
 import { forwardRef, useState, useEffect, useRef, CSSProperties, useCallback, FunctionComponent, useMemo } from 'react'
 import heartIMG from 'assets/heart.png'
 import heartHighlightIMG from 'assets/heart-highlight.png'
-import s from './index.scss'
+import './index.scss'
 
 import { global_cache, useQueueload } from 'utils/queue-load'
 import useMeasure from 'hooks/useMeasure'
@@ -40,7 +40,7 @@ export type Props = {
   id: string | number
 
   screen: 'normal' | 'mobile'
-  gutter: CSSProperties['width']
+  column_gutter: CSSProperties['width']
   boxWidth: string
 
   style?: Partial<CSSProperties>
@@ -91,7 +91,7 @@ export const PhotoBoxDimension = forwardRef< DimensionUnknown, Props>((props, re
 })
 
 const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
-  const { screen, gutter, boxWidth, photo, hideMember, avatar, desc, style } = props
+  const { screen, column_gutter, boxWidth, photo, hideMember, avatar, desc, style } = props
 
   const [thumb_loaded, thumb] = useQueueload(photo.thumb)
   const [avatar_loaded, avatarThumb] = useQueueload(avatar?.thumb)
@@ -104,9 +104,9 @@ const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
 
   let height: CSSProperties['height']
   if (isMobile) {
-    height = `calc((${boxWidth} - ${gutter} / 2) * ${ratio})`
+    height = `calc((${boxWidth} - ${column_gutter} / 2) * ${ratio})`
   } else {
-    height = `calc((${boxWidth} - ${s['avatar-size']} / 2) * ${ratio})`
+    height = `calc((${boxWidth}) * ${ratio})`
   }
 
   const coverFrameStyle = useMemo(() => ({

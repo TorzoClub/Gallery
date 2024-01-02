@@ -10,7 +10,7 @@ $avatar-size-mobile: 36px;
 
 .image-box-wrapper {
   width: calc(100% - #{$avatar-size} / 2);
-  padding-left: calc(#{$avatar-size} / 2);
+  // padding-left: calc(#{$avatar-size} / 2);
   box-sizing: border-box;
 
   position: absolute;

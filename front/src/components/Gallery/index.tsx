@@ -9,26 +9,48 @@ import { CoverClickEvent, Props as PhotoBoxProps } from 'components/PhotoBox'
 import Submission from 'components/Submission'
 import useSafeState from 'hooks/useSafeState'
 
-export type PhotoStreamState = {
+export type PhotoStreamLayout = {
   screen: PhotoBoxProps['screen']
   column_count: number
   gallery_width: string
   column_gutter: string
 }
-const getPhotoStreamState = (): PhotoStreamState => {
-  if (window.innerWidth > 1200) {
+const photoStreamLayout = (): PhotoStreamLayout => {
+  const viewport_width = getViewportWidth()
+  if (viewport_width > 2100) {
+    return {
+      screen: 'normal',
+      column_count: 6,
+      gallery_width: '1750px',
+      column_gutter: '54px'
+    }
+  } else if (viewport_width > 1450) {
     return {
       screen: 'normal',
       column_count: 4,
       gallery_width: '1200px',
-      column_gutter: '24px'
+      column_gutter: '54px'
     }
-  } else if (window.innerWidth > 640) {
+  } else if (viewport_width > 1150) {
+    return {
+      screen: 'normal',
+      column_count: 4,
+      gallery_width: '900px',
+      column_gutter: '54px'
+    }
+  } else if (viewport_width > 900) {
     return {
       screen: 'normal',
       column_count: 3,
-      gallery_width: '640px',
-      column_gutter: '16px'
+      gallery_width: '700px',
+      column_gutter: '54px'
+    }
+  } else if (viewport_width > 640) {
+    return {
+      screen: 'mobile',
+      column_count: 3,
+      gallery_width: '600px',
+      column_gutter: '12px'
     }
   } else {
     return {
@@ -53,7 +75,7 @@ export type Props = {
   onClickCover: (clickInfo: CoverClickEvent, photo: Photo['id']) => void
 }
 export default (props: Props) => {
-  const [state, setState] = useSafeState(getPhotoStreamState())
+  const [layout, refreshLayout] = useSafeState(photoStreamLayout())
 
   console.log('gallery render')
 
@@ -66,14 +88,14 @@ export default (props: Props) => {
       const viewport_width = getViewportWidth()
       if (latest_width !== viewport_width) {
         latest_width = viewport_width
-        setState(getPhotoStreamState())
+        refreshLayout(photoStreamLayout())
       }
     }
     window.addEventListener('resize', updateState)
     return () => window.removeEventListener('resize', updateState)
-  }, [setState])
+  }, [refreshLayout])
 
-  const { screen, column_count, gallery_width, column_gutter } = state
+  const { screen, column_count, gallery_width, column_gutter } = layout
   const { hideVoteButton, gallery } = props
 
   const title_node = useTitleNode(gallery)
@@ -84,10 +106,7 @@ export default (props: Props) => {
       {
         useMemo(() => (
           <PhotoStream
-            screen={screen}
-            column_count={column_count}
-            total_width={gallery_width}
-            gutter={column_gutter}
+            photoStreamLayout={layout}
             photos={gallery.photos}
             selectedIdList={props.selectedIdList}
             hideVoteButton={hideVoteButton}
@@ -96,7 +115,7 @@ export default (props: Props) => {
             }}
             onClickCover={props.onClickCover}
           />
-        ), [column_count, column_gutter, gallery.photos, gallery_width, hideVoteButton, props, screen])
+        ), [gallery.photos, hideVoteButton, props, layout])
       }
     </div>
   )

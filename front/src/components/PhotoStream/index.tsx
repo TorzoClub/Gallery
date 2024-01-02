@@ -5,7 +5,7 @@ import { Gallery, Photo } from 'api/photo'
 import './index.scss'
 import PhotoBoxStyle from '../PhotoBox/index.scss'
 
-import { PhotoStreamState } from 'components/Gallery'
+import { PhotoStreamLayout } from 'components/Gallery'
 import { CoverClickEvent, Dimension, DimensionUnknown, PhotoBoxDimension, PhotoGroupItem, postDimesions } from 'components/PhotoBox'
 
 import useSafeState from 'hooks/useSafeState'
@@ -48,10 +48,7 @@ const Empty: FunctionComponent<{
 
 export type Props = {
   hideVoteButton: boolean
-  screen: PhotoStreamState['screen']
-  gutter: PhotoStreamState['column_gutter']
-  column_count: PhotoStreamState['column_count']
-  total_width: PhotoStreamState['gallery_width']
+  photoStreamLayout: PhotoStreamLayout
 
   photos: Photo[]
   onClickVote(photo_id: Photo['id']): void
@@ -60,121 +57,141 @@ export type Props = {
   selectedIdList: number[]
 }
 
+function calcTotalWidth(
+  column_count: number,
+  column_gutter: number,
+  gallery_width: number,
+) {
+  const gutter_total_len = column_gutter * (column_count - 1)
+  const box_width = (gallery_width - gutter_total_len) / column_gutter
+  const total_width = box_width + gutter_total_len
+  return [ total_width, box_width, gutter_total_len ]
+}
+
 export default (props: Props) => {
   const {
     hideVoteButton,
-    screen,
-    column_count,
+    photoStreamLayout,
     photos,
-    total_width,
-    gutter = '0px',
     selectedIdList
   } = props
+  const {
+    screen,
+    column_count,
+    column_gutter = '0px',
+    gallery_width: total_width,
+  } = photoStreamLayout
   const isMobile = screen === 'mobile'
 
   let photo_stream_width: CSSProperties['width']
   if (isMobile) {
-    photo_stream_width = `${total_width} - (${gutter} * 2)`
+    if (column_count > 2) {
+      photo_stream_width = `${total_width} + ${column_gutter} * ${column_count - 1}`
+    } else {
+      photo_stream_width = `${total_width} - (${column_gutter} * 2)`
+    }
   } else {
-    photo_stream_width = `${total_width} + ${gutter} * ${column_count - 1}`
+    photo_stream_width = `${total_width} + ${column_gutter} * ${column_count - 1}`
   }
 
   let box_width: string
   if (isMobile) {
-    box_width = `(((${photo_stream_width}) / ${column_count}) - (${gutter} / ${column_count}))`
+    if (column_count > 2) {
+      box_width = `(${total_width} / ${column_count})`
+    } else {
+      box_width = `(((${photo_stream_width}) / ${column_count}) - (${column_gutter} / ${column_count}))`
+    }
   } else {
     box_width = `(${total_width} / ${column_count})`
   }
 
-  const HorizontalOffset: CSSProperties['width'] = useMemo(() => {
-    if (screen === 'normal') {
-      return `calc(${PhotoBoxStyle['avatar-size']} / 2)`
-    } else {
-      return '0px'
-    }
-  }, [screen])
-
   const { refFn, photo_stream_height, pos_map } = useRefreshLayout({
-    photos, column_count, box_width, gutter
+    photos, box_width, photoStreamLayout
   })
 
   return (
-    <div
-      className={`photo-stream ${screen}`}
-      style={{
-        width: `calc(${photo_stream_width})`,
-        height: `${photo_stream_height}px`,
-        paddingRight: HorizontalOffset,
-      }}
-    >
-      {
-        (photos.length === 0) ? (
-          <Empty horizontalOffset={HorizontalOffset} />
-        ) : (
-          <>
-            {photos.map(photo => {
-              return (
-                <PhotoBoxDimension
-                  key={`${photo.id}`}
-                  style={{
-                    top: pos_map[photo.id] && `calc(${pos_map[photo.id].top})`,
-                    left: pos_map[photo.id] && `calc(${pos_map[photo.id].left})`,
-                    zIndex: pos_map[photo.id] && `calc(${pos_map[photo.id].zIndex})`,
-                    opacity: pos_map[photo.id] ? 1 : 0,
-                    // transition: pos_map[photo.id] && 'left 382ms, top 382ms'
-                  }}
-                  ref={(dim) => {
-                    refFn(dim, String(photo.id), { width: photo.width, height: photo.height, })
-                  }}
-                  {...{
-                    id: photo.id,
-                    screen,
-                    gutter,
-                    boxWidth: box_width,
-                    hideVoteButton,
-                    hideMember: !photo.member,
-                    voteIsHighlight: selectedIdList && (selectedIdList.indexOf(photo.id) !== -1),
-                    name: photo.member ? photo.member.name : null,
-                    desc: photo.desc,
-                    photo: {
-                      width: photo.width,
-                      height: photo.height,
-                      src: photo.src_url,
-                      thumb: photo.thumb_url,
-                    },
-                    avatar: photo.member ? {
-                      width: 0,
-                      height: 0,
-                      thumb: photo.member.avatar_thumb_url,
-                      src: photo.member.avatar_thumb_url,
-                    } : null,
-                    handleClickVote: () => {
-                      props.onClickVote(photo.id)
-                    },
-                    onClickCover: (fromInfo) => {
-                      props.onClickCover(fromInfo, photo.id)
-                    },
-                  }}
-                />
-              )
-            })}
-          </>
-        )
-      }
+    <div className="photo-stream-wrap" style={{
+      width: `calc(${photo_stream_width})`,
+      margin: 'auto',
+    }}>
+      {(photos.length === 0) ? (
+        <Empty horizontalOffset={0} />
+      ) : (
+        <div
+          className={`photo-stream ${screen}`}
+          style={{
+            width: '100%',
+            height: `${photo_stream_height}px`
+          }}
+        >
+          {
+            <>
+              {photos.map(photo => {
+                return (
+                  <PhotoBoxDimension
+                    key={`${photo.id}`}
+                    style={{
+                      top: pos_map[photo.id] && `calc(${pos_map[photo.id].top})`,
+                      left: pos_map[photo.id] && `calc(${pos_map[photo.id].left})`,
+                      zIndex: pos_map[photo.id] && `calc(${pos_map[photo.id].zIndex})`,
+                      opacity: pos_map[photo.id] ? 1 : 0,
+                      // transition: pos_map[photo.id] && 'left 382ms, top 382ms'
+                    }}
+                    ref={(dim) => {
+                      refFn(dim, String(photo.id), { width: photo.width, height: photo.height, })
+                    }}
+                    {...{
+                      id: photo.id,
+                      // photoStreamLayout,
+                      screen,
+                      column_gutter,
+                      boxWidth: box_width,
+                      hideVoteButton,
+                      hideMember: !photo.member,
+                      voteIsHighlight: selectedIdList && (selectedIdList.indexOf(photo.id) !== -1),
+                      name: photo.member ? photo.member.name : null,
+                      desc: photo.desc,
+                      photo: {
+                        width: photo.width,
+                        height: photo.height,
+                        src: photo.src_url,
+                        thumb: photo.thumb_url,
+                      },
+                      avatar: photo.member ? {
+                        width: 0,
+                        height: 0,
+                        thumb: photo.member.avatar_thumb_url,
+                        src: photo.member.avatar_thumb_url,
+                      } : null,
+                      handleClickVote: () => {
+                        props.onClickVote(photo.id)
+                      },
+                      onClickCover: (fromInfo) => {
+                        props.onClickCover(fromInfo, photo.id)
+                      },
+                    }}
+                  />
+                )
+              })}
+            </>
+          }
+        </div>
+      )}
     </div>
   )
 }
 
 function useRefreshLayout({
   photos,
-  column_count,
   box_width,
-  gutter,
+  photoStreamLayout: {
+    column_count,
+    column_gutter,
+  }
 }: {
-  photos: Photo[]
-  column_count: number
+  photoStreamLayout: PhotoStreamLayout
   box_width: string
-  gutter: string
+  photos: Photo[]
 }) {
   const [ refFn, dim_map_changed_signal, getDimMap ] = useDimensionMap()
 
@@ -209,7 +226,7 @@ function useRefreshLayout({
   const calcPosMap = useCallback(() => {
     const init_pos: PosMap = {}
     return getPhotoStreamColumns().reduce((pos_info, column, x) => {
-      const left = `(${box_width} * ${x} + ${gutter} * ${x})`
+      const left = `(${box_width} * ${x} + ${column_gutter} * ${x})`
       return column.reduce((pos_info, heightInfo, y) => {
         const h = computeColumnHeight(column.slice(0, y))
         const top = `${h}px`
@@ -219,7 +236,7 @@ function useRefreshLayout({
         }
       }, pos_info)
     }, init_pos)
-  }, [box_width, getPhotoStreamColumns, gutter])
+  }, [box_width, getPhotoStreamColumns, column_gutter])
 
   const [ photo_stream_height, setPhotoStreamHeight ] = useSafeState(0)
   const computePhotoStreamHeight = useCallback(() => {

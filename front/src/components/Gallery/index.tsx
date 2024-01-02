@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import './index.scss'
 
 import Title from 'components/Title'
-import PhotoStream, { PhotoStreamLayout } from 'components/PhotoStream'
+import Waterfall, { WaterfallLayoutConfigure } from 'components/Waterfall'
 import { Gallery, Photo } from 'api/photo'
 import { CoverClickEvent, Props as PhotoBoxProps } from 'components/PhotoBox'
 import Submission from 'components/Submission'
@@ -17,7 +17,7 @@ function getViewportWidth() {
 const normalLayout = ({
   column_count,
   gallery_width,
-}: Pick<PhotoStreamLayout, 'column_count' | 'gallery_width'>): PhotoStreamLayout => {
+}: Pick<WaterfallLayoutConfigure, 'column_count' | 'gallery_width'>): WaterfallLayoutConfigure => {
   const column_gutter = 54
   const vertial_gutter = column_gutter / 2
   return {
@@ -34,10 +34,10 @@ const compactLayout = (g: Gallery, {
   column_gutter,
   vote_event_vertial_gutter,
   gallery_width = getViewportWidth() - (column_gutter * column_count)
-}: Pick<PhotoStreamLayout, 'column_count' | 'column_gutter'> & {
+}: Pick<WaterfallLayoutConfigure, 'column_count' | 'column_gutter'> & {
   vote_event_vertial_gutter: number
   gallery_width?: number
-}): PhotoStreamLayout => {
+}): WaterfallLayoutConfigure => {
   const is_vote_date = g.in_event && !g.can_submission
   const vertial_gutter = is_vote_date ? vote_event_vertial_gutter : column_gutter
 
@@ -50,7 +50,7 @@ const compactLayout = (g: Gallery, {
   }
 }
 
-const photoStreamLayout = (gallery: Gallery): PhotoStreamLayout => {
+const getLayoutConfigure = (gallery: Gallery): WaterfallLayoutConfigure => {
   const viewport_width = getViewportWidth()
   if (viewport_width > 2100) {
     return compactLayout(gallery, {
@@ -99,13 +99,13 @@ export type Props = {
 export default ({
   hideVoteButton, gallery, selectedIdList, onClickVote, onClickCover,
 }: Props) => {
-  const layout = usePhotoStreamLayout(gallery)
+  const layout = useWaterfallLayout(gallery)
 
   const title_node = useTitleNode(gallery)
 
   const waterfall_layout_node = useMemo(() => (
-    <PhotoStream
-      photoStreamLayout={layout}
+    <Waterfall
+      layout_configure={layout}
       photos={gallery.photos}
       selectedIdList={selectedIdList}
       hideVoteButton={hideVoteButton}
@@ -124,8 +124,8 @@ export default ({
   )
 }
 
-function usePhotoStreamLayout(gallery: Gallery) {
-  const [layout, refreshLayout] = useSafeState(photoStreamLayout(gallery))
+function useWaterfallLayout(gallery: Gallery) {
+  const [layout, refreshLayout] = useSafeState(getLayoutConfigure(gallery))
 
   useEffect(() => {
     let latest_width: number | undefined
@@ -135,7 +135,7 @@ function usePhotoStreamLayout(gallery: Gallery) {
       const viewport_width = getViewportWidth()
       if (latest_width !== viewport_width) {
         latest_width = viewport_width
-        refreshLayout(photoStreamLayout(gallery))
+        refreshLayout(getLayoutConfigure(gallery))
       }
     }
     window.addEventListener('resize', updateState)

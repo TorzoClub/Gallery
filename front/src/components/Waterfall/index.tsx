@@ -29,7 +29,7 @@ const Empty: FunctionComponent<{
   }}>暂无投稿作品</div>
 )
 
-export type PhotoStreamLayout = {
+export type WaterfallLayoutConfigure = {
   box_type: PhotoBoxProps['type']
   vertial_gutter: PhotoBoxProps['vertial_gutter']
   column_count: number
@@ -39,7 +39,7 @@ export type PhotoStreamLayout = {
 
 export type Props = {
   hideVoteButton: boolean
-  photoStreamLayout: PhotoStreamLayout
+  layout_configure: WaterfallLayoutConfigure
 
   photos: Photo[]
   onClickVote(photo_id: Photo['id']): void
@@ -52,7 +52,7 @@ function calcTotalBoxWidth({
   column_count,
   column_gutter,
   gallery_width,
-}: PhotoStreamLayout) {
+}: WaterfallLayoutConfigure) {
   const gutter_total_len = column_gutter * (column_count - 1)
   const box_width = (gallery_width - gutter_total_len) / column_count
   return [ box_width, gutter_total_len ] as const
@@ -61,19 +61,19 @@ function calcTotalBoxWidth({
 export default (props: Props) => {
   const {
     hideVoteButton,
-    photoStreamLayout,
+    layout_configure,
     photos,
     selectedIdList
   } = props
-  const { box_type, vertial_gutter, gallery_width } = photoStreamLayout
-  const [ box_width ] = calcTotalBoxWidth(photoStreamLayout)
+  const { box_type, vertial_gutter, gallery_width } = layout_configure
+  const [ box_width ] = calcTotalBoxWidth(layout_configure)
 
-  const { refFn, photo_stream_height, pos_map } = useLayout({
-    photos, box_width, photoStreamLayout
+  const { refFn, waterfall_height, pos_map } = useLayout({
+    photos, box_width, layout_configure
   })
 
   return (
-    <div className="photo-stream-wrap" style={{
+    <div className="waterfall-wrap" style={{
       width: `${gallery_width}px`,
       margin: 'auto',
     }}>
@@ -81,10 +81,10 @@ export default (props: Props) => {
         <Empty horizontalOffset={0} />
       ) : (
         <div
-          className="photo-stream"
+          className="waterfall"
           style={{
             width: '100%',
-            height: `${photo_stream_height}px`
+            height: `${waterfall_height}px`
           }}
         >
           {
@@ -162,18 +162,18 @@ type DimessionInfo = {
 function useLayout({
   photos,
   box_width,
-  photoStreamLayout: {
+  layout_configure: {
     column_count,
     column_gutter,
   }
 }: {
-  photoStreamLayout: PhotoStreamLayout
+  layout_configure: WaterfallLayoutConfigure
   box_width: number
   photos: Photo[]
 }) {
   const [ refFn, dim_map_changed_signal, getDimMap ] = useDimensionMap()
 
-  const getPhotoStreamColumns = useCallback(() => {
+  const getWaterfallColumns = useCallback(() => {
     const dim_map = getDimMap()
 
     const init_columns: DimessionInfo[][] = Array.from(Array(column_count)).map(() => [])
@@ -203,7 +203,7 @@ function useLayout({
   const [pos_map, refreshPosMap] = useSafeState<PosMap>({})
   const calcPosMap = useCallback(() => {
     const init_pos: PosMap = {}
-    return getPhotoStreamColumns().reduce((pos_info, column, x) => {
+    return getWaterfallColumns().reduce((pos_info, column, x) => {
       const left = `(${box_width}px * ${x} + ${column_gutter}px * ${x})`
       return column.reduce((pos_info, heightInfo, y) => {
         const h = computeColumnHeight(column.slice(0, y))
@@ -214,21 +214,21 @@ function useLayout({
         }
       }, pos_info)
     }, init_pos)
-  }, [box_width, getPhotoStreamColumns, column_gutter])
+  }, [box_width, getWaterfallColumns, column_gutter])
 
-  const [ photo_stream_height, setPhotoStreamHeight ] = useSafeState(0)
-  const computePhotoStreamHeight = useCallback(() => {
-    const height_list = getPhotoStreamColumns().map(col => {
+  const [ waterfall_height, refreshWaterfallHeight ] = useSafeState(0)
+  const computeWaterfallHeight = useCallback(() => {
+    const height_list = getWaterfallColumns().map(col => {
       return computeColumnHeight(col)
     })
     return Math.max(...height_list)
-  }, [getPhotoStreamColumns])
+  }, [getWaterfallColumns])
 
   const refreshLayout = useCallback(() => {
     const dim_map = getDimMap()
     refreshPosMap(calcPosMap())
-    setPhotoStreamHeight(computePhotoStreamHeight())
-  }, [calcPosMap, computePhotoStreamHeight, getDimMap, refreshPosMap, setPhotoStreamHeight])
+    refreshWaterfallHeight(computeWaterfallHeight())
+  }, [calcPosMap, computeWaterfallHeight, getDimMap, refreshPosMap, refreshWaterfallHeight])
 
   useEffect(() => {
     dim_map_changed_signal.receive(refreshLayout)
@@ -239,7 +239,7 @@ function useLayout({
 
   return {
     refFn,
-    photo_stream_height, pos_map
+    waterfall_height, pos_map
   } as const
 }
 

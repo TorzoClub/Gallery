@@ -61,9 +61,16 @@ export type PhotoGroupItem = {
   props: Props
 }
 export const usePhotoBoxGroup = (props_list: Props[]): PhotoGroupItem[] => {
-  const [dim_map, refreshDimMap] = useState<Record<string, Dimension>>({})
+  const dim_map_ref = useRef<Record<string, Dimension>>({})
+  const [dim_latest, refreshDim] = useState(0)
+  // const [dim_map, refreshDimMap] = useState<Record<string, Dimension>>({})
+
+  useEffect(() => {
+    console.log('dim_latest', dim_latest)
+  }, [dim_latest])
 
   const dim_list = props_list.map(props => {
+    const dim_map = dim_map_ref.current
     const dim = dim_map[String(props.id)]
     if (dim === undefined) {
       return [props.photo.width, props.photo.height] as const
@@ -73,38 +80,72 @@ export const usePhotoBoxGroup = (props_list: Props[]): PhotoGroupItem[] => {
   })
 
   const refFn = useCallback((dim: DimensionUnknown, props: Props) => {
+    const dim_map = dim_map_ref.current
     console.log('refFn', dim)
     if (dim !== null) {
       const [ new_w, new_h ] = dim
       if (dim_map[String(props.id)]) {
         const [ old_w, old_h ] = dim_map[String(props.id)]
         if ((old_w !== new_w) || (old_h !== new_h)) {
-          // console.log('dim ref change', old_w, old_h, ...dim)
-          refreshDimMap(old => ({
-            ...old,
+          Object.assign(dim_map, {
+            ...dim_map,
             [String(props.id)]: postDimesions(
               dim[0], dim[1],
               props.photo.width, props.photo.height
             )
-          }))
+          })
+          // refreshDim(Object.keys(dim_map).reduce((val, key) => {
+          //   const new_val = dim_map[key]
+          //   if (new_val) {
+          //     const [ width, height ] = new_val
+          //     return val + (width + height)
+          //   } else {
+          //     return val
+          //   }
+          // }, 0))
+          // dim_map({})
+          // console.log('dim ref change', old_w, old_h, ...dim)
+          // refreshDimMap(old => ({
+          //   ...old,
+          //   [String(props.id)]: postDimesions(
+          //     dim[0], dim[1],
+          //     props.photo.width, props.photo.height
+          //   )
+          // }))
         }
       } else {
-        refreshDimMap(old => ({
-          ...old,
+        Object.assign(dim_map, {
+          ...dim_map,
           [String(props.id)]: postDimesions(
             dim[0], dim[1],
             props.photo.width, props.photo.height
           )
-        }))
+        })
+        // refreshDim(Object.keys(dim_map).reduce((val, key) => {
+        //   const new_val = dim_map[key]
+        //   if (new_val) {
+        //     const [ width, height ] = new_val
+        //     return val + (width + height)
+        //   } else {
+        //     return val
+        //   }
+        // }, 0))
+        // refreshDimMap(old => ({
+        //   ...old,
+        //   [String(props.id)]: postDimesions(
+        //     dim[0], dim[1],
+        //     props.photo.width, props.photo.height
+        //   )
+        // }))
       }
     } else {
-      refreshDimMap(old => {
-        const new_dim_map = { ...old }
-        delete new_dim_map[String(props.id)]
-        return new_dim_map
-      })
+      // refreshDimMap(old => {
+      //   const new_dim_map = { ...old }
+      //   delete new_dim_map[String(props.id)]
+      //   return new_dim_map
+      // })
     }
-  }, [dim_map])
+  }, [])
 
   // useEffect(() => {
   //   console.log('dim_map', {...dim_map})

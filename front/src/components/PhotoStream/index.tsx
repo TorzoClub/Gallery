@@ -186,8 +186,8 @@ export default (props: Props) => {
               >
                 {
                   column.items.map(({ pb_node, props }) => {
-                    return <PhotoBox key={`${props.id}`} {...props} />
-                    // return <Fragment key={`${props.id}`}>{pb_node}</Fragment>
+                    // return <PhotoBox key={`${props.id}`} {...props} />
+                    return <Fragment key={`${props.id}`}>{pb_node}</Fragment>
                   })
                 }
               </div>

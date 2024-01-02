@@ -29,12 +29,12 @@ export default function useMeasure() {
         if (entry && entry.borderBoxSize) {
           const [{ inlineSize: width, blockSize: height }] = entry.borderBoxSize
           if ((dimensions.width !== width) || (dimensions.height !== height)) {
-              if (animation_frame_handler.current !== null) {
-                cancelAnimationFrame(animation_frame_handler.current)
-              }
-              animation_frame_handler.current = requestAnimationFrame(() => {
+              // if (animation_frame_handler.current !== null) {
+                // cancelAnimationFrame(animation_frame_handler.current)
+              // }
+              // animation_frame_handler.current = requestAnimationFrame(() => {
                 setDimensions(() => ({ width, height }))
-              })
+              // })
             }
           }
       })

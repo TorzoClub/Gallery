@@ -65,7 +65,7 @@
               size="small"
               type="danger"
               icon="el-icon-tickets"
-              @click="setRetryVote(scope.$index)"
+              @click="setRetryVote(scope.row)"
             >设置重投</ElButton>
           </ElButtonGroup>
         </ElTableColumn>
@@ -75,7 +75,7 @@
 </template>
 
 <script>
-  import { setRetryVote } from '@/api/member'
+  import { setRetryVote as requestSetRetryVote } from '@/api/member'
   import { getList as getPhotoList } from '@/api/photo'
   import { getMemberVoteList } from '@/api/gallery'
   import ImageBox from '@/components/Image'
@@ -152,30 +152,25 @@
           .catch(() => false)
       },
 
-      async setRetryVote(idx) {
-        const member = this.list[idx]
-
+      async setRetryVote(member) {
         const confirm = await this.confirm('', `你确定要让【${member.name}】重投吗？`, {
           confirmButtonClass: 'el-button--warning',
         })
-
-        if (!confirm) {
-          return
-        }
-
-        try {
-          this.loading = true
-          await setRetryVote({
-            id: member.id,
-            gallery_id: this.gallery_id
-          })
-          this.$message.success(`操作成功，【${member.name}】已经可以重新投票`)
-          this.refresh()
-        } catch (err) {
-          console.error('设置失败', err)
-          this.$message.error(`设置失败: ${err.message}`)
-        } finally {
-          this.loading = false
+        if (confirm) {
+          try {
+            this.loading = true
+            await requestSetRetryVote({
+              id: member.id,
+              gallery_id: this.gallery_id
+            })
+            this.$message.success(`操作成功，【${member.name}】已经可以重新投票`)
+            this.refresh()
+          } catch (err) {
+            console.error('设置失败', err)
+            this.$message.error(`设置失败: ${err.message}`)
+          } finally {
+            this.loading = false
+          }
         }
       }
     }

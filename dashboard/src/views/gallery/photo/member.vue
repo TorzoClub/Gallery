@@ -7,11 +7,11 @@
     <ElHeader height="32px">
       <ElButton size="small" type="primary" icon="el-icon-refresh" @click="refresh">刷新</ElButton>
 
-      <ElButton size="small" icon="el-icon-tickets">总人数: {{ totalPeopleCount }}</ElButton>
+      <ElButton size="small" type="text" icon="el-icon-tickets">总人数: {{ totalPeopleCount }}</ElButton>
 
-      <ElButton size="small" icon="el-icon-check">已投 {{ votedPeopleCount }}</ElButton>
+      <ElButton size="small" type="text" icon="el-icon-check">已投 {{ votedPeopleCount }}</ElButton>
 
-      <ElButton size="small" icon="el-icon-close">未投 {{ totalPeopleCount - votedPeopleCount }}</ElButton>
+      <ElButton size="small" type="text" icon="el-icon-close">未投 {{ totalPeopleCount - votedPeopleCount }}</ElButton>
     </ElHeader>
 
     <ElMain>
@@ -31,7 +31,7 @@
             {text: '未投', value: false }
           ]"
           :filter-multiple="false"
-          :filter-method="filterHandler"
+          :filter-method="voteStatusFilter"
           filter-placement="bottom-end"
           sortable
         >
@@ -44,7 +44,7 @@
                 <template v-if="getPhotoById(vote.photo_id)">
                   <ImageBox
                     :key="vote.id"
-                    :src="getPhotoById(vote.photo_id).thumb"
+                    :src="getPhotoById(vote.photo_id)['thumb_url']"
                     style="margin: 0 4px; width: 64px; height: 64px;"
                     @click="$router.push({
                       name: 'GalleryPhotoDetail',
@@ -114,8 +114,9 @@
     },
 
     methods: {
-      filterHandler(filterValue, row, column) {
-        return filterValue === Boolean(row.votes && row.votes.length)
+      voteStatusFilter(filter_value, row, column) {
+        const member_is_voted = Boolean(row.votes && row.votes.length)
+        return filter_value === member_is_voted
       },
 
       getPhotoById(photo_id) {

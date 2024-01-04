@@ -25,7 +25,7 @@
         <ElFormItem
           label="相片预览"
           prop="src"
-          :rules="[{ required: true, message: '请设置成员头像' }]"
+          :rules="[{ required: true, message: '请设置相片' }]"
         >
           <UploadImageBox
             ref="UploadImageBox"

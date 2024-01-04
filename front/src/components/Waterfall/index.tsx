@@ -1,10 +1,10 @@
-import { FunctionComponent, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { FunctionComponent, memo, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Memo, MemoGetter, MemoSetter, Signal, nextTick } from 'new-vait'
-import { Gallery, Photo } from 'api/photo'
+import { Photo } from 'api/photo'
 
 import './index.scss'
 
-import { Props as PhotoBoxProps, CoverClickEvent, Dimension, DimensionUnknown, PhotoBoxDimension, PhotoGroupItem, postDimesions } from 'components/PhotoBox'
+import { Props as PhotoBoxProps, CoverClickEvent, Dimension, DimensionUnknown, PhotoBoxDimension, postDimesions } from 'components/PhotoBox'
 
 import useSafeState from 'hooks/useSafeState'
 
@@ -19,9 +19,9 @@ type PosMap = Record<number, Pos>
 const Empty: FunctionComponent = memo(() => (
   <div style={{
     textAlign: 'center',
+    paddingTop: '30px',
     width: '100%',
     color: 'rgba(0, 0, 0, 0.4)',
-    padding: '30px 0',
   }}>暂无投稿作品</div>
 ))
 
@@ -87,6 +87,7 @@ export default (props: Props) => {
     <div className="waterfall-wrap" style={{
       width: `${gallery_width}px`,
       margin: 'auto',
+      minHeight: '150px',
     }}>
       {(photos.length === 0) ? (
         <Empty />

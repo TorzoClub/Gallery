@@ -40,6 +40,7 @@
     ">0.2%",
     "not dead",
     "not ie <= 11",
+    "chrome >= 60",
     "not op_mini all"
   ],
   "devDependencies": {

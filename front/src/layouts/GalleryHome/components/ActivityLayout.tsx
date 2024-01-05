@@ -12,7 +12,7 @@ import { findListByProperty, removeListItemByIdx } from 'utils/common'
 type ActivityLayoutProps = {
   active: GalleryInActive
   show_submit_vote_button: boolean
-  hide_vote_button: boolean
+  show_vote_button: boolean
   submiting: boolean
   showArrow: boolean,
   confirmState: ConfirmQQState
@@ -29,7 +29,7 @@ type ActivityLayoutProps = {
 
 export default function ActivityLayout({
   active,
-  hide_vote_button,
+  show_vote_button,
   submiting,
   showArrow,
   confirmState,
@@ -87,7 +87,7 @@ export default function ActivityLayout({
       <Gallery
         gallery={active}
         cannot_select_vote={cannot_select_vote}
-        hideVoteButton={hide_vote_button}
+        show_vote_button={show_vote_button}
         selectedIdList={selected_id_list}
         onClickVote={handleClickVote}
         onClickCover={remain_props.onClickCover}

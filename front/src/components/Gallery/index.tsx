@@ -133,7 +133,7 @@ const getLayoutConfigure = (gallery: Gallery): WaterfallLayoutConfigure => {
 
 export type Props = {
   cannot_select_vote?: boolean
-  hideVoteButton: boolean
+  show_vote_button: boolean
   gallery: Gallery
   selectedIdList: number[]
   onClickVote?: (photo_id: Photo['id']) => void
@@ -141,7 +141,7 @@ export type Props = {
 }
 export default ({
   cannot_select_vote = false,
-  hideVoteButton, gallery, selectedIdList, onClickVote, onClickCover,
+  show_vote_button, gallery, selectedIdList, onClickVote, onClickCover,
 }: Props) => {
   const layout = useWaterfallLayout(gallery)
 
@@ -153,13 +153,13 @@ export default ({
       cannot_select_vote={cannot_select_vote}
       photos={gallery.photos}
       selectedIdList={selectedIdList}
-      hideVoteButton={hideVoteButton}
+      show_vote_button={show_vote_button}
       onClickCover={onClickCover}
       onClickVote={(photoId) => {
         onClickVote && onClickVote(photoId)
       }}
     />
-  ), [cannot_select_vote, gallery.photos, hideVoteButton, layout, onClickCover, onClickVote, selectedIdList])
+  ), [cannot_select_vote, gallery.photos, show_vote_button, layout, onClickCover, onClickVote, selectedIdList])
 
   return (
     <div className="gallery">

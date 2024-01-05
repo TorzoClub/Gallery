@@ -36,7 +36,7 @@ export type WaterfallLayoutConfigure = {
 export type WaterfallLayoutClickCoverHandler = (clickInfo: CoverClickEvent, photo: Photo['id']) => void
 
 export type Props = {
-  hideVoteButton: boolean
+  show_vote_button: boolean
   layout_configure: WaterfallLayoutConfigure
   cannot_select_vote: boolean
 
@@ -59,7 +59,7 @@ function calcTotalBoxWidth({
 
 export default (props: Props) => {
   const {
-    hideVoteButton,
+    show_vote_button,
     layout_configure,
     photos,
     selectedIdList
@@ -115,7 +115,7 @@ export default (props: Props) => {
                   type: box_type,
                   vertial_gutter,
                   box_width,
-                  hideVoteButton,
+                  show_vote_button: show_vote_button,
                   hideMember: !photo.member,
                   vote_button_status: (
                     (selectedIdList && (selectedIdList.indexOf(photo.id) !== -1)) ?

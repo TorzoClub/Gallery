@@ -45,7 +45,7 @@ export type Props = {
   style?: Partial<CSSProperties>
 
   hideMember: boolean
-  hideVoteButton: boolean
+  show_vote_button: boolean
 
   vote_button_status: BackBottomProps['vote_button_status']
   handleClickVote: BackBottomProps['handleClickVote']
@@ -176,7 +176,7 @@ const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
           }
 
           {
-            props.hideVoteButton || <BackBottom vote_button_status={vote_button_status} handleClickVote={props.handleClickVote} />
+            props.show_vote_button && <BackBottom vote_button_status={vote_button_status} handleClickVote={props.handleClickVote} />
           }
         </div>
       </div>

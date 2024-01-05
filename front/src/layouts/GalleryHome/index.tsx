@@ -90,7 +90,7 @@ export default () => {
   const [showArrow, setShowArrow] = useState(false)
 
   const [show_submit_vote_button, showSubmitVoteButton] = useState(false)
-  const [hide_vote_button, setHideVoteButton] = useState(true)
+  const [show_vote_button, showVoteButton] = useState(false)
 
   const [selected_id_list, setSelectedIdList] = useState<number[]>([])
 
@@ -251,7 +251,7 @@ export default () => {
   const handleClickAnyWhere = useCallback(() => {
     setShowConfirmVoteLayout(false)
     timeout(1000).then(() => {
-      setHideVoteButton(false)
+      showVoteButton(true)
       showSubmitVoteButton(true)
       setShowArrow(true)
     })
@@ -332,7 +332,7 @@ export default () => {
                 <ActivityLayout {...{
                   show_submit_vote_button,
                   active,
-                  hide_vote_button,
+                  show_vote_button,
                   submiting,
                   showArrow,
                   confirmState,
@@ -352,7 +352,7 @@ export default () => {
                   return (
                     <div className="gallery-wrapper" key={gallery.id} style={{ display: active ? 'none' : '' }}>
                       <Gallery
-                        hideVoteButton={hide_vote_button}
+                        show_vote_button={show_vote_button}
                         gallery={gallery}
                         selectedIdList={[]}
                         onClickCover={HandleClickCover(gallery)}

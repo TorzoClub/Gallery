@@ -33,6 +33,8 @@ export type WaterfallLayoutConfigure = {
   column_gutter: number
 }
 
+export type WaterfallLayoutClickCoverHandler = (clickInfo: CoverClickEvent, photo: Photo['id']) => void
+
 export type Props = {
   hideVoteButton: boolean
   layout_configure: WaterfallLayoutConfigure
@@ -40,7 +42,7 @@ export type Props = {
 
   photos: Photo[]
   onClickVote(photo_id: Photo['id']): void
-  onClickCover(clickInfo: CoverClickEvent, photo: Photo['id']): void
+  onClickCover: WaterfallLayoutClickCoverHandler
 
   selectedIdList: number[]
 }

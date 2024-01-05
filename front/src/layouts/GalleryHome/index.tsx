@@ -5,7 +5,7 @@ import { getGlobalQueue, globalQueueLoad, setGlobalQueue } from 'utils/queue-loa
 import { findListByProperty, removeListItemByIdx, sortByIdList, updateListItemById } from 'utils/common'
 import { AppCriticalError } from 'App'
 
-import { GalleryInActive, Photo, fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
+import { GalleryCommon, GalleryInActive, Photo, fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
 
 import LoadingLayout from './components/LoadingLayout'
 import ActivityLayout from './components/ActivityLayout'
@@ -17,6 +17,7 @@ import Gallery from 'components/Gallery'
 import PhotoDetail, { Detail } from 'components/Detail'
 import ConfirmVote from 'components/ConfirmVote'
 import shuffleArray from 'utils/shuffle-array'
+import { WaterfallLayoutClickCoverHandler } from 'components/Waterfall'
 
 type MediaID = string | number
 type MediaType = 'AVATAR' | 'PHOTO'
@@ -300,6 +301,25 @@ export default () => {
     return <EmptyGalleryLayout />
   }
 
+  const HandleClickCover = (gallerycommon: GalleryCommon & {
+    photos: Array<{ id: number; src_url: string; width: number; height: number }>
+  }) => {
+    const handler: WaterfallLayoutClickCoverHandler = ({ from, thumbBlobUrl }, photo_id) => {
+      const idx = findListByProperty(gallerycommon.photos, 'id', photo_id)
+      if (idx !== -1) {
+        const photo = gallerycommon.photos[idx]
+        setImageDetail({
+          from: from,
+          thumb: thumbBlobUrl,
+          src: photo.src_url,
+          height: photo.height,
+          width: photo.width
+        })
+      }
+    }
+    return handler
+  }
+
   return (
     <>
       <div className={'gallery-home'} style={{ minHeight: '100vh' }}>
@@ -323,19 +343,7 @@ export default () => {
 
                   toDetail: (detail: Detail) => setImageDetail(detail),
                   onClickSubmit: () => handleClickSubmit(),
-                  onClickCover: ({ from, thumbBlobUrl }, photoId) => {
-                    const idx = active.photos.map(p => p.id).indexOf(photoId)
-                    if (idx === -1) return
-                    const photo = active.photos[idx]
-
-                    setImageDetail({
-                      from: from,
-                      thumb: thumbBlobUrl,
-                      src: photo.src_url,
-                      height: photo.height,
-                      width: photo.width
-                    })
-                  }
+                  onClickCover: HandleClickCover(active),
                 }} />
               )}
 
@@ -347,19 +355,7 @@ export default () => {
                         hideVoteButton={hide_vote_button}
                         gallery={gallery}
                         selectedIdList={[]}
-                        onClickCover={({ from, thumbBlobUrl }, photoId) => {
-                          const idx = gallery.photos.map(p => p.id).indexOf(photoId)
-                          if (idx === -1) return
-                          const photo = gallery.photos[idx]
-
-                          setImageDetail({
-                            from: from,
-                            thumb: thumbBlobUrl,
-                            src: photo.src_url,
-                            height: photo.height,
-                            width: photo.width
-                          })
-                        }}
+                        onClickCover={HandleClickCover(gallery)}
                       />
                     </div>
                   )

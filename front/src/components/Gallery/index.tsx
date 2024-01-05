@@ -50,34 +50,76 @@ const compactLayout = (g: Gallery, {
   }
 }
 
+function computeColumnCountByBoxWidth(
+  gallery_width: number,
+  box_width: number,
+  column_gutter: number,
+  count = 0
+) {
+  const column_gutter_total = (count - 1) * column_gutter
+  if (gallery_width < (box_width + column_gutter_total)) {
+    return count
+  } else {
+    return computeColumnCountByBoxWidth(
+      gallery_width - box_width,
+      box_width,
+      column_gutter,
+      count + 1
+    )
+  }
+}
+
+function computeGalleryWidthWithAutoColumnCount(
+  max_gallery_width: number,
+  column_gutter: number,
+  box_width: number,
+) {
+  const column_count = computeColumnCountByBoxWidth(
+    max_gallery_width,
+    box_width,
+    column_gutter,
+  )
+  return {
+    gallery_width: (box_width * column_count) + ((column_count - 1) * column_gutter),
+    column_count
+  } as const
+}
+
 const getLayoutConfigure = (gallery: Gallery): WaterfallLayoutConfigure => {
   const viewport_width = getViewportWidth()
   if (viewport_width > 2100) {
+    const box_width = 232
+    const column_gutter = 27
+    const padding_horizontal = 54
     return compactLayout(gallery, {
-      column_count: 8,
-      column_gutter: 27,
-      vote_event_vertial_gutter: 27
+      column_gutter,
+      vote_event_vertial_gutter: 27,
+      ...computeGalleryWidthWithAutoColumnCount(
+        viewport_width - (2 * padding_horizontal),
+        column_gutter,
+        box_width,
+      )
     })
   } else if (viewport_width > 1450) {
     return normalLayout({
-      column_count: 4,
       gallery_width: 1200,
+      column_count: 4,
     })
   } else if (viewport_width > 1150) {
     return normalLayout({
-      column_count: 4,
       gallery_width: 900,
+      column_count: 4,
     })
   } else if (viewport_width > 900) {
     return normalLayout({
-      column_count: 3,
       gallery_width: 750,
+      column_count: 3,
     })
   } else if (viewport_width > 640) {
     return compactLayout(gallery, {
+      gallery_width: 640 - 8 * 2,
       column_count: 3,
       column_gutter: 8,
-      gallery_width: 640 - 8 * 2,
       vote_event_vertial_gutter: 27
     })
   } else {

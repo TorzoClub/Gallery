@@ -102,11 +102,14 @@ function usePhotoLoadingPriority(
 }
 
 function useVoteReady(active: GalleryInActive | null) {
-  const [ show_vote_button, showVoteButton ] = useState(false)
   const [ vote_ready, showSubmitButtonArea ] = useState(false)
+  const in_vote_period = useMemo(() => {
+    if (active) {
+      return Boolean(active.in_event && !active.can_submission)
+    } else { return false }
+  }, [active])
   const show_submit_button_area = useMemo(() => {
     if (active) {
-      const in_vote_period = Boolean(active.in_event && !active.can_submission)
       const active_vote_submitted = Boolean(active.vote_submitted)
       return vote_ready && (
         in_vote_period && !active_vote_submitted
@@ -114,13 +117,12 @@ function useVoteReady(active: GalleryInActive | null) {
     } else {
       return false
     }
-  }, [active, vote_ready])
+  }, [active, in_vote_period, vote_ready])
 
   return  {
+    in_vote_period,
     show_submit_button_area,
     showSubmitButtonArea,
-    show_vote_button,
-    showVoteButton,
   } as const
 }
 
@@ -136,8 +138,7 @@ export default () => {
   const [active, setActive] = useState<null | fetchListResult['active']>(null)
   const [list, setList] = useState<fetchListResult['galleries']>([])
 
-  const { show_vote_button, showVoteButton,
-    show_submit_button_area, showSubmitButtonArea } = useVoteReady(active)
+  const { in_vote_period, show_submit_button_area, showSubmitButtonArea } = useVoteReady(active)
 
   const [submitted_pool, setSubmittedPool] = useState<Record<string, number | undefined>>({})
 
@@ -246,11 +247,19 @@ export default () => {
       let unmounted = false
       timeout(618).then(() => {
         if (unmounted) { return }
+        showSubmitButtonArea(true)
         setShowConfirmVoteLayout(true)
       })
       return () => { unmounted = true }
     }
-  }, [event_loaded])
+  }, [event_loaded, showSubmitButtonArea])
+
+  const handleClickAnyWhere = useCallback(() => {
+    setShowConfirmVoteLayout(false)
+    timeout(1000).then(() => {
+      setShowArrow(true)
+    })
+  }, [])
 
   const handleClickSubmit = async () => {
     if (!active) return
@@ -289,15 +298,6 @@ export default () => {
       setSubmiting(false)
     }
   }
-
-  const handleClickAnyWhere = useCallback(() => {
-    setShowConfirmVoteLayout(false)
-    timeout(1000).then(() => {
-      showVoteButton(true)
-      showSubmitButtonArea(true)
-      setShowArrow(true)
-    })
-  }, [showSubmitButtonArea, showVoteButton])
 
   useSubmissionEvent({
     created(created_photo) {
@@ -374,7 +374,7 @@ export default () => {
                 <ActivityLayout {...{
                   show_submit_button_area,
                   active,
-                  show_vote_button,
+                  show_vote_button: in_vote_period,
                   submiting,
                   showArrow,
                   confirmState,
@@ -393,7 +393,7 @@ export default () => {
                   return (
                     <div className="gallery-wrapper" key={gallery.id} style={{ display: active ? 'none' : '' }}>
                       <Gallery
-                        show_vote_button={show_vote_button}
+                        show_vote_button={false}
                         gallery={gallery}
                         selected_id_list={[]}
                         onClickCover={HandleClickCover(gallery)}
@@ -405,7 +405,6 @@ export default () => {
 
               <PhotoDetail
                 detail={imageDetail}
-                // imageUrl={detailImageUrl}
                 onCancel={() => {
                   setImageDetail(null)
                 }}

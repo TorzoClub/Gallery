@@ -258,18 +258,8 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
       }
     }
 
-    @keyframes back-bottom-show {
-      0% {
-        height: 0;
-      }
-      100% {
-        height: $back-bottom-height;
-      }
-    }
-
     .back-bottom-wrapper {
       height: $back-bottom-height;
-      animation: back-bottom-show 382ms;
       animation-timing-function: cubic-bezier(0.88, 0.4, 0.3, 1.01);
     }
 

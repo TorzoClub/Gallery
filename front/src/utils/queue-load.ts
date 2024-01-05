@@ -5,6 +5,8 @@ import { findListByProperty, removeListItemByIdx } from './common'
 import download from './download'
 import useSafeState from 'hooks/useSafeState'
 
+export const __MAX_PARALLEL_NUMBER__ = 3
+
 type Load = {
   blob: Blob;
   blobUrl: string;
@@ -73,8 +75,6 @@ export function useQueueload(loadsrc: string | undefined, need_base64_url: boole
   return [loaded, back_src] as const
 }
 
-export const MAX_PARALLEL_NUMBER = 3
-
 type Src = string
 type LoadTask = {
   src: Src
@@ -107,7 +107,7 @@ export function QueueLoad() {
       return
     } else if (
       isLoading() &&
-      ( getConcurrentTasks().length >= MAX_PARALLEL_NUMBER )
+      ( getConcurrentTasks().length >= __MAX_PARALLEL_NUMBER__ )
     ) {
       return
     } else {

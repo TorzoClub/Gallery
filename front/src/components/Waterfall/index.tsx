@@ -44,7 +44,7 @@ export type Props = {
   onClickVote(photo_id: Photo['id']): void
   onClickCover: WaterfallLayoutClickCoverHandler
 
-  selectedIdList: number[]
+  selected_id_list: number[]
 }
 
 function calcTotalBoxWidth({
@@ -62,7 +62,7 @@ export default (props: Props) => {
     show_vote_button,
     layout_configure,
     photos,
-    selectedIdList
+    selected_id_list
   } = props
   const { box_type, vertial_gutter, gallery_width } = layout_configure
   const [ box_width ] = calcTotalBoxWidth(layout_configure)
@@ -118,7 +118,7 @@ export default (props: Props) => {
                   show_vote_button: show_vote_button,
                   hideMember: !photo.member,
                   vote_button_status: (
-                    (selectedIdList && (selectedIdList.indexOf(photo.id) !== -1)) ?
+                    (selected_id_list && (selected_id_list.indexOf(photo.id) !== -1)) ?
                     'selected' :
                     (props.cannot_select_vote ? 'cannot-select' : 'un-selected')
                   ),

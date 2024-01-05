@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import './index.scss'
 
 import Title from 'components/Title'
-import Waterfall, { WaterfallLayoutConfigure } from 'components/Waterfall'
+import Waterfall, { WaterfallLayoutConfigure, Props as WaterfallLayoutProps } from 'components/Waterfall'
 import { Gallery, Photo } from 'api/photo'
 import { CoverClickEvent, Props as PhotoBoxProps } from 'components/PhotoBox'
 import Submission from 'components/Submission'
@@ -135,13 +135,13 @@ export type Props = {
   cannot_select_vote?: boolean
   show_vote_button: boolean
   gallery: Gallery
-  selectedIdList: number[]
+  selected_id_list: WaterfallLayoutProps['selected_id_list']
   onClickVote?: (photo_id: Photo['id']) => void
   onClickCover: (clickInfo: CoverClickEvent, photo_id: Photo['id']) => void
 }
 export default ({
   cannot_select_vote = false,
-  show_vote_button, gallery, selectedIdList, onClickVote, onClickCover,
+  show_vote_button, gallery, selected_id_list, onClickVote, onClickCover,
 }: Props) => {
   const layout = useWaterfallLayout(gallery)
 
@@ -152,14 +152,14 @@ export default ({
       layout_configure={layout}
       cannot_select_vote={cannot_select_vote}
       photos={gallery.photos}
-      selectedIdList={selectedIdList}
+      selected_id_list={selected_id_list}
       show_vote_button={show_vote_button}
       onClickCover={onClickCover}
       onClickVote={(photoId) => {
         onClickVote && onClickVote(photoId)
       }}
     />
-  ), [cannot_select_vote, gallery.photos, show_vote_button, layout, onClickCover, onClickVote, selectedIdList])
+  ), [cannot_select_vote, gallery.photos, show_vote_button, layout, onClickCover, onClickVote, selected_id_list])
 
   return (
     <div className="gallery">

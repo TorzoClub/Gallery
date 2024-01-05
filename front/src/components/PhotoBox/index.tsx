@@ -87,7 +87,6 @@ export const PhotoBoxDimension = forwardRef< DimensionUnknown, Props>((props, re
 
 const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
   const { type, vertial_gutter, box_width, photo, hideMember, avatar, desc, style, vote_button_status } = props
-  const vote_button_is_highlight = vote_button_status === 'selected'
 
   const [thumb_loaded, thumb] = useQueueload(photo.thumb)
   const [avatar_loaded, avatarThumb] = useQueueload(avatar?.thumb)

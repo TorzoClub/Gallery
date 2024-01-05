@@ -1,35 +1,31 @@
 import React, { useMemo, useState } from 'react'
 import { GalleryInActive, Photo } from 'api/photo'
 import { ConfirmQQState } from 'components/ConfirmQQ'
-import { Detail } from 'components/Detail'
 
 import Gallery, { Props as GalleryProps } from 'components/Gallery'
 import Loading from 'components/Loading'
 import GuideLayout from 'components/GuideLayout'
 import SkeuomorphismButton from 'components/SkeuomorphismButton'
-import { findListByProperty, removeListItemByIdx } from 'utils/common'
+import { removeListItemByIdx } from 'utils/common'
 
 type ActivityLayoutProps = {
+  show_submit_button_area: boolean
   active: GalleryInActive
-  show_submit_vote_button: boolean
-  show_vote_button: boolean
   submiting: boolean
   showArrow: boolean,
   confirmState: ConfirmQQState
-
   submitted_pool: Record<string, number | undefined>
-  selected_id_list: number[]
   setSelectedIdList: (idList: number[]) => void
 
+  selected_id_list: GalleryProps['selected_id_list']
+  show_vote_button: GalleryProps['show_vote_button']
   onClickCover: GalleryProps['onClickCover']
 
-  toDetail: (d: Detail) => void
   onClickSubmit: () => void
 }
 
 export default function ActivityLayout({
   active,
-  show_vote_button,
   submiting,
   showArrow,
   confirmState,
@@ -37,28 +33,24 @@ export default function ActivityLayout({
   submitted_pool,
   selected_id_list,
   setSelectedIdList,
-
-  toDetail,
+  show_submit_button_area,
   onClickSubmit,
+
   ...remain_props
 }: ActivityLayoutProps) {
   const [arrow_tick_tock, setArrowTickTock] = useState(0)
 
-  const in_vote_period = active.in_event && !active.can_submission
-
-  const show_submit_button = remain_props.show_submit_vote_button && (in_vote_period && !active.vote_submitted)
-
-  const vote_is_submitted = Boolean(submitted_pool[active.id])
+  const submit_request_was_sent = Boolean(submitted_pool[active.id])
 
   const cannot_select_vote = useMemo(() => {
     const is_unlimited = active.vote_limit === 0
     const over_limit = !is_unlimited && (selected_id_list.length >= active.vote_limit)
 
-    return Boolean(over_limit || active.vote_submitted || vote_is_submitted)
-  }, [active.vote_limit, active.vote_submitted, selected_id_list.length, vote_is_submitted])
+    return Boolean(over_limit || active.vote_submitted || submit_request_was_sent)
+  }, [active.vote_limit, active.vote_submitted, selected_id_list.length, submit_request_was_sent])
 
   const handleClickVote = (photo_id: Photo['id']) => {
-    if (cannot_select_vote || !in_vote_period) {
+    if (cannot_select_vote || !show_submit_button_area) {
       return
     } else {
       const idx = selected_id_list.indexOf(photo_id)
@@ -85,19 +77,18 @@ export default function ActivityLayout({
   return (
     <div className="gallery-wrapper">
       <Gallery
+        {...remain_props}
         gallery={active}
         cannot_select_vote={cannot_select_vote}
-        show_vote_button={show_vote_button}
-        selectedIdList={selected_id_list}
+        selected_id_list={selected_id_list}
         onClickVote={handleClickVote}
-        onClickCover={remain_props.onClickCover}
       />
-      {show_submit_button && (
+      {show_submit_button_area && (
         <div className="submit-button-area">
           {(() => {
             if (submiting) {
               return <Loading />
-            } else if (vote_is_submitted) {
+            } else if (submit_request_was_sent) {
               return <div className="submitted">感谢你的投票</div>
             } else {
               return (

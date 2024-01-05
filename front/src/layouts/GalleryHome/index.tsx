@@ -9,7 +9,7 @@ import { GalleryCommon, GalleryInActive, Photo, fetchList, fetchListResult, fetc
 
 import LoadingLayout from './components/LoadingLayout'
 import ActivityLayout from './components/ActivityLayout'
-import EmptyGalleryLayout from './components/EmptyGalleryLayout'
+import AllEmptyLayout from './components/AllEmptyLayout'
 import useConfirmQQ from './useConfirmQQ'
 import { useSubmissionEvent } from 'components/Submission'
 
@@ -34,54 +34,80 @@ function usePhotoLoadingPriority(photo_list: Photo[]) {
     else return `avatar-${mid}`
   }
 
+  const resort = useCallback(function _resortHandler() {
+    const in_screen_photos = photo_list.map(photo => {
+      const photo_el = document.getElementById(id('PHOTO', photo.id))
+      if (!photo_el) { return }
+      const bounding = photo_el.getBoundingClientRect()
+      if (
+        (bounding.y > (0 - bounding.height)) &&
+        (bounding.y < window.innerHeight)
+      ) {
+        return { photo, bounding }
+      } else {
+        return
+      }
+    }).filter(p => p) as { photo: Photo, bounding: DOMRect }[]
+
+    const sorted = in_screen_photos.sort((a, b) => {
+      return a.bounding.y > b.bounding.y ? 1 : -1
+    })
+
+    const all_tasks = getGlobalQueue()
+    setGlobalQueue(
+      all_tasks.map((t, idx) => {
+        return { ...t, priority: all_tasks.length - idx }
+      })
+    )
+
+    sorted.forEach(({ photo }, idx) => {
+      const src = id_src_map.get(photo.id)
+      if (!src) return
+      globalQueueLoad(src, 10000 - idx)
+      if (photo.member) {
+        globalQueueLoad(photo.member.avatar_thumb_url, 5000 - idx)
+      }
+    })
+  }, [id_src_map, photo_list])
+
   useEffect(() => {
-    function _resortHandler() {
-      const in_screen_photos = photo_list.map(photo => {
-        const photo_el = document.getElementById(id('PHOTO', photo.id))
-        if (!photo_el) { return }
-        const bounding = photo_el.getBoundingClientRect()
-        if (
-          (bounding.y > (0 - bounding.height)) &&
-          (bounding.y < window.innerHeight)
-        ) {
-          return { photo, bounding }
-        } else {
-          return
-        }
-      }).filter(p => p) as { photo: Photo, bounding: DOMRect }[]
-
-      const sorted = in_screen_photos.sort((a, b) => {
-        return a.bounding.y > b.bounding.y ? 1 : -1
-      })
-
-      const all_tasks = getGlobalQueue()
-      setGlobalQueue(
-        all_tasks.map((t, idx) => {
-          return { ...t, priority: all_tasks.length - idx }
-        })
-      )
-
-      sorted.forEach(({ photo }, idx) => {
-        const src = id_src_map.get(photo.id)
-        if (!src) return
-        globalQueueLoad(src, 10000 - idx)
-        if (photo.member) {
-          globalQueueLoad(photo.member.avatar_thumb_url, 5000 - idx)
-        }
-      })
-    }
     const resortHandler = () => {
-      nextTick().then(_resortHandler)
+      nextTick().then(resort)
     }
     window.addEventListener('resize', resortHandler)
     window.addEventListener('scroll', resortHandler)
-    _resortHandler()
+    resort()
 
     return () => {
       window.removeEventListener('resize', resortHandler)
       window.removeEventListener('scroll', resortHandler)
     }
-  }, [id_src_map, photo_list])
+  }, [resort])
+
+  return resort
+}
+
+function useVoteReady(active: GalleryInActive | null) {
+  const [ show_vote_button, showVoteButton ] = useState(false)
+  const [ vote_ready, showSubmitButtonArea ] = useState(false)
+  const show_submit_button_area = useMemo(() => {
+    if (active) {
+      const in_vote_period = Boolean(active.in_event && !active.can_submission)
+      const active_vote_submitted = Boolean(active.vote_submitted)
+      return vote_ready && (
+        in_vote_period && !active_vote_submitted
+      )
+    } else {
+      return false
+    }
+  }, [active, vote_ready])
+
+  return  {
+    show_submit_button_area,
+    showSubmitButtonArea,
+    show_vote_button,
+    showVoteButton,
+  } as const
 }
 
 export default () => {
@@ -89,15 +115,15 @@ export default () => {
 
   const [showArrow, setShowArrow] = useState(false)
 
-  const [show_submit_vote_button, showSubmitVoteButton] = useState(false)
-  const [show_vote_button, showVoteButton] = useState(false)
-
   const [selected_id_list, setSelectedIdList] = useState<number[]>([])
 
   const [submiting, setSubmiting] = useState(false)
 
   const [active, setActive] = useState<null | fetchListResult['active']>(null)
   const [list, setList] = useState<fetchListResult['galleries']>([])
+
+  const { show_vote_button, showVoteButton,
+    show_submit_button_area, showSubmitButtonArea } = useVoteReady(active)
 
   const [submitted_pool, setSubmittedPool] = useState<Record<string, number | undefined>>({})
 
@@ -252,10 +278,10 @@ export default () => {
     setShowConfirmVoteLayout(false)
     timeout(1000).then(() => {
       showVoteButton(true)
-      showSubmitVoteButton(true)
+      showSubmitButtonArea(true)
       setShowArrow(true)
     })
-  }, [])
+  }, [showSubmitButtonArea, showVoteButton])
 
   useSubmissionEvent({
     created(created_photo) {
@@ -297,10 +323,6 @@ export default () => {
     />
   ), [handleClickAnyWhere, showConfirmVoteLayout])
 
-  if (loaded && !active && (list.length === 0)) {
-    return <EmptyGalleryLayout />
-  }
-
   const HandleClickCover = (gallerycommon: GalleryCommon & {
     photos: Array<{ id: number; src_url: string; width: number; height: number }>
   }) => {
@@ -320,6 +342,10 @@ export default () => {
     return handler
   }
 
+  if (loaded && !active && (list.length === 0)) {
+    return <AllEmptyLayout />
+  }
+
   return (
     <>
       <div className={'gallery-home'} style={{ minHeight: '100vh' }}>
@@ -330,7 +356,7 @@ export default () => {
             <div className="body">
               {active && (
                 <ActivityLayout {...{
-                  show_submit_vote_button,
+                  show_submit_button_area,
                   active,
                   show_vote_button,
                   submiting,
@@ -341,7 +367,6 @@ export default () => {
                   selected_id_list,
                   setSelectedIdList,
 
-                  toDetail: (detail: Detail) => setImageDetail(detail),
                   onClickSubmit: () => handleClickSubmit(),
                   onClickCover: HandleClickCover(active),
                 }} />
@@ -354,7 +379,7 @@ export default () => {
                       <Gallery
                         show_vote_button={show_vote_button}
                         gallery={gallery}
-                        selectedIdList={[]}
+                        selected_id_list={[]}
                         onClickCover={HandleClickCover(gallery)}
                       />
                     </div>

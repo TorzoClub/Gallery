@@ -236,6 +236,8 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
         text-wrap: wrap;
         text-align: justify;
 
+        font-family: var(--app-default-font);
+
         &::before, &::after {
           display: inline-block;
           font-size: 1.5em;
@@ -282,11 +284,14 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
       .block-wrapper {
         touch-action: none;
         // height: 0;
+        position: relative;
+        width: calc(100% - 24px);
+        margin: auto;
       }
 
       .block {
-        width: calc(100% - #{$back-bottom-height});
-        margin: auto;
+        position: absolute;
+        width: 100%;
 
         line-height: $back-bottom-height;
         height: $back-bottom-height;
@@ -296,50 +301,10 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
 
         text-align: center;
         background-color: #FAFAFA;
+        cursor: pointer;
+        user-select: none;
 
         color: #887777;
-
-        @keyframes highlight {
-          0% {
-            transform: perspective(100px) rotate3d(1, 0, 0, 0deg);
-          }
-          50% {
-            transform: perspective(100px) rotate3d(1, 0, 0, -5deg);
-          }
-          100% {
-            transform: perspective(100px) rotate3d(1, 0, 0, 0deg);
-          }
-        }
-
-        &.highlight {
-          transform-origin: top center;
-          perspective-origin: top center;
-          animation: highlight 382ms;
-          animation-timing-function: cubic-bezier(0, 0, 0, 1.7);
-
-          // background-color: #e7595c;
-          // background-color: #e01d1c;
-          // background-color: #ca1d1c;
-          // transition: background-color 382ms;
-          background-color: #ba1616;
-
-          box-shadow:
-            // inset 0px 4px 4px -4px grey,
-            0 -1px 1px -2px #{$box-shadow-color},
-            0 0px 1px -1px #{$box-shadow-color},
-            0 1px 1px -1px #{$box-shadow-color},
-            0 2px 2px -2px #{$box-shadow-color},
-            0 1px 1px -2px #{$box-shadow-color},
-
-            // 0 2px 12px rgba(244, 67, 54, 0.8),
-            0 2px 12px rgba(186, 22, 22, 0.8),
-
-            // inset 0 -2px 2px -2px #{$box-shadow-color},
-            // inset -1px 0 0 #{rgba(0, 0, 0, 0.15)},
-            // inset 1px 0 0 #{rgba(0, 0, 0, 0.15)},
-            // inset 0 -1px 0 #{rgba(0, 0, 0, 0.15)}
-          ;
-        }
 
         box-shadow:
           // inset 0px 4px 4px -4px grey,
@@ -367,6 +332,69 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
           background-repeat: no-repeat;
           // border-radius: $back-bottom-height;
           // border: solid 1px grey;
+        }
+
+        @mixin button-highlight {
+          background-color: #ba1616;
+
+          box-shadow:
+            // inset 0px 4px 4px -4px grey,
+            0 -1px 1px -2px #{$box-shadow-color},
+            0 0px 1px -1px #{$box-shadow-color},
+            0 1px 1px -1px #{$box-shadow-color},
+            0 2px 2px -2px #{$box-shadow-color},
+            0 1px 1px -2px #{$box-shadow-color},
+
+            // 0 2px 12px rgba(244, 67, 54, 0.8),
+            0 2px 12px rgba(186, 22, 22, 0.8),
+
+            // inset 0 -2px 2px -2px #{$box-shadow-color},
+            // inset -1px 0 0 #{rgba(0, 0, 0, 0.15)},
+            // inset 1px 0 0 #{rgba(0, 0, 0, 0.15)},
+            // inset 0 -1px 0 #{rgba(0, 0, 0, 0.15)}
+          ;
+        }
+
+        @keyframes press {
+          0% {
+            transform: perspective(100px) rotate3d(1, 0, 0, 0deg);
+          }
+          50% {
+            transform: perspective(100px) rotate3d(1, 0, 0, -5deg);
+          }
+          100% {
+            transform: perspective(100px) rotate3d(1, 0, 0, 0deg);
+          }
+        }
+
+        @keyframes pressfailure {
+          0% { opacity: 1 }
+          50% { opacity: 1 }
+          75% { opacity: 1 }
+          80% { opacity: 0 }
+          85% { opacity: 1 }
+          90% { opacity: 0 }
+          95% { opacity: 1 }
+          100% { opacity: 0 }
+        }
+
+        &.cannot-select {
+          animation: pressfailure 1500ms, press 382ms;
+          animation-play-state: running;
+          @include button-highlight;
+        }
+
+        &.highlight {
+          transform-origin: top center;
+          perspective-origin: top center;
+          animation: press 382ms;
+          animation-timing-function: cubic-bezier(0, 0, 0, 1.7);
+
+          // background-color: #e7595c;
+          // background-color: #e01d1c;
+          // background-color: #ca1d1c;
+          // transition: background-color 382ms;
+          @include button-highlight;
         }
       }
     }

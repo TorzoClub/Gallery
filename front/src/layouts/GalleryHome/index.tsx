@@ -5,7 +5,7 @@ import { getGlobalQueue, globalQueueLoad, setGlobalQueue } from 'utils/queue-loa
 import { findListByProperty, removeListItemByIdx, sortByIdList, updateListItemById } from 'utils/common'
 import { AppCriticalError } from 'App'
 
-import { Photo, fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
+import { GalleryInActive, Photo, fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
 
 import LoadingLayout from './components/LoadingLayout'
 import ActivityLayout from './components/ActivityLayout'
@@ -88,16 +88,17 @@ export default () => {
 
   const [showArrow, setShowArrow] = useState(false)
 
-  const [hideVoteButton, setHideVoteButton] = useState(true)
+  const [show_submit_vote_button, showSubmitVoteButton] = useState(false)
+  const [hide_vote_button, setHideVoteButton] = useState(true)
 
-  const [selectedIdList, setSelectedIdList] = useState<number[]>([])
+  const [selected_id_list, setSelectedIdList] = useState<number[]>([])
 
   const [submiting, setSubmiting] = useState(false)
 
   const [active, setActive] = useState<null | fetchListResult['active']>(null)
   const [list, setList] = useState<fetchListResult['galleries']>([])
 
-  const [submittedPool, setSubmittedPool] = useState({})
+  const [submitted_pool, setSubmittedPool] = useState<Record<string, number | undefined>>({})
 
   const suffled_idx_list = useMemo(() => {
     return (active === null) ? [] : active.photos.map(p => p.id)
@@ -224,12 +225,12 @@ export default () => {
       } else {
         await vote({
           gallery_id: active.id,
-          photo_id_list: selectedIdList,
+          photo_id_list: selected_id_list,
           qq_num: Number(currentQQNum)
         })
 
         setSubmittedPool({
-          submittedPool,
+          ...submitted_pool,
           [active.id]: true
         })
       }
@@ -248,8 +249,9 @@ export default () => {
 
   const handleClickAnyWhere = useCallback(() => {
     setShowConfirmVoteLayout(false)
-    timeout(618).then(() => {
+    timeout(1000).then(() => {
       setHideVoteButton(false)
+      showSubmitVoteButton(true)
       setShowArrow(true)
     })
   }, [])
@@ -308,18 +310,32 @@ export default () => {
             <div className="body">
               {active && (
                 <ActivityLayout {...{
+                  show_submit_vote_button,
                   active,
-                  hideVoteButton,
+                  hide_vote_button,
                   submiting,
                   showArrow,
                   confirmState,
 
-                  submittedPool,
-                  selectedIdList,
+                  submitted_pool,
+                  selected_id_list,
                   setSelectedIdList,
 
                   toDetail: (detail: Detail) => setImageDetail(detail),
                   onClickSubmit: () => handleClickSubmit(),
+                  onClickCover: ({ from, thumbBlobUrl }, photoId) => {
+                    const idx = active.photos.map(p => p.id).indexOf(photoId)
+                    if (idx === -1) return
+                    const photo = active.photos[idx]
+
+                    setImageDetail({
+                      from: from,
+                      thumb: thumbBlobUrl,
+                      src: photo.src_url,
+                      height: photo.height,
+                      width: photo.width
+                    })
+                  }
                 }} />
               )}
 
@@ -328,7 +344,7 @@ export default () => {
                   return (
                     <div className="gallery-wrapper" key={gallery.id} style={{ display: active ? 'none' : '' }}>
                       <Gallery
-                        hideVoteButton={hideVoteButton}
+                        hideVoteButton={hide_vote_button}
                         gallery={gallery}
                         selectedIdList={[]}
                         onClickCover={({ from, thumbBlobUrl }, photoId) => {

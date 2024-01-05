@@ -3,22 +3,25 @@ import { GalleryInActive, Photo } from 'api/photo'
 import { ConfirmQQState } from 'components/ConfirmQQ'
 import { Detail } from 'components/Detail'
 
-import { Gallery as GalleryType } from 'api/photo'
-import Gallery from 'components/Gallery'
+import Gallery, { Props as GalleryProps } from 'components/Gallery'
 import Loading from 'components/Loading'
 import GuideLayout from 'components/GuideLayout'
 import SkeuomorphismButton from 'components/SkeuomorphismButton'
+import { findListByProperty, removeListItemByIdx } from 'utils/common'
 
 type ActivityLayoutProps = {
   active: GalleryInActive
-  hideVoteButton: boolean
+  show_submit_vote_button: boolean
+  hide_vote_button: boolean
   submiting: boolean
   showArrow: boolean,
   confirmState: ConfirmQQState
 
-  submittedPool: Record<string, number | undefined>
-  selectedIdList: number[]
+  submitted_pool: Record<string, number | undefined>
+  selected_id_list: number[]
   setSelectedIdList: (idList: number[]) => void
+
+  onClickCover: GalleryProps['onClickCover']
 
   toDetail: (d: Detail) => void
   onClickSubmit: () => void
@@ -26,98 +29,70 @@ type ActivityLayoutProps = {
 
 export default function ActivityLayout({
   active,
-  hideVoteButton,
+  hide_vote_button,
   submiting,
   showArrow,
   confirmState,
 
-  submittedPool,
-  selectedIdList,
+  submitted_pool,
+  selected_id_list,
   setSelectedIdList,
 
   toDetail,
   onClickSubmit,
+  ...remain_props
 }: ActivityLayoutProps) {
-  const [arrowTickTock, setArrowTickTock] = useState(0)
+  const [arrow_tick_tock, setArrowTickTock] = useState(0)
 
-  const showSubmitButton = useMemo(() => {
-    if (active.can_submission || active.vote_submitted) {
-      return false
+  const in_vote_period = active.in_event && !active.can_submission
+
+  const show_submit_button = remain_props.show_submit_vote_button && (in_vote_period && !active.vote_submitted)
+
+  const vote_is_submitted = Boolean(submitted_pool[active.id])
+
+  const cannot_select_vote = useMemo(() => {
+    const is_unlimited = active.vote_limit === 0
+    const over_limit = !is_unlimited && (selected_id_list.length >= active.vote_limit)
+
+    return Boolean(over_limit || active.vote_submitted || vote_is_submitted)
+  }, [active.vote_limit, active.vote_submitted, selected_id_list.length, vote_is_submitted])
+
+  const handleClickVote = (photo_id: Photo['id']) => {
+    if (cannot_select_vote || !in_vote_period) {
+      return
     } else {
-      return true
+      const idx = selected_id_list.indexOf(photo_id)
+      if (idx !== -1) {
+        setArrowTickTock(-Date.now())
+        setSelectedIdList(
+          removeListItemByIdx(selected_id_list, idx)
+        )
+      } else {
+        setArrowTickTock(Date.now())
+        setSelectedIdList([...selected_id_list, photo_id])
+      }
     }
-  }, [active.can_submission, active.vote_submitted])
-  const vote_is_submitted = submittedPool[active.id]
+  }
 
-  const buttonState = useMemo(() => {
-    if (confirmState.in) {
-      return 'disabled'
-    } else if (selectedIdList.length === 0) {
+  const button_state = useMemo(() => {
+    if (confirmState.in || (selected_id_list.length === 0)) {
       return 'disabled'
     } else {
       return 'highlight'
     }
-  }, [confirmState.in, selectedIdList.length])
-
-  const handleClickVote = (gallery: GalleryType, photo: Photo) => {
-    // console.log('handleClickVote', gallery.vote_submitted, photo)
-
-    const isSubmitted = submittedPool[gallery.id]
-    const can_vote = gallery.in_event && !gallery.can_submission
-
-    if (isSubmitted || !can_vote || gallery.vote_submitted) {
-      return
-    }
-
-    const { id } = photo
-
-    const newSelectedIdList = [...selectedIdList]
-
-    const idx = newSelectedIdList.indexOf(id)
-
-    if (idx === -1) {
-      if ((gallery.vote_limit > 0) && (newSelectedIdList.length >= gallery.vote_limit)) {
-        return
-      } else {
-        setArrowTickTock(Date.now())
-        newSelectedIdList.push(id)
-      }
-    } else {
-      newSelectedIdList.splice(idx, 1)
-      setArrowTickTock(-Date.now())
-    }
-
-    setSelectedIdList(newSelectedIdList)
-  }
+  }, [confirmState.in, selected_id_list.length])
 
   return (
     <div className="gallery-wrapper">
       <Gallery
-        hideVoteButton={hideVoteButton}
         gallery={active}
-        selectedIdList={selectedIdList}
-        onClickVote={(photoId) => {
-          const idx = active.photos.map(p => p.id).indexOf(photoId)
-          if (idx === -1) return
-          const photo = active.photos[idx]
-
-          handleClickVote(active, photo)
-        }}
-        onClickCover={({ from, thumbBlobUrl }, photoId) => {
-          const idx = active.photos.map(p => p.id).indexOf(photoId)
-          if (idx === -1) return
-          const photo = active.photos[idx]
-
-          toDetail({
-            from,
-            thumb: thumbBlobUrl,
-            src: photo.src_url,
-            height: photo.height,
-            width: photo.width
-          })
-        }}
+        cannot_select_vote={cannot_select_vote}
+        hideVoteButton={hide_vote_button}
+        selectedIdList={selected_id_list}
+        onClickVote={handleClickVote}
+        onClickCover={remain_props.onClickCover}
       />
-      {showSubmitButton && (
+      {show_submit_button && (
         <div className="submit-button-area">
           {(() => {
             if (submiting) {
@@ -128,13 +103,13 @@ export default function ActivityLayout({
               return (
                 <GuideLayout
                   showArrow={showArrow}
-                  animatedTickTock={arrowTickTock}
+                  animatedTickTock={arrow_tick_tock}
                 >
                   <SubmitButton
-                    buttonState={buttonState}
+                    buttonState={button_state}
                     onClick={() => {
-                      if (!vote_is_submitted && !submiting) {
-                        if (selectedIdList.length === 0) {
+                      if (!submiting) {
+                        if (selected_id_list.length === 0) {
                           alert('你需要选择至少一部作品才能提交投票')
                         } else {
                           onClickSubmit()

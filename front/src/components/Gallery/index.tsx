@@ -132,13 +132,15 @@ const getLayoutConfigure = (gallery: Gallery): WaterfallLayoutConfigure => {
 }
 
 export type Props = {
+  cannot_select_vote?: boolean
   hideVoteButton: boolean
   gallery: Gallery
   selectedIdList: number[]
   onClickVote?: (photo_id: Photo['id']) => void
-  onClickCover: (clickInfo: CoverClickEvent, photo: Photo['id']) => void
+  onClickCover: (clickInfo: CoverClickEvent, photo_id: Photo['id']) => void
 }
 export default ({
+  cannot_select_vote = false,
   hideVoteButton, gallery, selectedIdList, onClickVote, onClickCover,
 }: Props) => {
   const layout = useWaterfallLayout(gallery)
@@ -148,15 +150,16 @@ export default ({
   const waterfall_layout_node = useMemo(() => (
     <Waterfall
       layout_configure={layout}
+      cannot_select_vote={cannot_select_vote}
       photos={gallery.photos}
       selectedIdList={selectedIdList}
       hideVoteButton={hideVoteButton}
-      onClickVote={(photoId) => {
-        if (onClickVote) onClickVote(photoId)
-      }}
       onClickCover={onClickCover}
+      onClickVote={(photoId) => {
+        onClickVote && onClickVote(photoId)
+      }}
     />
-  ), [gallery.photos, hideVoteButton, layout, onClickCover, onClickVote, selectedIdList])
+  ), [cannot_select_vote, gallery.photos, hideVoteButton, layout, onClickCover, onClickVote, selectedIdList])
 
   return (
     <div className="gallery">

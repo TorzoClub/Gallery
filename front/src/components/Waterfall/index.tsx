@@ -36,6 +36,7 @@ export type WaterfallLayoutConfigure = {
 export type Props = {
   hideVoteButton: boolean
   layout_configure: WaterfallLayoutConfigure
+  cannot_select_vote: boolean
 
   photos: Photo[]
   onClickVote(photo_id: Photo['id']): void
@@ -114,7 +115,11 @@ export default (props: Props) => {
                   box_width,
                   hideVoteButton,
                   hideMember: !photo.member,
-                  voteIsHighlight: selectedIdList && (selectedIdList.indexOf(photo.id) !== -1),
+                  vote_button_status: (
+                    (selectedIdList && (selectedIdList.indexOf(photo.id) !== -1)) ?
+                    'selected' :
+                    (props.cannot_select_vote ? 'cannot-select' : 'un-selected')
+                  ),
                   name: photo.member ? photo.member.name : null,
                   desc: photo.desc,
                   photo: {

@@ -5,7 +5,6 @@ import './index.scss'
 
 import { global_cache, useQueueload } from 'utils/queue-load'
 import useMeasure from 'hooks/useMeasure'
-import { Photo } from 'api/photo'
 
 export type DimensionUnknown = Dimension | null
 export type Dimension = readonly [number, number]
@@ -16,10 +15,10 @@ export const postDimesions = (
   default_height: number,
 ): Dimension => [
   width ?? default_width,
-  height ?? default_height
+  height ?? default_height,
 ] as const
 
-export type ImageInfo = {
+type PhotoBoxImage = {
   width: number
   height: number
   thumb: string
@@ -45,22 +44,18 @@ export type Props = {
 
   style?: Partial<CSSProperties>
 
-  hideVoteButton: boolean
   hideMember: boolean
-  voteIsHighlight: boolean
+  hideVoteButton: boolean
+
+  vote_button_status: BackBottomProps['vote_button_status']
+  handleClickVote: BackBottomProps['handleClickVote']
 
   name: string | null
-  photo: ImageInfo
-  avatar: ImageInfo | null
+  photo: PhotoBoxImage
+  avatar: PhotoBoxImage | null
   desc: string
 
-  handleClickVote(): void
   onClickCover(clickInfo: CoverClickEvent): void
-}
-export type PhotoGroupItem = {
-  pb_node: JSX.Element
-  dim: Dimension
-  props: Props
 }
 export const PhotoBoxDimension = forwardRef< DimensionUnknown, Props>((props, ref) => {
   const _setRef = useCallback((val: DimensionUnknown) => {
@@ -91,7 +86,8 @@ export const PhotoBoxDimension = forwardRef< DimensionUnknown, Props>((props, re
 })
 
 const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
-  const { type, vertial_gutter, box_width, photo, hideMember, avatar, desc, style } = props
+  const { type, vertial_gutter, box_width, photo, hideMember, avatar, desc, style, vote_button_status } = props
+  const vote_button_is_highlight = vote_button_status === 'selected'
 
   const [thumb_loaded, thumb] = useQueueload(photo.thumb)
   const [avatar_loaded, avatarThumb] = useQueueload(avatar?.thumb)
@@ -180,29 +176,7 @@ const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
           }
 
           {
-            props.hideVoteButton || (
-              <div className="back-bottom-wrapper">
-                <div className="back-bottom">
-                  <div className="block-wrapper" onClick={e => {
-                    e.preventDefault()
-                    e.stopPropagation()
-
-                    props.handleClickVote()
-                  }}>
-                    {
-                      props.voteIsHighlight ?
-                        <div className="block highlight">
-                          <div className="heart" style={{ backgroundImage: `url(${heartHighlightIMG})` }} />
-                        </div>
-                        :
-                        <div className="block">
-                          <div className="heart" style={{ backgroundImage: `url(${heartIMG})` }} />
-                        </div>
-                    }
-                  </div>
-                </div>
-              </div>
-            )
+            props.hideVoteButton || <BackBottom vote_button_status={vote_button_status} handleClickVote={props.handleClickVote} />
           }
         </div>
       </div>
@@ -210,3 +184,61 @@ const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
   )
 })
 export default PhotoBox
+
+type BackBottomProps = {
+  handleClickVote(): void
+  vote_button_status: 'selected' | 'un-selected' | 'cannot-select'
+}
+function BackBottom({
+   handleClickVote,
+   vote_button_status,
+}: BackBottomProps) {
+  const [cannot_select_animation_playing, setSelectAnimation] = useState(false)
+  useEffect(() => {
+    if (cannot_select_animation_playing) {
+      const h = setTimeout(() => {
+        setSelectAnimation(false)
+      }, 1500)
+      return () => clearTimeout(h)
+    }
+  }, [cannot_select_animation_playing])
+
+  const vote_button_is_highlight = vote_button_status === 'selected'
+
+  return useMemo(() => (
+    <div className="back-bottom-wrapper">
+      <div className="back-bottom">
+        <div className="block-wrapper" onClick={e => {
+          e.preventDefault()
+          e.stopPropagation()
+
+          handleClickVote()
+        }}>
+          <div
+            className='block'
+            onClick={() => {
+              setSelectAnimation(true)
+            }}
+          >
+            <div className="heart" style={{ backgroundImage: `url(${heartIMG})` }} />
+          </div>
+          <div
+            className={`block ${cannot_select_animation_playing ? 'cannot-select' : 'highlight'}`}
+            style={{
+              opacity: (
+                vote_button_is_highlight || cannot_select_animation_playing
+              ) ? 1 : 0
+            }}
+            onClick={() => {
+              if (vote_button_status === 'cannot-select') {
+                setSelectAnimation(true)
+              }
+            }}
+          >
+            <div className="heart" style={{ backgroundImage: `url(${heartHighlightIMG})` }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  ), [cannot_select_animation_playing, handleClickVote, vote_button_is_highlight, vote_button_status])
+}

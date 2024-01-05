@@ -8,8 +8,6 @@ type Dim = Record<'width' | 'height', null | number>
 export default function useMeasure(onchange?: (d: Dim) => void) {
   const [dimensions, setDimensions] = useSafeState<Dim>({ width: null, height: null })
 
-  const animation_frame_handler = useRef<number | null>(null)
-
   const previousObserver = useRef<ResizeObserver | null>(null)
 
   const customRef = useCallback((node) => {

@@ -22,7 +22,22 @@ import { WaterfallLayoutClickCoverHandler } from 'components/Waterfall'
 type MediaID = string | number
 type MediaType = 'AVATAR' | 'PHOTO'
 type Media = { id: MediaID; type: MediaType }
-function usePhotoLoadingPriority(photo_list: Photo[]) {
+
+function preloadPhotoListThumb(photo_list: Photo[]) {
+  photo_list.forEach((photo, idx) => {
+    globalQueueLoad(photo.thumb_url, photo_list.length - idx)
+    if (photo.member) {
+      globalQueueLoad(
+        photo.member.avatar_thumb_url,
+        (photo_list.length - idx) - photo_list.length
+      )
+    }
+  })
+}
+
+function usePhotoLoadingPriority(
+  photo_list: Photo[]
+) {
   const id_src_map = useMemo(() => {
     const m = new Map<number, string>()
     photo_list.forEach(p => m.set(p.id, p.thumb_url))
@@ -76,7 +91,6 @@ function usePhotoLoadingPriority(photo_list: Photo[]) {
     }
     window.addEventListener('resize', resortHandler)
     window.addEventListener('scroll', resortHandler)
-    resort()
 
     return () => {
       window.removeEventListener('resize', resortHandler)
@@ -157,9 +171,11 @@ export default () => {
       setLoaded(true)
 
       if (active !== null) {
+        const photos = shuffleArray(active.photos)
+        preloadPhotoListThumb(photos)
         setActive({
           ...active,
-          photos: shuffleArray(active.photos)
+          photos: photos
         })
       } else {
         setActive(null)

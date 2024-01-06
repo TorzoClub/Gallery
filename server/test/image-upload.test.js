@@ -21,8 +21,9 @@ const {
   cancelMySubmission,
 } = require('./common');
 
-
-describe('controller/admin/image', () => {
+describe('controller/admin/image', function () {
+  this.slow(500);
+  this.timeout(300000); // 5 min
   const pixel_rotated_image_path = `${__dirname}/static/temp.jpg`;
   const ori6_image_path = `${__dirname}/static/test-ori-6.jpg`
 

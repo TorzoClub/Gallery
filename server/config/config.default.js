@@ -40,6 +40,10 @@ module.exports = appInfo => {
   const imagePath = path.join(config.static.prefix, 'src');
   const imageThumbPath = path.join(config.static.prefix, 'thumb');
 
+  const popularly_formats = Object.freeze([ 'jpg', 'jpeg', 'png', 'gif' ]);
+  const next_gen_formats = Object.freeze([ 'avif', 'webp' ]);
+  const supported_formats = Object.freeze([ ...popularly_formats, ...next_gen_formats ]);
+
   config.multipart = {
     fieldNameSize: 256,
     fieldSize: '15MB',
@@ -52,10 +56,7 @@ module.exports = appInfo => {
     fileExtensions: [],
 
     // 如果希望覆盖框架内置的白名单，可以配置 whitelist 属性.当重写了 whitelist 时，fileExtensions 不生效。
-    whitelist: [
-      '.jpg', '.jpeg', '.png', '.gif',
-      '.bmp', '.webp', '.tif', '.avif',
-    ],
+    whitelist: supported_formats.map(format => `.${format}`),
   };
 
   config.development = {
@@ -74,6 +75,10 @@ module.exports = appInfo => {
     startBeforeGenerateThumb: false,
 
     default_image_thumb_size: 640,
+
+    popularly_formats,
+    next_gen_formats,
+    supported_formats,
 
     imageThumbSavePath,
     imageSavePath,

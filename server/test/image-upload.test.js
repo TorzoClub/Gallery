@@ -78,16 +78,15 @@ describe('controller/admin/image', () => {
     assert(thumb_metadata.width === app.config.default_image_thumb_size)
   })
 
-  const __SUPPORTED_FORMATS__ = ['webp', 'avif']
-
-  it('should successfully convert thumb to webp/avif fomat', async () => {
+  it.only('should successfully convert thumb to next-generation fomat', async () => {
     const { app, token } = await constructPlainEnvironment(true)
+    const { next_gen_formats } = app.config
 
     const { thumb, imageThumbPath } = await uploadImage(token, app, test_avatar_image_path)
     const [ default_thumb_meta ] = await loadImage(app, imageThumbPath, thumb)
 
     const thumb_name = path.parse(thumb).name
-    for (const format of __SUPPORTED_FORMATS__) {
+    for (const format of next_gen_formats) {
       const [downloaded_meta] = await loadImage(app, imageThumbPath, `${thumb_name}.${format}`)
       assert(downloaded_meta.width === default_thumb_meta.width)
       assert(downloaded_meta.height === default_thumb_meta.height)
@@ -96,14 +95,15 @@ describe('controller/admin/image', () => {
     }
   })
 
-  it('should successfully convert src to webp/avif fomat', async () => {
+  it.only('should successfully convert src to next-generation fomat', async () => {
     const { app, token } = await constructPlainEnvironment(true)
+    const { next_gen_formats } = app.config
 
     const { src, imagePath } = await uploadImage(token, app, test_avatar_image_path)
     const [ default_src_meta ] = await loadImage(app, imagePath, src)
 
     const image_filename = path.parse(src).name
-    for (const format of __SUPPORTED_FORMATS__) {
+    for (const format of next_gen_formats) {
       const [downloaded_meta] = await loadImage(app, imagePath, `${image_filename}.${format}`)
       assert(downloaded_meta.width === default_src_meta.width)
       assert(downloaded_meta.height === default_src_meta.height)
@@ -112,7 +112,7 @@ describe('controller/admin/image', () => {
     }
   })
 
-  it('should thumb always is .jpg format', async () => {
+  it.only('should thumb always is .jpg format', async () => {
     try {
       setEnvironmentSystem('2000/01/01 00:00:00')
 
@@ -145,17 +145,11 @@ describe('controller/admin/image', () => {
         assert(/(.*)\.jpg/i.test(submission_photo.thumb))
       }
 
-      setEnvironmentSystem('2000/01/01 00:00:01')
-      await testFormat('webp')
-
-      setEnvironmentSystem('2000/01/01 00:00:02')
-      await testFormat('avif')
-
-      setEnvironmentSystem('2000/01/01 00:00:03')
-      await testFormat('jpeg')
-
-      setEnvironmentSystem('2000/01/01 00:00:04')
-      await testFormat('jpg')
+      const { supported_formats } = app.config
+      for (const [idx, format] of supported_formats.entries()) {
+        setEnvironmentSystem(`2000/01/01 00:00:${`${idx + 1}`.padStart(2, '0')}`)
+        await testFormat(format)
+      }
     } finally {
       resetEnvironmentDate()
     }

@@ -23,7 +23,6 @@ const validError = (ctx, err) => {
 
 module.exports = () =>
   async (ctx, next) => {
-
     try {
       await next();
     } catch (err) {
@@ -46,7 +45,7 @@ module.exports = () =>
         return;
       }
 
-      console.error('error:', err);
+      console.error('error-handler:', err);
 
       ctx.backData(500, {
         ...err,

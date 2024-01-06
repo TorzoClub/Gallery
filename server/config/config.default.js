@@ -52,7 +52,10 @@ module.exports = appInfo => {
     fileExtensions: [],
 
     // 如果希望覆盖框架内置的白名单，可以配置 whitelist 属性.当重写了 whitelist 时，fileExtensions 不生效。
-    whitelist: [ '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tif', '.avif' ],
+    whitelist: [
+      '.jpg', '.jpeg', '.png', '.gif',
+      '.bmp', '.webp', '.tif', '.avif',
+    ],
   };
 
   config.development = {
@@ -70,8 +73,7 @@ module.exports = appInfo => {
 
     startBeforeGenerateThumb: false,
 
-    imageThumbSize: 640,
-    avatarThumbSize: 192,
+    default_image_thumb_size: 640,
 
     imageThumbSavePath,
     imageSavePath,

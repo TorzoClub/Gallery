@@ -1,5 +1,6 @@
 'use strict';
 
+const { set: setEnvironmentSystem, reset: resetEnvironmentDate } = require('mockdate');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -13,6 +14,11 @@ const {
   test_image_width,
   test_image_height,
   constructPlainEnvironment,
+  test_avatar_image_path,
+  constructEnvironment,
+  submissionPhoto,
+  default_upload_image_path,
+  cancelMySubmission,
 } = require('./common');
 
 
@@ -28,6 +34,25 @@ describe('controller/admin/image', () => {
       .toFile(ori6_image_path)
   })
 
+  async function downloadImage(app, imagePath, src) {
+    const down_res = await app.httpRequest()
+      .get(path.join(imagePath, src))
+      .expect('Content-Type', /image/)
+      .expect(200)
+
+    return down_res.body
+  }
+
+  async function loadMetadataByBuffer(buf) {
+    const metadata = await sharp(buf).metadata()
+    return metadata
+  }
+
+  async function loadImage(app, imagePath, src) {
+    const buffer = await downloadImage(app, imagePath, src)
+    return [await loadMetadataByBuffer(buffer), buffer]
+  }
+
   it('should successfully upload image', async () => {
     const { app, token } = await constructPlainEnvironment(true)
 
@@ -38,21 +63,119 @@ describe('controller/admin/image', () => {
 
     const backdata = await uploadImage(token, app, test_image_path)
 
-    const down_res = await app.httpRequest()
-      .get(path.join(backdata.imagePath, backdata.src))
-      .expect('Content-Type', /image/)
-      .expect(200)
+    const [down_metadata] = await loadImage(
+      app, backdata.imagePath, backdata.src
+    )
 
-    const down_metadata = await sharp(down_res.body).metadata()
     assert(down_metadata.width === test_image_width)
     assert(down_metadata.height === test_image_height)
 
     const down_thumb = await app.httpRequest()
-      .get(path.join(backdata.imageThumbPath, backdata.src))
+      .get(path.join(backdata.imageThumbPath, backdata.thumb))
       .expect('Content-Type', /image/)
       .expect(200)
     const thumb_metadata = await sharp(down_thumb.body).metadata()
-    assert(thumb_metadata.width === app.config.imageThumbSize)
+    assert(thumb_metadata.width === app.config.default_image_thumb_size)
+  })
+
+  const __SUPPORTED_FORMATS__ = ['webp', 'avif']
+
+  it('should successfully convert thumb to webp/avif fomat', async () => {
+    const { app, token } = await constructPlainEnvironment(true)
+
+    const { thumb, imageThumbPath } = await uploadImage(token, app, test_avatar_image_path)
+    const [ default_thumb_meta ] = await loadImage(app, imageThumbPath, thumb)
+
+    const thumb_name = path.parse(thumb).name
+    for (const format of __SUPPORTED_FORMATS__) {
+      const [downloaded_meta] = await loadImage(app, imageThumbPath, `${thumb_name}.${format}`)
+      assert(downloaded_meta.width === default_thumb_meta.width)
+      assert(downloaded_meta.height === default_thumb_meta.height)
+
+      await loadImage(app, imageThumbPath, `${thumb_name}.jpg`)
+    }
+  })
+
+  it('should successfully convert src to webp/avif fomat', async () => {
+    const { app, token } = await constructPlainEnvironment(true)
+
+    const { src, imagePath } = await uploadImage(token, app, test_avatar_image_path)
+    const [ default_src_meta ] = await loadImage(app, imagePath, src)
+
+    const image_filename = path.parse(src).name
+    for (const format of __SUPPORTED_FORMATS__) {
+      const [downloaded_meta] = await loadImage(app, imagePath, `${image_filename}.${format}`)
+      assert(downloaded_meta.width === default_src_meta.width)
+      assert(downloaded_meta.height === default_src_meta.height)
+
+      await loadImage(app, imagePath, `${image_filename}.jpg`)
+    }
+  })
+
+  it('should thumb always is .jpg format', async () => {
+    try {
+      setEnvironmentSystem('2000/01/01 00:00:00')
+
+      const { app, gallery, memberA } = await constructEnvironment({
+        gallery: {
+          event_start: new Date('1999'),
+          submission_expire: new Date('2000/01/15'),
+          event_end: new Date('2000/01/30')
+        }
+      })
+
+      assert(/(.*)\.jpg/i.test(memberA.avatar_thumb))
+
+      async function testFormat(format) {
+        const image_path = path.join(
+          path.parse(default_upload_image_path).dir,
+          `${path.parse(default_upload_image_path).name}.${format}`
+        )
+        const qq_num = `${memberA.qq_num}`
+        const submission_photo = await submissionPhoto(app, {
+          gallery_id: `${gallery.id}`,
+          qq_num,
+          desc: 'description',
+          image_path
+        });
+
+        await cancelMySubmission(app, { photo_id: submission_photo.id, qq_num, expect_code: 200 })
+        assert( (new RegExp("(.*)\\." + format)).test(submission_photo.src) )
+        // assert(/(.*)\.webp/i.test(submission_photo.src))
+        assert(/(.*)\.jpg/i.test(submission_photo.thumb))
+      }
+
+      setEnvironmentSystem('2000/01/01 00:00:01')
+      await testFormat('webp')
+
+      setEnvironmentSystem('2000/01/01 00:00:02')
+      await testFormat('avif')
+
+      setEnvironmentSystem('2000/01/01 00:00:03')
+      await testFormat('jpeg')
+
+      setEnvironmentSystem('2000/01/01 00:00:04')
+      await testFormat('jpg')
+    } finally {
+      resetEnvironmentDate()
+    }
+  })
+
+  it('should specify a custom dimension', async () => {
+    const spec_width = 32
+    const { app, token } = await constructPlainEnvironment(true)
+    const { body: img } = await app.httpRequest()
+      .post(`/admin/image/upload?width=${spec_width}`)
+      .set('Authorization', token)
+      .field('name', `image-${Date.now()}`)
+      .attach('image', test_avatar_image_path)
+      .expect(200);
+
+    const [img_meta] = await loadImage(
+      app, img.imageThumbPath, img.thumb
+    )
+    assert(img_meta.width !== app.config.default_image_thumb_size)
+    assert(img_meta.width === spec_width)
   })
 
   // 图片有两种旋转的方式
@@ -99,12 +222,12 @@ describe('controller/admin/image', () => {
     assert(width < height) // 因为 ori6_image_path 显示起来就是宽度小于高度的图片，因此其缩略图也必定是宽度小于高度
   })
 
-  it('should successfuly refresh thumb image', async () => {
+  it('should successfully refresh thumb image', async () => {
     const { app, token } = await constructPlainEnvironment(true)
 
-    const u_img = await uploadImage(token, app, test_image_path)
+    const u_img = await uploadImage(token, app)
 
-    const thumb_path = app.serviceClasses.image.toThumbSavePath(u_img.src)
+    const thumb_path = app.serviceClasses.image.toDefaultThumbSavePath(u_img.src)
 
     fs.unlinkSync(thumb_path)
 

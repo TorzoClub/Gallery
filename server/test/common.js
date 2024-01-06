@@ -3,13 +3,20 @@
 const assert = require('assert');
 const mock = require('egg-mock');
 
+const default_upload_image_path = `${__dirname}/1x1.png`;
 const test_avatar_image_path = `${__dirname}/avatar.png`;
 const test_image_path = `${__dirname}/test.jpg`;
 const test_image_width = 2970;
 const test_image_height = 4200;
 
 module.exports = {
+  default_upload_image_path,
+  default_upload_image_width: 1,
+  default_upload_image_height: 1,
   test_avatar_image_path,
+  test_avatar_image_width: 160,
+  test_avatar_image_height: 160,
+
   test_image_path,
   test_image_width,
   test_image_height,
@@ -34,6 +41,10 @@ module.exports = {
   createPhoto,
   getPhotoById,
   removePhotoById,
+
+  editSubmissionPhoto,
+  submissionPhoto,
+  cancelMySubmission,
 };
 
 let globalApp;
@@ -90,17 +101,47 @@ async function constructEnvironment({
 
   const gallery = await commonCreateGallery(token, app, gallery_init);
 
-  const memberA = await createMember(token, app, { name: 'member-A', qq_num: baseNum + 1 });
-  const memberB = await createMember(token, app, { name: 'member-B', qq_num: baseNum + 2 });
-  const memberC = await createMember(token, app, { name: 'member-C', qq_num: baseNum + 3 });
+  const memberA = await createMember(token, app, {
+    name: 'member-A', qq_num: baseNum + 1,
+  });
+  const memberB = await createMember(token, app, {
+    name: 'member-B', qq_num: baseNum + 2,
+    avatar_src: memberA.avatar_src,
+  });
+  const memberC = await createMember(token, app, {
+    name: 'member-C', qq_num: baseNum + 3,
+    avatar_src: memberA.avatar_src,
+  });
 
-  const authorA = await createMember(token, app, { name: 'author-A', qq_num: baseNum + 4 });
-  const authorB = await createMember(token, app, { name: 'author-B', qq_num: baseNum + 5 });
-  const authorC = await createMember(token, app, { name: 'author-C', qq_num: baseNum + 6 });
+  const authorA = await createMember(token, app, {
+    name: 'author-A', qq_num: baseNum + 4,
+    avatar_src: memberA.avatar_src,
+  });
+  const authorB = await createMember(token, app, {
+    name: 'author-B', qq_num: baseNum + 5,
+    avatar_src: memberA.avatar_src,
+  });
+  const authorC = await createMember(token, app, {
+    name: 'author-C', qq_num: baseNum + 6,
+    avatar_src: memberA.avatar_src,
+  });
 
-  const photoA = await createPhoto(token, app, { member_id: authorA.id, gallery_id: gallery.id, desc: 'A' });
-  const photoB = await createPhoto(token, app, { member_id: authorB.id, gallery_id: gallery.id, desc: 'B' });
-  const photoC = await createPhoto(token, app, { member_id: authorC.id, gallery_id: gallery.id, desc: 'C' });
+  const photoA = await createPhoto(token, app, {
+    member_id: authorA.id, gallery_id: gallery.id, desc: 'A',
+    src: memberA.avatar_src,
+  });
+  const photoB = await createPhoto(token, app, {
+    member_id: authorB.id,
+    gallery_id: gallery.id,
+    desc: 'B',
+    src: memberA.avatar_src,
+  });
+  const photoC = await createPhoto(token, app, {
+    member_id: authorC.id,
+    gallery_id: gallery.id,
+    desc: 'C',
+    src: memberA.avatar_src,
+  });
 
   return {
     app,
@@ -134,7 +175,11 @@ async function fetchListWithQQNum(app, qq_num, expectStatusCode = 200) {
     .then(res => res.body);
 }
 
-async function uploadImage(token, app, imagePath = test_avatar_image_path) {
+async function uploadImage(
+  token,
+  app,
+  imagePath = default_upload_image_path
+) {
   const { body: newImage } = await app.httpRequest()
     .post('/admin/image/upload')
     .set('Authorization', token)
@@ -152,7 +197,7 @@ async function uploadImage(token, app, imagePath = test_avatar_image_path) {
 }
 
 async function createMember(token, app, appendmemberData = {}) {
-  if (!appendmemberData.src) {
+  if (!appendmemberData.avatar_src) {
     const uploadedImage = await uploadImage(token, app);
     appendmemberData.avatar_src = uploadedImage.src;
   }
@@ -285,4 +330,51 @@ async function removePhotoById(token, app, photoId, expectStatusCode = 200) {
     .set('Authorization', token)
     .expect(expectStatusCode)
     .then(res => res.body);
+}
+
+async function editSubmissionPhoto(app, {
+  photo_id,
+  qq_num,
+  desc,
+  image_path = default_upload_image_path,
+  expect_code = 200,
+}) {
+  const { body } = await app.httpRequest()
+    .patch(`/photo/${photo_id}`)
+    .field('desc', desc)
+    .field('qq_num', `${qq_num}`)
+    .attach('image', image_path)
+    .expect(expect_code);
+
+  return body;
+}
+
+async function submissionPhoto(app, {
+  gallery_id,
+  qq_num,
+  desc,
+  image_path = default_upload_image_path,
+  expect_code = 200,
+}) {
+  const { body } = await app.httpRequest()
+    .post('/photo')
+    .field('name', `image-${Date.now()}`)
+    .field('gallery_id', `${gallery_id}`)
+    .field('qq_num', `${qq_num}`)
+    .field('desc', desc)
+    .attach('image', image_path)
+    .expect(expect_code);
+
+  return body;
+}
+async function cancelMySubmission(app, {
+  photo_id,
+  qq_num,
+  expect_code = 200,
+}) {
+  const { body } = await app.httpRequest()
+    .delete(`/photo/${photo_id}?qq_num=${qq_num}`)
+    .expect(expect_code);
+
+  return body;
 }

@@ -4,17 +4,36 @@ const sendToWormhole = require('stream-wormhole');
 
 module.exports = app => {
   class ImageController extends app.Controller {
+    thumbSize(width_raw) {
+      const default_size = app.config.default_image_thumb_size;
+      if (width_raw === undefined) {
+        return default_size;
+      } else {
+        const width = Math.abs(Number(width_raw));
+        if (Number.isNaN(width) || !Number.isInteger(width)) {
+          throw new app.WarningError('指定的尺寸需要是有效的整数', 400);
+        } else if (width > 9999) {
+          throw new app.WarningError('指定的尺寸过大', 400);
+        } else {
+          return width;
+        }
+      }
+    }
+
     async upload(ctx) {
       const stream = await ctx.getFileStream();
+      const thumb_size = this.thumbSize(ctx.query.width);
       try {
-        const { imagePath, imageThumbPath, src, thumb } = await ctx.service.image.storeByStream(stream);
+        const {
+          imagePath, imageThumbPath, src, thumb,
+        } = await ctx.service.image.storeByStream(stream, thumb_size);
         ctx.backData(200, {
           imagePath,
           imageThumbPath,
           src,
           thumb,
           src_url: app.serviceClasses.image.toSrcUrl(src),
-          thumb_url: app.serviceClasses.image.toThumbUrl(src),
+          thumb_url: app.serviceClasses.image.toDefaultThumbUrl(src),
         });
       } catch (err) {
         await sendToWormhole(stream);

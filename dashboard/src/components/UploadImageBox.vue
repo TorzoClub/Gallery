@@ -4,7 +4,7 @@
     drag
     :name="uploadName"
     :headers="headers"
-    :action="uploadUrl"
+    :action="upload_url"
     :show-file-list="false"
     :on-error="uploadError"
     :on-progress="uploadProgress"
@@ -137,9 +137,9 @@
         default: ''
       },
 
-      uploadUrl: {
-        type: String,
-        default: `${process.env.VUE_APP_BASE_API}admin/image/upload`
+      width: {
+        type: Number,
+        default: 0
       },
 
       previewUrl: {
@@ -160,6 +160,17 @@
       uploading: false,
       percent: 0
     }),
+
+    computed: {
+      upload_url() {
+        const base_url = `${process.env.VUE_APP_BASE_API}admin/image/upload`
+        if (this.width !== 0) {
+          return `${base_url}?width=${this.width}`
+        } else {
+          return base_url
+        }
+      }
+    },
 
     methods: {
       resetUploading() {

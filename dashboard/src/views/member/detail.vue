@@ -20,7 +20,7 @@
         >
           <UploadImageBox
             ref="UploadImageBox"
-            :width="128"
+            :thumb-size="128"
             :preview-url="preview_url"
             @upload-success="uploadSuccess"
           />

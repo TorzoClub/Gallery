@@ -137,7 +137,7 @@
         default: ''
       },
 
-      width: {
+      thumbSize: {
         type: Number,
         default: 0
       },
@@ -164,8 +164,8 @@
     computed: {
       upload_url() {
         const base_url = `${process.env.VUE_APP_BASE_API}admin/image/upload`
-        if (this.width !== 0) {
-          return `${base_url}?width=${this.width}`
+        if (this.thumbSize !== 0) {
+          return `${base_url}?thumb_size=${this.thumbSize}`
         } else {
           return base_url
         }

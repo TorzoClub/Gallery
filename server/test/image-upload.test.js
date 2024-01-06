@@ -160,7 +160,7 @@ describe('controller/admin/image', function () {
     const spec_width = 32
     const { app, token } = await constructPlainEnvironment(true)
     const { body: img } = await app.httpRequest()
-      .post(`/admin/image/upload?width=${spec_width}`)
+      .post(`/admin/image/upload?thumb_size=${spec_width}`)
       .set('Authorization', token)
       .field('name', `image-${Date.now()}`)
       .attach('image', test_avatar_image_path)

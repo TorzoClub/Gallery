@@ -22,7 +22,7 @@ module.exports = app => {
 
     async upload(ctx) {
       const stream = await ctx.getFileStream();
-      const thumb_size = this.thumbSize(ctx.query.width);
+      const thumb_size = this.thumbSize(ctx.query.thumb_size);
       try {
         const {
           imagePath, imageThumbPath, src, thumb,

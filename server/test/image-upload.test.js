@@ -78,7 +78,7 @@ describe('controller/admin/image', () => {
     assert(thumb_metadata.width === app.config.default_image_thumb_size)
   })
 
-  it.only('should successfully convert thumb to next-generation fomat', async () => {
+  it('should successfully convert thumb to next-generation fomat', async () => {
     const { app, token } = await constructPlainEnvironment(true)
     const { next_gen_formats } = app.config
 
@@ -95,7 +95,7 @@ describe('controller/admin/image', () => {
     }
   })
 
-  it.only('should successfully convert src to next-generation fomat', async () => {
+  it('should successfully convert src to next-generation fomat', async () => {
     const { app, token } = await constructPlainEnvironment(true)
     const { next_gen_formats } = app.config
 
@@ -112,7 +112,7 @@ describe('controller/admin/image', () => {
     }
   })
 
-  it.only('should thumb always is .jpg format', async () => {
+  it('should thumb always is .jpg format', async () => {
     try {
       setEnvironmentSystem('2000/01/01 00:00:00')
 

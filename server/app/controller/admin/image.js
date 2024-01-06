@@ -4,18 +4,18 @@ const sendToWormhole = require('stream-wormhole');
 
 module.exports = app => {
   class ImageController extends app.Controller {
-    thumbSize(width_raw) {
+    thumbSize(size_raw) {
       const default_size = app.config.default_image_thumb_size;
-      if (width_raw === undefined) {
+      if (size_raw === undefined) {
         return default_size;
       } else {
-        const width = Math.abs(Number(width_raw));
-        if (Number.isNaN(width) || !Number.isInteger(width)) {
+        const size = Math.abs(Number(size_raw));
+        if (Number.isNaN(size) || !Number.isInteger(size)) {
           throw new app.WarningError('指定的尺寸需要是有效的整数', 400);
-        } else if (width > 9999) {
+        } else if (size > 9999) {
           throw new app.WarningError('指定的尺寸过大', 400);
         } else {
-          return width;
+          return size;
         }
       }
     }

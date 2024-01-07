@@ -23,6 +23,7 @@ module.exports = {
 
   createApp,
   getToken,
+  prepareData,
   constructPlainEnvironment,
   constructEnvironment,
   getHomePagePhotoList,
@@ -46,6 +47,8 @@ module.exports = {
   submissionPhoto,
   cancelMySubmission,
   adminRefreshThumb,
+
+  submitVote,
 };
 
 let globalApp;
@@ -82,24 +85,10 @@ function getToken(app) {
       return token;
     });
 }
-async function constructPlainEnvironment(need_sync = true) {
-  const app = mock.app();
-  await app.ready();
-  if (need_sync) {
-    await app.model.sync({
-      force: true,
-    });
-  }
-  const token = await getToken(app);
-  return { app, token };
-}
-async function constructEnvironment({
-  need_sync = true,
-  baseNum = 100,
-  gallery: gallery_init = {},
-}) {
-  const { app, token } = await constructPlainEnvironment(need_sync);
 
+async function prepareData({
+  token, app, baseNum = 100, gallery: gallery_init = {},
+}) {
   const gallery = await commonCreateGallery(token, app, gallery_init);
 
   const memberA = await createMember(token, app, {
@@ -145,8 +134,6 @@ async function constructEnvironment({
   });
 
   return {
-    app,
-    token,
     gallery,
     authorA,
     authorB,
@@ -157,6 +144,31 @@ async function constructEnvironment({
     photoA,
     photoB,
     photoC,
+  };
+}
+
+async function constructPlainEnvironment(need_sync = true) {
+  const app = mock.app();
+  await app.ready();
+  if (need_sync) {
+    await app.model.sync({
+      force: true,
+    });
+  }
+  const token = await getToken(app);
+  return { app, token };
+}
+
+async function constructEnvironment({
+  need_sync = true,
+  baseNum = 100,
+  gallery = {},
+}) {
+  const { app, token } = await constructPlainEnvironment(need_sync);
+  return {
+    app,
+    token,
+    ...(await prepareData({ token, app, baseNum, gallery })),
   };
 }
 
@@ -229,11 +241,11 @@ function getMemberById(token, app, id, expectStatusCode = 200) {
     .then(res => res.body);
 }
 
-function removeMemberById(token, app, id) {
+function removeMemberById(token, app, id, expect_code = 200) {
   return app.httpRequest()
     .delete(`/admin/member/${id}`)
     .set('Authorization', token)
-    .expect(200)
+    .expect(expect_code)
     .then(res => res.body);
 }
 
@@ -391,4 +403,13 @@ async function adminRefreshThumb(app, token, {
     .expect(200);
 
   return res.body;
+}
+
+async function submitVote(app, qq_num, gallery_id, photo_id_list, expectStatusCode = 200) {
+  return app.httpRequest()
+    .post('/member/vote')
+    .type('json')
+    .send({ gallery_id, photo_id_list, qq_num })
+    .expect(expectStatusCode)
+    .then(res => res.body);
 }

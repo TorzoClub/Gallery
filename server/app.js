@@ -24,18 +24,18 @@ class AppBootHook {
       env, imageThumbSavePath, imageSavePath,
     } = this.app.config;
 
-    if (env === 'unittest') {
-      if (!fs.existsSync(imageThumbSavePath)) {
+    if (!fs.existsSync(imageThumbSavePath)) {
+      if (env === 'unittest') {
         await fs.promises.mkdir(imageThumbSavePath, { recursive: true });
-      }
-      if (!fs.existsSync(imageSavePath)) {
-        await fs.promises.mkdir(imageSavePath, { recursive: true });
-      }
-    } else {
-      if (!fs.existsSync(imageThumbSavePath)) {
+      } else {
         throw Error('缩略图存放路径不存在！');
       }
-      if (!fs.existsSync(imageSavePath)) {
+    }
+
+    if (!fs.existsSync(imageSavePath)) {
+      if (env === 'unittest') {
+        await fs.promises.mkdir(imageSavePath, { recursive: true });
+      } else {
         throw Error('原图存放路径不存在！');
       }
     }

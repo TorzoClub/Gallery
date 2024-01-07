@@ -22,6 +22,10 @@ const {
   removePhotoById,
   adminRefreshThumb,
   test_avatar_image_width,
+  removeMemberById,
+  removeGalleryById,
+  getPhotoById,
+  getMemberById,
 } = require('./common');
 
 describe('controller/admin/image', function () {
@@ -228,16 +232,6 @@ describe('controller/admin/image', function () {
 
     const u_img = await uploadImage(token, app, test_avatar_image_path)
 
-    const thumb_path = app.serviceClasses.image.toDefaultThumbSavePath(u_img.src)
-
-    fs.unlinkSync(thumb_path)
-
-    assert(fs.existsSync(thumb_path) === false)
-
-    await app.httpRequest()
-      .get(path.join(u_img.imageThumbPath, u_img.thumb))
-      .expect(404)
-
     const member = await createMember(token, app, { qq_num: 22122 })
     const gallery = await commonCreateGallery(token, app, {})
     const created_photo = await createPhoto(token, app, {
@@ -247,6 +241,14 @@ describe('controller/admin/image', function () {
     })
 
     {
+      const thumb_path = app.serviceClasses.image.toDefaultThumbSavePath(u_img.src)
+      fs.unlinkSync(thumb_path)
+      assert(fs.existsSync(thumb_path) === false)
+
+      await app.httpRequest()
+        .get(path.join(u_img.imageThumbPath, u_img.thumb))
+        .expect(404)
+
       const res = await adminRefreshThumb(app, token, { src: u_img.src })
       assert(res.src_filename === u_img.src)
       assert(fs.existsSync(thumb_path) === true)
@@ -262,6 +264,48 @@ describe('controller/admin/image', function () {
         await downloadImage(app, created_photo.thumb_urlpath)
       )
       assert(meta.width === 16)
+    }
+  })
+
+  it(`should correctly delete src when photo removed`, async () => {
+    const { app, token } = await constructPlainEnvironment(true)
+
+    const member = await createMember(token, app, { qq_num: 22122 })
+    const gallery = await commonCreateGallery(token, app, {})
+    const created_photo = await createPhoto(token, app, {
+      gallery_id: gallery.id,
+      member_id: member.id,
+    })
+
+    {
+      await removePhotoById(token, app, created_photo.id)
+
+      const file_list = app.serviceClasses.image.allFilename(created_photo.src)
+      for (const file of file_list) {
+        await app.httpRequest().get(`/src/${file}`).expect(404)
+        const exists = fs.existsSync(
+          path.join(app.config.imageSavePath, file)
+        )
+        assert(false === exists)
+      }
+    }
+  })
+
+  it(`should correctly delete avatar_src when member removed`, async () => {
+    const { app, token } = await constructPlainEnvironment(true)
+    const member = await createMember(token, app, { qq_num: 22122 })
+
+    {
+      await removeMemberById(token, app, member.id)
+
+      const file_list = app.serviceClasses.image.allFilename(member.avatar_src)
+      for (const file of file_list) {
+        await app.httpRequest().get(`/src/${file}`).expect(404)
+        const exists = fs.existsSync(
+          path.join(app.config.imageSavePath, file)
+        )
+        assert(false === exists)
+      }
     }
   })
 })

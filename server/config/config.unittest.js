@@ -49,6 +49,10 @@ module.exports = appInfo => {
     ],
   };
 
+  config.logger = {
+    level: 'DEBUG',
+  };
+
   // add your user config here
   const userConfig = {
     adminPass: '7355608',

@@ -193,28 +193,31 @@ module.exports = app =>
       });
     }
 
+    async getListByGalleryIdWithTransaction(gallery_id, transaction_opts = {}) {
+      gallery_id = parseInt(gallery_id);
+      const result = await this.service.gallery.detectExistsById(gallery_id, transaction_opts);
+      if (!result) {
+        throw new this.ctx.app.WarningError('相册不存在', 404);
+      }
+
+      const list = await this.Model.findAll({
+        include: [{
+          model: this.app.model.Member,
+        }],
+
+        where: {
+          gallery_id,
+        },
+
+        ...transaction_opts,
+      });
+
+      return list;
+    }
+
     getListByGalleryId({ gallery_id }) {
       return this.app.model.transaction(async transaction => {
-        gallery_id = parseInt(gallery_id);
-
-        const result = await this.service.gallery.detectExistsById(gallery_id, { transaction, lock: transaction.LOCK.UPDATE });
-        if (!result) {
-          throw new this.ctx.app.WarningError('相册不存在', 404);
-        }
-
-        const list = await this.Model.findAll({
-          include: [{
-            model: this.app.model.Member,
-          }],
-
-          where: {
-            gallery_id,
-          },
-
-          transaction,
-        });
-
-        return list;
+        return await this.getListByGalleryIdWithTransaction(gallery_id, { transaction });
       });
     }
 
@@ -311,27 +314,35 @@ module.exports = app =>
       });
     }
 
+    async removeByIdWithTransaction(id, transaction_opts) {
+      const photo = await this.findById(parseInt(id), transaction_opts);
+
+      await app.serviceClasses.image.removeSrc(photo.src);
+
+      return await photo.destroy(transaction_opts);
+    }
+
     removeById(id) {
       return this.app.model.transaction(async transaction => {
-        const transactionOptions = { transaction, lock: transaction.LOCK.UPDATE };
-        // const photo = await this.findById(id, transactionOptions);
-        return await this.destroyById(parseInt(id), transactionOptions);
+        return await this.removeByIdWithTransaction(id, {
+          transaction, lock: transaction.LOCK.UPDATE,
+        });
       });
     }
 
-    async reComputeVoteCount({ photo_id }, transactionOptions = {}) {
-      const photo = await this.findById(photo_id, transactionOptions);
+    async reComputeVoteCount({ photo_id }, transaction_opts = {}) {
+      const photo = await this.findById(photo_id, transaction_opts);
 
       const voteCount = await this.service.vote.Model.count({
         where: {
           photo_id: photo.id,
         },
 
-        ...transactionOptions,
+        ...transaction_opts,
       });
 
       photo.vote_count = voteCount;
 
-      return photo.save({ ...transactionOptions });
+      return photo.save({ ...transaction_opts });
     }
   };

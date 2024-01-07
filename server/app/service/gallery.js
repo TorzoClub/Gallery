@@ -72,9 +72,19 @@ module.exports = class GalleryService extends CommonService {
 
   async removeById(id) {
     return this.app.model.transaction(async transaction => {
-      const gallery = await this.findById(id, { transaction, lock: transaction.LOCK.UPDATE });
+      const transaction_opts = { transaction, lock: transaction.LOCK.UPDATE };
+      const gallery = await this.findById(id, transaction_opts);
 
-      return await gallery.destroy({ transaction });
+      const photos = await this.ctx.service.photo.getListByGalleryIdWithTransaction(
+        gallery.id,
+        transaction_opts
+      );
+
+      for (const photo of photos) {
+        await this.ctx.service.photo.removeByIdWithTransaction(photo.id, transaction_opts);
+      }
+
+      return await gallery.destroy(transaction_opts);
     });
   }
 };

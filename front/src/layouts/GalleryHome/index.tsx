@@ -50,38 +50,41 @@ function usePhotoLoadingPriority(
   }
 
   const resort = useCallback(function _resortHandler() {
-    const in_screen_photos = photo_list.map(photo => {
-      const photo_el = document.getElementById(id('PHOTO', photo.id))
-      if (!photo_el) { return }
-      const bounding = photo_el.getBoundingClientRect()
-      if (
-        (bounding.y > (0 - bounding.height)) &&
-        (bounding.y < window.innerHeight)
-      ) {
-        return { photo, bounding }
-      } else {
-        return
-      }
-    }).filter(p => p) as { photo: Photo, bounding: DOMRect }[]
+    requestAnimationFrame(() => {
+      const in_screen_photos = photo_list.map(photo => {
+        const photo_el = document.getElementById(id('PHOTO', photo.id))
+        if (!photo_el) { return }
+        const bounding = photo_el.getBoundingClientRect()
+        if (
+          (bounding.y > (0 - bounding.height)) &&
+          (bounding.y < window.innerHeight)
+        ) {
+          console.log(bounding, photo_el)
+          return { photo, bounding }
+        } else {
+          return null
+        }
+      }).filter(p => p) as { photo: Photo, bounding: DOMRect }[]
 
-    const sorted = in_screen_photos.sort((a, b) => {
-      return a.bounding.y > b.bounding.y ? 1 : -1
-    })
-
-    const all_tasks = getGlobalQueue()
-    setGlobalQueue(
-      all_tasks.map((t, idx) => {
-        return { ...t, priority: all_tasks.length - idx }
+      const sorted = in_screen_photos.sort((a, b) => {
+        return a.bounding.y > b.bounding.y ? 1 : -1
       })
-    )
 
-    sorted.forEach(({ photo }, idx) => {
-      const src = id_src_map.get(photo.id)
-      if (!src) return
-      globalQueueLoad(src, 10000 - idx)
-      if (photo.member) {
-        globalQueueLoad(photo.member.avatar_thumb_url, 5000 - idx)
-      }
+      const all_tasks = getGlobalQueue()
+      setGlobalQueue(
+        all_tasks.map((t, idx) => {
+          return { ...t, priority: all_tasks.length - idx }
+        })
+      )
+
+      sorted.forEach(({ photo }, idx) => {
+        const src = id_src_map.get(photo.id)
+        if (!src) return
+        globalQueueLoad(src, 10000 - idx)
+        if (photo.member) {
+          globalQueueLoad(photo.member.avatar_thumb_url, 5000 - idx)
+        }
+      })
     })
   }, [id_src_map, photo_list])
 
@@ -146,12 +149,16 @@ export default () => {
     return (active === null) ? [] : active.photos.map(p => p.id)
   }, [active])
 
-  usePhotoLoadingPriority(
+  const resort = usePhotoLoadingPriority(
     useMemo(() => [
       ...(active ? active.photos : []),
       ...list.map(g => g.photos).flat(),
     ], [active, list])
   )
+
+  useEffect(() => {
+    resort()
+  }, [resort])
 
   const [imageDetail, setImageDetail] = useState<Detail | null>(null)
   const [currentQQNum, setCurrentQQNum] = useState(0)

@@ -86,7 +86,8 @@ export const PhotoBoxDimension = forwardRef< DimensionUnknown, Props>((props, re
 })
 
 const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
-  const { type, vertial_gutter, box_width, photo, hideMember, avatar, desc, style, vote_button_status } = props
+  const { type, vertial_gutter, box_width, photo, hideMember,
+         avatar, desc, style, vote_button_status } = props
 
   const [thumb_loaded, thumb] = useQueueload(photo.thumb)
   const [avatar_loaded, avatarThumb] = useQueueload(avatar?.thumb)
@@ -99,8 +100,8 @@ const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
 
   const coverFrameStyle = useMemo(() => ({
     height,
-    background: avatar_loaded ? 'white' : ''
-  }), [avatar_loaded, height])
+    background: thumb_loaded ? 'white' : ''
+  }), [thumb_loaded, height])
 
   const show_desc = Boolean(desc.trim().length)
   const show_bottom_block = !hideMember || show_desc
@@ -113,7 +114,8 @@ const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
       className={`image-box-wrapper ${(type === 'compact') && 'compact'} ${none_bottom_block ? 'none-bottom-block' : 'has-bottom-block'}`}
       style={{
         '--vertical-gutter': `${vertial_gutter}px`,
-        width: `calc(${box_width}px)`, ...(style ?? {})
+        width: `calc(${box_width}px)`,
+        ...(style ?? {})
       } as React.CSSProperties}
     >
       <div className="image-box">

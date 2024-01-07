@@ -313,7 +313,9 @@ module.exports = app =>
 
     removeById(id) {
       return this.app.model.transaction(async transaction => {
-        return await this.destroyById(parseInt(id), { transaction });
+        const transactionOptions = { transaction, lock: transaction.LOCK.UPDATE };
+        // const photo = await this.findById(id, transactionOptions);
+        return await this.destroyById(parseInt(id), transactionOptions);
       });
     }
 

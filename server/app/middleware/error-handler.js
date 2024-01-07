@@ -32,15 +32,17 @@ module.exports = () =>
         return;
       }
 
-      const { WarningError } = ctx.app;
-
-      if (err instanceof WarningError) {
+      if (err instanceof ctx.app.WarningError) {
         const status = err.status || 500;
 
         ctx.backData(status, {
           status,
           message: err.message,
         });
+
+        if (ctx.app.config.env === 'unitest') {
+          ctx.app.logger.debug(err);
+        }
 
         return;
       }

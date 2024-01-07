@@ -1,64 +1,58 @@
 <template>
   <ElContainer
     v-loading="loading"
-    style="padding-top: 20px; width: 1180px"
+    style="padding-top: 20px; width: 640px"
     direction="vertical"
   >
-    <ElHeader height="2em">
-      torzo gallery dashboard beta
-    </ElHeader>
-
     <ElMain>
-      <ElButton size="small" type="primary" icon="el-icon-refresh" @click="refreshThumbs">刷新缩略图</ElButton>
+      <ElAlert v-for="alert in alerts" :key="alert.id" :type="alert.type" :title="alert.title" style="margin-bottom: 10px;" />
+      <RefreshThumbs @error="handleError" @warning="handleWarning" @success="handleSuccess" @info="handleInfo" />
     </ElMain>
   </ElContainer>
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
-import { refreshThumbs as refreshThumbsApi } from '@/api/image'
+import RefreshThumbs from './components/refresh-thumbs.vue'
+import { v4 as uuidv4 } from 'uuid'
+
+function ConsolePrint(alert_type) {
+  switch (alert_type) {
+    default: return console.log
+    case 'error': return console.error
+    case 'warning': return console.warn
+  }
+}
+
+function HandleAlertEvent(alert_type) {
+  const consolePrint = ConsolePrint(alert_type).bind(console)
+  return function(title, err) {
+    if (err) {
+      consolePrint(`${title}`, err)
+      this.addAlert(alert_type, `${title}: ${err.message}`)
+    } else {
+      this.addAlert(alert_type, title)
+    }
+  }
+}
 
 export default {
-  name: 'Dashboard',
+  name: 'DashboardHome',
+
+  components: { RefreshThumbs },
+
   data: () => ({
     loading: false,
+    alerts: [],
   }),
-  computed: {
-    ...mapGetters([
-      'name'
-    ])
-  },
-  methods: {
-    confirm(title, content, appendOpt = {}) {
-      const opt = Object.assign({
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        confirmButtonClass: 'el-button--warning',
-        showClose: false,
-      }, appendOpt)
-      return this.$confirm(content, title, opt)
-        .then(() => true)
-        .catch(() => false)
-    },
 
-    async refreshThumbs() {
-      const confirm = await this.confirm('', `你确定要刷新吗？`, {
-        confirmButtonClass: 'el-button--warning',
-      })
-      if (!confirm) {
-        return
-      }
-      try {
-        this.loading = true
-        await refreshThumbsApi()
-        this.$message.success(`缩略图已刷新`)
-      } catch (err) {
-        console.error('刷新失败', err)
-        this.$message.error(`刷新失败: ${err.message}`)
-      } finally {
-        this.loading = false
-      }
+  methods: {
+    addAlert(type, title) {
+      this.alerts = [...this.alerts, { id: uuidv4(), type, title }]
     },
+    handleError: HandleAlertEvent('error'),
+    handleWarning: HandleAlertEvent('warning'),
+    handleSuccess: HandleAlertEvent('success'),
+    handleInfo: HandleAlertEvent('info'),
   }
 }
 </script>

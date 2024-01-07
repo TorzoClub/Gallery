@@ -1,10 +1,11 @@
 'use strict';
 
 const sendToWormhole = require('stream-wormhole');
+const path = require('path');
 
 module.exports = app => {
   class ImageController extends app.Controller {
-    thumbSize(size_raw) {
+    checkThumbSize(size_raw) {
       const default_size = app.config.default_image_thumb_size;
       if (size_raw === undefined) {
         return default_size;
@@ -22,7 +23,7 @@ module.exports = app => {
 
     async upload(ctx) {
       const stream = await ctx.getFileStream();
-      const thumb_size = this.thumbSize(ctx.query.thumb_size);
+      const thumb_size = this.checkThumbSize(ctx.query.thumb_size);
       try {
         const {
           imagePath, imageThumbPath, src, thumb,
@@ -41,10 +42,15 @@ module.exports = app => {
       }
     }
 
-    async refreshThumb(ctx) {
-      const gallerys = await app.model.Gallery.findAll();
+    async getAllAvailablePhoto(ctx) {
+      const list = await ctx.app.model.Gallery.findAll({
+        order: [
+          [ 'index', 'DESC' ],
+        ],
+      });
+
       const photos_list = await Promise.all(
-        gallerys.map(gallery => {
+        list.map(gallery => {
           return gallery.getPhotos({
             order: [
               [ 'index', 'ASC' ],
@@ -53,23 +59,48 @@ module.exports = app => {
         })
       );
 
-      const photos_list_flated = photos_list.flat();
+      ctx.backData(200, photos_list.flat());
+    }
 
-      const members_p = app.model.Member.findAll();
+    async refreshThumb(ctx) {
+      ctx.validate({
+        src: { type: 'string', required: true },
+        thumb_size: { type: 'integer', required: false },
+      }, ctx.request.body);
+      const { src, thumb_size } = ctx.request.body;
 
-      await ctx.service.image.removeAllThumbs();
+      const { name, ext } = path.parse(src);
 
-      const src_list = [
-        ...photos_list_flated.map(p => p.src),
-        ...(await members_p).map(m => m.avatar_src),
-      ];
+      const result = await app.serviceClasses.image.generateThumb(
+        `${name}${ext}`,
+        { thumb_size: this.checkThumbSize(thumb_size) }
+      );
 
-      const [ successes, failures ] = await ctx.service.image.generateThumbs(src_list);
+      ctx.backData(200, result);
+    }
 
-      ctx.backData(200, {
-        successes,
-        failures,
-      });
+    async refreshMemberThumb(ctx) {
+      ctx.validate({
+        member_id: { type: 'id', required: true },
+      }, ctx.params);
+
+      const member = await ctx.service.member.findById(ctx.params.member_id);
+
+      await app.serviceClasses.image.removeThumb(member.avatar_thumb);
+      const result = await app.serviceClasses.image.generateThumb(member.avatar_thumb);
+      ctx.backData(200, result);
+    }
+
+    async refreshPhotoThumb(ctx) {
+      ctx.validate({
+        photo_id: { type: 'id', required: true },
+      }, ctx.params);
+
+      const photo = await ctx.service.photo.findById(ctx.params.photo_id);
+
+      await app.serviceClasses.image.removeThumb(photo.thumb);
+      const result = await app.serviceClasses.image.generateThumb(photo.thumb);
+      ctx.backData(200, result);
     }
   }
 

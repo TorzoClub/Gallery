@@ -45,6 +45,7 @@ module.exports = {
   editSubmissionPhoto,
   submissionPhoto,
   cancelMySubmission,
+  adminRefreshThumb,
 };
 
 let globalApp;
@@ -377,4 +378,17 @@ async function cancelMySubmission(app, {
     .expect(expect_code);
 
   return body;
+}
+
+async function adminRefreshThumb(app, token, {
+  src, thumb_size,
+}) {
+  const res = await app.httpRequest()
+    .post('/admin/image/refresh-thumb')
+    .set('Authorization', token)
+    .type('json')
+    .send({ src, thumb_size })
+    .expect(200);
+
+  return res.body;
 }

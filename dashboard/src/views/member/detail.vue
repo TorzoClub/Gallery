@@ -20,7 +20,7 @@
         >
           <UploadImageBox
             ref="UploadImageBox"
-            :thumb-size="128"
+            :thumb-size="avatar_thumb_size"
             :preview-url="preview_url"
             @upload-success="uploadSuccess"
           />
@@ -44,6 +44,7 @@
 </template>
 
 <script>
+  import { __AVATAR_THUMB_SIZE__ } from '@/api/image'
   import { getDetail, create, update } from '@/api/member'
 
   import UploadImageBox from '@/components/UploadImageBox'
@@ -54,6 +55,7 @@
     },
 
     data: () => ({
+      avatar_thumb_size: __AVATAR_THUMB_SIZE__,
       loading: false,
       preview_url: '',
       form: {

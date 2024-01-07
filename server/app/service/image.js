@@ -10,10 +10,56 @@ function urlPathnameJoin(url, append_path) {
   return u.toString();
 }
 
+async function fileExists(filename) {
+  try {
+    await fs.promises.access(filename);
+    return true;
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return false;
+    } else {
+      throw err;
+    }
+  }
+}
+
 const { Service } = require('egg');
 
 module.exports = app =>
   class ImageService extends Service {
+    static allFilename(src) {
+      const src_without_ext = path.parse(src).name;
+      return app.config.supported_formats.map(format => {
+        return `${src_without_ext}.${format}`;
+      });
+    }
+
+    static async removeSrc(src) {
+      const file_list = ImageService.allFilename(src);
+      const removed = [];
+      for (const file of file_list) {
+        const file_path = ImageService.toSrcSavePath(file);
+        if (await fileExists(file_path)) {
+          await fs.promises.unlink(file_path);
+          removed.push(file_path);
+        }
+      }
+      return removed;
+    }
+
+    static async removeThumb(thumb) {
+      const file_list = ImageService.allFilename(thumb);
+      const removed = [];
+      for (const file of file_list) {
+        const file_path = ImageService.toThumbSavePath(file);
+        if (await fileExists(file_path)) {
+          await fs.promises.unlink(file_path);
+          removed.push(file_path);
+        }
+      }
+      return removed;
+    }
+
     static toSrcSavePath(filename) {
       return path.join(app.config.imageSavePath, filename);
     }
@@ -95,7 +141,6 @@ module.exports = app =>
       extname = format,
       format_options,
     }) {
-
       const src_path = ImageService.toSrcSavePath(src_filename);
       const sharp_p = sharp(src_path);
 

@@ -1,18 +1,6 @@
 'use strict';
 
-const fs = require('fs');
-const sharp = require('sharp');
 const CommonService = require('./common');
-
-async function getImageSize(filePath) {
-  return getNormalSize(await sharp(filePath).metadata());
-}
-// ref: https://sharp.pixelplumbing.com/api-input#metadata
-function getNormalSize({ width, height, orientation }) {
-  return (orientation || 0) >= 5
-    ? { orientation, width: height, height: width }
-    : { orientation, width, height };
-}
 
 module.exports = app =>
   class PhotoService extends CommonService {
@@ -22,18 +10,6 @@ module.exports = app =>
 
     get Model() {
       return this.app.model.Photo;
-    }
-
-    async getImageDimensions(src) {
-      const srcPath = app.serviceClasses.image.toSrcSavePath(src);
-
-      if (!fs.existsSync(srcPath)) {
-        throw new this.app.WarningError('src不存在', 404);
-      }
-
-      const { width, height } = await getImageSize(srcPath);
-
-      return { width, height };
     }
 
     async getMemberSubmissionByQQNum(gallery_id, qq_num) {
@@ -95,6 +71,7 @@ module.exports = app =>
         );
         update_data.src = created_file.src;
       }
+
       return this.edit(photo.id, {
         ...update_data,
       });
@@ -141,7 +118,7 @@ module.exports = app =>
         if (exists) {
           throw new this.ctx.app.WarningError('该成员已经投稿过了，不能重复投稿', 409);
         } else {
-          const { width, height } = await this.getImageDimensions(src);
+          const { width, height } = await app.serviceClasses.image.getImageDimensions(src);
           return await this.Model.create({
             member_id: parseInt(member_id),
             gallery_id: parseInt(gallery_id),
@@ -160,23 +137,20 @@ module.exports = app =>
 
     async edit(id, data) {
       return this.app.model.transaction(async transaction => {
-        const photo = await this.findById(id, { transaction, lock: transaction.LOCK.UPDATE });
+        const transaction_opts = { transaction, lock: transaction.LOCK.UPDATE };
+        const photo = await this.findById(id, transaction_opts);
 
         if (data.hasOwnProperty('member_id')) {
           // 检查成员是否存在
-          await this.service.member.detectExistsById(data.member_id, {
-            transaction,
-            lock: transaction.LOCK.UPDATE,
-          });
+          await this.service.member.detectExistsById(data.member_id, transaction_opts);
         }
 
         if (data.hasOwnProperty('gallery_id')) {
           // 检查相册是否存在
-          await this.service.gallery.detectExistsById(data.gallery_id, {
-            transaction,
-            lock: transaction.LOCK.UPDATE,
-          });
+          await this.service.gallery.detectExistsById(data.gallery_id, transaction_opts);
         }
+
+        const old_src = photo.src;
 
         this.editableProperty.forEach(key => {
           if (data.hasOwnProperty(key)) {
@@ -184,12 +158,18 @@ module.exports = app =>
           }
         });
 
-        if (data.src) {
-          const { width, height } = await this.getImageDimensions(data.src);
+        if (photo.src !== old_src) {
+          const { width, height } = await app.serviceClasses.image.getImageDimensions(photo.src);
           Object.assign(photo, { width, height });
-        }
 
-        return await photo.save({ transaction });
+          const result = await photo.save(transaction_opts);
+
+          await app.serviceClasses.image.removeSrc(old_src);
+
+          return result;
+        } else {
+          return await photo.save(transaction_opts);
+        }
       });
     }
 

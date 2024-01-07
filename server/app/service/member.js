@@ -46,7 +46,9 @@ module.exports = app =>
 
     async edit(id, data) {
       return this.app.model.transaction(async transaction => {
-        const member = await this.findById(id, { transaction });
+        const transaction_opts = { transaction, lock: transaction.LOCK.UPDATE };
+
+        const member = await this.findById(id, transaction_opts);
 
         if (data.hasOwnProperty('qq_num') && (member.qq_num !== data.qq_num)) {
           // 检查所修改的QQ号是否被占用
@@ -56,8 +58,7 @@ module.exports = app =>
               qq_num: data.qq_num,
             },
 
-            transaction,
-            lock: transaction.LOCK.UPDATE,
+            ...transaction_opts,
           });
 
           if (sameQQNumMember) {
@@ -65,13 +66,26 @@ module.exports = app =>
           }
         }
 
+        const old_avatar_src = member.avatar_src;
+
         this.editableProperty.forEach(key => {
           if (data.hasOwnProperty(key)) {
             member[key] = data[key];
           }
         });
 
-        return await member.save({ transaction });
+        // await app.serviceClasses.image.removeSrc(member.avatar_src);
+        if (member.avatar_src !== old_avatar_src) {
+          await app.serviceClasses.image.getImageDimensions(member.avatar_src);
+
+          const result = await member.save(transaction_opts);
+
+          await app.serviceClasses.image.removeSrc(old_avatar_src);
+
+          return result;
+        } else {
+          return await member.save(transaction_opts);
+        }
       });
     }
 

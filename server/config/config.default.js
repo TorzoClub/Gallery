@@ -40,6 +40,7 @@ module.exports = appInfo => {
   const imagePath = path.join(config.static.prefix, 'src');
   const imageThumbPath = path.join(config.static.prefix, 'thumb');
 
+  const convert_formats = Object.freeze('jpg avif webp'.split(' '));
   const popularly_formats = Object.freeze([ 'jpg', 'jpeg', 'png', 'gif' ]);
   const next_gen_formats = Object.freeze([ 'avif', 'webp' ]);
   const supported_formats = Object.freeze([ ...popularly_formats, ...next_gen_formats ]);
@@ -79,6 +80,7 @@ module.exports = appInfo => {
     popularly_formats,
     next_gen_formats,
     supported_formats,
+    convert_formats,
 
     imageThumbSavePath,
     imageSavePath,

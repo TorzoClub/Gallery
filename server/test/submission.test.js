@@ -366,6 +366,8 @@ describe('member edit submission', () => {
       desc: 'description',
     })
 
+    setEnvironmentSystem('2000/01/01 00:00:01')
+
     const edited_photo = await editSubmissionPhoto(app, {
       photo_id: created_photo.id,
       image_path: test_avatar_image_path,
@@ -374,15 +376,21 @@ describe('member edit submission', () => {
       expect_code: 200
     })
 
+    setEnvironmentSystem('2000/01/01 00:00:02')
+
     assert(created_photo.id === edited_photo.id)
 
     {
-      const photo = await getPhotoById(token, app, edited_photo.id, 200)
+      setEnvironmentSystem('2000/01/01 00:00:03')
+
+      const photo = await getPhotoById(token, app, created_photo.id, 200)
       assert(photo.desc === 'edited desc')
       assert(photo.width === test_avatar_image_width)
       assert(photo.height === test_avatar_image_height)
     }
     {
+      setEnvironmentSystem('2000/01/01 00:00:04')
+
       await editSubmissionPhoto(app, {
         photo_id: edited_photo.id,
         image_path: default_upload_image_path,

@@ -3,6 +3,8 @@
 const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
+const { Service } = require('egg');
+const fileExists = require('../utils/file-exists');
 
 function urlPathnameJoin(url, append_path) {
   const u = new URL(url);
@@ -10,23 +12,31 @@ function urlPathnameJoin(url, append_path) {
   return u.toString();
 }
 
-async function fileExists(filename) {
-  try {
-    await fs.promises.access(filename);
-    return true;
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      return false;
-    } else {
-      throw err;
-    }
-  }
+// ref: https://sharp.pixelplumbing.com/api-input#metadata
+function getNormalSize({ width, height, orientation }) {
+  return (orientation || 0) >= 5
+    ? { orientation, width: height, height: width }
+    : { orientation, width, height };
 }
 
-const { Service } = require('egg');
+async function getImageSize(filePath) {
+  return getNormalSize(await sharp(filePath).metadata());
+}
 
 module.exports = app =>
   class ImageService extends Service {
+    static async getImageDimensions(src) {
+      const srcPath = app.serviceClasses.image.toSrcSavePath(src);
+
+      if (!fs.existsSync(srcPath)) {
+        throw new this.app.WarningError('src不存在', 404);
+      }
+
+      const { width, height } = await getImageSize(srcPath);
+
+      return { width, height };
+    }
+
     static allFilename(src) {
       const src_without_ext = path.parse(src).name;
       return app.config.supported_formats.map(format => {

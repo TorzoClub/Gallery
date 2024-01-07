@@ -33,6 +33,7 @@ module.exports = {
   createMember,
   getMemberById,
   removeMemberById,
+  adminUdateMember,
 
   commonCreateGallery,
   getGalleryById,
@@ -40,6 +41,7 @@ module.exports = {
   removeGalleryById,
 
   createPhoto,
+  adminUpdatePhoto,
   getPhotoById,
   removePhotoById,
 
@@ -248,6 +250,15 @@ function removeMemberById(token, app, id, expect_code = 200) {
     .expect(expect_code)
     .then(res => res.body);
 }
+function adminUdateMember(token, app, id, data = {}, expect_code = 200) {
+  return app.httpRequest()
+    .patch(`/admin/member/${id}`)
+    .set('Authorization', token)
+    .type('json')
+    .send(data)
+    .expect(expect_code)
+    .then(res => res.body);
+}
 
 function commonCreateGallery(token, app, append_data = {}) {
   const send_data = {
@@ -303,17 +314,17 @@ function removeGalleryById(token, app, id) {
     });
 }
 
-async function createPhoto(token, app, appendmemberData = {}, expect_code = 200) {
-  if (!appendmemberData.src) {
+async function createPhoto(token, app, append_data = {}, expect_code = 200) {
+  if (!append_data.src) {
     const uploadedImage = await uploadImage(token, app);
-    appendmemberData.src = uploadedImage.src;
+    append_data.src = uploadedImage.src;
   }
   const data = {
     member_id: -1,
     gallery_id: -1,
     desc: 'desc',
     // src: uploadedImage.src,
-    ...appendmemberData,
+    ...append_data,
   };
 
   return app.httpRequest()
@@ -325,6 +336,19 @@ async function createPhoto(token, app, appendmemberData = {}, expect_code = 200)
     .then(res => {
       const photo = res.body;
       assert(photo.src === data.src);
+      return photo;
+    });
+}
+
+async function adminUpdatePhoto(token, app, photo_id, data = {}, expect_code = 200) {
+  return app.httpRequest()
+    .patch(`/admin/photo/${photo_id}`)
+    .set('Authorization', token)
+    .type('json')
+    .send(data)
+    .expect(expect_code)
+    .then(res => {
+      const photo = res.body;
       return photo;
     });
 }

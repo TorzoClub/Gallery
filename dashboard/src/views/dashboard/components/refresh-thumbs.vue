@@ -1,16 +1,17 @@
 <template>
   <div>
+    <ElProgress
+      v-if="processing"
+      :percentage="percentage"
+      :color="color"
+    />
     <ElButton
+      v-else-if="showButton"
       size="small"
       type="primary"
       icon="el-icon-refresh"
       @click="processing || refreshThumbsConfirm()"
     >刷新缩略图</ElButton>
-    <ElProgress
-      v-if="show_progress"
-      :percentage="percentage"
-      :color="color"
-    />
   </div>
 </template>
 
@@ -21,6 +22,10 @@ import { getList as getMemberList } from '@/api/member'
 const initProgress = () => ({ total: 0, success: 0, failure: 0 })
 
 export default {
+  props: {
+    showButton: { type: Boolean, default: true }
+  },
+
   data: () => ({
     ...initProgress(),
     processing: false,
@@ -74,34 +79,20 @@ export default {
         }
       }
     },
-    async refreshThumbsConfirm() {
-      const confirm = await this.confirm('', `你确定要刷新吗？`, {
-        confirmButtonClass: 'el-button--warning',
-      })
-      if (!confirm) { return }
-      try {
-        this.processing = true
-        await this.refreshThumbs()
-        if (this.failure === 0) {
-          this.$emit('success', `所有缩略图已刷新`)
+    async refreshThumbsConfirmProcessing() {
+      if (this.processing === false) {
+        try {
+          this.processing = true
+          await this.refreshThumbs()
+          if (this.failure === 0) {
+            this.$emit('success', `所有缩略图已刷新`)
+          }
+        } catch (err) {
+          this.$emit('error', '刷新缓存失败', err)
+        } finally {
+          this.processing = false
         }
-      } catch (err) {
-        this.$emit('error', '刷新缓存失败', err)
-      } finally {
-        this.processing = false
       }
-    },
-
-    async confirm(title, content, appendOpt = {}) {
-      const opt = Object.assign({
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        confirmButtonClass: 'el-button--warning',
-        showClose: false,
-      }, appendOpt)
-      return this.$confirm(content, title, opt)
-        .then(() => true)
-        .catch(() => false)
     },
   }
 }

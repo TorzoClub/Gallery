@@ -2,6 +2,7 @@
   "extends": "eslint-config-egg",
   "rules": {
     "no-else-return": [0],
-    "no-lone-blocks": [0]
+    "no-lone-blocks": [0],
+    "no-extra-parens": [0]
   }
 }

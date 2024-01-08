@@ -24,6 +24,8 @@ module.exports = app => {
 
   setRouter('post', 'admin/login', controller.admin.auth.login);
 
+  setAdminRouter('get', 'statistic', controller.admin.statistic.show);
+
   setAdminRouter('post', 'image/upload', controller.admin.image.upload);
   setAdminRouter('post', 'image/refresh-thumb', controller.admin.image.refreshThumb);
   setAdminRouter('get', 'image/available-photo', controller.admin.image.getAllAvailablePhoto);

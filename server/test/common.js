@@ -45,6 +45,8 @@ module.exports = {
   getPhotoById,
   removePhotoById,
 
+  adminGetStatistic,
+
   editSubmissionPhoto,
   submissionPhoto,
   cancelMySubmission,
@@ -366,6 +368,15 @@ async function removePhotoById(token, app, photoId, expectStatusCode = 200) {
     .delete(`/admin/photo/${photoId}`)
     .set('Authorization', token)
     .expect(expectStatusCode)
+    .then(res => res.body);
+}
+
+async function adminGetStatistic(token, app, expect_code = 200) {
+  return app.httpRequest()
+    .get('/admin/statistic')
+    .set('Authorization', token)
+    .type('json')
+    .expect(expect_code)
     .then(res => res.body);
 }
 

@@ -22,7 +22,7 @@
             <template slot="formatter">{{ statistic.available_photo_count }}</template>
           </ElStatistic>
         </ElCol>
-        <ElCol :span="8">
+        <ElCol :span="9">
           <ElStatistic title="图片占用空间">
             <template slot="prefix">
               <ElLink style="opacity: 0" icon="el-icon-refresh" size="mini">清理</ElLink>
@@ -123,6 +123,8 @@ export default {
       try {
         this.loading = true
         this.statistic = await getStatistic()
+      } catch (err) {
+        this.handleError('获取主页数据失败', err)
       } finally {
         this.loading = false
       }

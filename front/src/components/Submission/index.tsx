@@ -1,4 +1,4 @@
-import React, { FunctionComponent, useEffect, useMemo, useState } from 'react'
+import React, { FunctionComponent, ReactNode, useEffect, useMemo, useState } from 'react'
 import s from './index.module.scss'
 import { nth, partialRight, pipe, prop, thunkify } from 'ramda'
 import { create } from 'zustand'
@@ -57,7 +57,7 @@ export function componentScript(selects: Select[], Content: Content): Script {
 }
 
 export type ChangeScript = (s: Script) => void
-export type Content = string | ((p: { changeScript: ChangeScript }) => JSX.Element)
+export type Content = string | FunctionComponent<{ changeScript: ChangeScript }>
 
 export type Select = {
   Content: Content

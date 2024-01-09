@@ -84,7 +84,7 @@ export function init(init_args : InitArgs) {
     ])
   }
 
-  const submissionCheckingScript = (exists_text: Content = '你这不是已经投稿了吗？'): Script => {
+  const submissionCheckingScript = (exists_text: string = '你这不是已经投稿了吗？'): Script => {
     const { photo } = useSubmissionStore.getState()
     if (photo) {
       // 已经投稿了

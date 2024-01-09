@@ -2,6 +2,7 @@
 
 const sendToWormhole = require('stream-wormhole');
 const path = require('path');
+const fs = require('fs');
 
 module.exports = app => {
   class ImageController extends app.Controller {
@@ -43,23 +44,10 @@ module.exports = app => {
     }
 
     async getAllAvailablePhoto(ctx) {
-      const list = await ctx.app.model.Gallery.findAll({
-        order: [
-          [ 'index', 'DESC' ],
-        ],
-      });
-
-      const photos_list = await Promise.all(
-        list.map(gallery => {
-          return gallery.getPhotos({
-            order: [
-              [ 'index', 'ASC' ],
-            ],
-          });
-        })
+      ctx.backData(
+        200,
+        await ctx.service.photo.getAvailablePhotoList()
       );
-
-      ctx.backData(200, photos_list.flat());
     }
 
     async refreshThumb(ctx) {
@@ -79,28 +67,39 @@ module.exports = app => {
       ctx.backData(200, result);
     }
 
-    async refreshMemberThumb(ctx) {
-      ctx.validate({
-        member_id: { type: 'id', required: true },
-      }, ctx.params);
+    async cleanUnusedImage(ctx) {
+      const [ available_photo_list, member_list ] = await Promise.all([
+        ctx.service.photo.getAvailablePhotoList(),
+        ctx.model.Member.findAll({}),
+      ]);
 
-      const member = await ctx.service.member.findById(ctx.params.member_id);
+      const used_src_list = [
+        ...available_photo_list.map(p => p.src),
+        ...member_list.map(m => m.avatar_src),
+      ].map(f => path.parse(f).name);
 
-      await app.serviceClasses.image.removeThumb(member.avatar_thumb);
-      const result = await app.serviceClasses.image.generateThumb(member.avatar_thumb);
-      ctx.backData(200, result);
-    }
+      const { imageSavePath, imageThumbSavePath } = ctx.app.config;
 
-    async refreshPhotoThumb(ctx) {
-      ctx.validate({
-        photo_id: { type: 'id', required: true },
-      }, ctx.params);
+      const file_list = [
+        ...fs.readdirSync(imageSavePath).map(f => path.join(imageSavePath, f)),
+        ...fs.readdirSync(imageThumbSavePath).map(f => path.join(imageThumbSavePath, f)),
+      ];
 
-      const photo = await ctx.service.photo.findById(ctx.params.photo_id);
+      const clean_list = [];
 
-      await app.serviceClasses.image.removeThumb(photo.thumb);
-      const result = await app.serviceClasses.image.generateThumb(photo.thumb);
-      ctx.backData(200, result);
+      for (const file of file_list) {
+        const { name: file_name } = path.parse(file);
+        const is_used = used_src_list.includes(file_name);
+        if (!is_used) {
+          if (fs.lstatSync(file).isFile()) {
+            fs.unlinkSync(file);
+            ctx.app.logger.info(`auto clean used image: ${file}`);
+            clean_list.push(file);
+          }
+        }
+      }
+
+      ctx.backData(200, clean_list);
     }
   }
 

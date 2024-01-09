@@ -26,9 +26,10 @@ module.exports = app => {
 
   setAdminRouter('get', 'statistic', controller.admin.statistic.show);
 
-  setAdminRouter('post', 'image/upload', controller.admin.image.upload);
-  setAdminRouter('post', 'image/refresh-thumb', controller.admin.image.refreshThumb);
   setAdminRouter('get', 'image/available-photo', controller.admin.image.getAllAvailablePhoto);
+  setAdminRouter('post', 'image/refresh-thumb', controller.admin.image.refreshThumb);
+  setAdminRouter('post', 'image/clean-unused', controller.admin.image.cleanUnusedImage);
+  setAdminRouter('post', 'image/upload', controller.admin.image.upload);
 
   {
     const { create, remove, get, show, edit } = controller.admin.gallery;

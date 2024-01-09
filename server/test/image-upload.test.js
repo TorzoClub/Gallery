@@ -325,7 +325,14 @@ describe('controller/admin/image', function () {
       await uploadImage(token, app),
     ]
 
-    await app.runSchedule('clean-unused-image')
+    const { body: clean_list } = await app
+      .httpRequest()
+      .post('/admin/image/clean-unused')
+      .set('Authorization', token)
+      .expect(200)
+
+    assert(Array.isArray(clean_list) === true)
+    assert(clean_list.length !== 0)
 
     {
       const file_list =

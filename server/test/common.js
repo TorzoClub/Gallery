@@ -195,13 +195,13 @@ async function fetchListWithQQNum(app, qq_num, expectStatusCode = 200) {
 async function uploadImage(
   token,
   app,
-  imagePath = default_upload_image_path
+  image_path = default_upload_image_path
 ) {
   const { body: newImage } = await app.httpRequest()
     .post('/admin/image/upload')
     .set('Authorization', token)
     .field('name', `image-${Date.now()}`)
-    .attach('image', imagePath)
+    .attach('image', image_path)
     .expect(200);
 
   assert(typeof newImage.src === 'string');

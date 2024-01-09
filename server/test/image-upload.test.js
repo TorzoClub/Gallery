@@ -26,6 +26,7 @@ const {
   removeGalleryById,
   getPhotoById,
   getMemberById,
+  adminCleanImage,
 } = require('./common');
 
 describe('controller/admin/image', function () {
@@ -325,11 +326,7 @@ describe('controller/admin/image', function () {
       await uploadImage(token, app),
     ]
 
-    const { body: clean_list } = await app
-      .httpRequest()
-      .post('/admin/image/clean-unused')
-      .set('Authorization', token)
-      .expect(200)
+    const clean_list = await adminCleanImage(token, app)
 
     assert(Array.isArray(clean_list) === true)
     assert(clean_list.length !== 0)

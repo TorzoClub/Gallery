@@ -29,6 +29,7 @@ module.exports = {
   getHomePagePhotoList,
   fetchListWithQQNum,
   uploadImage,
+  adminCleanImage,
 
   createMember,
   getMemberById,
@@ -211,6 +212,15 @@ async function uploadImage(
   assert(typeof newImage.imageThumbPath === 'string');
 
   return newImage;
+}
+
+async function adminCleanImage(token, app) {
+  const { body } = await app.httpRequest()
+    .post('/admin/image/clean-unused')
+    .set('Authorization', token)
+    .expect(200)
+  ;
+  return body;
 }
 
 async function createMember(token, app, appendmemberData = {}) {

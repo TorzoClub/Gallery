@@ -16,3 +16,9 @@ export const getAllAvailablePhoto = () =>
     method: 'GET',
     timeout: 0,
   })
+
+export const requestCleanUnusedImage = () =>
+  request({
+    url: `admin/image/clean-unused`,
+    method: 'POST',
+  })

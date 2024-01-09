@@ -21,41 +21,40 @@ module.exports = app => {
       return member_list;
     }
 
-    async getSrcTotalSize(ctx, image_path, src_list) {
-      const full_src_list = src_list
-        .map(ctx.app.serviceClasses.image.allFilename)
-        .flat();
+    async calcFilesSize(folder_path) {
+      const files = (await fs.promises.readdir(folder_path))
+        .map(f => path.join(folder_path, f));
 
       let total = 0;
-      for (const src of full_src_list) {
-        const size = await getFileSize(path.join(image_path, src));
-        total = total + size;
+      for (const file of files) {
+        const stat = await fs.promises.lstat(file);
+        if (stat.isFile()) {
+          const size = await getFileSize(file);
+          total = total + size;
+        }
       }
       return total;
     }
 
     async show(ctx) {
-      const [ available_photo_list, member_list ] = await Promise.all([
+      const [ available_photo_list ] = await Promise.all([
         ctx.service.photo.getAvailablePhotoList(),
         this.getAllMemberList(ctx),
       ]);
 
-      const src_list = [
-        ...available_photo_list.map(p => p.src),
-        ...member_list.map(m => m.avatar_src),
-      ];
-
       const { imageSavePath, imageThumbSavePath } = ctx.app.config;
 
-      const [ src_total_size_raw, thumb_total_size_raw ] = await Promise.all([
-        this.getSrcTotalSize(ctx, imageSavePath, src_list),
-        this.getSrcTotalSize(ctx, imageThumbSavePath, src_list),
-      ]);
+      const [ src_storage, thumb_storage ] = (
+        await Promise.all([
+          this.calcFilesSize(imageSavePath),
+          this.calcFilesSize(imageThumbSavePath),
+        ])
+      ).map(filesize);
 
       ctx.backData(200, {
         available_photo_count: available_photo_list.length,
-        src_total_size: filesize(src_total_size_raw),
-        thumb_total_size: filesize(thumb_total_size_raw),
+        src_storage,
+        thumb_storage,
       });
     }
   }

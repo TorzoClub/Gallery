@@ -27,14 +27,14 @@
             <template slot="prefix">
               <ElLink style="opacity: 0" icon="el-icon-refresh" size="mini">清理</ElLink>
             </template>
-            <template slot="formatter">{{ statistic.src_total_size }}</template>
+            <template slot="formatter">{{ statistic.src_storage }}</template>
             <template slot="suffix">
               <el-popconfirm
                 confirm-button-text="是的"
                 cancel-button-text="不了"
                 icon="el-icon-info"
                 icon-color="red"
-                title="你确定要清理吗？这将移除图片库中没有被引用的图片"
+                title="你确定要清理吗？这将移除图片库中没有被引用的相片"
                 @confirm="handleClickCleanImagePool"
               >
                 <ElLink slot="reference" icon="el-icon-refresh" size="mini">清理</ElLink>
@@ -48,14 +48,14 @@
             <template slot="prefix">
               <ElLink style="opacity: 0" icon="el-icon-refresh" size="mini">重新生成</ElLink>
             </template>
-            <template slot="formatter">{{ statistic.thumb_total_size }}</template>
+            <template slot="formatter">{{ statistic.thumb_storage }}</template>
             <template slot="suffix">
               <el-popconfirm
                 confirm-button-text="是的"
                 cancel-button-text="不了"
                 icon="el-icon-info"
                 icon-color="red"
-                title="你确定要重新生成吗？（这将花费一些时间，请在完成前不要离开本页面）"
+                title="你确定要重新生成吗？（这将花费一些时间，在完成前请不要离开本页面）"
                 @confirm="handleClickRefreshThumb"
               >
                 <ElLink slot="reference" icon="el-icon-refresh" size="mini">重新生成</ElLink>
@@ -75,9 +75,11 @@
 </template>
 
 <script>
-import { getStatistic } from '@/api/statistic'
-import RefreshThumbs from './components/refresh-thumbs.vue'
 import { v4 as uuidv4 } from 'uuid'
+import { getStatistic } from '@/api/statistic'
+import { requestCleanUnusedImage } from '@/api/image'
+import RefreshThumbs from './components/refresh-thumbs.vue'
+import Operate_Mixins from '@/mixins/operate'
 
 function ConsolePrint(alert_type) {
   switch (alert_type) {
@@ -104,13 +106,15 @@ export default {
 
   components: { RefreshThumbs },
 
+  mixins: [Operate_Mixins],
+
   data: () => ({
     loading: false,
     alerts: [],
     statistic: {
       available_photo_count: 'N/A',
-      src_total_size: 'N/A',
-      thumb_total_size: 'N/A',
+      src_storage: 'N/A',
+      thumb_storage: 'N/A',
     }
   }),
 
@@ -119,18 +123,31 @@ export default {
   },
 
   methods: {
-    async refresh() {
-      try {
-        this.loading = true
-        this.statistic = await getStatistic()
-      } catch (err) {
-        this.handleError('获取主页数据失败', err)
-      } finally {
-        this.loading = false
-      }
+    refresh() {
+      this.$operate('loading', async() => {
+        try {
+          this.statistic = await getStatistic()
+        } catch (err) {
+          this.handleError('获取主页信息失败', err)
+        }
+      })
     },
 
-    handleClickCleanImagePool() {
+    async handleClickCleanImagePool() {
+      await this.$operate('loading', async() => {
+        try {
+          const clean_list = await requestCleanUnusedImage()
+          if (clean_list.length) {
+            this.handleSuccess(`已清理${clean_list.length}个文件`)
+          } else {
+            this.handleInfo(`没有发现无用的图片，不用清理了`)
+          }
+        } catch (err) {
+          this.handleError('请求清理无用图片失败', err)
+        }
+      })
+
+      this.refresh()
     },
 
     handleClickRefreshThumb() {

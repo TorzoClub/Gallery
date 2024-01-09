@@ -1,5 +1,8 @@
 const assert = require('assert');
-const { constructEnvironment, adminGetStatistic, prepareData } = require("./common")
+const {
+  constructEnvironment, adminGetStatistic, prepareData, uploadImage,
+  test_avatar_image_path, adminCleanImage
+} = require('./common')
 
 describe('Dashboard Home statistic', () => {
   it('should shuccessfully get Dashboard Home statistic', async () => {
@@ -11,17 +14,41 @@ describe('Dashboard Home statistic', () => {
       }
     })
 
-    const statistic = await adminGetStatistic(token, app, 200)
-    assert(typeof statistic === 'object')
-    assert(typeof statistic.available_photo_count === 'number')
-    assert(typeof statistic.src_total_size === 'string')
-    assert(typeof statistic.thumb_total_size === 'string')
+    await adminCleanImage(token, app)
 
-    await prepareData({token, app, baseNum: 999})
+    {
+      const statistic = await adminGetStatistic(token, app, 200)
 
-    const new_statistic = await adminGetStatistic(token, app, 200)
-    assert(new_statistic.available_photo_count > statistic.available_photo_count)
-    assert(new_statistic.src_total_size !== statistic.src_total_size)
-    assert(new_statistic.thumb_total_size !== statistic.thumb_total_size)
+      await uploadImage(token, app, test_avatar_image_path)
+
+      const new_statistic = await adminGetStatistic(token, app, 200)
+
+      assert(new_statistic.available_photo_count === statistic.available_photo_count)
+      assert(new_statistic.src_storage !== statistic.src_storage)
+      assert(new_statistic.thumb_storage !== statistic.thumb_storage)
+
+      await adminCleanImage(token, app)
+
+      const clean_after_statistic = await adminGetStatistic(token, app, 200)
+
+      assert(clean_after_statistic.available_photo_count === new_statistic.available_photo_count)
+      assert(clean_after_statistic.src_storage !== new_statistic.src_storage)
+      assert(clean_after_statistic.thumb_storage !== new_statistic.thumb_storage)
+    }
+
+    {
+      const statistic = await adminGetStatistic(token, app, 200)
+      assert(typeof statistic === 'object')
+      assert(typeof statistic.available_photo_count === 'number')
+      assert(typeof statistic.src_storage === 'string')
+      assert(typeof statistic.thumb_storage === 'string')
+
+      await prepareData({token, app, baseNum: 999})
+      await prepareData({token, app, baseNum: 9999})
+      await prepareData({token, app, baseNum: 99999})
+
+      const new_statistic = await adminGetStatistic(token, app, 200)
+      assert(new_statistic.available_photo_count > statistic.available_photo_count)
+    }
   })
 })

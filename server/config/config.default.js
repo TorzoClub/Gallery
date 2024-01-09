@@ -6,6 +6,9 @@ const path = require('path');
 const absolutePath = inputPath => path.join(__dirname, '../', inputPath);
 
 const staticPath = absolutePath('./static');
+
+// ⚠️ 注意，imageThumbSavePath、imageSavePath 请不要放其他文件
+// 因为在这两个目录里会自动清理无用的文件
 const imageThumbSavePath = path.join(staticPath, './thumb/');
 const imageSavePath = path.join(staticPath, './src/');
 

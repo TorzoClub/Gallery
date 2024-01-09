@@ -308,4 +308,71 @@ describe('controller/admin/image', function () {
       }
     }
   })
+
+  it(`should correctly clean unused image`, async () => {
+    const {
+      app, token,
+      memberA, memberB, memberC,
+      authorA, authorB, authorC,
+      photoA, photoB, photoC
+    } = await constructEnvironment({ need_sync: true })
+
+    const u_img_list = [
+      await uploadImage(token, app),
+      await uploadImage(token, app),
+      await uploadImage(token, app),
+      await uploadImage(token, app),
+      await uploadImage(token, app),
+    ]
+
+    await app.runSchedule('clean-unused-image')
+
+    {
+      const file_list =
+        u_img_list
+          .map(u_img => app.serviceClasses.image.allFilename(u_img.src))
+          .flat()
+
+      for (const file of file_list) {
+        await app.httpRequest().get(`/src/${file}`).expect(404)
+        await app.httpRequest().get(`/thumb/${file}`).expect(404)
+
+        const src_exists = fs.existsSync(
+          path.join(app.config.imageSavePath, file)
+        )
+        assert(false === src_exists)
+
+        const thumb_exists = fs.existsSync(
+          path.join(app.config.imageThumbSavePath, file)
+        )
+        assert(false === thumb_exists)
+      }
+    }
+
+    {
+      const users = [memberA, memberB, memberC, authorA, authorB, authorC]
+      const used_src_list = [
+        ...users.map(m => m.avatar_src),
+        ...[photoA, photoB, photoC].map(p => p.src)
+      ]
+
+      for (const file of used_src_list) {
+        await app.httpRequest().get(`/src/${file}`).expect(200)
+        const src_exists = fs.existsSync(
+          path.join(app.config.imageSavePath, file)
+        )
+        assert(true === src_exists)
+
+        for (const format of app.config.convert_formats) {
+          const { name } = path.parse(file)
+          const src = `${name}.${format}`
+          await app.httpRequest().get(`/thumb/${src}`).expect(200)
+          const thumb_exists = fs.existsSync(
+            path.join(app.config.imageThumbSavePath, src)
+          )
+          assert(true === thumb_exists)
+        }
+      }
+    }
+  })
 })

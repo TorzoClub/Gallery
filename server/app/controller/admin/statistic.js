@@ -16,20 +16,6 @@ async function getFileSize(path) {
 
 module.exports = app => {
   class StatisticController extends app.Controller {
-    async getAvailablePhotoList(ctx) {
-      let photo_list = [];
-
-      const galleries = await ctx.model.Gallery.findAll();
-
-      for (const gallery of galleries) {
-        const photos = await ctx.model.Photo.findAll({
-          where: { gallery_id: gallery.id },
-        });
-        photo_list = [ ...photo_list, ...photos ];
-      }
-
-      return photo_list;
-    }
     async getAllMemberList(ctx) {
       const member_list = await ctx.model.Member.findAll({});
       return member_list;
@@ -50,7 +36,7 @@ module.exports = app => {
 
     async show(ctx) {
       const [ available_photo_list, member_list ] = await Promise.all([
-        this.getAvailablePhotoList(ctx),
+        ctx.service.photo.getAvailablePhotoList(),
         this.getAllMemberList(ctx),
       ]);
 

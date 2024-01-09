@@ -94,39 +94,34 @@ module.exports = app =>
 
     async create(data) {
       return this.app.model.transaction(async transaction => {
+        const transaction_opts = { transaction, lock: transaction.LOCK.UPDATE };
         const { member_id, gallery_id, src, desc } = data;
 
-        await this.service.member.detectExistsById(member_id, {
-          transaction,
-          lock: transaction.LOCK.UPDATE,
-        });
+        const [ count ] = await Promise.all([
+          this.Model.count({
+            where: { gallery_id, member_id },
+            ...transaction_opts,
+          }),
 
-        await this.service.gallery.detectExistsById(gallery_id, {
-          transaction,
-          lock: transaction.LOCK.UPDATE,
-        });
+          this.service.member.detectExistsById(member_id, transaction_opts),
 
-        const exists = await this.Model.findOne({
-          where: {
-            gallery_id,
-            member_id,
-          },
+          this.service.gallery.detectExistsById(gallery_id, transaction_opts),
+        ]);
 
-          transaction,
-          lock: transaction.LOCK.UPDATE,
-        });
-        if (exists) {
+        if (count !== 0) {
           throw new this.ctx.app.WarningError('该成员已经投稿过了，不能重复投稿', 409);
         } else {
           const { width, height } = await app.serviceClasses.image.getImageDimensions(src);
-          return await this.Model.create({
+          const new_photo = await this.Model.create({
             member_id: parseInt(member_id),
             gallery_id: parseInt(gallery_id),
             desc,
             src,
             width,
             height,
-          }, { transaction, lock: transaction.LOCK.UPDATE });
+          }, transaction_opts);
+
+          return new_photo;
         }
       });
     }
@@ -324,5 +319,22 @@ module.exports = app =>
       photo.vote_count = voteCount;
 
       return photo.save({ ...transaction_opts });
+    }
+
+    async getAvailablePhotoList() {
+      let photo_list = [];
+
+      const galleries = await this.service.gallery.Model.findAll();
+
+      for (const gallery of galleries) {
+        photo_list = [
+          ...photo_list,
+          ...await this.service.photo.Model.findAll({
+            where: { gallery_id: gallery.id },
+          }),
+        ];
+      }
+
+      return photo_list;
     }
   };

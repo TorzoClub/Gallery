@@ -51,7 +51,6 @@ describe('controller/admin/member', () => {
   })
 
   function removeMemberGalleryVote(token, app, member_id, gallery_id, expect_code = 200) {
-    console.warn(`/admin/member/${member_id}/gallery/${gallery_id}/vote`)
     return app.httpRequest()
       .delete(`/admin/member/${member_id}/gallery/${gallery_id}/vote`)
       .set('Authorization', token)

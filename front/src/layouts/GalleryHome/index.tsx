@@ -59,7 +59,7 @@ function usePhotoLoadingPriority(
           (bounding.y > (0 - bounding.height)) &&
           (bounding.y < window.innerHeight)
         ) {
-          console.log(bounding, photo_el)
+          // console.log(bounding, photo_el)
           return { photo, bounding }
         } else {
           return null

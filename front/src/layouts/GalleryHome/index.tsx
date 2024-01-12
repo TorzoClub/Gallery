@@ -19,10 +19,6 @@ import ConfirmVote from 'components/ConfirmVote'
 import shuffleArray from 'utils/shuffle-array'
 import { WaterfallLayoutClickCoverHandler } from 'components/Waterfall'
 
-type MediaID = string | number
-type MediaType = 'AVATAR' | 'PHOTO'
-type Media = { id: MediaID; type: MediaType }
-
 function preloadPhotoListThumb(photo_list: Photo[]) {
   photo_list.forEach((photo, idx) => {
     globalQueueLoad(photo.thumb_url, photo_list.length - idx)
@@ -44,47 +40,48 @@ function usePhotoLoadingPriority(
     return m
   }, [photo_list])
 
-  function id(type: MediaType, mid: MediaID) {
-    if (type === 'PHOTO') return `photo-${mid}`
-    else return `avatar-${mid}`
-  }
-
   const resort = useCallback(function _resortHandler() {
-    requestAnimationFrame(() => {
-      const in_screen_photos = photo_list.map(photo => {
-        const photo_el = document.getElementById(id('PHOTO', photo.id))
-        if (!photo_el) { return }
-        const bounding = photo_el.getBoundingClientRect()
-        if (
-          (bounding.y > (0 - bounding.height)) &&
-          (bounding.y < window.innerHeight)
-        ) {
-          // console.log(bounding, photo_el)
-          return { photo, bounding }
-        } else {
-          return null
-        }
-      }).filter(p => p) as { photo: Photo, bounding: DOMRect }[]
+    const in_screen_photos = photo_list.map((photo, idx) => {
+      const photo_el = document.getElementById(`photo-${photo.id}`)
+      if (!photo_el) { return }
+      const bounding = photo_el.getBoundingClientRect()
+      if (
+        (bounding.y > (0 - bounding.height)) &&
+        (bounding.y < window.innerHeight)
+      ) {
+        return { idx, photo, bounding }
+      } else {
+        return null
+      }
+    }).filter(p => p) as { idx: number; photo: Photo, bounding: DOMRect }[]
 
-      const sorted = in_screen_photos.sort((a, b) => {
+    const sorted = in_screen_photos.sort((a, b) => {
+      if (a.bounding.y === b.bounding.y) {
+        return a.idx > b.idx ? 1 : -1
+      } else {
         return a.bounding.y > b.bounding.y ? 1 : -1
-      })
+      }
+    })
 
-      const all_tasks = getGlobalQueue()
-      setGlobalQueue(
-        all_tasks.map((t, idx) => {
-          return { ...t, priority: all_tasks.length - idx }
-        })
-      )
-
-      sorted.forEach(({ photo }, idx) => {
-        const src = id_src_map.get(photo.id)
-        if (!src) return
-        globalQueueLoad(src, 10000 - idx)
-        if (photo.member) {
-          globalQueueLoad(photo.member.avatar_thumb_url, 5000 - idx)
-        }
+    const all_tasks = getGlobalQueue()
+    setGlobalQueue(
+      all_tasks.map((t, idx) => {
+        return { ...t, priority: sorted.length + (all_tasks.length - idx) }
       })
+    )
+
+    sorted.forEach(({ photo }, idx) => {
+      const src = id_src_map.get(photo.id)
+      if (!src) {
+        return
+      }
+      globalQueueLoad(src, (3 * sorted.length + all_tasks.length) - idx)
+      if (photo.member) {
+        globalQueueLoad(
+          photo.member.avatar_thumb_url,
+          (2 * sorted.length + all_tasks.length) - idx
+        )
+      }
     })
   }, [id_src_map, photo_list])
 
@@ -95,9 +92,20 @@ function usePhotoLoadingPriority(
     window.addEventListener('resize', resortHandler)
     window.addEventListener('scroll', resortHandler)
 
+    resort()
+
+    function req() {
+      resort()
+      if (getGlobalQueue().length) {
+        h = requestAnimationFrame(req)
+      }
+    }
+    let h: number = requestAnimationFrame(req)
+
     return () => {
       window.removeEventListener('resize', resortHandler)
       window.removeEventListener('scroll', resortHandler)
+      cancelAnimationFrame(h)
     }
   }, [resort])
 
@@ -129,6 +137,9 @@ function useVoteReady(active: GalleryInActive | null) {
   } as const
 }
 
+type PageStatus = 'LOADING' | 'NONE_EVENT' | 'SUBMISSION' | 'VOTE';
+const page_status: PageStatus = 'LOADING'
+
 export default () => {
   const [loaded, setLoaded] = useState(false)
 
@@ -149,16 +160,12 @@ export default () => {
     return (active === null) ? [] : active.photos.map(p => p.id)
   }, [active])
 
-  const resort = usePhotoLoadingPriority(
+  usePhotoLoadingPriority(
     useMemo(() => [
       ...(active ? active.photos : []),
       ...list.map(g => g.photos).flat(),
     ], [active, list])
   )
-
-  useEffect(() => {
-    resort()
-  }, [resort])
 
   const [imageDetail, setImageDetail] = useState<Detail | null>(null)
   const [currentQQNum, setCurrentQQNum] = useState(0)

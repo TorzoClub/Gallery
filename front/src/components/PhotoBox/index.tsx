@@ -57,35 +57,8 @@ export type Props = {
 
   onClickCover(clickInfo: CoverClickEvent): void
 }
-export const PhotoBoxDimension = forwardRef< DimensionUnknown, Props>((props, ref) => {
-  const _setRef = useCallback((val: DimensionUnknown) => {
-    if (typeof ref === 'function') {
-      ref(val)
-    } else if ((ref !== null) && (typeof ref === 'object')) {
-      ref.current = val
-    }
-  }, [ref])
 
-  const setRef = useCallback(({ width, height }: {
-    width: number | null;
-    height: number | null;
-  }) => {
-    if ((width !== null) && (height !== null)) {
-      const dim = [ width, height ] as const
-      _setRef(dim)
-    } else {
-      _setRef(null)
-    }
-  }, [_setRef])
-
-  const [measure_ref] = useMeasure(({ width, height }) => {
-    setRef({ width, height })
-  })
-
-  return <PhotoBox {...props} ref={measure_ref} />
-})
-
-const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
+const PhotoBox = forwardRef<() => Dimension, Props>((props, ref) => {
   const { type, vertial_gutter, box_width, photo, hideMember,
          avatar, desc, style, vote_button_status } = props
 
@@ -96,20 +69,31 @@ const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
 
   const ratio = (photo.height / photo.width).toFixed(4)
 
-  const height = `calc((${box_width}px) * ${ratio})`
-
-  const coverFrameStyle = useMemo(() => ({
-    height,
-    background: thumb_loaded ? 'white' : ''
-  }), [thumb_loaded, height])
+  const cover_frame_height = `calc((${box_width}px) * ${ratio})`
 
   const show_desc = Boolean(desc.trim().length)
   const show_bottom_block = !hideMember || show_desc
   const none_bottom_block = !show_bottom_block
 
+  const el_ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (el_ref.current) {
+      const el = el_ref.current
+      const getDim = () => {
+        const dim = el.getBoundingClientRect()
+        return [dim.width, dim.height] as const
+      }
+      if (typeof ref === 'function') {
+        ref(getDim)
+      }
+    } else {
+      console.warn('NONE :(', el_ref.current)
+    }
+  }, [ref])
+
   return (
     <div
-      ref={ref}
+      ref={el_ref}
       id={`photo-${props.id}`}
       className={`image-box-wrapper ${(type === 'compact') && 'compact'} ${none_bottom_block ? 'none-bottom-block' : 'has-bottom-block'}`}
       style={{
@@ -122,7 +106,7 @@ const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
         <div
           className="cover-area"
           ref={coverFrameEl}
-          style={coverFrameStyle}
+          style={{ height: cover_frame_height }}
           onClick={(e) => {
             e.preventDefault()
             if (coverFrameEl.current) {
@@ -157,7 +141,7 @@ const PhotoBox = forwardRef<HTMLDivElement, Props>((props, ref) => {
                   <div className="member-info">
                     <div className="avatar-wrapper">
                       <div className="avatar">
-                        <div className="avatar-inner" style={{ transform: avatarThumb ? 'translateY(0px)' : 'translateY(-100%)', backgroundImage: `url(${avatarThumb})` }}></div>
+                        <div className="avatar-inner" style={{ transform: avatar_loaded ? 'translateY(0px)' : 'translateY(-100%)', backgroundImage: `url(${avatarThumb})` }}></div>
                       </div>
                     </div>
 

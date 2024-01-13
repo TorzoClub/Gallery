@@ -17,9 +17,7 @@ $avatar-size-compact: 36px;
 
   position: absolute;
 
-  &:not(:last-child) {
-    padding-bottom: var(--vertical-gutter);
-  }
+  padding-bottom: var(--vertical-gutter);
 }
 
 $horizontalPhotoShadowOffset: 3px;
@@ -394,13 +392,6 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
 .image-box-wrapper.compact {
   padding-left: 0px;
   width: 100%;
-
-  &:not(:last-child) {
-    // padding-bottom: 12px;
-  }
-
-  &:first-child {
-  }
 
   .bottom-area {
     .bottom-block {

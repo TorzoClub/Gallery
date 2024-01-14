@@ -7,7 +7,7 @@ import './index.scss'
 import PhotoBox, { Props as PhotoBoxProps, CoverClickEvent, Dimension, DimensionUnknown, postDimesions } from 'components/PhotoBox'
 
 import useSafeState from 'hooks/useSafeState'
-import { findListByProperty } from 'utils/common'
+import { findListByProperty, removeListItemByIdx } from 'utils/common'
 import { AppCriticalError } from 'App'
 
 type Pos = {
@@ -69,7 +69,7 @@ export default (props: Props) => {
   const { box_type, vertial_gutter, gallery_width } = layout_configure
   const [ box_width ] = calcTotalBoxWidth(layout_configure)
 
-  const { refFn, waterfall_height, pos_map, refresh_signal } = useLayout({
+  const { refFn, columns, waterfall_height, pos_map, refresh_signal } = useLayout({
     photos, box_width, layout_configure
   })
 
@@ -162,6 +162,7 @@ type DimessionInfo = {
   id: number
   height: number
   width: number
+  photo_idx: number
 }
 
 type Columns = DimessionInfo[][]
@@ -260,7 +261,7 @@ function columnsPopSafe(cols: Columns): DimOperateResult {
   }
 }
 
-function isBalanced(cols: Columns) {
+function _isBalanced(cols: Columns) {
   if (countDim(cols) <= cols.length) {
     return true
   } else if (toHeightList(cols).includes(0)) {
@@ -272,6 +273,24 @@ function isBalanced(cols: Columns) {
     } else {
       const [ , poped_cols ] = popColumn(cols, max_column)
       return max_column === whichMinimum(toHeightList(poped_cols))
+    }
+  }
+}
+
+function isBalanced(cols: Columns) {
+  if (countDim(cols) <= cols.length) {
+    return true
+  } else if (toHeightList(cols).includes(0)) {
+    return false
+  } else {
+    const max_column = whichMaxniumColumnSafe(cols)
+    if (max_column === undefined) {
+      return true
+    } else {
+      const [ , poped_cols ] = popColumn(cols, max_column)
+      return (
+        max_column === whichMinimum(toHeightList(poped_cols))
+      ) && isBalanced(poped_cols)
     }
   }
 }
@@ -292,7 +311,19 @@ function toDimListWithSorted(cols: Columns) {
     )
     .flat()
     .sort(
-      (a, b) => (a.height < b.height) ? -1 : 1
+      (a, b) => {
+        if (a.height === b.height) {
+          if ((a.dim.photo_idx < b.dim.photo_idx)) {
+            return -1
+          } else {
+            return 0
+          }
+        } if (a.height < b.height) {
+          return -1
+        } else {
+          return 0
+        }
+      }
     )
     .map(h => h.dim)
 }
@@ -350,7 +381,7 @@ function createPlainColumns(col_count: number): Columns {
   return Array.from(Array(col_count)).map(() => [])
 }
 
-function extendColumns(col_count: number, cols: Columns) {
+function _extendColumns(col_count: number, cols: Columns) {
   let new_cols = createPlainColumns(col_count).map((_, idx) => {
     const col: DimessionInfo[] | undefined = cols[idx]
     if (col) {
@@ -378,22 +409,77 @@ function extendColumns(col_count: number, cols: Columns) {
   return new_cols
 }
 
+function canPop(col: DimessionInfo[]) {
+  return col.length >= 2
+}
+
+function bestPopPosition(cols: Columns) {
+  const bottom_removed_cols = cols.map(col => {
+    const new_col = [...col]
+    new_col.pop()
+    return new_col
+  })
+  const h_list = toHeightList(bottom_removed_cols)
+  const col = h_list.indexOf(Math.max(...h_list))
+
+  if (canPop(cols[col])) {
+    return col
+  } else {
+    return undefined
+  }
+}
+
+function extendColumns(col_count: number, old_cols: Columns) {
+  const list = toDimListWithSorted(old_cols).reverse()
+  const selected_list = new Set<DimessionInfo['id']>()
+
+  let new_cols = createPlainColumns(col_count - old_cols.length)
+
+  for (const dim of list) {
+    const best_col = bestPopPosition(old_cols)
+    if (best_col === undefined) {
+      return [ selected_list ] as const
+    } else {
+      const s_dim = old_cols[best_col][old_cols[best_col].length - 1]
+      const n_cols = appendDim(new_cols, s_dim)
+
+      if (
+        computeWaterfallHeight(old_cols.filter(canPop))
+        >
+        computeWaterfallHeight(n_cols)
+      ) {
+        old_cols = appendMultiDim(
+          createPlainColumns(old_cols.length),
+          toDimListWithSorted(old_cols).filter(dim => dim.id !== s_dim.id)
+        )
+
+        selected_list.add(s_dim.id)
+        new_cols = n_cols
+      } else {
+        return [ selected_list ] as const
+      }
+    }
+  }
+
+  return [ selected_list ] as const
+}
+
 function adjustColumns(target_column: number, cols: Columns): Columns {
   const current_column = cols.length
   if (target_column > current_column) {
-    const extended = extendColumns(target_column, cols)
+    const [drop_list] = extendColumns(target_column, cols)
+
     return (
       concatColumns(
-        selectColumns(extended, 0, current_column),
+        appendMultiDim(
+          createPlainColumns(current_column),
+          toDimListWithSorted(cols).filter(dim => !drop_list.has(dim.id))
+        ),
         appendMultiDim(
           createPlainColumns(target_column - current_column),
           filterByIDList(
             toDimListWithSorted(cols),
-            toIDList(
-              toDimList(
-                selectColumns(extended, current_column, target_column)
-              )
-            )
+            drop_list
           )
         )
       )
@@ -479,12 +565,12 @@ function useLayout({
     }, [refresh_signal])
   )
 
-  const computeWaterfallColumns = useCallback((
+  const generateWaterfallColumns = useCallback((
     photos: Photo[],
     column_count: number,
     dim_map: DimensionMap
   ) => {
-    return photos.reduce((columns, photo) => {
+    return photos.reduce((columns, photo, photo_idx) => {
       const height_list = columns.map(col => {
         return computeColumnHeight(col)
       })
@@ -496,7 +582,7 @@ function useLayout({
           const dim = dim_map[photo.id]
           if (dim) {
             const [ width, height ] = dim()
-            return [...col, { id: photo.id, width, height }]
+            return [...col, { id: photo.id, width, height, photo_idx }]
           } else {
             return col
           }
@@ -521,7 +607,7 @@ function useLayout({
           [heightInfo.id]: {
             top: `${h}px`,
             left,
-            zIndex: h
+            zIndex: h,
           }
         }
       }, column_pos_init)
@@ -530,54 +616,76 @@ function useLayout({
 
   const [ waterfall_height, refreshWaterfallHeight ] = useSafeState(0)
 
+  const [columns, refreshColumns] = useSafeState<Columns>([])
+
   const cacheID = (...vals: number[]) => vals.join('-')
 
   const columns_cache = useRef<Map<string, Columns>>()
 
-  const prev_columns = useRef<Columns>([])
+  const prev_columns = useRef<{ id: string; cols: Columns }>()
 
   const applyNewLayout = useCallback((new_cols: Columns) => {
-    prev_columns.current = new_cols
+    prev_columns.current = {
+      id: cacheID(box_width, column_count, column_gutter),
+      cols: new_cols
+    }
+    refreshColumns(new_cols)
     refreshPosMap( computePosMap(new_cols) )
     refreshWaterfallHeight( computeWaterfallHeight(new_cols) )
     refresh_signal.trigger()
-  }, [computePosMap, refreshPosMap, refreshWaterfallHeight, refresh_signal])
+  }, [box_width, column_count, column_gutter, computePosMap, refreshColumns, refreshPosMap, refreshWaterfallHeight, refresh_signal])
 
   const refreshLayout = useCallback(() => {
-    if (columns_cache.current !== undefined) {
-      const cache_id = cacheID(box_width, column_count, column_gutter)
-      const cached = columns_cache.current.get(cache_id)
-      if (cached) {
-        applyNewLayout(cached)
-      } else {
-        const latest_columns = computeWaterfallColumns(
-          photos, column_count, getDimMap()
-        )
-        const merged = mergeColumns(prev_columns.current, latest_columns)
-        columns_cache.current.set(cache_id, merged)
-        applyNewLayout(merged)
-      }
-    } else {
+    if (prev_columns.current === undefined) {
       applyNewLayout(
         mergeColumns(
-          prev_columns.current,
-          computeWaterfallColumns(
+          createPlainColumns(0),
+          generateWaterfallColumns(
             photos, column_count, getDimMap()
           )
         )
       )
     }
-  }, [applyNewLayout, box_width, column_count, column_gutter, computeWaterfallColumns, getDimMap, photos])
+    // else if (columns_cache.current !== undefined) {
+    //   const cache_id = cacheID(box_width, column_count, column_gutter)
+    //   const cached = columns_cache.current.get(cache_id)
+    //   if (cached) {
+    //     applyNewLayout(cached)
+    //   } else {
+    //     const latest_columns = generateWaterfallColumns(
+    //       photos, column_count, getDimMap()
+    //     )
+    //     const merged = mergeColumns(prev_columns.current.cols, latest_columns)
+    //     columns_cache.current.set(cache_id, merged)
+    //     applyNewLayout(merged)
+    //   }
+    // }
+    else {
+      applyNewLayout(
+        mergeColumns(
+          prev_columns.current.cols,
+          generateWaterfallColumns(
+            photos, column_count, getDimMap()
+          )
+        )
+      )
+    }
+  }, [applyNewLayout, column_count, generateWaterfallColumns, getDimMap, photos])
 
   useEffect(() => {
     if (columns_cache.current === undefined) {
       columns_cache.current = new Map()
     }
     refreshLayout()
-  }, [refreshLayout])
+  }, [box_width, column_count, column_gutter, refreshLayout, refresh_signal])
+
+  if (prev_columns.current?.id !== cacheID(box_width, column_count, column_gutter)) {
+    refreshLayout()
+  }
 
   return {
     refFn,
+    columns,
     pos_map,
     waterfall_height,
     refresh_signal,
@@ -607,8 +715,9 @@ function useDimensionMap(onDimChange: () => void) {
         ...dim_map,
         [String(id)]: getDim
       })
+      onDimChange()
     }
-  }, [getDimMap, setDimMap])
+  }, [getDimMap, onDimChange, setDimMap])
 
   return [ refFn, dim_map_changed_signal, getDimMap ] as const
 }

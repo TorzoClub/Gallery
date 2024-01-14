@@ -75,6 +75,7 @@ const PhotoBox = forwardRef<() => Dimension, Props>((props, ref) => {
   const show_bottom_block = !hideMember || show_desc
   const none_bottom_block = !show_bottom_block
 
+  const dim_ref = useRef<Dimension | null>(null)
   const el_ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (el_ref.current) {
@@ -84,12 +85,34 @@ const PhotoBox = forwardRef<() => Dimension, Props>((props, ref) => {
         return [dim.width, dim.height] as const
       }
       if (typeof ref === 'function') {
+        dim_ref.current = getDim()
         ref(getDim)
       }
     } else {
       console.warn('NONE :(', el_ref.current)
     }
   }, [ref])
+
+  if (el_ref.current) {
+    const el = el_ref.current
+    const getDim = () => {
+      const dim = el.getBoundingClientRect()
+      return [dim.width, dim.height] as const
+    }
+    const [ width, height ] = getDim()
+    if (dim_ref.current === null) {
+      dim_ref.current = getDim()
+      if (typeof ref === 'function') { ref(getDim) }
+    } else if (
+      (width !== dim_ref.current[0]) ||
+      (height !== dim_ref.current[1])
+    ) {
+      dim_ref.current = getDim()
+      if (typeof ref === 'function') { ref(getDim) }
+    }
+  } else {
+    console.warn('NONE :(', el_ref.current)
+  }
 
   return (
     <div

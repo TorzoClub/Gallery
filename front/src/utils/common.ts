@@ -1,5 +1,23 @@
 import { useCallback, useState } from 'react'
 
+export function reverseList<T>(input_list: T[]) {
+  return input_list.slice().reverse()
+}
+
+export function excludeByProperty<
+  P extends string,
+  V,
+  T extends Record<P, V> & Record<string, unknown>
+>(
+  property: P,
+  value: V,
+  list: T[],
+) {
+  return list.filter(
+    item => item[property] !== value
+  )
+}
+
 const __NO_FOUND__ = Symbol()
 export function sortByIdList<ID, T extends Record<'id', ID>>(
   list: T[],

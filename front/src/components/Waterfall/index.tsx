@@ -7,7 +7,7 @@ import './index.scss'
 import PhotoBox, { Props as PhotoBoxProps, CoverClickEvent, Dimension, DimensionUnknown, postDimesions } from 'components/PhotoBox'
 
 import useSafeState from 'hooks/useSafeState'
-import { findListByProperty, removeListItemByIdx } from 'utils/common'
+import { excludeByProperty, findListByProperty, removeListItemByIdx, reverseList } from 'utils/common'
 import { AppCriticalError } from 'App'
 
 type Pos = {
@@ -294,31 +294,34 @@ function toDimListWithSorted(cols: Columns) {
     .map(h => h.dim)
 }
 
-function filterByIDList(dim_list: DimessionInfo[], id_list: Set<number>) {
-  return dim_list.filter(
-    dim => id_list.has(dim.id)
-  )
-}
-
 function toIDList(dim_list: DimessionInfo[]) {
   const exists = new Set<number>()
   for (const d of dim_list) { exists.add(d.id) }
   return exists
 }
 
-function appendDim(cols: Columns, dim: DimessionInfo) {
+function whichAppend(cols: Columns, dim: DimessionInfo): number {
   const height_list = cols.map(col => {
     return computeColumnHeight(col)
   })
-
   const min_height_index = whichMinimum(height_list)
-  return cols.map((col, idx) => {
-    if (min_height_index === idx) {
+  // console.log('height_list:', height_list)
+  // console.log(JSON.parse(JSON.stringify(cols)), dim)
+  return min_height_index
+}
+
+function appendAtColumn(cols: Columns, append_col: number, dim: DimessionInfo) {
+  return cols.map((col, col_idx) => {
+    if (append_col === col_idx) {
       return [...col, dim]
     } else {
       return col
     }
   })
+}
+
+function appendDim(cols: Columns, dim: DimessionInfo) {
+  return appendAtColumn(cols, whichAppend(cols, dim), dim)
 }
 
 function appendMultiDim(cols: Columns, dim_list: DimessionInfo[]): Columns {
@@ -367,35 +370,86 @@ function bestPopPosition(cols: Columns) {
   }
 }
 
-function extendColumns(col_count: number, old_cols: Columns) {
-  const selected_list = new Set<DimessionInfo['id']>()
+// 理论上只会递归一两次，性能影响微乎其微
+function reverseNewColumns(
+  new_col_from: number,
+  new_col_to: number,
+  cols: Columns,
+) {
+  const new_cols = selectColumns(cols, new_col_from, new_col_to)
+  const old_cols = selectColumns(cols, 0, new_col_from)
+  const plain_new_cols = createPlainColumns(new_col_to - new_col_from)
 
-  let new_cols = createPlainColumns(col_count - old_cols.length)
+  let test_cols = concatColumns(old_cols, plain_new_cols)
+  const new_cols_list = reverseList(toDimListWithSorted(new_cols))
+  const result = new_cols_list.every(dim => {
+    const append_col = whichAppend(test_cols, dim)
+    if (append_col >= new_col_from) {
+      test_cols = appendAtColumn(test_cols, append_col, dim)
+      return true
+    } else {
+      return false
+    }
+  })
+
+  if (result === true) {
+    return concatColumns(
+      old_cols,
+      appendMultiDim(plain_new_cols, new_cols_list)
+    )
+  } else {
+    // 不可能为 undefined，因为
+    // new_col_list.every 至少会运行一次回调函数才能来到这条分支
+    const top_dim = new_cols_list[0]
+
+    const exclude_top_dim_cols = appendMultiDim(
+      plain_new_cols,
+      excludeByProperty(
+        'id',
+        top_dim.id,
+        toDimListWithSorted(new_cols),
+      )
+    )
+
+    return reverseNewColumns(
+      new_col_from,
+      new_col_to,
+      concatColumns(
+        appendDim(old_cols, top_dim), // 这里应该可以不用 keep position
+        exclude_top_dim_cols
+      ),
+    )
+  }
+}
+
+function extendColumns(col_count: number, old_cols: Columns) {
+  let new_cols = concatColumns(
+    old_cols,
+    createPlainColumns(col_count - old_cols.length)
+  )
+
+  let latest_droped_dim: DimessionInfo | undefined
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    // 不会陷入死循环，因为 best_col 会进入 undefined 的情况。
-    const best_col = bestPopPosition(old_cols)
+    // 不会陷入死循环，因为会进入 undefined 的情况。
+    // 因 JS 引擎不优化尾递归，为了性能和可靠性，只能写成这样
+    const best_col = bestPopPosition(new_cols)
     if (best_col === undefined) {
-      return [ selected_list ] as const
+      return new_cols
     } else {
-      const s_dim = old_cols[best_col][old_cols[best_col].length - 1]
-      const n_cols = appendDim(new_cols, s_dim)
-
-      if (
-        computeWaterfallHeight(old_cols.filter(canPop))
-        >
-        computeWaterfallHeight(n_cols)
-      ) {
-        old_cols = appendMultiDim(
-          createPlainColumns(old_cols.length),
-          toDimListWithSorted(old_cols).filter(dim => dim.id !== s_dim.id)
-        )
-
-        selected_list.add(s_dim.id)
-        new_cols = n_cols
+      const [dim, droped] = popColumn(new_cols, best_col)
+      if (dim === undefined) {
+         // 不可能进入这个分支
+        throw new Error('dim is undefined')
       } else {
-        return [ selected_list ] as const
+        const append_col = whichAppend(droped, dim)
+        if (dim === latest_droped_dim) {
+          return new_cols
+        } else {
+          new_cols = appendAtColumn(droped, append_col, dim)
+          latest_droped_dim = dim
+        }
       }
     }
   }
@@ -404,31 +458,18 @@ function extendColumns(col_count: number, old_cols: Columns) {
 function adjustColumns(target_column: number, cols: Columns): Columns {
   const current_column = cols.length
   if (target_column > current_column) {
-    const [drop_list] = extendColumns(target_column, cols)
-
-    return (
-      concatColumns(
-        appendMultiDim(
-          createPlainColumns(current_column),
-          toDimListWithSorted(cols).filter(dim => !drop_list.has(dim.id))
-        ),
-        appendMultiDim(
-          createPlainColumns(target_column - current_column),
-          filterByIDList(
-            toDimListWithSorted(cols),
-            drop_list
-          )
-        )
-      )
+    const new_cols_reversed = extendColumns(target_column, cols)
+    return reverseNewColumns(
+      current_column,
+      target_column,
+      new_cols_reversed
     )
   } else if (target_column < current_column) {
-    return (
-      appendMultiDim(
-        selectColumns(cols, 0, target_column),
-        toDimListWithSorted(
-          selectColumns(cols, target_column, current_column)
-        )
-      )
+    const new_cols = selectColumns(cols, 0, target_column)
+    const removed_cols = selectColumns(cols, target_column, current_column)
+    return appendMultiDim(
+      new_cols,
+      toDimListWithSorted(removed_cols)
     )
   } else {
     return cols
@@ -617,7 +658,7 @@ function useLayout({
   }, [box_width, column_count, column_gutter, refreshLayout, refresh_signal])
 
   if (prev_columns.current?.id !== cacheID(box_width, column_count, column_gutter)) {
-    refreshLayout()
+    // refreshLayout()
   }
 
   return {

@@ -261,40 +261,6 @@ function columnsPopSafe(cols: Columns): DimOperateResult {
   }
 }
 
-function _isBalanced(cols: Columns) {
-  if (countDim(cols) <= cols.length) {
-    return true
-  } else if (toHeightList(cols).includes(0)) {
-    return false
-  } else {
-    const max_column = whichMaxniumColumnSafe(cols)
-    if (max_column === undefined) {
-      return true
-    } else {
-      const [ , poped_cols ] = popColumn(cols, max_column)
-      return max_column === whichMinimum(toHeightList(poped_cols))
-    }
-  }
-}
-
-function isBalanced(cols: Columns) {
-  if (countDim(cols) <= cols.length) {
-    return true
-  } else if (toHeightList(cols).includes(0)) {
-    return false
-  } else {
-    const max_column = whichMaxniumColumnSafe(cols)
-    if (max_column === undefined) {
-      return true
-    } else {
-      const [ , poped_cols ] = popColumn(cols, max_column)
-      return (
-        max_column === whichMinimum(toHeightList(poped_cols))
-      ) && isBalanced(poped_cols)
-    }
-  }
-}
-
 function toDimList(cols: Columns) {
   return cols.flat()
 }
@@ -355,58 +321,30 @@ function appendDim(cols: Columns, dim: DimessionInfo) {
   })
 }
 
-function appendMultiDim(cols: Columns, dim_list: DimessionInfo[]) {
+function appendMultiDim(cols: Columns, dim_list: DimessionInfo[]): Columns {
   return dim_list.reduce((cols, dim) => {
     return appendDim(cols, dim)
   }, cols)
+}
+
+function addColumn(cols: Columns, col: DimessionInfo[]): Columns {
+  return [...cols, col]
 }
 
 function concatColumns(left: Columns, right: Columns): Columns {
   return [...left, ...right]
 }
 
-function addColumn(cols: Columns, col: DimessionInfo[]) {
-  return [...cols, col]
-}
-
-function columnCount(cols: Columns) {
+function countColumn(cols: Columns): number {
   return cols.length
 }
 
-function selectColumns(cols: Columns, from: number, to: number) {
+function selectColumns(cols: Columns, from: number, to: number): Columns {
   return cols.slice(from, to)
 }
 
 function createPlainColumns(col_count: number): Columns {
   return Array.from(Array(col_count)).map(() => [])
-}
-
-function _extendColumns(col_count: number, cols: Columns) {
-  let new_cols = createPlainColumns(col_count).map((_, idx) => {
-    const col: DimessionInfo[] | undefined = cols[idx]
-    if (col) {
-      return col
-    } else {
-      return []
-    }
-  })
-
-  let count = 0
-  while (!isBalanced(new_cols)) {
-    ++count
-    const [ dim, droped_cols ] = columnsPopSafe(new_cols)
-    if (dim === undefined) {
-      throw Error('dim is undefined')
-    } else {
-      new_cols = appendDim(droped_cols, dim)
-    }
-
-    if (count > 10000) {
-      AppCriticalError('count over 10000')
-      throw Error('count over 10000')
-    }
-  }
-  return new_cols
 }
 
 function canPop(col: DimessionInfo[]) {
@@ -430,12 +368,13 @@ function bestPopPosition(cols: Columns) {
 }
 
 function extendColumns(col_count: number, old_cols: Columns) {
-  const list = toDimListWithSorted(old_cols).reverse()
   const selected_list = new Set<DimessionInfo['id']>()
 
   let new_cols = createPlainColumns(col_count - old_cols.length)
 
-  for (const dim of list) {
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    // 不会陷入死循环，因为 best_col 会进入 undefined 的情况。
     const best_col = bestPopPosition(old_cols)
     if (best_col === undefined) {
       return [ selected_list ] as const
@@ -460,8 +399,6 @@ function extendColumns(col_count: number, old_cols: Columns) {
       }
     }
   }
-
-  return [ selected_list ] as const
 }
 
 function adjustColumns(target_column: number, cols: Columns): Columns {
@@ -532,11 +469,11 @@ function updateColumnsKeepPosition(prev_cols: Columns, latest_cols: Columns): Co
 }
 
 function mergeColumns(prev_cols: Columns, latest_cols: Columns) {
-  if (columnCount(prev_cols) === 0) {
+  if (countColumn(prev_cols) === 0) {
     return latest_cols
   } else {
     return adjustColumns(
-      columnCount(latest_cols),
+      countColumn(latest_cols),
       updateColumnsKeepPosition(prev_cols, latest_cols)
     )
   }

@@ -14,6 +14,7 @@ type Pos = {
   top: string
   left: string
   zIndex: number
+  col_count: number
 }
 type PhotoID = number
 type PosMap = Record<PhotoID, Pos>
@@ -80,13 +81,13 @@ export default (props: Props) => {
         top: `calc(${pos.top})`,
         left: `calc(${pos.left})`,
         zIndex: `calc(${pos.zIndex})`,
-        opacity: 1,
+        opacity: pos.col_count >= layout_configure.column_count ? 0 : 1,
         // transition: pos && 'left 382ms, top 382ms'
       }
     } else {
       return { opacity: 0 }
     }
-  }, [pos_map])
+  }, [layout_configure.column_count, pos_map])
 
   return (
     <div className="waterfall-wrap" style={{
@@ -398,7 +399,7 @@ function reverseNewColumns(
       appendMultiDim(plain_new_cols, new_cols_list)
     )
   } else {
-    // 不可能为 undefined，因为
+    // top_dim 不可能为 undefined，因为
     // new_col_list.every 至少会运行一次回调函数才能来到这条分支
     const top_dim = new_cols_list[0]
 
@@ -530,6 +531,7 @@ function useLayout({
   layout_configure: {
     column_count,
     column_gutter,
+    box_type,
   }
 }: {
   layout_configure: WaterfallLayoutConfigure
@@ -553,14 +555,14 @@ function useLayout({
         return computeColumnHeight(col)
       })
 
-      const min_height_index = whichMinimum(height_list)
+      const min_col = whichMinimum(height_list)
 
-      return columns.map((col, idx) => {
-        if (idx === min_height_index) {
+      return columns.map((col, col_count) => {
+        if (col_count === min_col) {
           const dim = dim_map[photo.id]
           if (dim) {
             const [ width, height ] = dim()
-            return [...col, { id: photo.id, width, height, photo_idx }]
+            return [...col, { id: photo.id, width, height, photo_idx}]
           } else {
             return col
           }
@@ -571,12 +573,17 @@ function useLayout({
     }, createPlainColumns(column_count))
   }, [])
 
-  const [pos_map, refreshPosMap] = useSafeState<PosMap>({})
-  const computePosMap = useCallback((waterfall_columns: Columns) => {
+  const [columns, refreshColumns] = useSafeState<Columns>([])
+
+  const waterfall_height = useMemo(
+    () => computeWaterfallHeight(columns)
+  , [columns])
+
+  const pos_map = useMemo(() => {
     const init_pos: PosMap = {}
 
-    return waterfall_columns.reduce((column_pos_init, column, x) => {
-      const left = `(${box_width}px * ${x} + ${column_gutter}px * ${x})`
+    return columns.reduce((column_pos_init, column, col_count) => {
+      const left = `(${box_width}px * ${col_count} + ${column_gutter}px * ${col_count})`
 
       return column.reduce((pos_info, heightInfo, y) => {
         const h = computeColumnHeight(column.slice(0, y))
@@ -586,17 +593,15 @@ function useLayout({
             top: `${h}px`,
             left,
             zIndex: h,
+            col_count,
           }
         }
       }, column_pos_init)
     }, init_pos)
-  }, [box_width, column_gutter])
+  }, [box_width, column_gutter, columns])
 
-  const [ waterfall_height, refreshWaterfallHeight ] = useSafeState(0)
-
-  const [columns, refreshColumns] = useSafeState<Columns>([])
-
-  const cacheID = (...vals: number[]) => vals.join('-')
+  const cacheID = (...vals: Array<number | string>) => vals.join('-')
+  const genCacheID = useCallback(() => cacheID(box_type, box_width, column_count, column_gutter), [box_type, box_width, column_count, column_gutter])
 
   const columns_cache = useRef<Map<string, Columns>>()
 
@@ -604,14 +609,12 @@ function useLayout({
 
   const applyNewLayout = useCallback((new_cols: Columns) => {
     prev_columns.current = {
-      id: cacheID(box_width, column_count, column_gutter),
+      id: genCacheID(),
       cols: new_cols
     }
     refreshColumns(new_cols)
-    refreshPosMap( computePosMap(new_cols) )
-    refreshWaterfallHeight( computeWaterfallHeight(new_cols) )
     refresh_signal.trigger()
-  }, [box_width, column_count, column_gutter, computePosMap, refreshColumns, refreshPosMap, refreshWaterfallHeight, refresh_signal])
+  }, [genCacheID, refreshColumns, refresh_signal])
 
   const refreshLayout = useCallback(() => {
     if (prev_columns.current === undefined) {
@@ -657,7 +660,8 @@ function useLayout({
     refreshLayout()
   }, [box_width, column_count, column_gutter, refreshLayout, refresh_signal])
 
-  if (prev_columns.current?.id !== cacheID(box_width, column_count, column_gutter)) {
+  if (prev_columns.current?.id !== genCacheID()) {
+    // console.log(cacheID(box_type, box_width, column_count, column_gutter))
     // refreshLayout()
   }
 

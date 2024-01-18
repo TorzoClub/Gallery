@@ -87,7 +87,7 @@ function computeGalleryWidthWithAutoColumnCount(
 
 const getLayoutConfigure = (gallery: Gallery): WaterfallLayoutConfigure => {
   const viewport_width = getViewportWidth()
-  if (viewport_width > 1200) {
+  if (viewport_width > 1900) {
     const box_width = 232
     const column_gutter = 27
     const padding_horizontal = 54

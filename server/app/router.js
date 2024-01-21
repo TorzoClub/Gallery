@@ -24,8 +24,12 @@ module.exports = app => {
 
   setRouter('post', 'admin/login', controller.admin.auth.login);
 
+  setAdminRouter('get', 'statistic', controller.admin.statistic.show);
+
+  setAdminRouter('get', 'image/available-photo', controller.admin.image.getAllAvailablePhoto);
+  setAdminRouter('post', 'image/refresh-thumb', controller.admin.image.refreshThumb);
+  setAdminRouter('post', 'image/clean-unused', controller.admin.image.cleanUnusedImage);
   setAdminRouter('post', 'image/upload', controller.admin.image.upload);
-  setAdminRouter('get', 'image/refresh-thumb', controller.admin.image.refreshThumb);
 
   {
     const { create, remove, get, show, edit } = controller.admin.gallery;
@@ -38,25 +42,25 @@ module.exports = app => {
 
   {
     const { create, remove, get, show, edit, removeMemberGalleryVote } = controller.admin.member;
-    setAdminRouter('post', 'member', create);
-    setAdminRouter('delete', 'member/:id', remove);
-    setAdminRouter('get', 'member/:id', get);
     setAdminRouter('get', 'member', show);
+    setAdminRouter('get', 'member/:id', get);
+    setAdminRouter('post', 'member', create);
     setAdminRouter('patch', 'member/:id', edit);
+    setAdminRouter('delete', 'member/:id', remove);
 
     setAdminRouter('delete', 'member/:id/gallery/:gallery_id/vote', removeMemberGalleryVote);
   }
 
   {
     const { create, remove, show, get, showPhotoVote, showMemberVote, sortByVoteCount, edit } = controller.admin.photo;
-    setAdminRouter('post', 'photo', create);
-    setAdminRouter('delete', 'photo/:id', remove);
     setAdminRouter('get', 'photo/:id', get);
+    setAdminRouter('post', 'photo', create);
+    setAdminRouter('patch', 'photo/:id', edit);
+    setAdminRouter('delete', 'photo/:id', remove);
     setAdminRouter('get', 'gallery/:gallery_id/photo', show);
     setAdminRouter('get', 'gallery/:gallery_id/photo_vote', showPhotoVote);
     setAdminRouter('get', 'gallery/:gallery_id/member_vote', showMemberVote);
     setAdminRouter('put', 'gallery/:gallery_id/photo/sortByVoteCount', sortByVoteCount);
-    setAdminRouter('patch', 'photo/:id', edit);
   }
 
   setRouter('get', 'gallery/:gallery_id/submission/:qq_num', controller.gallery.submission);

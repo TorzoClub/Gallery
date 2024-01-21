@@ -186,7 +186,7 @@ export default ({ detail, onCancel = () => undefined }: {
 
   useEffect(() => {
     const resizeHandle = () => {
-      console.log('resizeHandle', fromPos)
+      // console.log('resizeHandle', fromPos)
       if (!fromPos) {
         return
       }

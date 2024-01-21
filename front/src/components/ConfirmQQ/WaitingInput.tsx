@@ -6,22 +6,23 @@ export type WaitingInputProps = {
   isFailure: boolean
   placeholder: string
   isFocus: boolean
-  onBlur(): void
+  value: string
+  onChange(v: string): void
   onFocus(): void
-  onInputChange(v: string): void
+  onBlur(): void
 }
 export default ({
   disabled,
   isFailure,
   placeholder = '',
   isFocus = false,
-  onBlur = () => undefined,
+  value,
+  onChange = () => undefined,
   onFocus = () => undefined,
-  onInputChange = () => undefined,
+  onBlur = () => undefined,
 }: WaitingInputProps) => {
   const inputEl = useRef<HTMLInputElement>(null)
   const frontEl = useRef<HTMLPreElement>(null)
-  const [value, setValue] = useState('')
 
   useEffect(() => {
     if (inputEl.current && frontEl.current) {
@@ -66,11 +67,9 @@ export default ({
           onChange={(e) => {
             e.preventDefault()
             const changedValue = e.target.value
-
             const isInvalidValue = /[^0-9/?]/.test(changedValue)
             if (!isInvalidValue) {
-              setValue(changedValue)
-              onInputChange(changedValue)
+              onChange(changedValue)
             }
           }}
         />

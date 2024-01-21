@@ -30,3 +30,11 @@
   transition: box-shadow 382ms;
   box-shadow: 0 0 0 transparent !important;
 }
+
+.ThanksHide {
+  opacity: 0;
+}
+.ThanksShow, .ThanksHide {
+  font-size: 48px;
+  font-weight: bold;
+}

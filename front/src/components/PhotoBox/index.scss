@@ -2,31 +2,34 @@
 $image-box-border-radius: 3px;
 
 $avatar-size: 54px;
-$avatar-size-mobile: 36px;
+$avatar-size-compact: 36px;
 
 :export {
   avatar-size: $avatar-size;
 }
 
 .image-box-wrapper {
-  width: calc(100% - #{$avatar-size} / 2);
-  padding-left: calc(#{$avatar-size} / 2);
+  --vertical-gutter: 0px;
 
-  &:not(:last-child) {
-    margin-bottom: 24px;
-  }
+  width: calc(100% - #{$avatar-size} / 2);
+  // padding-left: calc(#{$avatar-size} / 2);
+  box-sizing: border-box;
+
+  position: absolute;
+
+  padding-bottom: var(--vertical-gutter);
 }
 
 $horizontalPhotoShadowOffset: 3px;
 $horizontalPhotoShadowSize: 5px;
 $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
-.image-box-wrapper.has-member .image-box {
-  box-shadow:
-    #{$horizontalPhotoShadowOffset} 0px #{$horizontalPhotoShadowSize} -#{$horizontalPhotoShadowSize} #{$horizontalPhotoShadowColor},
-    -#{$horizontalPhotoShadowOffset} 0px #{$horizontalPhotoShadowSize} -#{$horizontalPhotoShadowSize} #{$horizontalPhotoShadowColor}
-  ;
-}
-.image-box-wrapper.hide-member .image-box {
+// .image-box-wrapper.has-bottom-block .image-box {
+//   box-shadow:
+//     #{$horizontalPhotoShadowOffset} 0px #{$horizontalPhotoShadowSize} -#{$horizontalPhotoShadowSize} #{$horizontalPhotoShadowColor},
+//     -#{$horizontalPhotoShadowOffset} 0px #{$horizontalPhotoShadowSize} -#{$horizontalPhotoShadowSize} #{$horizontalPhotoShadowColor}
+//   ;
+// }
+.image-box-wrapper.none-bottom-block .image-box {
   $BottomShadowColor: rgba(0, 0, 0, 0.1);
 
   .cover-area {
@@ -124,7 +127,7 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
       position: relative;
       z-index: 1;
 
-      height: $bottom-block-height;
+      min-height: $bottom-block-height;
       width: 100%;
 
       background-color: white;
@@ -214,20 +217,47 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
           height: calc(#{$avatar-size} / 2);
         }
       }
-    }
 
-    @keyframes back-bottom-show {
-      0% {
-        height: 0;
-      }
-      100% {
-        height: $back-bottom-height;
+      .desc-block {
+        margin-top: 8px;
+        padding-top: 8px;
+        color: rgba(0, 0, 0, 0.5);
+        margin: 0;
+        padding-bottom: 8px;
+        padding-left: 8px;
+        padding-right: 8px;
+        font-size: 12px;
+        overflow-x: hidden;
+        overflow-y: hidden;
+        word-wrap: normal;
+        white-space: pre-line;
+        text-wrap: wrap;
+        text-align: justify;
+
+        font-family: var(--app-default-font);
+
+        &::before, &::after {
+          display: inline-block;
+          font-size: 1.5em;
+          font-weight: 900;
+          color: rgba(0, 0, 0, 0.2);
+          line-height: 0px;
+          vertical-align: middle;
+        }
+        &::before {
+          content: "“";
+          text-align: right;
+          width: calc((#{$avatar-size} / 2 + 8px) / 2);
+        }
+        &::after {
+          content: "”";
+          text-align: left;
+        }
       }
     }
 
     .back-bottom-wrapper {
       height: $back-bottom-height;
-      animation: back-bottom-show 382ms;
       animation-timing-function: cubic-bezier(0.88, 0.4, 0.3, 1.01);
     }
 
@@ -242,11 +272,14 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
       .block-wrapper {
         touch-action: none;
         // height: 0;
+        position: relative;
+        width: calc(100% - 24px);
+        margin: auto;
       }
 
       .block {
-        width: calc(100% - #{$back-bottom-height});
-        margin: auto;
+        position: absolute;
+        width: 100%;
 
         line-height: $back-bottom-height;
         height: $back-bottom-height;
@@ -256,50 +289,10 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
 
         text-align: center;
         background-color: #FAFAFA;
+        cursor: pointer;
+        user-select: none;
 
         color: #887777;
-
-        @keyframes highlight {
-          0% {
-            transform: perspective(100px) rotate3d(1, 0, 0, 0deg);
-          }
-          50% {
-            transform: perspective(100px) rotate3d(1, 0, 0, -5deg);
-          }
-          100% {
-            transform: perspective(100px) rotate3d(1, 0, 0, 0deg);
-          }
-        }
-
-        &.highlight {
-          transform-origin: top center;
-          perspective-origin: top center;
-          animation: highlight 382ms;
-          animation-timing-function: cubic-bezier(0, 0, 0, 1.7);
-
-          // background-color: #e7595c;
-          // background-color: #e01d1c;
-          // background-color: #ca1d1c;
-          // transition: background-color 382ms;
-          background-color: #ba1616;
-
-          box-shadow:
-            // inset 0px 4px 4px -4px grey,
-            0 -1px 1px -2px #{$box-shadow-color},
-            0 0px 1px -1px #{$box-shadow-color},
-            0 1px 1px -1px #{$box-shadow-color},
-            0 2px 2px -2px #{$box-shadow-color},
-            0 1px 1px -2px #{$box-shadow-color},
-
-            // 0 2px 12px rgba(244, 67, 54, 0.8),
-            0 2px 12px rgba(186, 22, 22, 0.8),
-
-            // inset 0 -2px 2px -2px #{$box-shadow-color},
-            // inset -1px 0 0 #{rgba(0, 0, 0, 0.15)},
-            // inset 1px 0 0 #{rgba(0, 0, 0, 0.15)},
-            // inset 0 -1px 0 #{rgba(0, 0, 0, 0.15)}
-          ;
-        }
 
         box-shadow:
           // inset 0px 4px 4px -4px grey,
@@ -328,60 +321,131 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
           // border-radius: $back-bottom-height;
           // border: solid 1px grey;
         }
+
+        @mixin button-highlight {
+          background-color: #ba1616;
+
+          box-shadow:
+            // inset 0px 4px 4px -4px grey,
+            0 -1px 1px -2px #{$box-shadow-color},
+            0 0px 1px -1px #{$box-shadow-color},
+            0 1px 1px -1px #{$box-shadow-color},
+            0 2px 2px -2px #{$box-shadow-color},
+            0 1px 1px -2px #{$box-shadow-color},
+
+            // 0 2px 12px rgba(244, 67, 54, 0.8),
+            0 2px 12px rgba(186, 22, 22, 0.8),
+
+            // inset 0 -2px 2px -2px #{$box-shadow-color},
+            // inset -1px 0 0 #{rgba(0, 0, 0, 0.15)},
+            // inset 1px 0 0 #{rgba(0, 0, 0, 0.15)},
+            // inset 0 -1px 0 #{rgba(0, 0, 0, 0.15)}
+          ;
+        }
+
+        @keyframes press {
+          0% {
+            transform: perspective(100px) rotate3d(1, 0, 0, 0deg);
+          }
+          50% {
+            transform: perspective(100px) rotate3d(1, 0, 0, -5deg);
+          }
+          100% {
+            transform: perspective(100px) rotate3d(1, 0, 0, 0deg);
+          }
+        }
+
+        @keyframes pressfailure {
+          0% { opacity: 1 }
+          50% { opacity: 1 }
+          75% { opacity: 1 }
+          80% { opacity: 0 }
+          85% { opacity: 1 }
+          90% { opacity: 0 }
+          95% { opacity: 1 }
+          100% { opacity: 0 }
+        }
+
+        &.cannot-select {
+          animation: pressfailure 1500ms, press 382ms;
+          animation-play-state: running;
+          @include button-highlight;
+        }
+
+        &.highlight {
+          transform-origin: top center;
+          perspective-origin: top center;
+          animation: press 382ms;
+          animation-timing-function: cubic-bezier(0, 0, 0, 1.7);
+
+          // background-color: #e7595c;
+          // background-color: #e01d1c;
+          // background-color: #ca1d1c;
+          // transition: background-color 382ms;
+          @include button-highlight;
+        }
       }
     }
   }
 }
 
-.image-box-wrapper.mobile {
+.image-box-wrapper.compact {
   padding-left: 0px;
   width: 100%;
 
-  &:first-child {
-  }
-
   .bottom-area {
     .bottom-block {
-      display: flex;
-      justify-content: space-between;
-      padding: calc((#{$avatar-size} - #{$avatar-size-mobile}) / 2) 10px;
+      padding: calc((#{$avatar-size} - #{$avatar-size-compact}) / 2) 10px;
       box-sizing: border-box;
-
-      .avatar-wrapper {
-        position: relative;
-        top: 0;
-        left: 0;
-        width: $avatar-size-mobile;
-        height: $avatar-size-mobile;
-        min-width: $avatar-size-mobile;
-        min-height: $avatar-size-mobile;
-        padding: 0;
-        box-shadow: inset 0 -1px 1px rgba(0, 0, 0, 0.2), 0 0 1px rgba(0, 0, 0, 0.3);
-      }
-
-      .member-name {
-        margin-left: 10px;
-        flex-grow: 2;
-
+      .member-info {
         display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        font-size: 15px;
-
-        text-shadow: 2px 1.5px 0 #F0F0F0;
-
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-
-        .avatar-float {
-          display: none;
+        justify-content: space-between;
+        .avatar-wrapper {
+          position: relative;
+          top: 0;
+          left: 0;
+          width: $avatar-size-compact;
+          height: $avatar-size-compact;
+          min-width: $avatar-size-compact;
+          min-height: $avatar-size-compact;
+          padding: 0;
+          box-shadow: inset 0 -1px 1px rgba(0, 0, 0, 0.2), 0 0 1px rgba(0, 0, 0, 0.3);
         }
 
-        .name-label {
+        .member-name {
+          margin-left: 10px;
+          flex-grow: 2;
+
+          display: flex;
+          align-items: center;
+          justify-content: flex-start;
+          font-size: 15px;
+
+          text-shadow: 2px 1.5px 0 #F0F0F0;
+
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+
+          .avatar-float {
+            display: none;
+          }
+
+          .name-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+      }
+      .member-info + .desc-block {
+        margin-top: calc((#{$avatar-size} - #{$avatar-size-compact}) / 2);
+      }
+      .desc-block {
+        // border-top: solid 1px rgba(0, 0, 0, 0.3);
+        padding: 0;
+        &::before {
+          width: auto;
         }
       }
     }

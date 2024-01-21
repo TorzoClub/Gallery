@@ -8,7 +8,6 @@ export default ({ onConfirmSuccess }: { onConfirmSuccess(qqnum: string): void })
   const [confirmState, setConfirmState] = useAssignState<ConfirmQQState>({
     in: false,
     disabled: false,
-    isDone: false,
     isLoading: false,
     isFailure: null,
   })

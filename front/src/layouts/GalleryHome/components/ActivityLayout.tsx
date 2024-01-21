@@ -1,136 +1,110 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { GalleryInActive, Photo } from 'api/photo'
 import { ConfirmQQState } from 'components/ConfirmQQ'
-import { Detail } from 'components/Detail'
 
-import { Gallery as GalleryType } from 'api/photo'
-import Gallery from 'components/Gallery'
+import Gallery, { Props as GalleryProps } from 'components/Gallery'
 import Loading from 'components/Loading'
 import GuideLayout from 'components/GuideLayout'
-import SubmitButton from 'components/SubmitButton'
+import SkeuomorphismButton from 'components/SkeuomorphismButton'
+import { removeListItemByIdx } from 'utils/common'
 
 type ActivityLayoutProps = {
+  show_submit_button_area: boolean
   active: GalleryInActive
-  hideVoteButton: boolean
   submiting: boolean
   showArrow: boolean,
   confirmState: ConfirmQQState
-
-  submittedPool: Record<string, number | undefined>
-  selectedIdList: number[]
+  submitted_pool: Record<string, number | undefined>
   setSelectedIdList: (idList: number[]) => void
 
-  toDetail: (d: Detail) => void
+  selected_id_list: GalleryProps['selected_id_list']
+  show_vote_button: GalleryProps['show_vote_button']
+  onClickCover: GalleryProps['onClickCover']
+
   onClickSubmit: () => void
 }
 
 export default function ActivityLayout({
   active,
-  hideVoteButton,
   submiting,
   showArrow,
   confirmState,
 
-  submittedPool,
-  selectedIdList,
+  submitted_pool,
+  selected_id_list,
   setSelectedIdList,
-
-  toDetail,
+  show_submit_button_area,
   onClickSubmit,
+
+  ...remain_props
 }: ActivityLayoutProps) {
-  const [arrowTickTock, setArrowTickTock] = useState(0)
+  const [arrow_tick_tock, setArrowTickTock] = useState(0)
 
-  const showSubmitButton = !active.vote_submitted
-  const isSubmitted = submittedPool[active.id]
-  let buttonMode = ''
+  const submit_request_was_sent = Boolean(submitted_pool[active.id])
 
-  if (isSubmitted) {
-    buttonMode = 'done'
-  } else if (confirmState.in) {
-    buttonMode = 'blue'
-  } else if (selectedIdList.length) {
-    buttonMode = 'blue ring'
-  }
+  const cannot_select_vote = useMemo(() => {
+    const is_unlimited = active.vote_limit === 0
+    const over_limit = !is_unlimited && (selected_id_list.length >= active.vote_limit)
 
-  const handleClickVote = (gallery: GalleryType, photo: Photo) => {
-    console.warn('handleClickVote', gallery.vote_submitted, photo)
+    return Boolean(over_limit || active.vote_submitted || submit_request_was_sent)
+  }, [active.vote_limit, active.vote_submitted, selected_id_list.length, submit_request_was_sent])
 
-    const isSubmitted = submittedPool[gallery.id]
-    const can_vote = gallery.in_event && !gallery.can_submission
-
-    if (isSubmitted || !can_vote || gallery.vote_submitted) {
+  const handleClickVote = (photo_id: Photo['id']) => {
+    if (cannot_select_vote || !show_submit_button_area) {
       return
-    }
-
-    const { id } = photo
-
-    const newSelectedIdList = [...selectedIdList]
-
-    const idx = newSelectedIdList.indexOf(id)
-
-    if (idx === -1) {
-      if ((gallery.vote_limit > 0) && (newSelectedIdList.length >= gallery.vote_limit)) {
-        return
+    } else {
+      const idx = selected_id_list.indexOf(photo_id)
+      if (idx !== -1) {
+        setArrowTickTock(-Date.now())
+        setSelectedIdList(
+          removeListItemByIdx(selected_id_list, idx)
+        )
       } else {
         setArrowTickTock(Date.now())
-        newSelectedIdList.push(id)
+        setSelectedIdList([...selected_id_list, photo_id])
       }
-    } else {
-      newSelectedIdList.splice(idx, 1)
-      setArrowTickTock(-Date.now())
     }
-
-    setSelectedIdList(newSelectedIdList)
   }
+
+  const button_state = useMemo(() => {
+    if (confirmState.in || (selected_id_list.length === 0)) {
+      return 'disabled'
+    } else {
+      return 'highlight'
+    }
+  }, [confirmState.in, selected_id_list.length])
 
   return (
     <div className="gallery-wrapper">
       <Gallery
-        hideVoteButton={hideVoteButton}
+        {...remain_props}
         gallery={active}
-        selectedIdList={selectedIdList}
-        onClickVote={(photoId) => {
-          const idx = active.photos.map(p => p.id).indexOf(photoId)
-          if (idx === -1) return
-          const photo = active.photos[idx]
-
-          handleClickVote(active, photo)
-        }}
-        onClickCover={({ from, thumbBlobUrl }, photoId) => {
-          const idx = active.photos.map(p => p.id).indexOf(photoId)
-          if (idx === -1) return
-          const photo = active.photos[idx]
-
-          toDetail({
-            from,
-            thumb: thumbBlobUrl,
-            src: photo.src_url,
-            height: photo.height,
-            width: photo.width
-          })
-        }}
+        cannot_select_vote={cannot_select_vote}
+        selected_id_list={selected_id_list}
+        onClickVote={handleClickVote}
       />
-
-      {showSubmitButton && (
-        <div className="submit-button-wrapper">
+      {show_submit_button_area && (
+        <div className="submit-button-area">
           {(() => {
             if (submiting) {
               return <Loading />
-            } else if (isSubmitted) {
+            } else if (submit_request_was_sent) {
               return <div className="submitted">感谢你的投票</div>
-            } else if (!active.can_submission) {
+            } else {
               return (
                 <GuideLayout
                   showArrow={showArrow}
-                  animatedTickTock={arrowTickTock}
+                  animatedTickTock={arrow_tick_tock}
                 >
                   <SubmitButton
-                    mode={buttonMode}
-                    clickButton={() => {
-                      if (!showSubmitButton || isSubmitted || !selectedIdList.length || submiting) {
-                        return
-                      } else {
-                        onClickSubmit()
+                    buttonState={button_state}
+                    onClick={() => {
+                      if (!submiting) {
+                        if (selected_id_list.length === 0) {
+                          alert('你需要选择至少一部作品才能提交投票')
+                        } else {
+                          onClickSubmit()
+                        }
                       }
                     }}
                   />
@@ -140,7 +114,10 @@ export default function ActivityLayout({
           })()}
 
           <style>{`
-            .submit-button-wrapper {
+            .submitted {
+              color: #999999;
+            }
+            .submit-button-area {
               margin-top: 32px;
 
               height: 64px;
@@ -151,13 +128,51 @@ export default function ActivityLayout({
               align-content: center;
               justify-content: center;
             }
-
-            .submit-button-wrapper .submitted {
-              color: #999999;
-            }
           `}</style>
         </div>
       )}
     </div>
   )
 }
+
+type ButttonState = 'disabled' | 'highlight' | 'normal'
+export const SubmitButton = ({ onClick, buttonState }: {
+  onClick?(): void
+  buttonState?: ButttonState
+}) => (
+  <>
+    <div className={`grayscale-wrap ${buttonState === 'disabled' && 'enabled'}`}>
+      <div className={`submit-button-wrap ${buttonState}`}>
+        <SkeuomorphismButton onClick={onClick}>提交</SkeuomorphismButton>
+      </div>
+    </div>
+    <style>{`
+      .grayscale-wrap {
+        transition: filter 382ms;
+      }
+      .grayscale-wrap.enabled {
+        filter: grayscale(1) brightness(1) opacity(0.75);
+      }
+
+      .submit-button-wrap {
+        animation: submitbuttonhighlight 3s infinite;
+        animation-timing-function: ease-in-out;
+        animation-direction: normal;
+        animation-fill-mode: forwards;
+        animation-play-state: paused;
+        animation-delay: 500ms;
+      }
+      .submit-button-wrap.disabled {
+
+      }
+      @keyframes submitbuttonhighlight {
+        0% { filter: brightness(1) }
+        50% { filter: brightness(1.2) }
+        100% { filter: brightness(1) }
+      }
+      .submit-button-wrap.highlight {
+        animation-play-state: running;
+      }
+    `}</style>
+  </>
+)

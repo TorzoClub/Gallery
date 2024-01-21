@@ -45,7 +45,7 @@ module.exports = app => {
       type: VIRTUAL,
       get() {
         const src = this.getDataValue('src');
-        return app.serviceClasses.image.toThumbFilename(src);
+        return app.serviceClasses.image.toDefaultThumbFilename(src);
       },
     },
 
@@ -53,7 +53,7 @@ module.exports = app => {
       type: VIRTUAL,
       get() {
         const src = this.getDataValue('src');
-        return app.serviceClasses.image.toThumbUrlPath(src);
+        return app.serviceClasses.image.toDefaultThumbUrlPath(src);
       },
     },
 
@@ -61,7 +61,7 @@ module.exports = app => {
       type: VIRTUAL,
       get() {
         const src = this.getDataValue('src');
-        return app.serviceClasses.image.toThumbUrl(src);
+        return app.serviceClasses.image.toDefaultThumbUrl(src);
       },
     },
 

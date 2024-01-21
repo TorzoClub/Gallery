@@ -3,75 +3,195 @@ import React, { useEffect, useMemo, useState } from 'react'
 import './index.scss'
 
 import Title from 'components/Title'
-import PhotoStream from 'components/PhotoStream'
+import Waterfall, { WaterfallLayoutConfigure, Props as WaterfallLayoutProps } from 'components/Waterfall'
 import { Gallery, Photo } from 'api/photo'
-import { CoverClickEvent } from 'components/PhotoBox'
+import { CoverClickEvent, Props as PhotoBoxProps } from 'components/PhotoBox'
 import Submission from 'components/Submission'
+import useSafeState from 'hooks/useSafeState'
 
-export type PhotoStreamState = {
-  screen: 'normal' | 'mobile'
-  column_count: number
-  gallery_width: string
-  column_gutter: string
+function getViewportWidth() {
+  const { innerWidth } = window
+  return innerWidth
 }
-const getPhotoStreamState = (): PhotoStreamState => {
-  if (window.innerWidth > 1200) {
-    return {
-      screen: 'normal',
-      column_count: 4,
-      gallery_width: '1200px',
-      column_gutter: '24px'
-    }
-  } else if (window.innerWidth > 640) {
-    return {
-      screen: 'normal',
-      column_count: 3,
-      gallery_width: '640px',
-      column_gutter: '16px'
-    }
+
+const normalLayout = ({
+  column_count,
+  gallery_width,
+}: Pick<WaterfallLayoutConfigure, 'column_count' | 'gallery_width'>): WaterfallLayoutConfigure => {
+  const column_gutter = 54
+  const vertial_gutter = column_gutter / 2
+  return {
+    box_type: 'normal',
+    column_count,
+    gallery_width,
+    column_gutter,
+    vertial_gutter,
+  }
+}
+
+const compactLayout = (g: Gallery, {
+  column_count,
+  column_gutter,
+  vote_event_vertial_gutter,
+  gallery_width = getViewportWidth() - (column_gutter * column_count)
+}: Pick<WaterfallLayoutConfigure, 'column_count' | 'column_gutter'> & {
+  vote_event_vertial_gutter: number
+  gallery_width?: number
+}): WaterfallLayoutConfigure => {
+  const is_vote_date = g.in_event && !g.can_submission
+  const vertial_gutter = is_vote_date ? vote_event_vertial_gutter : column_gutter
+
+  return {
+    box_type: 'compact',
+    column_count: column_count,
+    gallery_width,
+    column_gutter: column_gutter,
+    vertial_gutter,
+  }
+}
+
+function computeColumnCountByBoxWidth(
+  gallery_width: number,
+  box_width: number,
+  column_gutter: number,
+  count = 0
+) {
+  const column_gutter_total = (count - 1) * column_gutter
+  if (gallery_width < (box_width + column_gutter_total)) {
+    return count
   } else {
-    return {
-      screen: 'mobile',
+    return computeColumnCountByBoxWidth(
+      gallery_width - box_width,
+      box_width,
+      column_gutter,
+      count + 1
+    )
+  }
+}
+
+function computeGalleryWidthWithAutoColumnCount(
+  max_gallery_width: number,
+  column_gutter: number,
+  box_width: number,
+) {
+  const column_count = computeColumnCountByBoxWidth(
+    max_gallery_width,
+    box_width,
+    column_gutter,
+  )
+  return {
+    gallery_width: (box_width * column_count) + ((column_count - 1) * column_gutter),
+    column_count
+  } as const
+}
+
+const getLayoutConfigure = (gallery: Gallery): WaterfallLayoutConfigure => {
+  const viewport_width = getViewportWidth()
+  if (viewport_width > 1900) {
+    const box_width = 232
+    const column_gutter = 27
+    const padding_horizontal = 54
+    return compactLayout(gallery, {
+      column_gutter,
+      vote_event_vertial_gutter: 27,
+      ...computeGalleryWidthWithAutoColumnCount(
+        viewport_width - (2 * padding_horizontal),
+        column_gutter,
+        box_width,
+      )
+    })
+  } else if (viewport_width > 1450) {
+    return normalLayout({
+      gallery_width: 1200,
+      column_count: 4,
+    })
+  } else if (viewport_width > 1150) {
+    return normalLayout({
+      gallery_width: 900,
+      column_count: 4,
+    })
+  } else if (viewport_width > 900) {
+    return normalLayout({
+      gallery_width: 750,
+      column_count: 3,
+    })
+  } else if (viewport_width > 640) {
+    return compactLayout(gallery, {
+      gallery_width: 640 - 8 * 2,
+      column_count: 3,
+      column_gutter: 8,
+      vote_event_vertial_gutter: 27
+    })
+  } else {
+    return compactLayout(gallery, {
       column_count: 2,
-      gallery_width: '100vw',
-      column_gutter: '12px'
-    }
+      column_gutter: 8,
+      vote_event_vertial_gutter: 27
+    })
   }
 }
 
 export type Props = {
-  hideVoteButton: boolean
+  cannot_select_vote?: boolean
+  show_vote_button: boolean
   gallery: Gallery
-  selectedIdList: number[]
+  selected_id_list: WaterfallLayoutProps['selected_id_list']
   onClickVote?: (photo_id: Photo['id']) => void
-  onClickCover: (clickInfo: CoverClickEvent, photo: Photo['id']) => void
+  onClickCover: (clickInfo: CoverClickEvent, photo_id: Photo['id']) => void
 }
-export default (props: Props) => {
-  const [state, setState] = useState(getPhotoStreamState())
+export default ({
+  cannot_select_vote = false,
+  show_vote_button, gallery, selected_id_list, onClickVote, onClickCover,
+}: Props) => {
+  const layout = useWaterfallLayout(gallery)
+
+  const title_node = useTitleNode(gallery)
+
+  const waterfall_layout_node = useMemo(() => (
+    <Waterfall
+      layout_configure={layout}
+      cannot_select_vote={cannot_select_vote}
+      photos={gallery.photos}
+      selected_id_list={selected_id_list}
+      show_vote_button={show_vote_button}
+      onClickCover={onClickCover}
+      onClickVote={(photoId) => {
+        onClickVote && onClickVote(photoId)
+      }}
+    />
+  ), [cannot_select_vote, gallery.photos, show_vote_button, layout, onClickCover, onClickVote, selected_id_list])
+
+  return (
+    <div className="gallery">
+      { title_node }
+      { waterfall_layout_node }
+    </div>
+  )
+}
+
+function useWaterfallLayout(gallery: Gallery) {
+  const [layout, refreshLayout] = useSafeState(getLayoutConfigure(gallery))
 
   useEffect(() => {
-    let lastWidth: number
+    let latest_width: number | undefined
+    updateState()
 
-    setState(getPhotoStreamState())
-
-    const resizeHandler = () => {
-      // const { lastWidth } = this
-      const { innerWidth } = window
-      if (lastWidth !== innerWidth) {
-        lastWidth = innerWidth
-        setState(getPhotoStreamState())
+    function updateState() {
+      const viewport_width = getViewportWidth()
+      if (latest_width !== viewport_width) {
+        latest_width = viewport_width
+        refreshLayout(getLayoutConfigure(gallery))
       }
     }
-    window.addEventListener('resize', resizeHandler)
+    window.addEventListener('resize', updateState)
+    return () => window.removeEventListener('resize', updateState)
+  }, [gallery, refreshLayout])
 
-    return () => window.removeEventListener('resize', resizeHandler)
-  }, [])
+  return layout
+}
 
-  const { screen, column_count, gallery_width, column_gutter } = state
-  const { hideVoteButton, gallery } = props
-
+function useTitleNode(gallery: Gallery) {
   const [open, setOpen] = useState(false)
-
   useEffect(() => {
     if (gallery.can_submission) {
       if (!open) {
@@ -91,25 +211,5 @@ export default (props: Props) => {
     </div>
   ), [gallery, open])
 
-  return (
-    <div className="gallery">
-      {title_node}
-
-      <PhotoStream
-        hideVoteButton={hideVoteButton}
-        screen={screen}
-        column_count={column_count}
-        total_width={gallery_width}
-        gallery={gallery}
-        photos={gallery.photos}
-        gutter={column_gutter}
-        selectedIdList={props.selectedIdList}
-
-        onClickVote={(photoId) => {
-          if (props.onClickVote) props.onClickVote(photoId)
-        }}
-        onClickCover={props.onClickCover}
-      />
-    </div>
-  )
+  return title_node
 }

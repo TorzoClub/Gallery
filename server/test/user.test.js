@@ -9,7 +9,8 @@ const {
   fetchListWithQQNum,
   createMember,
   createPhoto,
-  updateGalleryById
+  updateGalleryById,
+  submitVote
 } = require('./common');
 
 async function confirmQQNum(app, qqNum, expectStatusCode = 200) {
@@ -17,15 +18,6 @@ async function confirmQQNum(app, qqNum, expectStatusCode = 200) {
     .get(`/member/confirm/${qqNum}`)
     .expect(expectStatusCode)
     .then(res => res.body)
-}
-
-async function submitVote(app, qq_num, gallery_id, photo_id_list, expectStatusCode = 200) {
-  return app.httpRequest()
-    .post(`/member/vote`)
-    .type('json')
-    .send({ gallery_id, photo_id_list, qq_num })
-    .expect(expectStatusCode)
-    .then(res => res.body);
 }
 
 function checkEventPeriodMember(active) {

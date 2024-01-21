@@ -3,6 +3,9 @@ import { Wait, Memo, Signal, nextTick } from 'new-vait'
 import { findListByProperty, removeListItemByIdx } from './common'
 
 import download from './download'
+import useSafeState from 'hooks/useSafeState'
+
+export const __MAX_PARALLEL_NUMBER__ = 3
 
 type Load = {
   blob: Blob;
@@ -15,7 +18,7 @@ function searchCache(src: string | undefined): readonly [boolean, string] {
   } else {
     const task = global_cache.get(src)
     if (task) {
-      return [false, task.blobUrl]
+      return [true, task.blobUrl]
     } else {
       return [false, '']
     }
@@ -23,49 +26,54 @@ function searchCache(src: string | undefined): readonly [boolean, string] {
 }
 
 function blobToBase64(blob: Blob) {
-  return new Promise<string>((resolve, _) => {
+  return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onloadend = () => {
       if (typeof reader.result === 'string') {
         resolve(reader.result)
       } else {
-        _(new Error('reader.result !== "string"'))
+        reject(new Error('reader.result !== "string"'))
       }
     }
     reader.readAsDataURL(blob)
-    reader.onerror = _
+    reader.onerror = reject
   })
 }
 
 export function useQueueload(loadsrc: string | undefined, need_base64_url: boolean = false) {
   const [ cached, url ] = searchCache(loadsrc)
-  const [ loaded, setLoaded ] = useState(cached)
-  const [ back_src, setBackSrc ] = useState<string>(url)
+  const [ loaded, setLoaded ] = useSafeState(cached)
+  const [ back_src, setBackSrc ] = useSafeState<string>(url)
 
   useEffect(() => {
-    if (loadsrc) {
-      let unmounted = false
-      globalQueueLoad(loadsrc).then(res => {
-        if (unmounted) { return }
-        if (need_base64_url) {
-          return blobToBase64(res.blob).then((base64_url) => {
-            if (unmounted) { return }
-            setBackSrc(base64_url)
+    if ((loadsrc === undefined) || (loadsrc.trim().length === 0)) {
+      setLoaded(false)
+    } else {
+      const [ cached, url ] = searchCache(loadsrc)
+      if (cached) {
+        setLoaded(cached)
+        setBackSrc(url)
+      } else {
+        (async () => {
+          setLoaded(false)
+          try {
+            const { blob, blobUrl } = await globalQueueLoad(loadsrc)
+            if (need_base64_url) {
+              setBackSrc(await blobToBase64(blob))
+            } else {
+              setBackSrc(blobUrl)
+            }
             setLoaded(true)
-          })
-        } else {
-          setBackSrc(res.blobUrl)
-          setLoaded(true)
-        }
-      })
-      return () => { unmounted = true }
+          } catch (err) {
+            console.error('useQueueload error', err)
+          }
+        })()
+      }
     }
-  }, [loadsrc, need_base64_url])
+  }, [loadsrc, need_base64_url, setBackSrc, setLoaded])
 
   return [loaded, back_src] as const
 }
-
-export const MAX_PARALLEL_NUMBER = 3
 
 type Src = string
 type LoadTask = {
@@ -99,7 +107,7 @@ export function QueueLoad() {
       return
     } else if (
       isLoading() &&
-      ( getConcurrentTasks().length >= MAX_PARALLEL_NUMBER )
+      ( getConcurrentTasks().length >= __MAX_PARALLEL_NUMBER__ )
     ) {
       return
     } else {

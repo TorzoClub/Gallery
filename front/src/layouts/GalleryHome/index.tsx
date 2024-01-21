@@ -1,127 +1,160 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-
 import { nextTick, timeout } from 'new-vait'
 
-import { Photo, fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
+import { getGlobalQueue, globalQueueLoad, setGlobalQueue } from 'utils/queue-load'
+import { findListByProperty, removeListItemByIdx, sortByIdList, updateListItemById } from 'utils/common'
+import { AppCriticalError } from 'App'
+
+import { GalleryCommon, GalleryInActive, Photo, fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
 
 import LoadingLayout from './components/LoadingLayout'
 import ActivityLayout from './components/ActivityLayout'
-import EmptyGalleryLayout from './components/EmptyGalleryLayout'
+import AllEmptyLayout from './components/AllEmptyLayout'
 import useConfirmQQ from './useConfirmQQ'
+import { useSubmissionEvent } from 'components/Submission'
 
 import Gallery from 'components/Gallery'
 import PhotoDetail, { Detail } from 'components/Detail'
 import ConfirmVote from 'components/ConfirmVote'
 import shuffleArray from 'utils/shuffle-array'
-import { findListByProperty, updateListItemById } from 'utils/common'
-import { AppCriticalError } from 'App'
-import { getGlobalQueue, globalQueueLoad, setGlobalQueue } from 'utils/queue-load'
-import { useSubmissionEvent } from 'components/Submission'
+import { WaterfallLayoutClickCoverHandler } from 'components/Waterfall'
 
-function sortByIdList<
-  ID,
-  T extends Record<'id', ID>
->(list: T[], sorted_id_list: ID[]): T[] {
-  const nofound = Symbol()
-  const sorted_list = sorted_id_list.map(sorted_id => {
-    const find_idx = findListByProperty(list, 'id', sorted_id)
-    if (find_idx === -1) {
-      return nofound
-    } else {
-      return list[find_idx]
+function preloadPhotoListThumb(photo_list: Photo[]) {
+  photo_list.forEach((photo, idx) => {
+    globalQueueLoad(photo.thumb_url, photo_list.length - idx)
+    if (photo.member) {
+      globalQueueLoad(
+        photo.member.avatar_thumb_url,
+        (photo_list.length - idx) - photo_list.length
+      )
     }
-  }).filter(item => item !== nofound) as T[]
-
-  const remain = list.filter(item => {
-    sorted_id_list.indexOf(item.id) === -1
   })
-
-  return [
-    ...sorted_list,
-    ...remain,
-  ]
 }
 
-type MediaID = string | number
-type MediaType = 'AVATAR' | 'PHOTO'
-type Media = { id: MediaID; type: MediaType }
-function usePhotoLoadingPriority(photo_list: Photo[]) {
+function usePhotoLoadingPriority(
+  photo_list: Photo[]
+) {
   const id_src_map = useMemo(() => {
     const m = new Map<number, string>()
     photo_list.forEach(p => m.set(p.id, p.thumb_url))
     return m
   }, [photo_list])
 
-  function id(type: MediaType, mid: MediaID) {
-    if (type === 'PHOTO') return `photo-${mid}`
-    else return `avatar-${mid}`
-  }
+  const resort = useCallback(function _resortHandler() {
+    const in_screen_photos = photo_list.map((photo, idx) => {
+      const photo_el = document.getElementById(`photo-${photo.id}`)
+      if (!photo_el) { return }
+      const bounding = photo_el.getBoundingClientRect()
+      if (
+        (bounding.y > (0 - bounding.height)) &&
+        (bounding.y < window.innerHeight)
+      ) {
+        return { idx, photo, bounding }
+      } else {
+        return null
+      }
+    }).filter(p => p) as { idx: number; photo: Photo, bounding: DOMRect }[]
+
+    const sorted = in_screen_photos.sort((a, b) => {
+      if (a.bounding.y === b.bounding.y) {
+        return a.idx > b.idx ? 1 : -1
+      } else {
+        return a.bounding.y > b.bounding.y ? 1 : -1
+      }
+    })
+
+    const all_tasks = getGlobalQueue()
+    setGlobalQueue(
+      all_tasks.map((t, idx) => {
+        return { ...t, priority: sorted.length + (all_tasks.length - idx) }
+      })
+    )
+
+    sorted.forEach(({ photo }, idx) => {
+      const src = id_src_map.get(photo.id)
+      if (!src) {
+        return
+      }
+      globalQueueLoad(src, (3 * sorted.length + all_tasks.length) - idx)
+      if (photo.member) {
+        globalQueueLoad(
+          photo.member.avatar_thumb_url,
+          (2 * sorted.length + all_tasks.length) - idx
+        )
+      }
+    })
+  }, [id_src_map, photo_list])
 
   useEffect(() => {
-    function _resortHandler() {
-      const in_screen_photos = photo_list.map(photo => {
-        const photo_el = document.getElementById(id('PHOTO', photo.id))
-        if (!photo_el) { return }
-        const bounding = photo_el.getBoundingClientRect()
-        if (
-          (bounding.y > (0 - bounding.height)) &&
-          (bounding.y < window.innerHeight)
-        ) {
-          return { photo, bounding }
-        } else {
-          return
-        }
-      }).filter(p => p) as { photo: Photo, bounding: DOMRect }[]
-
-      const sorted = in_screen_photos.sort((a, b) => {
-        return a.bounding.y > b.bounding.y ? 1 : -1
-      })
-
-      const all_tasks = getGlobalQueue()
-      setGlobalQueue(
-        all_tasks.map((t, idx) => {
-          return { ...t, priority: all_tasks.length - idx }
-        })
-      )
-
-      sorted.forEach(({ photo }, idx) => {
-        const src = id_src_map.get(photo.id)
-        if (!src) return
-        globalQueueLoad(src, 10000 - idx)
-        if (photo.member) {
-          globalQueueLoad(photo.member.avatar_thumb_url, 5000 - idx)
-        }
-      })
-    }
     const resortHandler = () => {
-      nextTick().then(_resortHandler)
+      nextTick().then(resort)
     }
     window.addEventListener('resize', resortHandler)
     window.addEventListener('scroll', resortHandler)
-    _resortHandler()
+
+    resort()
+
+    function req() {
+      resort()
+      if (getGlobalQueue().length) {
+        h = requestAnimationFrame(req)
+      }
+    }
+    let h: number = requestAnimationFrame(req)
 
     return () => {
       window.removeEventListener('resize', resortHandler)
       window.removeEventListener('scroll', resortHandler)
+      cancelAnimationFrame(h)
     }
-  }, [id_src_map, photo_list])
+  }, [resort])
+
+  return resort
 }
+
+function useVoteReady(active: GalleryInActive | null) {
+  const [ vote_ready, showSubmitButtonArea ] = useState(false)
+  const in_vote_period = useMemo(() => {
+    if (active) {
+      return Boolean(active.in_event && !active.can_submission)
+    } else { return false }
+  }, [active])
+  const show_submit_button_area = useMemo(() => {
+    if (active) {
+      const active_vote_submitted = Boolean(active.vote_submitted)
+      return vote_ready && (
+        in_vote_period && !active_vote_submitted
+      )
+    } else {
+      return false
+    }
+  }, [active, in_vote_period, vote_ready])
+
+  return  {
+    in_vote_period,
+    show_submit_button_area,
+    showSubmitButtonArea,
+  } as const
+}
+
+type PageStatus = 'LOADING' | 'NONE_EVENT' | 'SUBMISSION' | 'VOTE';
+const page_status: PageStatus = 'LOADING'
 
 export default () => {
   const [loaded, setLoaded] = useState(false)
 
   const [showArrow, setShowArrow] = useState(false)
 
-  const [hideVoteButton, setHideVoteButton] = useState(true)
-
-  const [selectedIdList, setSelectedIdList] = useState<number[]>([])
+  const [selected_id_list, setSelectedIdList] = useState<number[]>([])
 
   const [submiting, setSubmiting] = useState(false)
 
   const [active, setActive] = useState<null | fetchListResult['active']>(null)
   const [list, setList] = useState<fetchListResult['galleries']>([])
 
-  const [submittedPool, setSubmittedPool] = useState({})
+  const { in_vote_period, show_submit_button_area, showSubmitButtonArea } = useVoteReady(active)
+
+  const [submitted_pool, setSubmittedPool] = useState<Record<string, number | undefined>>({})
 
   const suffled_idx_list = useMemo(() => {
     return (active === null) ? [] : active.photos.map(p => p.id)
@@ -153,9 +186,11 @@ export default () => {
       setLoaded(true)
 
       if (active !== null) {
+        const photos = shuffleArray(active.photos)
+        preloadPhotoListThumb(photos)
         setActive({
           ...active,
-          photos: shuffleArray(active.photos)
+          photos: photos
         })
       } else {
         setActive(null)
@@ -171,15 +206,8 @@ export default () => {
     else if (event_loaded === true) { return }
     else if (!active) {
       // 没活动？那没事了
-      setHideVoteButton(true)
+      // setHideVoteButton(true)
       return
-    }
-
-    if (active.can_submission) {
-      // 征集投稿期间要隐藏投票按钮
-      setHideVoteButton(true)
-    } else {
-      setHideVoteButton(false)
     }
 
     if (active.can_submission) {
@@ -192,25 +220,22 @@ export default () => {
     } else {
       let mounted = true
       // 有的话就用这个扣号获取已投的照片列表
-      setConfirmState({
-        isLoading: false,
-        isDone: true
-      })
+      setConfirmState({ isLoading: true })
 
       const fetchListResult = fetchListWithQQNum(Number(currentQQNum))
 
-      timeout(1500).then(() => {
+      Promise.allSettled([fetchListResult, timeout(1000)]).finally(() => {
         fetchListResult.then(({ active: new_active, galleries }) => {
           if (mounted === false) { return }
-          setEventLoaded(true)
           if (!new_active) {
             setActive(null)
             setList(galleries)
+            setEventLoaded(true)
             return
           }
 
           setActive({
-            ...active,
+            ...new_active,
             photos: sortByIdList(new_active.photos, suffled_idx_list)
           })
 
@@ -221,10 +246,7 @@ export default () => {
           )
 
           setConfirmState({ in: false })
-          timeout(618).then(() => {
-            if (mounted === false) { return }
-            setShowConfirmVoteLayout(true)
-          })
+          setEventLoaded(true)
         }).catch(err => {
           AppCriticalError(`获取投票信息失败: ${err.message}`)
         })
@@ -233,6 +255,25 @@ export default () => {
       return () => { mounted = false }
     }
   }, [active, currentQQNum, event_loaded, loaded, setActive, setConfirmState, suffled_idx_list])
+
+  useEffect(() => {
+    if ((event_loaded === true)) {
+      let unmounted = false
+      timeout(618).then(() => {
+        if (unmounted) { return }
+        showSubmitButtonArea(true)
+        setShowConfirmVoteLayout(true)
+      })
+      return () => { unmounted = true }
+    }
+  }, [event_loaded, showSubmitButtonArea])
+
+  const handleClickAnyWhere = useCallback(() => {
+    setShowConfirmVoteLayout(false)
+    timeout(1000).then(() => {
+      setShowArrow(true)
+    })
+  }, [])
 
   const handleClickSubmit = async () => {
     if (!active) return
@@ -250,12 +291,12 @@ export default () => {
       } else {
         await vote({
           gallery_id: active.id,
-          photo_id_list: selectedIdList,
+          photo_id_list: selected_id_list,
           qq_num: Number(currentQQNum)
         })
 
         setSubmittedPool({
-          submittedPool,
+          ...submitted_pool,
           [active.id]: true
         })
       }
@@ -272,16 +313,8 @@ export default () => {
     }
   }
 
-  const handleClickAnyWhere = useCallback(() => {
-    setShowConfirmVoteLayout(false)
-    timeout(618).then(() => {
-      setHideVoteButton(false)
-      setShowArrow(true)
-    })
-  }, [])
-
   useSubmissionEvent({
-    created: useCallback((created_photo) => {
+    created(created_photo) {
       if (active) {
         setActive({
           ...active,
@@ -291,31 +324,26 @@ export default () => {
           ],
         })
       }
-    }, [active, setActive]),
-    updated: useCallback((updated_photo) => {
+    },
+    updated(updated_photo) {
       if (active) {
         setActive({
           ...active,
-          photos: active.photos.map(p => {
-            if (p.id === updated_photo.id) {
-              return updated_photo
-            } else {
-              return p
-            }
-          })
+          photos: updateListItemById(active.photos, updated_photo.id, updated_photo)
         })
       }
-    }, [active, setActive]),
-    canceled: useCallback((canceled_photo_id) => {
+    },
+    canceled(canceled_photo_id) {
       if (active) {
         setActive({
           ...active,
-          photos: active.photos.filter(p => {
-            return p.id !== canceled_photo_id
-          })
+          photos: removeListItemByIdx(
+            active.photos,
+            findListByProperty(active.photos, 'id', canceled_photo_id)
+          )
         })
       }
-    }, [active, setActive]),
+    },
   })
 
   const ConfirmVoteLayout = useMemo(() => (
@@ -325,8 +353,27 @@ export default () => {
     />
   ), [handleClickAnyWhere, showConfirmVoteLayout])
 
+  const HandleClickCover = (gallerycommon: GalleryCommon & {
+    photos: Array<{ id: number; src_url: string; width: number; height: number }>
+  }) => {
+    const handler: WaterfallLayoutClickCoverHandler = ({ from, thumbBlobUrl }, photo_id) => {
+      const idx = findListByProperty(gallerycommon.photos, 'id', photo_id)
+      if (idx !== -1) {
+        const photo = gallerycommon.photos[idx]
+        setImageDetail({
+          from: from,
+          thumb: thumbBlobUrl,
+          src: photo.src_url,
+          height: photo.height,
+          width: photo.width
+        })
+      }
+    }
+    return handler
+  }
+
   if (loaded && !active && (list.length === 0)) {
-    return <EmptyGalleryLayout />
+    return <AllEmptyLayout />
   }
 
   return (
@@ -339,18 +386,19 @@ export default () => {
             <div className="body">
               {active && (
                 <ActivityLayout {...{
+                  show_submit_button_area,
                   active,
-                  hideVoteButton,
+                  show_vote_button: in_vote_period,
                   submiting,
                   showArrow,
                   confirmState,
 
-                  submittedPool,
-                  selectedIdList,
+                  submitted_pool,
+                  selected_id_list,
                   setSelectedIdList,
 
-                  toDetail: (detail: Detail) => setImageDetail(detail),
                   onClickSubmit: () => handleClickSubmit(),
+                  onClickCover: HandleClickCover(active),
                 }} />
               )}
 
@@ -359,22 +407,10 @@ export default () => {
                   return (
                     <div className="gallery-wrapper" key={gallery.id} style={{ display: active ? 'none' : '' }}>
                       <Gallery
-                        hideVoteButton={hideVoteButton}
+                        show_vote_button={false}
                         gallery={gallery}
-                        selectedIdList={[]}
-                        onClickCover={({ from, thumbBlobUrl }, photoId) => {
-                          const idx = gallery.photos.map(p => p.id).indexOf(photoId)
-                          if (idx === -1) return
-                          const photo = gallery.photos[idx]
-
-                          setImageDetail({
-                            from: from,
-                            thumb: thumbBlobUrl,
-                            src: photo.src_url,
-                            height: photo.height,
-                            width: photo.width
-                          })
-                        }}
+                        selected_id_list={[]}
+                        onClickCover={HandleClickCover(gallery)}
                       />
                     </div>
                   )
@@ -383,7 +419,6 @@ export default () => {
 
               <PhotoDetail
                 detail={imageDetail}
-                // imageUrl={detailImageUrl}
                 onCancel={() => {
                   setImageDetail(null)
                 }}

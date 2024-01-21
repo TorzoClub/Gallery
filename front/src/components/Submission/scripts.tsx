@@ -9,15 +9,20 @@ import { componentScript, script, select, Script, Select, Content, useSubmission
 
 import WaitingInputFrame from 'components/ConfirmQQ/WaitingInputFrame'
 import { timeout } from 'new-vait'
-import Loading from 'components/Loading'
+import Loading, { LoadingMask } from 'components/Loading'
 import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
 
 import image_同装同装 from '../../assets/同装 同装.png'
-import { PhotoInActive, PhotoNormal, cancelMySubmission, normal2InActive } from 'api/photo'
+import { GalleryCommon, PhotoInActive, PhotoNormal, cancelMySubmission, normal2InActive } from 'api/photo'
 import { thunkify } from 'ramda'
 import { useQueueload } from 'utils/queue-load'
+import { dateDiffInDays, isInvalidDate, isNextMonth, isNextWeek, monthDiff, stringifyWeekDay } from 'utils/date'
 
-export function init() {
+type InitArgs = {
+  gallery_photo_count: number
+  submission_expire: GalleryCommon['submission_expire']
+}
+export function init(init_args : InitArgs) {
   function RequestInputQQNumber(p: { loginSuccess: (qq_num: string) => Promise<void> }) {
     const [ failure, setFailure ] = useState<Error | null>(null)
     const [ loading, setLoading ] = useState(false)
@@ -29,11 +34,12 @@ export function init() {
       <div style={{ position: 'relative', height: '100px', display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
         <div style={{ width: '200px' }}>
           <WaitingInputFrame
+            initFocus={false}
             isFailure={Boolean(failure)}
             disabled={false}
+            placeholder="输入你的 QQ 号"
             handleInputChange={() => {
               console.log('handleInputChange')
-              setLoading(false)
               setFailure(null)
             }}
             handlesubmitDetect={async (qq_num) => {
@@ -53,40 +59,37 @@ export function init() {
                 setLoading(false)
               }
             }}
-            placeholder="输入你的 QQ 号"
           />
         </div>
         { failure && failure.message }
-        {loading && <div className="loading-wrapper">
-          <Loading />
-        </div>}
+        {loading && <LoadingMask />}
       </div>
     )
   }
 
-  const iMistake = (): Script => {
+  const script_iMistake = (): Script => {
     return script('哦哦不好意思搞错了，感谢参加！', [
       select('下次注意点，不要又忘了',
         script('好的！', [])
       ),
-      select('话说，我想修改一下投稿，可以吗？', script_PhotoCreateOrEditWithTitle('当然可以！', true)),
+      select('话说，我想修改一下投稿，可以吗？', script_PhotoCreateOrEditWithTitle('当然可以！', 'EDIT', true)),
       select_我其实是想取消投稿
     ])
   }
 
-  const iamJoinAfter = (PresetContent: Content): Script => {
+  const script_iamJoinAfter = (PresetContent: Content): Script => {
     return script(PresetContent, [
       select('那我参加', submissionCheckingScript()),
-      select('那好吧，我就随便看看', script_听说你在下周会来参加投票),
+      select('那好吧，我就随便看看', script_听说你在下周会来参加投票()),
     ])
   }
 
-  const submissionCheckingScript = (exists_text: Content = '你这不是已经投稿了吗？'): Script => {
+  const submissionCheckingScript = (exists_text: string = '你这不是已经投稿了吗？'): Script => {
     const { photo } = useSubmissionStore.getState()
     if (photo) {
       // 已经投稿了
       return componentScript([
-        select('哦，我其实想修改的', script_PhotoCreateOrEditWithTitle('当然可以修改！', true)),
+        select('哦，我其实想修改的', script_PhotoCreateOrEditWithTitle('当然可以修改！', 'EDIT', true)),
         select_我其实是想取消投稿
       ], () => {
         return (
@@ -103,30 +106,35 @@ export function init() {
     } else {
       return componentScript([], ({ changeScript }) => {
         return <PhotoCreateOrEdit onUpdateDone={(created_photo) => {
-          changeScript(script_感谢你的参与('CREATED', created_photo))
+          changeScript(script_大感谢('CREATE', created_photo))
         }} />
       })
     }
   }
 
-  const script_感谢你的参与 = (type: 'CREATED' | 'EDITED', photo: PhotoNormal) => {
+  const script_大感谢 = (type: 'CREATE' | 'EDIT', photo: PhotoNormal) => {
     return componentScript([], ({ changeScript }) => {
       useEffect(() => {
         setTimeout(() => {
-          if (type === 'CREATED') {
+          if (type === 'CREATE') {
             _EVENT_.created.trigger(normal2InActive(photo))
-          } else {
+          } else if (type === 'EDIT') {
             _EVENT_.updated.trigger(normal2InActive(photo))
           }
         }, 1500)
       }, [])
-      return <>
-        <TextContentEffect textContent='感谢你的参与！' showContentWaittime={300} />
-      </>
+      return (
+        <TextContentEffect
+          textContent='大感谢'
+          showContentWaittime={300}
+          showClassName={s.ThanksShow}
+          hideClassName={s.ThanksHide}
+        />
+      )
     })
   }
 
-  const script_PhotoCreateOrEditWithTitle = (title: string, immediately = false) => componentScript([], ({ changeScript }) => {
+  const script_PhotoCreateOrEditWithTitle = (title: string, type: 'CREATE' | 'EDIT', immediately = false) => componentScript([], ({ changeScript }) => {
     const [show_form, showForm] = useState(false)
     useEffect(() => {
       if (immediately == false) {
@@ -142,8 +150,8 @@ export function init() {
       </div>
       {
         (show_form || immediately) && (
-          <PhotoCreateOrEdit onUpdateDone={(edited_photo) => {
-            changeScript(script_感谢你的参与('EDITED', edited_photo))
+          <PhotoCreateOrEdit onUpdateDone={(updated_photo) => {
+            changeScript(script_大感谢(type, updated_photo))
           }} />
         )
       }
@@ -292,7 +300,10 @@ export function init() {
               const $elm = targets[i] as any
               if ($elm.disintegrated) { return }
               $elm.disintegrated = true
-              timeout(100).then(() => {
+              timeout(
+                500 +
+                textContentEffectTotalTime(0, '你的投稿已撤回')
+              ).then(() => {
                 disintegrate($elm).catch(err => {
                   console.warn('disintegrate', err)
                   AppCriticalError(`disintegrate error: ${err}`)
@@ -387,7 +398,7 @@ export function init() {
     return (
       <>
         <RenderContent
-          Content={script_PhotoCreateOrEditWithTitle('好吧，那你就再重新投稿咯').Content}
+          Content={script_PhotoCreateOrEditWithTitle('好吧，那你就再重新投稿咯', 'CREATE').Content}
           changeScript={changeScript}
           showContentWaittime={0}
         />
@@ -403,12 +414,61 @@ export function init() {
     </>
   })
 
-  const script_听说你在下周会来参加投票: Script = {
-    ...script('听说你在下周会来参加投票', [
-      select('是', script_同装同装),
-      select('我只是凑巧路过......', script('额额额......', [])),
-    ]),
-    show_content_waittime: 500
+  function computeExpectTime(submission_expire: null | GalleryCommon['submission_expire']): null | string {
+    if (submission_expire === null) {
+      throw new Error('computeExpectTime failure: submission_expire is null')
+    } else {
+      const submission_expire_date = new Date(submission_expire)
+      const currentDate = new Date
+      if (isInvalidDate(submission_expire_date)) {
+        throw new Error(`computeExpectTime failure: submission_expire('${submission_expire}') is invalid date`)
+      } else if (currentDate > submission_expire_date) {
+        return null
+      } else {
+        const day = dateDiffInDays(currentDate, submission_expire_date)
+        if (day === 1) {
+          return '明天'
+        } else if (day === 2) {
+          return '后天'
+        } else if (isNextWeek(currentDate, submission_expire_date)) {
+          const week_day = submission_expire_date.getDay()
+          return `下${stringifyWeekDay(week_day)}`
+        } else if (isNextMonth(currentDate, submission_expire_date)) {
+          const d = submission_expire_date.getDate()
+          return `下个月${d}号`
+        } else {
+          const m = monthDiff(currentDate, submission_expire_date)
+          if (m === 0) {
+            return `${day}天后`
+          } else {
+            return `${m}个月后`
+          }
+        }
+      }
+    }
+  }
+
+  const script_听说你在下周会来参加投票 = (): Script => {
+    function tips(): string {
+      const expect_time = computeExpectTime(init_args.submission_expire)
+      if (expect_time === null) {
+        return '听说投票活动已经开始了，而你还没有刷新页面'
+      } else {
+        return `听说你在${expect_time}会来参加投票`
+      }
+    }
+    try {
+      return {
+        ...script(tips(), [
+          select('是', script_同装同装),
+          select('我只是凑巧路过......', script('额额额......', [])),
+        ]),
+        show_content_waittime: 500
+      }
+    } catch (err) {
+      AppCriticalError(`${err}`)
+      throw err
+    }
   }
 
   // return script_撤回确认
@@ -432,57 +492,76 @@ export function init() {
         }
       }
 
-      return scriptAdvance({
-        Content: '听说你要参加摄影大赛',
-        show_content_waittime: 1000,
-        show_select_timeout: 1000,
-        selects: [
-          select('是的吧我要参加', componentScript([], ({ changeScript }) => {
-            return (
-              <RequestInputQQNumber loginSuccess={async () => {
-                const my_submission = await updateMySubmission()
-                if (my_submission !== undefined) {
-                  changeScript(
-                    submissionCheckingScript()
-                  )
-                }
-              }} />
-            )
-          })),
-          select('否，我不想参加', script_听说你在下周会来参加投票),
-          select('啊？我参加了啊', componentScript([], ({ changeScript }) => {
-            const [show_input, showInput] = useState(false)
-            const title = '不可能，别骗我了，你拿出证明啊'
-            const title_waittime = 300
-            useEffect(() => {
-              const handler = setTimeout(() => {
-                showInput(true)
-              }, 300 + textContentEffectTotalTime(title_waittime, title))
-              return () => clearTimeout(handler)
-            }, [])
-            return (
-              <>
-                <TextContentEffect textContent={title} showContentWaittime={title_waittime} />
-                { show_input && (
-                  <RequestInputQQNumber loginSuccess={async () => {
-                    const my_submission = await updateMySubmission()
-                    if (my_submission) {
-                      changeScript(
-                        iMistake()
-                      )
+      const select_是的吧我要参加 = (): Select => (
+        select('是的吧我要参加', componentScript([], ({ changeScript }) => {
+          return (
+            <RequestInputQQNumber loginSuccess={async () => {
+              const my_submission = await updateMySubmission()
+              if (my_submission !== undefined) {
+                changeScript(
+                  submissionCheckingScript()
+                )
+              }
+            }} />
+          )
+        }))
+      )
+      const select_啊我参加了啊 = (): Select => (
+        select('啊？我参加了啊', componentScript([], ({ changeScript }) => {
+          const [show_input, showInput] = useState(false)
+          const title = '不可能，别骗我了，你拿出证明啊'
+          const title_waittime = 300
+          useEffect(() => {
+            const handler = setTimeout(() => {
+              showInput(true)
+            }, 300 + textContentEffectTotalTime(title_waittime, title))
+            return () => clearTimeout(handler)
+          }, [])
+          return (
+            <>
+              <TextContentEffect textContent={title} showContentWaittime={title_waittime} />
+              { show_input && (
+                <RequestInputQQNumber loginSuccess={async () => {
+                  const my_submission = await updateMySubmission()
+                  if (my_submission) {
+                    changeScript(
+                      script_iMistake()
+                    )
+                  } else if (my_submission === null) {
+                    changeScript(
+                      script_iamJoinAfter('你根本没有参加，骗我。')
+                    )
+                  }
+                }} />
+              )}
+            </>
+          )
+        }))
+      )
 
-                    } else if (my_submission === null) {
-                      changeScript(
-                        iamJoinAfter('你根本没有参加，骗我。')
-                      )
-                    }
-                  }} />
-                )}
-              </>
-            )
-          }))
-        ]
-      })
+      if (init_args.gallery_photo_count === 0) {
+        return scriptAdvance({
+          Content: '听说你是第一个参加摄影大赛的',
+          show_content_waittime: 1000,
+          show_select_timeout: 1000,
+          selects: [
+            select_是的吧我要参加(),
+            select('否，我不想参加', script_听说你在下周会来参加投票())
+          ]
+        })
+      } else {
+        return scriptAdvance({
+          Content: '听说你要参加摄影大赛',
+          show_content_waittime: 1000,
+          show_select_timeout: 1000,
+          selects: [
+            select_是的吧我要参加(),
+            select('否，我不想参加', script_听说你在下周会来参加投票()),
+            select_啊我参加了啊()
+          ]
+        })
+      }
+
     }
   )
 }

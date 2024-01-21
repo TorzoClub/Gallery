@@ -1,7 +1,7 @@
 import React from 'react'
-import SubmitButton from 'components/SubmitButton'
 import s from './index.module.css'
 import DialogLayout from 'components/DialogLayout'
+import { SubmitButton } from 'layouts/GalleryHome/components/ActivityLayout'
 
 export type Props = {
   in: boolean
@@ -15,7 +15,9 @@ export default (props: Props) => {
     <DialogLayout in={Boolean(inProp)} onClickAnyWhere={handleClickAnyWhere}>
       <div className={s.isDone}>
         可别忘了点下面的
-        <SubmitButton className={s.submitBtn} mode="blue ring" />
+        <div style={{ margin: '0 5px' }}>
+          <SubmitButton buttonState='highlight' />
+        </div>
         了，朋友
       </div>
 

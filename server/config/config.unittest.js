@@ -27,12 +27,6 @@ module.exports = appInfo => {
   // use for cookie sign key, should change to your own and keep security
   config.keys = appInfo.name + '_1570827005712_4094';
 
-  // add your middleware config here
-  config.middleware = [
-    'backData',
-    'errorHandler',
-  ];
-
   config.static = {
     prefix: path.join(config.apiPrefix, './'),
     dir: staticPath,
@@ -47,6 +41,10 @@ module.exports = appInfo => {
       imageThumbSavePath,
       imageSavePath,
     ],
+  };
+
+  config.logger = {
+    level: 'DEBUG',
   };
 
   // add your user config here

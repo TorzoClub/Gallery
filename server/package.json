@@ -13,7 +13,7 @@
     "egg-sequelize": "^5.2.0",
     "egg-validate": "^2.0.2",
     "filesize": "^10.1.0",
-    "mysql2": "^1.7.0",
+    "mysql2": "^3.9.7",
     "sharp": "^0.33.0",
     "stream-wormhole": "^1.1.0"
   },

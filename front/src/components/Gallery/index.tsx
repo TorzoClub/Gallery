@@ -8,6 +8,8 @@ import { Gallery, Photo } from 'api/photo'
 import { CoverClickEvent, Props as PhotoBoxProps } from 'components/PhotoBox'
 import Submission from 'components/Submission'
 import useSafeState from 'hooks/useSafeState'
+import { dateDiffInDays } from 'utils/date'
+import TextPlaceholder from './TextPlaceholder'
 
 function getViewportWidth() {
   const { innerWidth } = window
@@ -141,25 +143,46 @@ export type Props = {
 }
 export default ({
   cannot_select_vote = false,
-  show_vote_button, gallery, selected_id_list, onClickVote, onClickCover,
+  show_vote_button,
+  gallery,
+  selected_id_list,
+  onClickVote,
+  onClickCover,
 }: Props) => {
   const layout = useWaterfallLayout(gallery)
 
   const title_node = useTitleNode(gallery)
 
-  const waterfall_layout_node = useMemo(() => (
-    <Waterfall
-      layout_configure={layout}
-      cannot_select_vote={cannot_select_vote}
-      photos={gallery.photos}
-      selected_id_list={selected_id_list}
-      show_vote_button={show_vote_button}
-      onClickCover={onClickCover}
-      onClickVote={(photoId) => {
-        onClickVote && onClickVote(photoId)
-      }}
-    />
-  ), [cannot_select_vote, gallery.photos, show_vote_button, layout, onClickCover, onClickVote, selected_id_list])
+  const waterfall_layout_node = useMemo(() => {
+    const day_diff = dateDiffInDays(new Date(gallery.event_start), new Date)
+    if (gallery.in_event) {
+      return <TextPlaceholder>提交你的投稿</TextPlaceholder>
+    } else if (gallery.photos.length === 0) {
+      if ((day_diff < 30) && day_diff > 0) {
+        return (
+          <TextPlaceholder>
+            活动将于 { day_diff } 天后开始<br />
+          </TextPlaceholder>
+        )
+      } else {
+        return <TextPlaceholder>暂无相片</TextPlaceholder>
+      }
+    } else {
+      return (
+        <Waterfall
+          layout_configure={layout}
+          cannot_select_vote={cannot_select_vote}
+          photos={gallery.photos}
+          selected_id_list={selected_id_list}
+          show_vote_button={show_vote_button}
+          onClickCover={onClickCover}
+          onClickVote={(photoId) => {
+            onClickVote && onClickVote(photoId)
+          }}
+        />
+      )
+    }
+  }, [gallery.event_start, gallery.in_event, gallery.photos, layout, cannot_select_vote, selected_id_list, show_vote_button, onClickCover, onClickVote])
 
   return (
     <div className="gallery">

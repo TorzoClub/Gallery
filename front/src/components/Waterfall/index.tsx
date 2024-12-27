@@ -19,15 +19,6 @@ type Pos = {
 type PhotoID = number
 type PosMap = Record<PhotoID, Pos>
 
-const Empty: FunctionComponent = memo(() => (
-  <div style={{
-    textAlign: 'center',
-    paddingTop: '30px',
-    width: '100%',
-    color: 'rgba(0, 0, 0, 0.4)',
-  }}>暂无投稿作品</div>
-))
-
 export type WaterfallLayoutConfigure = {
   box_type: PhotoBoxProps['type']
   vertial_gutter: PhotoBoxProps['vertial_gutter']
@@ -95,10 +86,7 @@ export default (props: Props) => {
       margin: 'auto',
       minHeight: '150px',
     }}>
-      {(photos.length === 0) ? (
-        <Empty />
-      ) : (
-        <div
+       <div
           className="waterfall"
           style={{
             width: '100%',
@@ -144,7 +132,6 @@ export default (props: Props) => {
             ))
           }
         </div>
-      )}
     </div>
   )
 }

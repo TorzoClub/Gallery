@@ -155,7 +155,7 @@ export default ({
 
   const waterfall_layout_node = useMemo(() => {
     const day_diff = dateDiffInDays(new Date(gallery.event_start), new Date)
-    if (gallery.in_event) {
+    if (gallery.in_event && gallery.can_submission) {
       return <TextPlaceholder>提交你的投稿</TextPlaceholder>
     } else if (gallery.photos.length === 0) {
       if ((day_diff < 30) && day_diff > 0) {
@@ -182,7 +182,7 @@ export default ({
         />
       )
     }
-  }, [gallery.event_start, gallery.in_event, gallery.photos, layout, cannot_select_vote, selected_id_list, show_vote_button, onClickCover, onClickVote])
+  }, [cannot_select_vote, gallery.can_submission, gallery.event_start, gallery.in_event, gallery.photos, layout, onClickCover, onClickVote, selected_id_list, show_vote_button])
 
   return (
     <div className="gallery">

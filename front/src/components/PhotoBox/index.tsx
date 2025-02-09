@@ -195,7 +195,7 @@ export default PhotoBox
 
 type BackBottomProps = {
   handleClickVote(): void
-  vote_button_status: 'selected' | 'un-selected' | 'cannot-select'
+  vote_button_status: 'selected' | 'un-selected' | 'cannot-add'
 }
 function BackBottom({
    handleClickVote,
@@ -231,14 +231,14 @@ function BackBottom({
             <div className="heart" style={{ backgroundImage: `url(${heartIMG})` }} />
           </div>
           <div
-            className={`block ${cannot_select_animation_playing ? 'cannot-select' : 'highlight'}`}
+            className={`block ${cannot_select_animation_playing ? 'cannot-add' : 'highlight'}`}
             style={{
               opacity: (
                 vote_button_is_highlight || cannot_select_animation_playing
               ) ? 1 : 0
             }}
             onClick={() => {
-              if (vote_button_status === 'cannot-select') {
+              if (vote_button_status === 'cannot-add') {
                 setSelectAnimation(true)
               }
             }}

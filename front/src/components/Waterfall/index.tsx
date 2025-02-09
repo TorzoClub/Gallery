@@ -32,7 +32,7 @@ export type WaterfallLayoutClickCoverHandler = (clickInfo: CoverClickEvent, phot
 export type Props = {
   show_vote_button: boolean
   layout_configure: WaterfallLayoutConfigure
-  cannot_select_vote: boolean
+  cannot_add_vote: boolean
 
   photos: Photo[]
   onClickVote(photo_id: Photo['id']): void
@@ -111,7 +111,7 @@ export default (props: Props) => {
                   vote_button_status: (
                     (selected_id_list && (selected_id_list.indexOf(photo.id) !== -1)) ?
                     'selected' :
-                    (props.cannot_select_vote ? 'cannot-select' : 'un-selected')
+                    (props.cannot_add_vote ? 'cannot-add' : 'un-selected')
                   ),
                   name: photo.member ? photo.member.name : null,
                   desc: photo.desc,

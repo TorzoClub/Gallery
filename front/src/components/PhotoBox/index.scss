@@ -366,7 +366,7 @@ $horizontalPhotoShadowColor: rgba(0, 0, 0, 0.382);
           100% { opacity: 0 }
         }
 
-        &.cannot-select {
+        &.cannot-add {
           animation: pressfailure 1500ms, press 382ms;
           animation-play-state: running;
           @include button-highlight;

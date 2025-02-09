@@ -42,15 +42,20 @@ export default function ActivityLayout({
 
   const submit_request_was_sent = Boolean(submitted_pool[active.id])
 
-  const cannot_select_vote = useMemo(() => {
+  const can_add_vote = useMemo(() => {
     const is_unlimited = active.vote_limit === 0
     const over_limit = !is_unlimited && (selected_id_list.length >= active.vote_limit)
+    return Boolean(is_unlimited || !over_limit)
+  }, [active.vote_limit, selected_id_list.length])
 
-    return Boolean(over_limit || active.vote_submitted || submit_request_was_sent)
-  }, [active.vote_limit, active.vote_submitted, selected_id_list.length, submit_request_was_sent])
+  const cannot_add_vote_effect = useMemo(() => {
+    return Boolean(!can_add_vote || active.vote_submitted || submit_request_was_sent)
+  }, [active.vote_submitted, can_add_vote, submit_request_was_sent])
 
   const handleClickVote = (photo_id: Photo['id']) => {
-    if (cannot_select_vote || !show_submit_button_area) {
+    if (!show_submit_button_area) {
+      return
+    } else if (submit_request_was_sent) {
       return
     } else {
       const idx = selected_id_list.indexOf(photo_id)
@@ -59,7 +64,7 @@ export default function ActivityLayout({
         setSelectedIdList(
           removeListItemByIdx(selected_id_list, idx)
         )
-      } else {
+      } else if (can_add_vote) {
         setArrowTickTock(Date.now())
         setSelectedIdList([...selected_id_list, photo_id])
       }
@@ -79,7 +84,7 @@ export default function ActivityLayout({
       <Gallery
         {...remain_props}
         gallery={active}
-        cannot_select_vote={cannot_select_vote}
+        cannot_add_vote={cannot_add_vote_effect}
         selected_id_list={selected_id_list}
         onClickVote={handleClickVote}
       />

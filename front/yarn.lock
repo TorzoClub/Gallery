@@ -9473,10 +9473,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"new-vait@npm:vait@2.7.0-beta":
-  version: 2.7.0-beta
-  resolution: "vait@npm:2.7.0-beta"
-  checksum: 4df0312c7f6a6cee57c4a9cc640c3621bd24ed4600eb968289d6b9df54eb4e8a491501b20b75c6ace77d7d0dbee0940ba2e6c529fc564f8d1435b92531b13848
+"new-vait@npm:vait@4.2.1":
+  version: 4.2.1
+  resolution: "vait@npm:4.2.1"
+  checksum: 1866f311e8a3e7e923ece34855d7cd63b52d1edb8e6d3a2778bbfcf54f532a1d2825039b5ebd8ed31de72bd74ebf788315170ca5ba78074cea02df12f281c1e0
   languageName: node
   linkType: hard
 
@@ -12911,7 +12911,7 @@ __metadata:
     eslint: ^8.56.0
     fontkit: ^2.0.2
     html2canvas: ^1.4.1
-    new-vait: "npm:vait@2.7.0-beta"
+    new-vait: "npm:vait@4.2.1"
     pad-left: ^2.1.0
     ramda: ^0.29.1
     react: ^18.2.0
@@ -13196,11 +13196,11 @@ __metadata:
 
 "typescript@patch:typescript@^5.3.3#~builtin<compat/typescript>":
   version: 5.3.3
-  resolution: "typescript@patch:typescript@npm%3A5.3.3#~builtin<compat/typescript>::version=5.3.3&hash=e012d7"
+  resolution: "typescript@patch:typescript@npm%3A5.3.3#~builtin<compat/typescript>::version=5.3.3&hash=14eedb"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 4e604a9e107ce0c23b16a2f8d79d0531d4d8fe9ebbb7a8c395c66998c39892f0e0a071ef0b0d4e66420a8ec2b8d6cfd9cdb29ba24f25b37cba072e9282376df9
+  checksum: f61375590b3162599f0f0d5b8737877ac0a7bc52761dbb585d67e7b8753a3a4c42d9a554c4cc929f591ffcf3a2b0602f65ae3ce74714fd5652623a816862b610
   languageName: node
   linkType: hard
 

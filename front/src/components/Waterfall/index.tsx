@@ -671,9 +671,10 @@ function useDimensionMap(onDimChange: () => void) {
     const [ getDimMap ] = dim_map_ref.current
     return getDimMap()
   }, [])
-  const setDimMap = useCallback<MemoSetter<Record<string, () => Dimension>>>((...args) => {
-    const [ ,setDimMap ] = dim_map_ref.current
-    return setDimMap(...args)
+
+  const setDimMap = useCallback((d: DimensionMap) => {
+    const [ , _setDimMap ] = dim_map_ref.current
+    return _setDimMap(d)
   }, [])
 
   const refFn = useCallback((getDim: null | (() => Dimension), id: string, photo: { width: number, height: number }) => {

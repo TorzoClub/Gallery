@@ -7,7 +7,7 @@
     "axios": "^0.24.0",
     "blueimp-md5": "^2.10.0",
     "html2canvas": "^1.4.1",
-    "new-vait": "npm:vait@2.7.0-beta",
+    "new-vait": "npm:vait@4.2.1",
     "pad-left": "^2.1.0",
     "ramda": "^0.29.1",
     "react": "^18.2.0",

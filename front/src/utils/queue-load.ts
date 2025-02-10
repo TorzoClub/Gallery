@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Wait, Memo, Signal, nextTick } from 'new-vait'
+import { Wait, Memo, Signal, nextTick, concurrency } from 'new-vait'
 import { findListByProperty, removeListItemByIdx } from './common'
 
 import download from './download'
@@ -7,10 +7,13 @@ import useSafeState from 'hooks/useSafeState'
 
 export const __MAX_PARALLEL_NUMBER__ = 3
 
-type Load = {
+type LoadedData = {
   blob: Blob;
   blobUrl: string;
 }
+
+const [ globalQueueLoad, [getGlobalQueue, setGlobalQueue], global_cache ] = QueueLoad()
+export { globalQueueLoad, getGlobalQueue, setGlobalQueue, global_cache }
 
 function searchCache(src: string | undefined): readonly [boolean, string] {
   if (src === undefined) {
@@ -81,14 +84,11 @@ type LoadTask = {
   priority: number
 }
 
-const [ globalQueueLoad, [getGlobalQueue, setGlobalQueue], global_cache ] = QueueLoad()
-export { globalQueueLoad, getGlobalQueue, setGlobalQueue, global_cache }
-
 export function QueueLoad() {
   const [getQueue, setQueue] = Memo<LoadTask[]>([])
   const [getConcurrentTasks, setConcurrentTasks] = Memo<LoadTask[]>([])
-  const cache = new Map<Src, Load>()
-  const loaded_signal = Signal<{ src: string, data: Load }>()
+  const cache = new Map<Src, LoadedData>()
+  const loaded_signal = Signal<{ src: string, data: LoadedData }>()
 
   loaded_signal.receive(({ src, data }) => {
     cache.set(src, data)
@@ -114,28 +114,35 @@ export function QueueLoad() {
       setLoading(true)
 
       const [ task, ...remain_queue ] = getQueue()
-      setConcurrentTasks([ task, ...getConcurrentTasks() ])
-
       setQueue(remain_queue)
 
-      download({
-        url: task.src
-      }).then(blob => {
-        return {
-          blob,
-          blobUrl: URL.createObjectURL(blob)
-        }
-      }).then(data => {
-        const concurrent_tasks = getConcurrentTasks()
-        setConcurrentTasks(removeTaskBySrc(concurrent_tasks, task.src))
+      const idx = findListByProperty(getConcurrentTasks(), 'src', task.src)
+      if (idx === -1) {
+        setConcurrentTasks([ task, ...getConcurrentTasks() ]);
+        (async () => {
+          const cached_data = cache.get(task.src)
+          if (cached_data) {
+            return cached_data.blob
+          } else {
+            return download({ url: task.src })
+          }
+        })().then(blob => {
+          const data = {
+            blob,
+            blobUrl: URL.createObjectURL(blob)
+          }
+          const concurrent_tasks = getConcurrentTasks()
+          setConcurrentTasks(removeTaskBySrc(concurrent_tasks, task.src))
 
-        setLoading(false)
-        loaded_signal.trigger({
-          src: task.src,
-          data
+          setLoading(false)
+          loaded_signal.trigger({
+            src: task.src,
+            data
+          })
+
+          startLoad()
         })
-        startLoad()
-      })
+      }
     }
   }
 
@@ -158,12 +165,12 @@ export function QueueLoad() {
     }
   }
 
-  async function load(src: string, priority?: number): Promise<Load> {
+  async function load(src: string, priority?: number): Promise<LoadedData> {
     const cached_data = cache.get(src)
     if (cached_data) {
       return cached_data
     } else {
-      const [data, setData] = Wait<Load>()
+      const [data, setData] = Wait<LoadedData>()
 
       const queue = getQueue()
       const idx = findListByProperty(queue, 'src', src)
@@ -176,13 +183,16 @@ export function QueueLoad() {
         setQueue(
           addTask(
             removeListItemByIdx(queue, idx),
-            { src, priority: priority === undefined ? task.priority : priority }
+            {
+              src,
+              priority: priority === undefined ? task.priority : priority
+            }
           )
         )
       }
 
       loaded_signal.receive(
-        function loadedHandler(loaded: { src: Src, data: Load }) {
+        function loadedHandler(loaded: { src: Src, data: LoadedData }) {
           if (loaded.src === src) {
             loaded_signal.cancelReceive(loadedHandler)
             setData(loaded.data)

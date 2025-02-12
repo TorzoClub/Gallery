@@ -155,32 +155,40 @@ export default ({
 
   const waterfall_layout_node = useMemo(() => {
     const day_diff = dateDiffInDays(new Date(gallery.event_start), new Date)
-    if (gallery.in_event && gallery.can_submission) {
-      return <TextPlaceholder>提交你的投稿</TextPlaceholder>
-    } else if (gallery.photos.length === 0) {
-      if ((day_diff < 30) && day_diff > 0) {
-        return (
-          <TextPlaceholder>
-            活动将于 { day_diff } 天后开始<br />
-          </TextPlaceholder>
-        )
+    const waterfall = () => (
+      <Waterfall
+        layout_configure={layout}
+        cannot_add_vote={cannot_add_vote}
+        photos={gallery.photos}
+        selected_id_list={selected_id_list}
+        show_vote_button={show_vote_button}
+        onClickCover={onClickCover}
+        onClickVote={(photoId) => {
+          onClickVote && onClickVote(photoId)
+        }}
+      />
+    )
+
+    if (gallery.in_event) {
+      if (gallery.can_submission && (gallery.photos.length === 0)) {
+        return <TextPlaceholder>提交你的投稿</TextPlaceholder>
       } else {
-        return <TextPlaceholder>暂无相片</TextPlaceholder>
+        return waterfall()
       }
     } else {
-      return (
-        <Waterfall
-          layout_configure={layout}
-          cannot_add_vote={cannot_add_vote}
-          photos={gallery.photos}
-          selected_id_list={selected_id_list}
-          show_vote_button={show_vote_button}
-          onClickCover={onClickCover}
-          onClickVote={(photoId) => {
-            onClickVote && onClickVote(photoId)
-          }}
-        />
-      )
+      if (gallery.photos.length === 0) {
+        if ((day_diff < 30) && day_diff > 0) {
+          return (
+            <TextPlaceholder>
+              活动将于 { day_diff } 天后开始<br />
+            </TextPlaceholder>
+          )
+        } else {
+          return <TextPlaceholder>暂无相片</TextPlaceholder>
+        }
+      } else {
+        return waterfall()
+      }
     }
   }, [cannot_add_vote, gallery.can_submission, gallery.event_start, gallery.in_event, gallery.photos, layout, onClickCover, onClickVote, selected_id_list, show_vote_button])
 

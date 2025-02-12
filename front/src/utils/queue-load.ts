@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Wait, Memo, Signal, nextTick, Queue, WithPayload, timeout } from 'new-vait'
+import { Wait, Memo, Signal, nextTick, Queue, WithPayload, timeout, OutterPromise } from 'new-vait'
 import { findListByProperty, removeListItemByIdx } from './common'
 
 import download from './download'
@@ -14,8 +14,6 @@ type LoadResult = {
 
 const [ globalQueueLoad, [getGlobalQueue, setGlobalQueue, globalQueueIsLoading], global_cache ] = QueueLoad()
 export { globalQueueLoad, getGlobalQueue, setGlobalQueue, globalQueueIsLoading, global_cache }
-
-Object.assign(window, { globalQueueLoad, getGlobalQueue, setGlobalQueue, global_cache })
 
 function searchCache(src: string | undefined): readonly [boolean, string] {
   if (src === undefined) {

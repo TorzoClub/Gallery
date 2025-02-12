@@ -1,3 +1,5 @@
+import { appInitInfomation } from 'App'
+import { Memo } from 'new-vait'
 import request from 'utils/request'
 
 type ID = number
@@ -85,7 +87,54 @@ export type fetchListResult = {
 export const fetchList = () => request<fetchListResult>({
   method: 'GET',
   url: 'photo/'
-})
+}).then(transformListPictureType)
+
+function transformListPictureType(data: fetchListResult | fetchListWithQQNumResult) {
+  if (data.active) {
+    transformPhotoListPictureType(data.active.photos)
+    data.active.photos = transformPhotoListPictureType(data.active.photos)
+  }
+
+  data.galleries = data.galleries.map(gallery => {
+    gallery.photos = transformPhotoListPictureType(gallery.photos)
+    gallery.photos = transformMemberPictureType(gallery.photos)
+    return gallery
+  })
+
+  return data
+}
+
+function transformMemberPictureType<T extends PhotoNormal>(list: T[]) {
+  return list.map(photo => {
+    photo.member.avatar_thumb_url = selectPictureType(photo.member.avatar_thumb_url)
+    return photo
+  })
+}
+
+function transformPhotoListPictureType<T extends PhotoCommon>(list: T[]) {
+  return (
+    list.map(photo => {
+      return {
+        ...photo,
+        thumb: selectPictureType(photo.thumb),
+        thumb_url: selectPictureType(photo.thumb_url),
+        thumb_urlpath: selectPictureType(photo.thumb_urlpath),
+      }
+    })
+  )
+}
+
+function selectPictureType(picture_url: string) {
+  const [ getAppInitInfo ] = appInitInfomation
+  const { avif, webp } = getAppInitInfo().picutre_support
+  if (avif) {
+    return picture_url.replace('.jpg', '.avif')
+  } else if (webp) {
+    return picture_url.replace('.jpg', '.webp')
+  } else {
+    return picture_url
+  }
+}
 
 export type fetchListWithQQNumResult = {
   active: GalleryInActive | null
@@ -95,7 +144,7 @@ export const fetchListWithQQNum = (qq_num: number) => request<fetchListWithQQNum
   method: 'POST',
   url: 'member/photo',
   data: { qq_num }
-})
+}).then(transformListPictureType)
 
 export const vote = ({
   gallery_id,

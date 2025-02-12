@@ -1,5 +1,5 @@
 import React, { Component, useEffect, useState } from 'react'
-import { Signal } from 'new-vait'
+import { Memo, Signal } from 'new-vait'
 
 import GalleryHome from './layouts/GalleryHome'
 // import CoverScroller from './layouts/CoverScroller'
@@ -11,6 +11,10 @@ import './App.css'
 const err_sig = Signal<string>()
 
 export const AppCriticalError = err_sig.trigger
+
+export const appInitInfomation = Memo({
+  picutre_support: { avif: false, webp: false }
+})
 
 export default function App() {
   const [ showFailure, , failure_layout ] = useFailureLayout(<AppInner />)

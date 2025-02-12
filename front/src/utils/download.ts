@@ -10,8 +10,6 @@ export type Args = {
   onEnd?: () => void
 }
 
-Object.assign(window, { DEngine })
-
 export default DEngine
 function DEngine({
   url,

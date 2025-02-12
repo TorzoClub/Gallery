@@ -1,6 +1,8 @@
 import React, {ReactNode, createContext, useEffect, useMemo, useRef, useState } from 'react'
 import s from './index.module.css'
 
+import DEngine from 'utils/download'
+
 type FailureLayoutContextType = string[]
 export const FailureLayoutContext = createContext<FailureLayoutContextType>([])
 
@@ -171,13 +173,11 @@ export default function FailureLayout({ errors }: { errors: unknown[] }) {
   )
 }
 
-import { globalQueueLoad } from 'utils/queue-load'
-
 function useGuanzhiCompleteFont() {
   const [url, setURL] = useState<undefined | string>(undefined)
   useEffect(() => {
-    globalQueueLoad(guanzhi_font_url).then((loaded) => {
-      setURL(loaded.blobUrl)
+    DEngine({ url: guanzhi_font_url }).then(blob => {
+      setURL( URL.createObjectURL(blob) )
     }).catch(() => {
       // 也要考虑出现加载失败的情况，这时候就不要考虑什么字体美观度了
       // 能显示出错误信息才重要

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { nextTick, timeout } from 'new-vait'
 
-import { getGlobalQueue, globalQueueLoad, setGlobalQueue } from 'utils/queue-load'
+import { getGlobalQueue, globalQueueLoad, globalQueueIsLoading, setGlobalQueue } from 'utils/queue-load'
 import { findListByProperty, removeListItemByIdx, sortByIdList, updateListItemById } from 'utils/common'
 import { AppCriticalError } from 'App'
 
@@ -87,7 +87,9 @@ function usePhotoLoadingPriority(
 
   useEffect(() => {
     const resortHandler = () => {
-      nextTick().then(resort)
+      if (globalQueueIsLoading()) {
+        nextTick().then(resort)
+      }
     }
     window.addEventListener('resize', resortHandler)
     window.addEventListener('scroll', resortHandler)

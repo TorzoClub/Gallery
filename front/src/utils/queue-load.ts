@@ -12,8 +12,8 @@ type LoadResult = {
   blobUrl: string;
 }
 
-const [ globalQueueLoad, [getGlobalQueue, setGlobalQueue], global_cache ] = QueueLoad()
-export { globalQueueLoad, getGlobalQueue, setGlobalQueue, global_cache }
+const [ globalQueueLoad, [getGlobalQueue, setGlobalQueue, globalQueueIsLoading], global_cache ] = QueueLoad()
+export { globalQueueLoad, getGlobalQueue, setGlobalQueue, globalQueueIsLoading, global_cache }
 
 Object.assign(window, { globalQueueLoad, getGlobalQueue, setGlobalQueue, global_cache })
 
@@ -158,7 +158,6 @@ export function QueueLoad() {
           const concurrent_tasks = getConcurrentTasks()
           setConcurrentTasks(removeTaskBySrc(concurrent_tasks, task.src))
 
-          setLoading(false)
           loaded_signal.trigger({
             src: task.src,
             data
@@ -169,7 +168,6 @@ export function QueueLoad() {
         .catch(e => {
           const concurrent_tasks = getConcurrentTasks()
           setConcurrentTasks(removeTaskBySrc(concurrent_tasks, task.src))
-          setLoading(false)
 
           load_failure_signal.trigger({ src: task.src, e })
 
@@ -254,7 +252,7 @@ export function QueueLoad() {
     }
   }
 
-  return [ load, [ getQueue, setQueue ], cache ] as const
+  return [ load, [ getQueue, setQueue, isLoading ], cache ] as const
 }
 
 let _id = 0

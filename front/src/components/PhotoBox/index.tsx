@@ -5,6 +5,7 @@ import './index.scss'
 
 import { global_cache, globalQueueLoad, useQueueload } from 'utils/queue-load'
 import useMeasure from 'hooks/useMeasure'
+import LoadFailure from './LoadFailure'
 
 export type DimensionUnknown = Dimension | null
 export type Dimension = readonly [number, number]
@@ -132,17 +133,19 @@ const PhotoBox = forwardRef<() => Dimension, Props>((props, ref) => {
           style={{ height: cover_frame_height }}
           onClick={(e) => {
             e.preventDefault()
-            if (coverFrameEl.current) {
-              const {
-                height, width, top, left
-              } = coverFrameEl.current.getBoundingClientRect()
+            if (thumb_status !== 'FAILURE') {
+              if (coverFrameEl.current) {
+                const {
+                  height, width, top, left
+                } = coverFrameEl.current.getBoundingClientRect()
 
-              props.onClickCover({
-                from: {
-                  height, width, top, left,
-                },
-                thumbBlobUrl: thumb
-              })
+                props.onClickCover({
+                  from: {
+                    height, width, top, left,
+                  },
+                  thumbBlobUrl: thumb
+                })
+              }
             }
           }}
         >
@@ -152,11 +155,7 @@ const PhotoBox = forwardRef<() => Dimension, Props>((props, ref) => {
             src={thumb}
             style={{ opacity: thumb_status === 'LOADED' ? 100 : 0 }}
           />
-          { thumb_status === 'FAILURE' && <button onClick={e => {
-            e.preventDefault()
-            e.stopPropagation()
-            retryLoadPhotoThumb()
-          }}>出错，点击重试</button> }
+          { thumb_status === 'FAILURE' && <LoadFailure onClick={retryLoadPhotoThumb} /> }
 
           {/* <div className="highlight"></div> */}
         </div>

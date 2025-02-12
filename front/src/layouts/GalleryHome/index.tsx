@@ -75,12 +75,12 @@ function usePhotoLoadingPriority(
       if (!src) {
         return
       }
-      globalQueueLoad(src, (3 * sorted.length + all_tasks.length) - idx)
+      globalQueueLoad(src, (3 * sorted.length + all_tasks.length) - idx).catch(() => {})
       if (photo.member) {
         globalQueueLoad(
           photo.member.avatar_thumb_url,
           (2 * sorted.length + all_tasks.length) - idx
-        )
+        ).catch(() => {})
       }
     })
   }, [id_src_map, photo_list])
@@ -94,18 +94,19 @@ function usePhotoLoadingPriority(
 
     resort()
 
-    function req() {
-      resort()
-      if (getGlobalQueue().length) {
-        h = requestAnimationFrame(req)
-      }
-    }
-    let h: number = requestAnimationFrame(req)
+    // ????? why
+    // function req() {
+    //   resort()
+    //   if (getGlobalQueue().length !== 0) {
+    //     h = requestAnimationFrame(req)
+    //   }
+    // }
+    // let h: number = requestAnimationFrame(req)
 
     return () => {
       window.removeEventListener('resize', resortHandler)
       window.removeEventListener('scroll', resortHandler)
-      cancelAnimationFrame(h)
+      // cancelAnimationFrame(h)
     }
   }, [resort])
 

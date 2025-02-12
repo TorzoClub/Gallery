@@ -10,6 +10,8 @@ export type Args = {
   onEnd?: () => void
 }
 
+Object.assign(window, { DEngine })
+
 export default DEngine
 function DEngine({
   url,
@@ -19,6 +21,7 @@ function DEngine({
   onFailure = () => undefined,
   onEnd = () => undefined
 }: Args) {
+  // console.log('url', url)
   const v = vait<Blob, Error>()
 
   const xhr = new XMLHttpRequest()
@@ -28,9 +31,12 @@ function DEngine({
   }
   xhr.onload = e => {
     if (xhr.readyState === 4) {
+      console.log('xhr.status', xhr.status)
       if (xhr.status === 200 || xhr.status === 304) {
         v.pass(xhr.response)
         onDone(xhr.response)
+      } else if (xhr.status === 404) {
+        v.fail(new Error('404'))
       }
     }
   }

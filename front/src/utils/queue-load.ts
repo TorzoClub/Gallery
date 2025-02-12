@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Wait, Memo, Signal, nextTick, concurrency } from 'new-vait'
+import { useCallback, useEffect, useState } from 'react'
+import { Wait, Memo, Signal, nextTick, Queue, WithPayload, timeout } from 'new-vait'
 import { findListByProperty, removeListItemByIdx } from './common'
 
 import download from './download'
@@ -7,13 +7,15 @@ import useSafeState from 'hooks/useSafeState'
 
 export const __MAX_PARALLEL_NUMBER__ = 3
 
-type LoadedData = {
+type LoadResult = {
   blob: Blob;
   blobUrl: string;
 }
 
 const [ globalQueueLoad, [getGlobalQueue, setGlobalQueue], global_cache ] = QueueLoad()
 export { globalQueueLoad, getGlobalQueue, setGlobalQueue, global_cache }
+
+Object.assign(window, { globalQueueLoad, getGlobalQueue, setGlobalQueue, global_cache })
 
 function searchCache(src: string | undefined): readonly [boolean, string] {
   if (src === undefined) {
@@ -44,38 +46,55 @@ function blobToBase64(blob: Blob) {
 }
 
 export function useQueueload(loadsrc: string | undefined, need_base64_url: boolean = false) {
+  const [ status, setStatus ] = useSafeState<'NONE' | 'LOADING' | 'LOADED' | 'FAILURE'>('LOADING')
+
   const [ cached, url ] = searchCache(loadsrc)
-  const [ loaded, setLoaded ] = useSafeState(cached)
+
   const [ back_src, setBackSrc ] = useSafeState<string>(url)
 
-  useEffect(() => {
-    if ((loadsrc === undefined) || (loadsrc.trim().length === 0)) {
-      setLoaded(false)
-    } else {
-      const [ cached, url ] = searchCache(loadsrc)
-      if (cached) {
-        setLoaded(cached)
-        setBackSrc(url)
+  const retry = useCallback(async () => {
+    console.log('retry')
+    setStatus('LOADING')
+    try {
+      const { blob, blobUrl } = await globalQueueLoad(loadsrc || '')
+      if (need_base64_url) {
+        setBackSrc(await blobToBase64(blob))
       } else {
-        (async () => {
-          setLoaded(false)
-          try {
-            const { blob, blobUrl } = await globalQueueLoad(loadsrc)
-            if (need_base64_url) {
-              setBackSrc(await blobToBase64(blob))
-            } else {
-              setBackSrc(blobUrl)
-            }
-            setLoaded(true)
-          } catch (err) {
-            console.error('useQueueload error', err)
-          }
-        })()
+        setBackSrc(blobUrl)
+      }
+      setStatus('LOADED')
+    } catch (err) {
+      setStatus('FAILURE')
+    }
+  }, [loadsrc, need_base64_url, setBackSrc, setStatus])
+
+  useEffect(() => {
+    // if ((loadsrc === undefined) || (loadsrc.trim().length === 0)) {
+    //   setStatus('NONE')
+    // } else {
+    //   retry()
+    // }
+    // if (status === 'NONE') {
+    // }
+    // if (status !== 'LOADING') {
+    // }
+    if ((loadsrc === undefined) || (loadsrc.trim().length === 0)) {
+      setStatus('LOADING')
+    } else {
+      if (status === 'LOADING') {
+        const [ cached, url ] = searchCache(loadsrc)
+        if (cached) {
+          setStatus('LOADED')
+          setBackSrc(url)
+        } else {
+          retry()
+        }
       }
     }
-  }, [loadsrc, need_base64_url, setBackSrc, setLoaded])
+  }, [loadsrc, retry, setBackSrc, setStatus, status])
 
-  return [loaded, back_src] as const
+  return [ status, back_src, retry ] as const
+  // return [status, back_src] as const
 }
 
 type Src = string
@@ -85,10 +104,13 @@ type LoadTask = {
 }
 
 export function QueueLoad() {
+  const queue = WithPayload<LoadTask>(Queue())
+
   const [getQueue, setQueue] = Memo<LoadTask[]>([])
   const [getConcurrentTasks, setConcurrentTasks] = Memo<LoadTask[]>([])
-  const cache = new Map<Src, LoadedData>()
-  const loaded_signal = Signal<{ src: string, data: LoadedData }>()
+  const cache = new Map<Src, LoadResult>()
+  const loaded_signal = Signal<{ src: string, data: LoadResult }>()
+  const load_failure_signal = Signal<{ src: string, e: any }>()
 
   loaded_signal.receive(({ src, data }) => {
     cache.set(src, data)
@@ -126,7 +148,9 @@ export function QueueLoad() {
           } else {
             return download({ url: task.src })
           }
-        })().then(blob => {
+        })()
+        // .then(b => timeout(1580 - Math.floor(Math.random()*750)).then(() => b)) // 测试用
+        .then(blob => {
           const data = {
             blob,
             blobUrl: URL.createObjectURL(blob)
@@ -139,6 +163,15 @@ export function QueueLoad() {
             src: task.src,
             data
           })
+
+          startLoad()
+        })
+        .catch(e => {
+          const concurrent_tasks = getConcurrentTasks()
+          setConcurrentTasks(removeTaskBySrc(concurrent_tasks, task.src))
+          setLoading(false)
+
+          load_failure_signal.trigger({ src: task.src, e })
 
           startLoad()
         })
@@ -165,12 +198,13 @@ export function QueueLoad() {
     }
   }
 
-  async function load(src: string, priority?: number): Promise<LoadedData> {
+  async function load(src: string, priority?: number): Promise<LoadResult> {
+    // console.log('load')
     const cached_data = cache.get(src)
     if (cached_data) {
       return cached_data
     } else {
-      const [data, setData] = Wait<LoadedData>()
+      const [data, setData, failure] = Wait<LoadResult>()
 
       const queue = getQueue()
       const idx = findListByProperty(queue, 'src', src)
@@ -191,11 +225,27 @@ export function QueueLoad() {
         )
       }
 
-      loaded_signal.receive(
-        function loadedHandler(loaded: { src: Src, data: LoadedData }) {
+      const cancelLoadedHandler = loaded_signal.receive(
+        (loaded: { src: Src, data: LoadResult }) => {
           if (loaded.src === src) {
-            loaded_signal.cancelReceive(loadedHandler)
+            cancelLoadedHandler()
+            cancelFailureHandler()
             setData(loaded.data)
+          }
+        }
+      )
+
+      const id = getId()
+
+      const cancelFailureHandler = load_failure_signal.receive(
+        ({ src: failure_src, e }) => {
+          // console.log('!', failure_src)
+          if (failure_src === src) {
+            // console.log('failure_src', id, failure_src, src)
+            cancelFailureHandler()
+            cancelLoadedHandler()
+            // console.warn('f')
+            failure(e)
           }
         }
       )
@@ -205,4 +255,9 @@ export function QueueLoad() {
   }
 
   return [ load, [ getQueue, setQueue ], cache ] as const
+}
+
+let _id = 0
+function getId() {
+  return ++_id
 }

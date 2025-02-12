@@ -3,7 +3,7 @@ import heartIMG from 'assets/heart.png'
 import heartHighlightIMG from 'assets/heart-highlight.png'
 import './index.scss'
 
-import { global_cache, useQueueload } from 'utils/queue-load'
+import { global_cache, globalQueueLoad, useQueueload } from 'utils/queue-load'
 import useMeasure from 'hooks/useMeasure'
 
 export type DimensionUnknown = Dimension | null
@@ -62,8 +62,8 @@ const PhotoBox = forwardRef<() => Dimension, Props>((props, ref) => {
   const { type, vertial_gutter, box_width, photo, hideMember,
          avatar, desc, style, vote_button_status } = props
 
-  const [thumb_loaded, thumb] = useQueueload(photo.thumb)
-  const [avatar_loaded, avatarThumb] = useQueueload(avatar?.thumb)
+  const [thumb_status, thumb, retryLoadPhotoThumb] = useQueueload(photo.thumb)
+  const [avatar_status, avatarThumb, retryLoadAvatar] = useQueueload(avatar?.thumb)
 
   const coverFrameEl = useRef<HTMLDivElement>(null)
 
@@ -150,8 +150,13 @@ const PhotoBox = forwardRef<() => Dimension, Props>((props, ref) => {
             className="cover"
             alt="img"
             src={thumb}
-            style={{ opacity: thumb_loaded ? 100 : 0 }}
+            style={{ opacity: thumb_status === 'LOADED' ? 100 : 0 }}
           />
+          { thumb_status === 'FAILURE' && <button onClick={e => {
+            e.preventDefault()
+            e.stopPropagation()
+            retryLoadPhotoThumb()
+          }}>出错，点击重试</button> }
 
           {/* <div className="highlight"></div> */}
         </div>
@@ -164,7 +169,7 @@ const PhotoBox = forwardRef<() => Dimension, Props>((props, ref) => {
                   <div className="member-info">
                     <div className="avatar-wrapper">
                       <div className="avatar">
-                        <div className="avatar-inner" style={{ transform: avatar_loaded ? 'translateY(0px)' : 'translateY(-100%)', backgroundImage: `url(${avatarThumb})` }}></div>
+                        <div className="avatar-inner" style={{ transform: avatar_status === 'LOADED' ? 'translateY(0px)' : 'translateY(-100%)', backgroundImage: `url(${avatarThumb})` }}></div>
                       </div>
                     </div>
 

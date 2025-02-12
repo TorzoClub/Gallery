@@ -234,7 +234,7 @@ export function PreviewBox({
   previewURL: string | null
   isDragging: boolean
 }) {
-  const [ loaded, blob_url ] = useQueueload(
+  const [ load_status, blob_url ] = useQueueload(
     (previewURL === null) ? undefined : previewURL,
     true
   )
@@ -247,7 +247,7 @@ export function PreviewBox({
               { isDragging ? '对，就是这样，该放手了' : '点击此处选择作品，或者拖拽文件到此处' }
             </div>
           } else {
-            if (loaded) {
+            if (load_status === 'LOADED') {
               return (
                 <img
                   className={[s.PreviewImage, isDragging ? s.IsDragging : '', imageAppendClassName].join(' ')}
@@ -255,6 +255,8 @@ export function PreviewBox({
                   src={blob_url}
                 />
               )
+            } else if (load_status === 'FAILURE') {
+              return (<>图片读取失败</>)
             } else {
               return (
                 <div
@@ -266,7 +268,7 @@ export function PreviewBox({
               )
             }
           }
-        }, [blob_url, height, imageAppendClassName, isDragging, loaded, previewURL])
+        }, [blob_url, height, imageAppendClassName, isDragging, load_status, previewURL])
       }
     </div>
   )

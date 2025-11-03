@@ -287,7 +287,7 @@ module.exports = app =>
     }
 
     async storeByStream(stream, thumb_size) {
-      const src_filename = `${Date.now()}${path.extname(stream.filename)}`;
+      const src_filename = `${Date.now()}${path.extname(stream.filename)}`.toLowerCase();
       const writePath = ImageService.toSrcSavePath(src_filename);
       const writeStream = fs.createWriteStream(writePath);
 

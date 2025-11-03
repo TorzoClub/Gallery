@@ -44,7 +44,8 @@ module.exports = app => {
           // 3. or just consume it with another for await
 
           // WARNING: You should almost never use the origin filename as it could contain malicious input.
-          const temp_path = path.join(os.tmpdir(), randomUUID() + path.extname(filename));
+          let temp_path = path.join(os.tmpdir(), randomUUID() + path.extname(filename));
+          temp_path = temp_path.toLowerCase();
           await pipeline(part, fs.createWriteStream(temp_path)); // use `pipeline` not `pipe`
           files.push({
             temp_path,

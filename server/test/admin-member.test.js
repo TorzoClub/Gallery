@@ -1,3 +1,5 @@
+'use strict';
+
 const assert = require('assert');
 const mock = require('egg-mock');
 const path = require('path')
@@ -57,8 +59,18 @@ describe('controller/admin/member', () => {
       .expect(expect_code)
   }
 
-  it('should prevent remove member that member is voted', async () => {
-    const { gallery, memberA, photoA, photoB } = await prepareData({ token, app, baseNum: 99 })
+  it('should prevent remove member if member is voted', async () => {
+    const current_year = (new Date()).getFullYear()
+    const { gallery, memberA, photoA, photoB } = await prepareData({
+      token,
+      app,
+      baseNum: 99,
+      gallery: {
+        event_start: new Date(`${current_year - 1}`),
+        submission_expire: new Date(`${current_year}`),
+        event_end: new Date(`${current_year + 1}`),
+      }
+    })
 
     await submitVote(app, memberA.qq_num, gallery.id, [ photoA.id, photoB.id ])
 
@@ -123,7 +135,7 @@ describe('controller/admin/member', () => {
     }
   })
 
-  it('should prevent remove member that member has a submission', async () => {
+  it('should prevent remove member if member has a submission', async () => {
     const member = await createMember(token, app, { name: 'get member', qq_num: 1141 })
 
     const gallery = await commonCreateGallery(token, app, {})

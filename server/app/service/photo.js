@@ -13,13 +13,12 @@ module.exports = app =>
     }
 
     async getMemberSubmissionByQQNum(gallery_id, qq_num) {
-      const galleryP = this.service.gallery.findById(parseInt(gallery_id));
-      const memberP = this.service.member.findOneByOptions({
-        where: { qq_num: parseInt(qq_num) },
-      });
-
-      const gallery = await galleryP;
-      const member = await memberP;
+      const [ gallery, member ] = await Promise.all([
+        this.service.gallery.findById(parseInt(gallery_id)),
+        this.service.member.findOneByOptions({
+          where: { qq_num: parseInt(qq_num) },
+        }),
+      ]);
 
       return this.Model.findOne({
         where: {

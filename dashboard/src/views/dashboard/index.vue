@@ -67,7 +67,14 @@
 
       <ElRow :gutter="30">
         <ElCol :span="20" direction="vertical">
-          <RefreshThumbs ref="refreshThumbs" :show-button="false" @error="handleError" @warning="handleWarning" @success="handleSuccess" @info="handleInfo" />
+          <RefreshThumbs
+            ref="refreshThumbs"
+            :show-button="false"
+            @error="handleError"
+            @warning="handleWarning"
+            @success="handleSuccess"
+            @info="handleInfo"
+          />
         </ElCol>
       </ElRow>
     </ElMain>
@@ -151,7 +158,7 @@ export default {
     },
 
     handleClickRefreshThumb() {
-      this.$refs.refreshThumbs.refreshThumbsConfirmProcessing().finally(() => {
+      this.$refs.refreshThumbs.handleThumbsRefresh().finally(() => {
         this.refresh()
       })
     },

@@ -87,7 +87,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           known_hosts: 'a'
 
-      - name: Upload Builds
-        run: |
-          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-          scp -r releases/* ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEV_REMOTE_UPLOAD_PATH }}
+      # - name: Upload Builds
+      #   run: |
+      #     ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+      #     scp -r releases/* ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:${{ secrets.DEV_REMOTE_UPLOAD_PATH }}

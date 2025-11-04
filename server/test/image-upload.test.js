@@ -311,12 +311,7 @@ describe('controller/admin/image', function () {
   })
 
   it(`should correctly clean unused image`, async () => {
-    const {
-      app, token,
-      memberA, memberB, memberC,
-      authorA, authorB, authorC,
-      photoA, photoB, photoC
-    } = await constructEnvironment({ need_sync: true })
+    const { app, token } = await constructEnvironment({ need_sync: true })
 
     const u_img_list = [
       await uploadImage(token, app),
@@ -354,10 +349,12 @@ describe('controller/admin/image', function () {
     }
 
     {
-      const users = [memberA, memberB, memberC, authorA, authorB, authorC]
+      const ctx = app.mockContext()
+      const photo_list = await ctx.service.photo.getAvailablePhotoList();
+      const users = await ctx.model.Member.findAll()
       const used_src_list = [
         ...users.map(m => m.avatar_src),
-        ...[photoA, photoB, photoC].map(p => p.src)
+        ...photo_list.map(p => p.src)
       ]
 
       for (const file of used_src_list) {

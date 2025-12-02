@@ -1,5 +1,5 @@
 import { FunctionComponent, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Memo, MemoGetter, MemoSetter, Signal, nextTick } from 'new-vait'
+import { Memo, MemoGetter, MemoSetter, Signal } from 'new-vait'
 import { Photo } from 'api/photo'
 
 import './index.scss'
@@ -29,18 +29,6 @@ export type WaterfallLayoutConfigure = {
 
 export type WaterfallLayoutClickCoverHandler = (clickInfo: CoverClickEvent, photo: Photo['id']) => void
 
-export type Props = {
-  show_vote_button: boolean
-  layout_configure: WaterfallLayoutConfigure
-  cannot_add_vote: boolean
-
-  photos: Photo[]
-  onClickVote(photo_id: Photo['id']): void
-  onClickCover: WaterfallLayoutClickCoverHandler
-
-  selected_id_list: number[]
-}
-
 function calcTotalBoxWidth({
   column_count,
   column_gutter,
@@ -51,12 +39,27 @@ function calcTotalBoxWidth({
   return [ box_width, gutter_total_len ] as const
 }
 
+export type Props = {
+  show_vote_button: boolean
+  layout_configure: WaterfallLayoutConfigure
+  cannot_add_vote: boolean
+
+  photos: Photo[]
+  onClickVote(photo_id: Photo['id']): void
+  onClickCover: WaterfallLayoutClickCoverHandler
+
+  onWatterfallRefreshed(): void
+
+  selected_id_list: number[]
+}
+
 export default (props: Props) => {
   const {
     show_vote_button,
     layout_configure,
     photos,
-    selected_id_list
+    selected_id_list,
+    onWatterfallRefreshed
   } = props
   const { box_type, vertial_gutter, gallery_width } = layout_configure
   const [ box_width ] = calcTotalBoxWidth(layout_configure)
@@ -64,6 +67,18 @@ export default (props: Props) => {
   const { refFn, columns, waterfall_height, pos_map, refresh_signal } = useLayout({
     photos, box_width, layout_configure
   })
+
+  useEffect(() => {
+    let handler
+    const cancel = refresh_signal.receive(() => {
+      clearTimeout(handler)
+      handler = setTimeout(onWatterfallRefreshed, 0)
+    })
+    return () => {
+      clearTimeout(handler)
+      cancel()
+    }
+  }, [onWatterfallRefreshed, refresh_signal])
 
   const posStyle = useCallback((id: Photo['id']) => {
     const pos: Pos | undefined = pos_map[id]
@@ -525,7 +540,7 @@ function useLayout({
   box_width: number
   photos: Photo[]
 }) {
-  const [ refresh_signal ] = useState(Signal())
+  const refresh_signal = useMemo(() => Signal(), [])
   const [ refFn, dim_map_changed_signal, getDimMap ] = useDimensionMap(
     useCallback(() => {
       refresh_signal.trigger()

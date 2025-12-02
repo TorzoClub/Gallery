@@ -3,7 +3,7 @@ import heartIMG from 'assets/heart.png'
 import heartHighlightIMG from 'assets/heart-highlight.png'
 import './index.scss'
 
-import { global_cache, globalQueueLoad, useQueueload } from 'utils/queue-load'
+import { useQueueload } from 'utils/queue-load'
 import useMeasure from 'hooks/useMeasure'
 import LoadFailure from './LoadFailure'
 

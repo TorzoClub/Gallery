@@ -20,6 +20,7 @@ type ActivityLayoutProps = {
   selected_id_list: GalleryProps['selected_id_list']
   show_vote_button: GalleryProps['show_vote_button']
   onClickCover: GalleryProps['onClickCover']
+  onWatterfallRefreshed(): void
 
   onClickSubmit: () => void
 }
@@ -35,6 +36,7 @@ export default function ActivityLayout({
   setSelectedIdList,
   show_submit_button_area,
   onClickSubmit,
+  onWatterfallRefreshed,
 
   ...remain_props
 }: ActivityLayoutProps) {
@@ -87,6 +89,7 @@ export default function ActivityLayout({
         cannot_add_vote={cannot_add_vote_effect}
         selected_id_list={selected_id_list}
         onClickVote={handleClickVote}
+        onWatterfallRefreshed={onWatterfallRefreshed}
       />
       {show_submit_button_area && (
         <div className="submit-button-area">

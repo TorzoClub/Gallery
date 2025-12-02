@@ -140,6 +140,7 @@ export type Props = {
   selected_id_list: WaterfallLayoutProps['selected_id_list']
   onClickVote?: (photo_id: Photo['id']) => void
   onClickCover: (clickInfo: CoverClickEvent, photo_id: Photo['id']) => void
+  onWatterfallRefreshed(): void
 }
 export default ({
   cannot_add_vote = false,
@@ -148,6 +149,7 @@ export default ({
   selected_id_list,
   onClickVote,
   onClickCover,
+  onWatterfallRefreshed,
 }: Props) => {
   const layout = useWaterfallLayout(gallery)
 
@@ -166,6 +168,7 @@ export default ({
         onClickVote={(photoId) => {
           onClickVote && onClickVote(photoId)
         }}
+        onWatterfallRefreshed={onWatterfallRefreshed}
       />
     )
 
@@ -190,7 +193,7 @@ export default ({
         return waterfall()
       }
     }
-  }, [cannot_add_vote, gallery.can_submission, gallery.event_start, gallery.in_event, gallery.photos, layout, onClickCover, onClickVote, selected_id_list, show_vote_button])
+  }, [cannot_add_vote, gallery.can_submission, gallery.event_start, gallery.in_event, gallery.photos, layout, onClickCover, onClickVote, onWatterfallRefreshed, selected_id_list, show_vote_button])
 
   return (
     <div className="gallery">

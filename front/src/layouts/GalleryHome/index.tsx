@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { nextTick, timeout } from 'new-vait'
+import { nextTick, Signal, timeout } from 'new-vait'
 
-import { getGlobalQueue, globalQueueLoad, globalQueueIsLoading, setGlobalQueue } from 'utils/queue-load'
+import { global_queue, start_load_signal } from 'utils/queue-load'
+const { isLoading: globalQueueIsLoading, load: globalQueueLoad, } = global_queue
+
 import { findListByProperty, removeListItemByIdx, sortByIdList, updateListItemById } from 'utils/common'
 import { AppCriticalError } from 'App'
 
@@ -18,6 +20,8 @@ import PhotoDetail, { Detail } from 'components/Detail'
 import ConfirmVote from 'components/ConfirmVote'
 import shuffleArray from 'utils/shuffle-array'
 import { WaterfallLayoutClickCoverHandler } from 'components/Waterfall'
+
+const watterfall_refreshed = Signal()
 
 function useScrollDirection() {
   const previousScrollY = useRef<number>(window.scrollY)
@@ -130,12 +134,22 @@ function usePhotoLoadingPriority(
 
     window.addEventListener('resize', resortHandler)
     window.addEventListener('scroll', resortHandler)
-    const timeout_handler = setTimeout(resortHandler, 100)
+
+    let handler
+    const cancel =watterfall_refreshed.receive(() => {
+      clearTimeout(handler)
+      handler = setTimeout(() => {
+        resort()
+        global_queue.startWorking()
+      }, 0)
+    })
+
     return () => {
+      mounted = false
       window.removeEventListener('resize', resortHandler)
       window.removeEventListener('scroll', resortHandler)
-      clearTimeout(timeout_handler)
-      mounted = false
+      clearTimeout(handler)
+      cancel()
     }
   }, [resort])
 
@@ -428,6 +442,7 @@ export default () => {
 
                   onClickSubmit: () => handleClickSubmit(),
                   onClickCover: HandleClickCover(active),
+                  onWatterfallRefreshed: watterfall_refreshed.trigger
                 }} />
               )}
 
@@ -440,6 +455,7 @@ export default () => {
                         gallery={gallery}
                         selected_id_list={[]}
                         onClickCover={HandleClickCover(gallery)}
+                        onWatterfallRefreshed={watterfall_refreshed.trigger}
                       />
                     </div>
                   )

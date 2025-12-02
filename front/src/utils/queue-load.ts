@@ -6,21 +6,20 @@ import { findListByProperty, removeListItemByIdx } from './common'
 import download from './download'
 import useSafeState from 'hooks/useSafeState'
 
-export const __MAX_PARALLEL_NUMBER__ = 3
+export const __MAX_PARALLEL_NUMBER__ = 4
 
 type LoadResult = {
   blob: Blob;
   blobUrl: string;
 }
 
-const [ globalQueueLoad, [getGlobalQueue, setGlobalQueue, globalQueueIsLoading], global_cache ] = QueueLoad()
-export { globalQueueLoad, getGlobalQueue, setGlobalQueue, globalQueueIsLoading, global_cache }
+export const global_queue = QueueLoad()
 
 function searchCache(src: string | undefined): readonly [boolean, string] {
   if (src === undefined) {
     return [false, '']
   } else {
-    const task = global_cache.get(src)
+    const task = global_queue.cache.get(src)
     if (task) {
       return [true, task.blobUrl]
     } else {
@@ -44,6 +43,8 @@ function blobToBase64(blob: Blob) {
   })
 }
 
+export const start_load_signal = Signal<string>()
+
 export function useQueueload(loadsrc: string | undefined, need_base64_url: boolean = false) {
   const [ status, setStatus ] = useSafeState<'NONE' | 'LOADING' | 'LOADED' | 'FAILURE'>('LOADING')
 
@@ -54,7 +55,8 @@ export function useQueueload(loadsrc: string | undefined, need_base64_url: boole
   const retry = useCallback(async () => {
     setStatus('LOADING')
     try {
-      const { blob, blobUrl } = await globalQueueLoad(loadsrc || '')
+      start_load_signal.trigger(loadsrc || '')
+      const { blob, blobUrl } = await global_queue.load(loadsrc || '')
       if (need_base64_url) {
         setBackSrc(await blobToBase64(blob))
       } else {
@@ -113,6 +115,7 @@ const removeTaskBySrc = (queue: LoadTask[], src: Src) =>
   )
 
 export function QueueLoad() {
+  const [getWorkingStatus, setWorkingStatus] = Memo(false)
   const [getQueue, setQueue] = Memo<LoadTask[]>([])
   const setQueueSafely = pipe(resortQueue, setQueue)
 
@@ -192,7 +195,8 @@ export function QueueLoad() {
       if (idx === -1) {
         const p = (priority === undefined) ? 1 : priority
         setQueue(addTask(queue, { src, priority: p }))
-        nextTick().then(startLoad)
+        // nextTick().then(startLoad)
+        nextTick().then(() => getWorkingStatus() && startLoad())
       } else {
         const task = queue[idx]
         setQueue(
@@ -230,5 +234,17 @@ export function QueueLoad() {
     }
   }
 
-  return [ load, [ getQueue, setQueueSafely, isLoading ], cache ] as const
+  function startWorking() {
+    setWorkingStatus(true)
+    getWorkingStatus() && startLoad()
+  }
+
+  return {
+    load,
+    startWorking,
+    getQueue,
+    setQueueSafely,
+    isLoading,
+    cache,
+  }
 }

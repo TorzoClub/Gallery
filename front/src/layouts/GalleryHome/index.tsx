@@ -19,18 +19,6 @@ import ConfirmVote from 'components/ConfirmVote'
 import shuffleArray from 'utils/shuffle-array'
 import { WaterfallLayoutClickCoverHandler } from 'components/Waterfall'
 
-function preloadPhotoListThumb(photo_list: Photo[]) {
-  photo_list.forEach((photo, idx) => {
-    globalQueueLoad(photo.thumb_url, photo_list.length - idx)
-    if (photo.member) {
-      globalQueueLoad(
-        photo.member.avatar_thumb_url,
-        (photo_list.length - idx) - photo_list.length
-      )
-    }
-  })
-}
-
 function usePhotoLoadingPriority(
   photo_list: Photo[]
 ) {
@@ -41,19 +29,24 @@ function usePhotoLoadingPriority(
   }, [photo_list])
 
   const resort = useCallback(function _resortHandler() {
+    type Position = 'in_screen' | 'above' | 'bottom'
     const bounding_appended_photos = photo_list.map((photo, idx) => {
       const photo_el = document.getElementById(`photo-${photo.id}`)
       if (!photo_el) { return }
       const bounding = photo_el.getBoundingClientRect()
       if (
         (bounding.y > (0 - bounding.height)) &&
-        (bounding.y < window.innerHeight)
+        (bounding.y <= window.innerHeight)
       ) {
-        return { idx, photo, bounding, in_screen: true }
+        return { idx, photo, bounding, position: 'in_screen' }
       } else {
-        return { idx, photo, bounding, in_screen: false }
+        if (bounding.y > window.innerHeight) {
+          return { idx, photo, bounding, position: 'bottom' }
+        } else {
+          return { idx, photo, bounding, position: 'above' }
+        }
       }
-    }).filter(p => p) as { idx: number; photo: Photo, bounding: DOMRect; in_screen: boolean }[]
+    }).filter(p => p) as { idx: number; photo: Photo, bounding: DOMRect; position: Position }[]
 
     const sorted = bounding_appended_photos.sort((a, b) => {
       if (a.bounding.y === b.bounding.y) {
@@ -63,19 +56,33 @@ function usePhotoLoadingPriority(
       }
     })
 
-    sorted.forEach(({ photo, in_screen }, idx) => {
+    function p(position: Position, length: number, idx: number): readonly [number, number] {
+      if (position === 'in_screen') {
+        return [10 * length - idx, 9 * length - idx]
+      } else if (position === 'bottom') {
+        return [8 * length - idx, 7 * length - idx]
+      } else {
+        return [5 * length + idx, 4 * length + idx]
+      }
+    }
+
+    const mem_map = new Map<string, number>()
+    sorted.forEach(({ photo, position }, idx) => {
       const src = id_src_map.get(photo.id)
       if (!src) {
         return
       }
-      globalQueueLoad(src, (sorted.length - idx))
+
+      const [photo_p, avatar_p] = p(position, sorted.length, idx)
+      globalQueueLoad(src, photo_p)
       if (photo.member) {
-        if (in_screen) {
-          globalQueueLoad(src, 10000 + (sorted.length - idx))
-          globalQueueLoad(
-            photo.member.avatar_thumb_url,
-            10000 - idx
-          )
+        const { avatar_thumb_url } = photo.member
+        const p = mem_map.get(avatar_thumb_url)
+        if (
+          (p === undefined) || (avatar_p > p)
+        ) {
+          mem_map.set(avatar_thumb_url, avatar_p)
+          globalQueueLoad(avatar_thumb_url, avatar_p)
         }
       }
     })
@@ -176,7 +183,6 @@ export default () => {
 
       if (active !== null) {
         const photos = shuffleArray(active.photos)
-        preloadPhotoListThumb(photos)
         setActive({
           ...active,
           photos: photos

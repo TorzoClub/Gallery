@@ -216,8 +216,6 @@ export function QueueLoad() {
         }
       )
 
-      const id = getId()
-
       const cancelFailureHandler = load_failure_signal.receive(
         ({ src: failure_src, e }) => {
           if (failure_src === src) {
@@ -233,9 +231,4 @@ export function QueueLoad() {
   }
 
   return [ load, [ getQueue, setQueueSafely, isLoading ], cache ] as const
-}
-
-let _id = 0
-function getId() {
-  return ++_id
 }

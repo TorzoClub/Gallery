@@ -41,7 +41,7 @@ function usePhotoLoadingPriority(
   }, [photo_list])
 
   const resort = useCallback(function _resortHandler() {
-    const in_screen_photos = photo_list.map((photo, idx) => {
+    const bounding_appended_photos = photo_list.map((photo, idx) => {
       const photo_el = document.getElementById(`photo-${photo.id}`)
       if (!photo_el) { return }
       const bounding = photo_el.getBoundingClientRect()
@@ -49,13 +49,13 @@ function usePhotoLoadingPriority(
         (bounding.y > (0 - bounding.height)) &&
         (bounding.y < window.innerHeight)
       ) {
-        return { idx, photo, bounding }
+        return { idx, photo, bounding, in_screen: true }
       } else {
-        return null
+        return { idx, photo, bounding, in_screen: false }
       }
-    }).filter(p => p) as { idx: number; photo: Photo, bounding: DOMRect }[]
+    }).filter(p => p) as { idx: number; photo: Photo, bounding: DOMRect; in_screen: boolean }[]
 
-    const sorted = in_screen_photos.sort((a, b) => {
+    const sorted = bounding_appended_photos.sort((a, b) => {
       if (a.bounding.y === b.bounding.y) {
         return a.idx > b.idx ? 1 : -1
       } else {
@@ -63,24 +63,20 @@ function usePhotoLoadingPriority(
       }
     })
 
-    const all_tasks = getGlobalQueue()
-    setGlobalQueue(
-      all_tasks.map((t, idx) => {
-        return { ...t, priority: sorted.length + (all_tasks.length - idx) }
-      })
-    )
-
-    sorted.forEach(({ photo }, idx) => {
+    sorted.forEach(({ photo, in_screen }, idx) => {
       const src = id_src_map.get(photo.id)
       if (!src) {
         return
       }
-      globalQueueLoad(src, (3 * sorted.length + all_tasks.length) - idx).catch(() => {})
+      globalQueueLoad(src, (sorted.length - idx))
       if (photo.member) {
-        globalQueueLoad(
-          photo.member.avatar_thumb_url,
-          (2 * sorted.length + all_tasks.length) - idx
-        ).catch(() => {})
+        if (in_screen) {
+          globalQueueLoad(src, 10000 + (sorted.length - idx))
+          globalQueueLoad(
+            photo.member.avatar_thumb_url,
+            10000 - idx
+          )
+        }
       }
     })
   }, [id_src_map, photo_list])
@@ -91,24 +87,14 @@ function usePhotoLoadingPriority(
         nextTick().then(resort)
       }
     }
+
     window.addEventListener('resize', resortHandler)
     window.addEventListener('scroll', resortHandler)
-
-    resort()
-
-    // ????? why
-    // function req() {
-    //   resort()
-    //   if (getGlobalQueue().length !== 0) {
-    //     h = requestAnimationFrame(req)
-    //   }
-    // }
-    // let h: number = requestAnimationFrame(req)
-
+    const timeout_handler = setTimeout(resortHandler, 100)
     return () => {
       window.removeEventListener('resize', resortHandler)
       window.removeEventListener('scroll', resortHandler)
-      // cancelAnimationFrame(h)
+      clearTimeout(timeout_handler)
     }
   }, [resort])
 

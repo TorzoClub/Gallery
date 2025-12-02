@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Wait, Memo, Signal, nextTick, Queue, WithPayload, timeout, OutterPromise } from 'new-vait'
+import { pipe } from 'ramda'
+import { useCallback, useEffect } from 'react'
+import { Wait, Memo, Signal, nextTick } from 'new-vait'
 import { findListByProperty, removeListItemByIdx } from './common'
 
 import download from './download'
@@ -51,7 +52,6 @@ export function useQueueload(loadsrc: string | undefined, need_base64_url: boole
   const [ back_src, setBackSrc ] = useSafeState<string>(url)
 
   const retry = useCallback(async () => {
-    console.log('retry')
     setStatus('LOADING')
     try {
       const { blob, blobUrl } = await globalQueueLoad(loadsrc || '')
@@ -67,15 +67,6 @@ export function useQueueload(loadsrc: string | undefined, need_base64_url: boole
   }, [loadsrc, need_base64_url, setBackSrc, setStatus])
 
   useEffect(() => {
-    // if ((loadsrc === undefined) || (loadsrc.trim().length === 0)) {
-    //   setStatus('NONE')
-    // } else {
-    //   retry()
-    // }
-    // if (status === 'NONE') {
-    // }
-    // if (status !== 'LOADING') {
-    // }
     if ((loadsrc === undefined) || (loadsrc.trim().length === 0)) {
       setStatus('LOADING')
     } else {
@@ -92,7 +83,6 @@ export function useQueueload(loadsrc: string | undefined, need_base64_url: boole
   }, [loadsrc, retry, setBackSrc, setStatus, status])
 
   return [ status, back_src, retry ] as const
-  // return [status, back_src] as const
 }
 
 type Src = string
@@ -101,10 +91,31 @@ type LoadTask = {
   priority: number
 }
 
-export function QueueLoad() {
-  const queue = WithPayload<LoadTask>(Queue())
+function resortQueue(queue: LoadTask[]) {
+  return queue.sort((a, b) => b.priority - a.priority)
+}
 
+function addTask(queue: LoadTask[], new_task: LoadTask) {
+  const idx = queue.findIndex(t => new_task.priority >= t.priority)
+  if (idx === -1) {
+    return queue.concat(new_task)
+  } else {
+    return queue.slice(0, idx).concat(
+      [ new_task ], queue.slice(idx, queue.length)
+    )
+  }
+}
+
+const removeTaskBySrc = (queue: LoadTask[], src: Src) =>
+  removeListItemByIdx(
+    queue,
+    findListByProperty(queue, 'src', src)
+  )
+
+export function QueueLoad() {
   const [getQueue, setQueue] = Memo<LoadTask[]>([])
+  const setQueueSafely = pipe(resortQueue, setQueue)
+
   const [getConcurrentTasks, setConcurrentTasks] = Memo<LoadTask[]>([])
   const cache = new Map<Src, LoadResult>()
   const loaded_signal = Signal<{ src: string, data: LoadResult }>()
@@ -113,12 +124,6 @@ export function QueueLoad() {
   loaded_signal.receive(({ src, data }) => {
     cache.set(src, data)
   })
-
-  const removeTaskBySrc = (queue: LoadTask[], src: Src) =>
-    removeListItemByIdx(
-      queue,
-      findListByProperty(queue, 'src', src)
-    )
 
   const [isLoading, setLoading] = Memo(false)
   function startLoad() {
@@ -175,27 +180,7 @@ export function QueueLoad() {
     }
   }
 
-  function addTask(queue: LoadTask[], new_task: LoadTask) {
-    const idx = queue.findIndex(t => {
-      if (new_task.priority < t.priority) {
-        return false
-      } else {
-        return true
-      }
-    })
-    if (idx === -1) {
-      return [ ...queue, new_task ]
-    } else {
-      return [
-        ...queue.slice(0, idx),
-        new_task,
-        ...queue.slice(idx, queue.length)
-      ]
-    }
-  }
-
   async function load(src: string, priority?: number): Promise<LoadResult> {
-    // console.log('load')
     const cached_data = cache.get(src)
     if (cached_data) {
       return cached_data
@@ -235,12 +220,9 @@ export function QueueLoad() {
 
       const cancelFailureHandler = load_failure_signal.receive(
         ({ src: failure_src, e }) => {
-          // console.log('!', failure_src)
           if (failure_src === src) {
-            // console.log('failure_src', id, failure_src, src)
             cancelFailureHandler()
             cancelLoadedHandler()
-            // console.warn('f')
             failure(e)
           }
         }
@@ -250,7 +232,7 @@ export function QueueLoad() {
     }
   }
 
-  return [ load, [ getQueue, setQueue, isLoading ], cache ] as const
+  return [ load, [ getQueue, setQueueSafely, isLoading ], cache ] as const
 }
 
 let _id = 0

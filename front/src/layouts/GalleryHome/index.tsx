@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { nextTick, timeout } from 'new-vait'
 
 import { getGlobalQueue, globalQueueLoad, globalQueueIsLoading, setGlobalQueue } from 'utils/queue-load'
 import { findListByProperty, removeListItemByIdx, sortByIdList, updateListItemById } from 'utils/common'
 import { AppCriticalError } from 'App'
 
-import { GalleryCommon, GalleryInActive, Photo, fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
+import { GalleryCommon, GalleryInActive, Member, Photo, fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
 
 import LoadingLayout from './components/LoadingLayout'
 import ActivityLayout from './components/ActivityLayout'
@@ -19,9 +19,31 @@ import ConfirmVote from 'components/ConfirmVote'
 import shuffleArray from 'utils/shuffle-array'
 import { WaterfallLayoutClickCoverHandler } from 'components/Waterfall'
 
+function useScrollDirection() {
+  const previousScrollY = useRef<number>(window.scrollY)
+  const scrollDirection = useRef<'down' | 'up'>('down')
+  useEffect(() => {
+    const scrollHandler = () => {
+      if (window.scrollY >= previousScrollY.current) {
+        scrollDirection.current = 'down'
+      } else {
+        scrollDirection.current = 'up'
+      }
+      previousScrollY.current = window.scrollY
+    }
+    window.addEventListener('scroll', scrollHandler)
+    return () => {
+      window.removeEventListener('scroll', scrollHandler)
+    }
+  }, [])
+  return useCallback(() => scrollDirection.current, [])
+}
+
 function usePhotoLoadingPriority(
   photo_list: Photo[]
 ) {
+  const getDirection = useScrollDirection()
+
   const id_src_map = useMemo(() => {
     const m = new Map<number, string>()
     photo_list.forEach(p => m.set(p.id, p.thumb_url))
@@ -56,42 +78,53 @@ function usePhotoLoadingPriority(
       }
     })
 
-    function p(position: Position, length: number, idx: number): readonly [number, number] {
-      if (position === 'in_screen') {
-        return [10 * length - idx, 9 * length - idx]
-      } else if (position === 'bottom') {
-        return [8 * length - idx, 7 * length - idx]
-      } else {
-        return [5 * length + idx, 4 * length + idx]
-      }
+    const coe = {
+      I: 1,
+      II: 10,
+      III: 20,
+      IV: 30,
+      V: 40,
+      VI: 50,
+      VII: 60,
+    } as const
+
+    const PRIORITY_MAP = {
+      'in_screen': { down: [-1, coe.VII, coe.VI], up: [1, coe.VII, coe.VI] },
+      'bottom': { down: [-1, coe.V, coe.III], up: [-1, coe.IV, coe.II] },
+      'above': { down: [1, coe.IV, coe.II], up: [1, coe.V, coe.III] },
+    } as const
+
+    function calcPriority(position: Position, length: number, idx: number) {
+      const [sign, photo_coe, avatar_coe] = PRIORITY_MAP[position][getDirection()]
+      const sort = sign * idx
+      return [(photo_coe * length + sort), (avatar_coe * length + sort)] as const
     }
 
     const mem_map = new Map<string, number>()
     sorted.forEach(({ photo, position }, idx) => {
       const src = id_src_map.get(photo.id)
-      if (!src) {
-        return
-      }
-
-      const [photo_p, avatar_p] = p(position, sorted.length, idx)
-      globalQueueLoad(src, photo_p)
-      if (photo.member) {
-        const { avatar_thumb_url } = photo.member
-        const p = mem_map.get(avatar_thumb_url)
-        if (
-          (p === undefined) || (avatar_p > p)
-        ) {
-          mem_map.set(avatar_thumb_url, avatar_p)
-          globalQueueLoad(avatar_thumb_url, avatar_p)
+      if (src) {
+        const [photo_p, avatar_p] = calcPriority(position, sorted.length, idx)
+        globalQueueLoad(src, photo_p)
+        if (photo.member) {
+          const { avatar_thumb_url } = photo.member
+          const p = mem_map.get(avatar_thumb_url)
+          if (
+            (p === undefined) || (avatar_p > p)
+          ) {
+            mem_map.set(avatar_thumb_url, avatar_p)
+            globalQueueLoad(avatar_thumb_url, avatar_p)
+          }
         }
       }
     })
-  }, [id_src_map, photo_list])
+  }, [getDirection, id_src_map, photo_list])
 
   useEffect(() => {
+    let mounted = true
     const resortHandler = () => {
       if (globalQueueIsLoading()) {
-        nextTick().then(resort)
+        nextTick().then(() => mounted && resort())
       }
     }
 
@@ -102,6 +135,7 @@ function usePhotoLoadingPriority(
       window.removeEventListener('resize', resortHandler)
       window.removeEventListener('scroll', resortHandler)
       clearTimeout(timeout_handler)
+      mounted = false
     }
   }, [resort])
 

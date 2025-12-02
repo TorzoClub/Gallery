@@ -152,6 +152,12 @@ export default (props: Props) => {
 }
 
 type ColumnsHeightList = number[]
+type DimessionInfo = {
+  id: number
+  height: number
+  width: number
+  photo_idx: number
+}
 
 const whichMinimum = (columns: ColumnsHeightList) =>
   columns.indexOf(Math.min(...columns))
@@ -160,13 +166,6 @@ const computeColumnHeight = (list: DimessionInfo[]) =>
   list
     .map(({ height, width }) => height)
     .reduce((a, b) => a + b, 0)
-
-type DimessionInfo = {
-  id: number
-  height: number
-  width: number
-  photo_idx: number
-}
 
 type Columns = DimessionInfo[][]
 type DimOperateResult = readonly[undefined | DimessionInfo, Columns]
@@ -222,7 +221,7 @@ function dropDim(
 ): DimOperateResult {
   let selected: DimessionInfo | undefined = undefined
 
-  const droped = cols.map((col, col_idx) => {
+  const dropped = cols.map((col, col_idx) => {
     if (select_col !== col_idx) {
       return col
     } else {
@@ -237,7 +236,7 @@ function dropDim(
     }
   })
 
-  return [ selected, droped ] as const
+  return [ selected, dropped ] as const
 }
 
 function columnsPopSafe(cols: Columns): DimOperateResult {
@@ -268,7 +267,7 @@ function toDimList(cols: Columns) {
   return cols.flat()
 }
 
-function toDimListWithSorted(cols: Columns) {
+function toDimListSorted(cols: Columns) {
   return cols
     .map(
       col => col.map(
@@ -303,7 +302,7 @@ function toIDList(dim_list: DimessionInfo[]) {
   return exists
 }
 
-function whichAppend(cols: Columns, dim: DimessionInfo): number {
+function whichCanAppend(cols: Columns, dim: DimessionInfo): number {
   const height_list = cols.map(col => {
     return computeColumnHeight(col)
   })
@@ -324,7 +323,7 @@ function appendAtColumn(cols: Columns, append_col: number, dim: DimessionInfo) {
 }
 
 function appendDim(cols: Columns, dim: DimessionInfo) {
-  return appendAtColumn(cols, whichAppend(cols, dim), dim)
+  return appendAtColumn(cols, whichCanAppend(cols, dim), dim)
 }
 
 function appendMultiDim(cols: Columns, dim_list: DimessionInfo[]): Columns {
@@ -353,11 +352,11 @@ function createPlainColumns(col_count: number): Columns {
   return Array.from(Array(col_count)).map(() => [])
 }
 
-function canPop(col: DimessionInfo[]) {
+function canPopSafely(col: DimessionInfo[]) {
   return col.length >= 2
 }
 
-function bestPopPosition(cols: Columns) {
+function whichCanPop(cols: Columns) {
   const bottom_removed_cols = cols.map(col => {
     const new_col = [...col]
     new_col.pop()
@@ -365,12 +364,7 @@ function bestPopPosition(cols: Columns) {
   })
   const h_list = toHeightList(bottom_removed_cols)
   const col = h_list.indexOf(Math.max(...h_list))
-
-  if (canPop(cols[col])) {
-    return col
-  } else {
-    return undefined
-  }
+  return canPopSafely(cols[col]) ? col : undefined
 }
 
 // 理论上只会递归一两次，性能影响微乎其微
@@ -384,9 +378,9 @@ function reverseNewColumns(
   const plain_new_cols = createPlainColumns(new_col_to - new_col_from)
 
   let test_cols = concatColumns(old_cols, plain_new_cols)
-  const new_cols_list = reverseList(toDimListWithSorted(new_cols))
+  const new_cols_list = reverseList(toDimListSorted(new_cols))
   const result = new_cols_list.every(dim => {
-    const append_col = whichAppend(test_cols, dim)
+    const append_col = whichCanAppend(test_cols, dim)
     if (append_col >= new_col_from) {
       test_cols = appendAtColumn(test_cols, append_col, dim)
       return true
@@ -410,7 +404,7 @@ function reverseNewColumns(
       excludeByProperty(
         'id',
         top_dim.id,
-        toDimListWithSorted(new_cols),
+        toDimListSorted(new_cols),
       )
     )
 
@@ -425,43 +419,39 @@ function reverseNewColumns(
   }
 }
 
-function extendColumns(col_count: number, old_cols: Columns) {
+function expandColumns(col_count: number, old_cols: Columns) {
   let new_cols = concatColumns(
     old_cols,
     createPlainColumns(col_count - old_cols.length)
   )
 
-  let latest_droped_dim: DimessionInfo | undefined
-
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    // 不会陷入死循环，因为会进入 undefined 的情况。
-    // 因 JS 引擎不优化尾递归，为了性能和可靠性，只能写成这样
-    const best_col = bestPopPosition(new_cols)
-    if (best_col === undefined) {
-      return new_cols
-    } else {
-      const [dim, droped] = popColumn(new_cols, best_col)
-      if (dim === undefined) {
-         // 不可能进入这个分支
-        throw new Error('dim is undefined')
+  for (
+    let will_pop = whichCanPop(new_cols),
+      latest_dropped_dim: DimessionInfo | undefined;
+    will_pop !== undefined;
+    will_pop = whichCanPop(new_cols)
+  ) {
+    // NOTE: whichCanPop() ensures the selected column has at least 2 items,
+    //       so popColumn() will never return undefined in this context.
+    const [dim, dropped_cols] = popColumn(new_cols, will_pop)
+    if (dim !== undefined) {
+      if (dim === latest_dropped_dim) {
+        return new_cols
       } else {
-        const append_col = whichAppend(droped, dim)
-        if (dim === latest_droped_dim) {
-          return new_cols
-        } else {
-          new_cols = appendAtColumn(droped, append_col, dim)
-          latest_droped_dim = dim
-        }
+        const append_col = whichCanAppend(dropped_cols, dim)
+        new_cols = appendAtColumn(dropped_cols, append_col, dim)
+        latest_dropped_dim = dim
       }
     }
   }
+
+  return new_cols
 }
 
 function adjustColumns(target_column: number, cols: Columns): Columns {
   const current_column = cols.length
   if (target_column > current_column) {
-    const new_cols_reversed = extendColumns(target_column, cols)
+    const new_cols_reversed = expandColumns(target_column, cols)
     return reverseNewColumns(
       current_column,
       target_column,
@@ -472,7 +462,7 @@ function adjustColumns(target_column: number, cols: Columns): Columns {
     const removed_cols = selectColumns(cols, target_column, current_column)
     return appendMultiDim(
       new_cols,
-      toDimListWithSorted(removed_cols)
+      toDimListSorted(removed_cols)
     )
   } else {
     return cols
@@ -480,7 +470,7 @@ function adjustColumns(target_column: number, cols: Columns): Columns {
 }
 
 function updateColumnsKeepPosition(prev_cols: Columns, latest_cols: Columns): Columns {
-  const latest_list = toDimListWithSorted(latest_cols)
+  const latest_list = toDimListSorted(latest_cols)
 
   const exists_list = new Set<number>()
 

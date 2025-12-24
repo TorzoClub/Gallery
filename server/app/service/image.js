@@ -70,6 +70,10 @@ module.exports = app =>
       return removed;
     }
 
+    static toTempPath(filename) {
+      return path.join(app.config.imageTempPath, filename);
+    }
+
     static toSrcSavePath(filename) {
       return path.join(app.config.imageSavePath, filename);
     }
@@ -135,6 +139,12 @@ module.exports = app =>
       const writePath = ImageService.toSrcSavePath(another_src_filename);
 
       await sharp_p
+        .resize({
+          width: 3840,
+          height: 3840,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
         .rotate()
         .flatten({ background: '#FFFFFF' })
         [format]({ ...format_options })
@@ -158,9 +168,9 @@ module.exports = app =>
       const writePath = ImageService.toThumbSavePath(thumb_filename);
 
       await sharp_p
+        .resize(thumb_size, null, { withoutEnlargement: true })
         .rotate()
         .flatten({ background: '#FFFFFF' })
-        .resize(thumb_size, null, { withoutEnlargement: true })
         [format]({ ...format_options })
         .toFile(writePath)
       ;
@@ -271,10 +281,26 @@ module.exports = app =>
       });
     }
 
+    async presetSrcImage(image_path, src_image_path) {
+      const max_dimension = app.config.MAX_IMAGE_DIMENSION;
+      await sharp(image_path)
+        .resize({
+          width: max_dimension,
+          height: max_dimension,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .rotate()
+        .flatten({ background: '#FFFFFF' })
+        .toFile(src_image_path)
+      ;
+    }
+
     async storeByFilePath(file_path) {
       const src_filename = `${Date.now()}${path.extname(file_path)}`;
       const writePath = ImageService.toSrcSavePath(src_filename);
-      fs.cpSync(file_path, writePath);
+
+      await this.presetSrcImage(file_path, writePath);
 
       const { thumbFilename } = await ImageService.generateThumb(src_filename);
 
@@ -288,27 +314,34 @@ module.exports = app =>
 
     async storeByStream(stream, thumb_size) {
       const src_filename = `${Date.now()}${path.extname(stream.filename)}`.toLowerCase();
-      const writePath = ImageService.toSrcSavePath(src_filename);
-      const writeStream = fs.createWriteStream(writePath);
+      const temp_file_path = ImageService.toTempPath(src_filename);
+      const srcPath = ImageService.toSrcSavePath(src_filename);
+      const writeStream = fs.createWriteStream(temp_file_path);
 
-      await (new Promise((res, rej) => {
-        stream.on('data', chunk => writeStream.write(chunk));
-        stream.on('end', () => {
-          writeStream.end(res);
-        });
-        stream.on('error', rej);
-      }));
+      try {
+        await (new Promise((res, rej) => {
+          stream.on('data', chunk => writeStream.write(chunk));
+          stream.on('end', () => {
+            writeStream.end(res);
+          });
+          stream.on('error', rej);
+        }));
 
-      const { thumbFilename } = await ImageService.generateThumb(
-        src_filename,
-        { thumb_size }
-      );
+        await this.presetSrcImage(temp_file_path, srcPath);
 
-      return {
-        imagePath: app.config.imagePath,
-        imageThumbPath: app.config.imageThumbPath,
-        src: src_filename,
-        thumb: thumbFilename,
-      };
+        const { thumbFilename } = await ImageService.generateThumb(
+          src_filename,
+          { thumb_size }
+        );
+
+        return {
+          imagePath: app.config.imagePath,
+          imageThumbPath: app.config.imageThumbPath,
+          src: src_filename,
+          thumb: thumbFilename,
+        };
+      } finally {
+        await fs.promises.unlink(temp_file_path);
+      }
     }
   };

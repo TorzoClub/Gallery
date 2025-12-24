@@ -7,10 +7,13 @@ const absolutePath = inputPath => path.join(__dirname, '../', inputPath);
 
 const staticPath = absolutePath('./static');
 
+const MAX_IMAGE_DIMENSION = 3840;
+
 // ⚠️ 注意，imageThumbSavePath、imageSavePath 请不要放其他文件
 // 因为在这两个目录里会自动清理无用的文件
 const imageThumbSavePath = path.join(staticPath, './thumb/');
 const imageSavePath = path.join(staticPath, './src/');
+const imageTempPath = path.join(staticPath, './temp/');
 
 /**
  * @param {Egg.EggAppInfo} appInfo app info
@@ -20,7 +23,9 @@ module.exports = appInfo => {
    * built-in config
    * @type {Egg.EggAppConfig}
    **/
-  const config = exports = {};
+  const config = exports = {
+    MAX_IMAGE_DIMENSION,
+  };
 
   // api 前缀，注意要以 / 结尾
   config.apiPrefix = '/';
@@ -69,6 +74,7 @@ module.exports = appInfo => {
     ignoreDirs: [
       imageThumbSavePath,
       imageSavePath,
+      imageTempPath,
     ],
   };
 
@@ -87,6 +93,7 @@ module.exports = appInfo => {
 
     imageThumbSavePath,
     imageSavePath,
+    imageTempPath,
 
     imagePath,
     imageThumbPath,

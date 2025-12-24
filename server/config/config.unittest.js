@@ -8,6 +8,7 @@ const absolutePath = inputPath => path.join(__dirname, '../', inputPath);
 const staticPath = absolutePath('./test/static');
 const imageThumbSavePath = path.join(staticPath, './thumb/');
 const imageSavePath = path.join(staticPath, './src/');
+const imageTempPath = path.join(staticPath, './temp/');
 
 /**
  * @param {Egg.EggAppInfo} appInfo app info
@@ -17,7 +18,9 @@ module.exports = appInfo => {
    * built-in config
    * @type {Egg.EggAppConfig}
    **/
-  const config = exports = {};
+  const config = exports = {
+    MAX_IMAGE_DIMENSION: 768,
+  };
 
   // api 前缀，注意要以 / 结尾
   config.apiPrefix = '/';
@@ -40,6 +43,7 @@ module.exports = appInfo => {
     ignoreDirs: [
       imageThumbSavePath,
       imageSavePath,
+      imageTempPath,
     ],
   };
 
@@ -53,13 +57,14 @@ module.exports = appInfo => {
 
     startBeforeGenerateThumb: false,
 
-    thumbSize: 640,
+    default_image_thumb_size: 128,
 
     imageThumbSavePath,
     imageSavePath,
 
     imagePath,
     imageThumbPath,
+    imageTempPath,
   };
 
   config.sequelize = {

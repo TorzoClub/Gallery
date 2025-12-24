@@ -77,8 +77,11 @@ describe('controller/admin/image', function () {
       app, backdata.imagePath, backdata.src
     )
 
-    assert(down_metadata.width === test_image_width)
-    assert(down_metadata.height === test_image_height)
+    const tw = Math.round(test_image_width * app.config.MAX_IMAGE_DIMENSION / Math.max(test_image_width, test_image_height))
+    assert(down_metadata.width === tw)
+
+    const th = Math.round(test_image_height * app.config.MAX_IMAGE_DIMENSION / Math.max(test_image_width, test_image_height))
+    assert(down_metadata.height === th)
 
     const down_thumb = await app.httpRequest()
       .get(path.join(backdata.imageThumbPath, backdata.thumb))
@@ -257,7 +260,8 @@ describe('controller/admin/image', function () {
       const meta = await loadMetadataByBuffer(
         await downloadImage(app, created_photo.thumb_urlpath)
       )
-      assert(meta.width === test_avatar_image_width)
+      const tw = Math.round(test_avatar_image_width * app.config.default_image_thumb_size / test_avatar_image_width)
+      assert(meta.width === tw)
     }
     {
       const res = await adminRefreshThumb(app, token, { src: u_img.src, thumb_size: 16 })
@@ -265,6 +269,41 @@ describe('controller/admin/image', function () {
         await downloadImage(app, created_photo.thumb_urlpath)
       )
       assert(meta.width === 16)
+    }
+  })
+
+  it('should handle very large image upload', async () => {
+    const { app, token } = await constructPlainEnvironment(true)
+
+    async function largeImageUpload(filename, width, height) {
+      const large_image_path = path.join(__dirname, `static/${filename}`)
+      // 创建一个非常大的图像用于测试
+      await sharp(default_upload_image_path)
+        .resize({
+          width,
+          height,
+          fit: 'fill',
+          withoutEnlargement: false,
+        })
+        .png()
+        .toFile(large_image_path)
+
+      const backdata = await uploadImage(token, app, large_image_path)
+
+      return loadImage(
+        app, backdata.imagePath, backdata.src
+      )
+    }
+
+    {
+      const [down_metadata] = await largeImageUpload('height-large.png', 3000, 4000)
+      assert(down_metadata.height === app.config.MAX_IMAGE_DIMENSION)
+      assert(down_metadata.width < 3000)
+    }
+    {
+      const [down_metadata] = await largeImageUpload('width-large.png', 4000, 3000)
+      assert(down_metadata.width === app.config.MAX_IMAGE_DIMENSION)
+      assert(down_metadata.height < 3000)
     }
   })
 

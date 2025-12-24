@@ -43,8 +43,6 @@ function blobToBase64(blob: Blob) {
   })
 }
 
-export const start_load_signal = Signal<string>()
-
 export function useQueueload(loadsrc: string | undefined, need_base64_url: boolean = false) {
   const [ status, setStatus ] = useSafeState<'NONE' | 'LOADING' | 'LOADED' | 'FAILURE'>('LOADING')
 
@@ -55,7 +53,6 @@ export function useQueueload(loadsrc: string | undefined, need_base64_url: boole
   const retry = useCallback(async () => {
     setStatus('LOADING')
     try {
-      start_load_signal.trigger(loadsrc || '')
       const { blob, blobUrl } = await global_queue.load(loadsrc || '')
       if (need_base64_url) {
         setBackSrc(await blobToBase64(blob))

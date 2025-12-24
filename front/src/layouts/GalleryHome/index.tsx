@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { nextTick, Signal, timeout } from 'new-vait'
 
-import { global_queue, start_load_signal } from 'utils/queue-load'
+import { global_queue } from 'utils/queue-load'
 const { isLoading: globalQueueIsLoading, load: globalQueueLoad, } = global_queue
 
 import { findListByProperty, removeListItemByIdx, sortByIdList, updateListItemById } from 'utils/common'
@@ -82,6 +82,8 @@ function usePhotoLoadingPriority(
       }
     })
 
+    const S_UP = 1
+    const S_DOWN = -1
     const coe = {
       I: 1,
       II: 10,
@@ -92,19 +94,19 @@ function usePhotoLoadingPriority(
       VII: 60,
     } as const
 
-    const PRIORITY_MAP = {
-      'in_screen': { down: [-1, coe.VII, coe.VI], up: [1, coe.VII, coe.VI] },
-      'bottom': { down: [-1, coe.V, coe.III], up: [-1, coe.IV, coe.II] },
-      'above': { down: [1, coe.IV, coe.II], up: [1, coe.V, coe.III] },
+    const PRIORITY = {
+      'in_screen': { down: [S_DOWN, coe.VII, coe.VI], up: [S_UP, coe.VII, coe.VI] },
+      'bottom': { down: [S_DOWN, coe.V, coe.III], up: [S_DOWN, coe.IV, coe.II] },
+      'above': { down: [S_UP, coe.IV, coe.II], up: [S_UP, coe.V, coe.III] },
     } as const
 
     function calcPriority(position: Position, length: number, idx: number) {
-      const [sign, photo_coe, avatar_coe] = PRIORITY_MAP[position][getDirection()]
-      const sort = sign * idx
+      const [load_direction, photo_coe, avatar_coe] = PRIORITY[position][getDirection()]
+      const sort = load_direction * idx
       return [(photo_coe * length + sort), (avatar_coe * length + sort)] as const
     }
 
-    const mem_map = new Map<string, number>()
+    const mem_unique = new Map<string, number>()
     sorted.forEach(({ photo, position }, idx) => {
       const src = id_src_map.get(photo.id)
       if (src) {
@@ -112,11 +114,9 @@ function usePhotoLoadingPriority(
         globalQueueLoad(src, photo_p)
         if (photo.member) {
           const { avatar_thumb_url } = photo.member
-          const p = mem_map.get(avatar_thumb_url)
-          if (
-            (p === undefined) || (avatar_p > p)
-          ) {
-            mem_map.set(avatar_thumb_url, avatar_p)
+          const p = mem_unique.get(avatar_thumb_url)
+          if ( (p === undefined) || (avatar_p > p) ) {
+            mem_unique.set(avatar_thumb_url, avatar_p)
             globalQueueLoad(avatar_thumb_url, avatar_p)
           }
         }

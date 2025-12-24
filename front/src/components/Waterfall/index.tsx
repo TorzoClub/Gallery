@@ -419,6 +419,17 @@ function reverseNewColumns(
   }
 }
 
+function mergeColumns(prev_cols: Columns, latest_cols: Columns) {
+  if (countColumn(prev_cols) === 0) {
+    return latest_cols
+  } else {
+    return adjustColumns(
+      countColumn(latest_cols),
+      updateColumnsKeepPosition(prev_cols, latest_cols)
+    )
+  }
+}
+
 function expandColumns(col_count: number, old_cols: Columns) {
   let new_cols = concatColumns(
     old_cols,
@@ -427,7 +438,7 @@ function expandColumns(col_count: number, old_cols: Columns) {
 
   for (
     let will_pop = whichCanPop(new_cols),
-      latest_dropped_dim: DimessionInfo | undefined;
+        latest_dropped_dim: DimessionInfo | undefined;
     will_pop !== undefined;
     will_pop = whichCanPop(new_cols)
   ) {
@@ -500,17 +511,6 @@ function updateColumnsKeepPosition(prev_cols: Columns, latest_cols: Columns): Co
       return exists_list.has(dim.id) !== true
     })
   )
-}
-
-function mergeColumns(prev_cols: Columns, latest_cols: Columns) {
-  if (countColumn(prev_cols) === 0) {
-    return latest_cols
-  } else {
-    return adjustColumns(
-      countColumn(latest_cols),
-      updateColumnsKeepPosition(prev_cols, latest_cols)
-    )
-  }
 }
 
 function computeWaterfallHeight(waterfall_columns: Columns) {

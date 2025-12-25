@@ -133,6 +133,8 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
           // style: { WebkitAppearance: 'none', display: 'none' }
         }}
         value={files}
+        multiple={false}
+        acceptType={['jpg', 'png', 'gif', 'webp', 'avif']}
         onChange={(e) => {
           console.log('onChange', e)
           setFiles(e)

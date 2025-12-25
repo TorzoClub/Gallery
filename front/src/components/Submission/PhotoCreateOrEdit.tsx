@@ -5,7 +5,7 @@ import { PhotoInActive, PhotoNormal } from 'api/photo'
 
 import s from './PhotoCreateOrEdit.module.scss'
 import { LoadingMask } from 'components/Loading'
-import { useQueueload } from 'utils/queue-load'
+import { global_queue, useQueueload } from 'utils/queue-load'
 import SkeuomorphismButton from 'components/SkeuomorphismButton'
 
 function justUseTemplateString(strs: TemplateStringsArray, ...args: (number | string)[]) {
@@ -234,6 +234,11 @@ export function PreviewBox({
   previewURL: string | null
   isDragging: boolean
 }) {
+
+  useEffect(() => {
+    global_queue.startWorking()
+  }, [previewURL])
+
   const [ load_status, blob_url ] = useQueueload(
     (previewURL === null) ? undefined : previewURL,
     true

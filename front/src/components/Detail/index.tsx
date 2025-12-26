@@ -3,6 +3,7 @@ import React, { useRef, useEffect, useState } from 'react'
 import useDisableScroll from 'hooks/useDisableScroll'
 
 import './style.scss'
+import Loading from 'components/Loading'
 
 const getCenter = (totalLength: number, length: number) => (totalLength / 2) - (length / 2)
 
@@ -83,6 +84,24 @@ const calcImageFullScreenPos = (
       }
     }
   }
+}
+
+function usePictureLoading(source_url: string) {
+  const [is_loading, setLoading] = useState(false)
+  useEffect(() => {
+    if (source_url.length) {
+      setLoading(true)
+    } else {
+      setLoading(false)
+    }
+  }, [source_url.length])
+
+  return [
+    is_loading,
+    function onLoad() {
+      setLoading(false)
+    }
+  ] as const
 }
 
 export type Detail = {
@@ -319,6 +338,8 @@ export default ({ detail, onCancel = () => undefined }: {
 
   useDisableScroll(Boolean(detail))
 
+  const [ is_loading, onLoad ] = usePictureLoading(sourceUrl)
+
   if (!isShow) {
     return null
   }
@@ -335,9 +356,7 @@ export default ({ detail, onCancel = () => undefined }: {
     <div
       ref={detailFrameEl}
       className="detail-frame"
-      onClick={() => {
-        onCancel()
-      }}
+      onClick={onCancel}
     >
       <div className="bgMask" style={{ opacity }}></div>
       <div
@@ -346,7 +365,8 @@ export default ({ detail, onCancel = () => undefined }: {
         style={{ ...pos, opacity: toPos ? 1 : 0 }}
       >
         <img className="thumb" src={thumbUrl} alt="" />
-        <img className="source" src={sourceUrl} alt="" />
+        <img className="source" src={sourceUrl} alt="" onLoad={onLoad} />
+        { is_loading ? <div className='imgLoading'><Loading /> <span style={{ marginLeft: '4px' }}>加载中</span></div> : '' }
       </div>
     </div>
   )

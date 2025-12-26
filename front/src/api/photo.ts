@@ -91,40 +91,39 @@ export const fetchList = () => request<fetchListResult>({
 
 function transformListPictureType(data: fetchListResult | fetchListWithQQNumResult) {
   if (data.active) {
-    transformPhotoListPictureType(data.active.photos)
-    data.active.photos = transformPhotoListPictureType(data.active.photos)
+    data.active.photos = transformPhotoListThumbURL(data.active.photos)
   }
 
   data.galleries = data.galleries.map(gallery => {
-    gallery.photos = transformPhotoListPictureType(gallery.photos)
-    gallery.photos = transformMemberPictureType(gallery.photos)
+    gallery.photos = transformPhotoListThumbURL(gallery.photos)
+    gallery.photos = transformMemberThumbURL(gallery.photos)
     return gallery
   })
 
   return data
 }
 
-function transformMemberPictureType<T extends PhotoNormal>(list: T[]) {
+function transformMemberThumbURL<T extends PhotoNormal>(list: T[]) {
   return list.map(photo => {
-    photo.member.avatar_thumb_url = selectPictureType(photo.member.avatar_thumb_url)
+    photo.member.avatar_thumb_url = transformPictureURL(photo.member.avatar_thumb_url)
     return photo
   })
 }
 
-function transformPhotoListPictureType<T extends PhotoCommon>(list: T[]) {
+function transformPhotoListThumbURL<T extends PhotoCommon>(list: T[]) {
   return (
     list.map(photo => {
       return {
         ...photo,
-        thumb: selectPictureType(photo.thumb),
-        thumb_url: selectPictureType(photo.thumb_url),
-        thumb_urlpath: selectPictureType(photo.thumb_urlpath),
+        thumb: transformPictureURL(photo.thumb),
+        thumb_url: transformPictureURL(photo.thumb_url),
+        thumb_urlpath: transformPictureURL(photo.thumb_urlpath),
       }
     })
   )
 }
 
-function selectPictureType(picture_url: string) {
+export function toOptimizedImageType(picture_url: string): string {
   const [ getAppInitInfo ] = appInitInfomation
   const { avif, webp } = getAppInitInfo().picutre_support
   if (avif) {
@@ -134,6 +133,29 @@ function selectPictureType(picture_url: string) {
   } else {
     return picture_url
   }
+}
+
+export function canUseCacheWorker(): boolean {
+  const { NODE_ENV, REACT_APP_CACHE_WORKER_URL } = process.env
+  if (NODE_ENV === 'development') {
+    return false
+  } else if (typeof REACT_APP_CACHE_WORKER_URL !== 'string' || REACT_APP_CACHE_WORKER_URL.length === 0) {
+    return false
+  } else {
+    return true
+  }
+}
+
+export function transformCacheWorkerURL(picture_url: string): string {
+  if (canUseCacheWorker()) {
+    return `${process.env.REACT_APP_CACHE_WORKER_URL}?target=${encodeURIComponent(picture_url)}`
+  } else {
+    return picture_url
+  }
+}
+
+function transformPictureURL(picture_url: string): string {
+  return toOptimizedImageType(picture_url)
 }
 
 export type fetchListWithQQNumResult = {

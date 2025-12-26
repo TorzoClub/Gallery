@@ -6,7 +6,7 @@ import { findListByProperty, removeListItemByIdx } from './common'
 import download from './download'
 import useSafeState from 'hooks/useSafeState'
 
-export const __MAX_PARALLEL_NUMBER__ = 4
+export const __MAX_PARALLEL_NUMBER__ = 5
 
 type LoadResult = {
   blob: Blob;
@@ -172,6 +172,7 @@ export function QueueLoad() {
           const concurrent_tasks = getConcurrentTasks()
           setConcurrentTasks(removeTaskBySrc(concurrent_tasks, task.src))
 
+          console.warn('QueueLoad load failure:', e)
           load_failure_signal.trigger({ src: task.src, e })
 
           startLoad()

@@ -7,7 +7,18 @@ const { isLoading: globalQueueIsLoading, load: globalQueueLoad, } = global_queue
 import { findListByProperty, removeListItemByIdx, sortByIdList, updateListItemById } from 'utils/common'
 import { AppCriticalError } from 'App'
 
-import { GalleryCommon, GalleryInActive, Member, Photo, fetchList, fetchListResult, fetchListWithQQNum, vote } from 'api/photo'
+import {
+  type GalleryCommon,
+  type GalleryInActive,
+  type Photo,
+  type fetchListResult,
+  fetchListWithQQNum,
+  fetchList,
+  vote,
+  canUseCacheWorker,
+  toOptimizedImageType,
+  transformCacheWorkerURL
+} from 'api/photo'
 
 import LoadingLayout from './components/LoadingLayout'
 import ActivityLayout from './components/ActivityLayout'
@@ -399,7 +410,16 @@ export default () => {
     />
   ), [handleClickAnyWhere, showConfirmVoteLayout])
 
-  const HandleClickCover = (gallerycommon: GalleryCommon & {
+  const getSrcUrl = useCallback((url: string) => {
+    const new_type_url = toOptimizedImageType(url)
+    if (canUseCacheWorker()) {
+      return `${transformCacheWorkerURL(new_type_url)}&redirect=1`
+    } else {
+      return new_type_url
+    }
+  }, [])
+
+  const HandleClickCover = useCallback((gallerycommon: GalleryCommon & {
     photos: Array<{ id: number; src_url: string; width: number; height: number }>
   }) => {
     const handler: WaterfallLayoutClickCoverHandler = ({ from, thumbBlobUrl }, photo_id) => {
@@ -409,14 +429,14 @@ export default () => {
         setImageDetail({
           from: from,
           thumb: thumbBlobUrl,
-          src: photo.src_url,
+          src: getSrcUrl(photo.src_url),
           height: photo.height,
           width: photo.width
         })
       }
     }
     return handler
-  }
+  }, [getSrcUrl])
 
   const [show_normal_list, setShowNormalList] = useState(false)
 
@@ -452,7 +472,7 @@ export default () => {
         })
       )
     }
-  }, [list, show_normal_list])
+  }, [HandleClickCover, list, show_normal_list])
 
   if (loaded && !active && (list.length === 0)) {
     return <AllEmptyLayout />

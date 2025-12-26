@@ -20,6 +20,7 @@ import PhotoDetail, { Detail } from 'components/Detail'
 import ConfirmVote from 'components/ConfirmVote'
 import shuffleArray from 'utils/shuffle-array'
 import { WaterfallLayoutClickCoverHandler } from 'components/Waterfall'
+import SkeuomorphismButton from 'components/SkeuomorphismButton'
 
 const watterfall_refreshed = Signal()
 
@@ -230,13 +231,15 @@ export default () => {
       setLoaded(true)
 
       if (active !== null) {
-        const photos = shuffleArray(active.photos)
         setActive({
           ...active,
-          photos: photos
+          photos: shuffleArray(active.photos)
         })
+        setShowNormalList(false)
+        setList(list)
       } else {
         setActive(null)
+        setShowNormalList(true)
         setList(list)
       }
     }).catch(err => AppCriticalError(`获取相册列表失败: ${err}`))
@@ -415,6 +418,42 @@ export default () => {
     return handler
   }
 
+  const [show_normal_list, setShowNormalList] = useState(false)
+
+  const show_normal_list_btn_node = useMemo(() => {
+    if (active && !show_normal_list) {
+      return (
+        <SkeuomorphismButton onClick={() => setShowNormalList(true)}>
+          查看过往相册
+        </SkeuomorphismButton>
+      )
+    } else {
+      return <></>
+    }
+  }, [active, show_normal_list])
+
+  const normal_list_nodes = useMemo(() => {
+    if (!show_normal_list) {
+      return <></>
+    } else {
+      return (
+        list.map(gallery => {
+          return (
+            <div className="gallery-wrapper" key={gallery.id}>
+              <Gallery
+                show_vote_button={false}
+                gallery={gallery}
+                selected_id_list={[]}
+                onClickCover={HandleClickCover(gallery)}
+                onWatterfallRefreshed={watterfall_refreshed.trigger}
+              />
+            </div>
+          )
+        })
+      )
+    }
+  }, [list, show_normal_list])
+
   if (loaded && !active && (list.length === 0)) {
     return <AllEmptyLayout />
   }
@@ -446,21 +485,8 @@ export default () => {
                 }} />
               )}
 
-              {
-                list.map(gallery => {
-                  return (
-                    <div className="gallery-wrapper" key={gallery.id} style={{ display: active ? 'none' : '' }}>
-                      <Gallery
-                        show_vote_button={false}
-                        gallery={gallery}
-                        selected_id_list={[]}
-                        onClickCover={HandleClickCover(gallery)}
-                        onWatterfallRefreshed={watterfall_refreshed.trigger}
-                      />
-                    </div>
-                  )
-                })
-              }
+              {show_normal_list_btn_node}
+              {normal_list_nodes}
 
               <PhotoDetail
                 detail={imageDetail}

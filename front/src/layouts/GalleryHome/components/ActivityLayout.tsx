@@ -82,7 +82,7 @@ export default function ActivityLayout({
   }, [confirmState.in, selected_id_list.length])
 
   return (
-    <div className="gallery-wrapper">
+    <div className="gallery-wrapper" style={{ marginBottom: '3em' }}>
       <Gallery
         {...remain_props}
         gallery={active}

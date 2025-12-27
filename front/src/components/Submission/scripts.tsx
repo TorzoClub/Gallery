@@ -1,5 +1,4 @@
 import React, { CSSProperties, ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
-import { AppCriticalError } from 'App'
 import { confirmQQNum, getSubmissionByQQNum } from 'api/member'
 
 import s from './scripts.module.scss'
@@ -17,6 +16,7 @@ import { GalleryCommon, PhotoInActive, PhotoNormal, cancelMySubmission, normal2I
 import { thunkify } from 'ramda'
 import { useQueueload } from 'utils/queue-load'
 import { dateDiffInDays, isInvalidDate, isNextMonth, isNextWeek, monthDiff, stringifyWeekDay } from 'utils/date'
+import { signal_critical_error } from 'signals'
 
 type InitArgs = {
   gallery_photo_count: number
@@ -96,6 +96,7 @@ export function init(init_args : InitArgs) {
           <>
             <div style={{ marginBottom: '20px' }}>{exists_text}</div>
             <PreviewBox
+              canClick={false}
               previewURL={photo.thumb_url}
               isDragging={false}
               height={320 / (photo.width / photo.height)}
@@ -306,7 +307,7 @@ export function init(init_args : InitArgs) {
               ).then(() => {
                 disintegrate($elm).catch(err => {
                   console.warn('disintegrate', err)
-                  AppCriticalError(`disintegrate error: ${err}`)
+                  signal_critical_error.trigger(`disintegrate error: ${err}`)
                 }).finally(() => {
                   setTimeout(() => {
                     setPlayed(true)
@@ -359,6 +360,7 @@ export function init(init_args : InitArgs) {
                 photo && (
                   <div className="disintegration-target">
                     <PreviewBox
+                      canClick={false}
                       previewURL={photo.thumb_url}
                       imageAppendClassName={ removed ? s.PhotoRemoving : '' }
                       height={320 / (photo.width / photo.height)}
@@ -466,7 +468,7 @@ export function init(init_args : InitArgs) {
         show_content_waittime: 500
       }
     } catch (err) {
-      AppCriticalError(`${err}`)
+      signal_critical_error.trigger(`${err}`)
       throw err
     }
   }
@@ -478,7 +480,7 @@ export function init(init_args : InitArgs) {
       async function updateMySubmission() {
         const { gallery_id, qq_num } = useSubmissionStore.getState()
         if ((gallery_id === null) || (qq_num === null)) {
-          AppCriticalError(`gallery_id(${gallery_id}) 或者 qq_num${qq_num} 为 null`)
+          signal_critical_error.trigger(`gallery_id(${gallery_id}) 或者 qq_num${qq_num} 为 null`)
         } else {
           const my_submission = await getSubmissionByQQNum(gallery_id, qq_num)
           if (my_submission === null) {

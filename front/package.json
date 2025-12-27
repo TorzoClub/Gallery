@@ -4,8 +4,10 @@
   "version": "2.0.0",
   "dependencies": {
     "@juggle/resize-observer": "^3.4.0",
+    "@types/heic-convert": "^2.1.0",
     "axios": "^0.24.0",
     "blueimp-md5": "^2.10.0",
+    "heic-convert": "^2.1.0",
     "html2canvas": "^1.4.1",
     "new-vait": "npm:vait@4.2.1",
     "pad-left": "^2.1.0",

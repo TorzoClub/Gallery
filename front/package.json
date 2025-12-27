@@ -15,7 +15,7 @@
     "react-images-uploading": "^3.1.7",
     "react-scripts": "5.0.1",
     "react-transition-group": "^4.4.5",
-    "styled-jsx": "^3.2.1",
+    "swr": "^2.3.8",
     "vait": "^0.2.3",
     "zustand": "^4.4.7"
   },
@@ -33,9 +33,8 @@
     "extends": "react-app"
   },
   "browserslist": [
-    ">0.2%",
+    ">1%",
     "not dead",
-    "not ie <= 11",
     "chrome >= 60",
     "not op_mini all"
   ],

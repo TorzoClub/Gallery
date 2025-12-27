@@ -1,7 +1,8 @@
 import { pipe } from 'ramda'
-import { useCallback, useEffect } from 'react'
+import { useId, useMemo } from 'react'
 import { Wait, Memo, Signal, nextTick } from 'new-vait'
 import { findListByProperty, removeListItemByIdx } from './common'
+import useSWR from 'swr'
 
 import download from './download'
 import useSafeState from 'hooks/useSafeState'
@@ -43,45 +44,35 @@ function blobToBase64(blob: Blob) {
   })
 }
 
+const __swr_cfg = {
+  revalidateOnFocus: false,
+  revalidateOnReconnect: false,
+  shouldRetryOnError: false,
+}
 export function useQueueload(loadsrc: string | undefined, need_base64_url: boolean = false) {
-  const [ status, setStatus ] = useSafeState<'NONE' | 'LOADING' | 'LOADED' | 'FAILURE'>('LOADING')
+  const id = useId()
+  const res = useSWR(`${id}-${loadsrc}-${need_base64_url}`, async () => {
+    const { blob, blobUrl } = await global_queue.load(loadsrc || '')
+    return need_base64_url ? await blobToBase64(blob) : blobUrl
+  }, __swr_cfg)
 
-  const [ cached, url ] = searchCache(loadsrc)
-
-  const [ back_src, setBackSrc ] = useSafeState<string>(url)
-
-  const retry = useCallback(async () => {
-    setStatus('LOADING')
-    try {
-      const { blob, blobUrl } = await global_queue.load(loadsrc || '')
-      if (need_base64_url) {
-        setBackSrc(await blobToBase64(blob))
-      } else {
-        setBackSrc(blobUrl)
-      }
-      setStatus('LOADED')
-    } catch (err) {
-      setStatus('FAILURE')
-    }
-  }, [loadsrc, need_base64_url, setBackSrc, setStatus])
-
-  useEffect(() => {
-    if ((loadsrc === undefined) || (loadsrc.trim().length === 0)) {
-      setStatus('LOADING')
+  const status = useMemo(() => {
+    if (res.isLoading || res.isValidating) {
+      return 'LOADING'
+    } else if (res.error) {
+      return 'FAILURE'
+    } else if (res.data) {
+      return 'LOADED'
     } else {
-      if (status === 'LOADING') {
-        const [ cached, url ] = searchCache(loadsrc)
-        if (cached) {
-          setStatus('LOADED')
-          setBackSrc(url)
-        } else {
-          retry()
-        }
-      }
+      return 'NONE'
     }
-  }, [loadsrc, retry, setBackSrc, setStatus, status])
+  }, [res.data, res.error, res.isLoading, res.isValidating])
 
-  return [ status, back_src, retry ] as const
+  const url = useMemo(() => res.data || '', [res.data])
+
+  const retry = res.mutate
+
+  return [ status, url, retry ] as const
 }
 
 type Src = string

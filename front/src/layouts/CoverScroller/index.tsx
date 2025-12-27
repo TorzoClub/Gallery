@@ -165,7 +165,7 @@ export default () => {
   }, [PosList])
 
   const insetShadow = useCallback((index: number) => {
-    const offset = PosList[index]?.shadowOffset || 0
+    const offset = PosList[index]?.shadowOffset ?? 0
     return `inset 0 ${offset}px 28px 0px rgba(0, 0, 0, 0.3)`
   }, [PosList])
 

@@ -1,12 +1,14 @@
-import React, { CSSProperties, useEffect, useMemo, useState } from 'react'
+import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import ImageUploading, { ImageType, ImageListType } from 'react-images-uploading'
+import heicConvert from 'heic-convert/browser'
+
 import { useSubmissionStore } from '.'
 import { PhotoInActive, PhotoNormal } from 'api/photo'
 
 import s from './PhotoCreateOrEdit.module.scss'
-import PhotoBox from 'components/PhotoBox'
-import Loading from 'components/Loading'
-import { useQueueload } from 'utils/queue-load'
+import { LoadingMask } from 'components/Loading'
+import { global_queue, useQueueload } from 'utils/queue-load'
+import SkeuomorphismButton from 'components/SkeuomorphismButton'
 
 function justUseTemplateString(strs: TemplateStringsArray, ...args: (number | string)[]) {
   const str = strs.reduce((a, b, idx) => {
@@ -66,21 +68,21 @@ async function editSubmission(photo_id: number | string, form_data: FormData): P
   }
 }
 
+type WillUploadImage = null | { blob: Blob, filename: string, blob_url: string }
+
 type Props = {
   onUpdateDone(data: PhotoNormal): void
 }
 export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
   const [ isProcessing, setProcessing ] = useState(false)
-  const [files, setFiles] = React.useState<ImageListType>([])
+
+  // 不应该使用 setFiles，如果setFiles了的话，会无法修改图片
+  // 这是 react-images-uploading 的 bug
+  const [files] = useState<ImageListType>([])
+
   const { photo, gallery_id, qq_num } = useSubmissionStore.getState()
   const [description, setDescription] = useState(photo?.desc || '')
-  const will_upload_image = useMemo(() => {
-    if (files.length) {
-      return files[0]
-    } else {
-      return null
-    }
-  }, [files])
+  const [will_upload_image, setWillUploadImage] = useState<WillUploadImage>(null)
 
   const is_edit_mode = Boolean(photo)
 
@@ -96,16 +98,9 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
       try {
         setProcessing(true)
         if (will_upload_image) {
-          const { file } = will_upload_image
-          if (!file) {
-            alert('!file')
-          } else {
-            // onUpdateDone
-            const arrayBuffer = await file.arrayBuffer()
-            const blob = new Blob([new Uint8Array(arrayBuffer)], {type: file.type })
-            formData.append('image', blob, file.name)
-            console.log('blob', blob)
-          }
+          const { blob, filename } = will_upload_image
+          formData.append('image', blob, filename)
+          console.log('blob', blob)
         }
 
         if (is_edit_mode) {
@@ -126,26 +121,72 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
     }
   }
 
+  const handleFile = useCallback(async (img: ImageType) => {
+    if (img.file === undefined) {
+      alert('failed in handleFile, img.file is undefined')
+    } else {
+      const { file } = img
+      const array_buffer = await file.arrayBuffer()
+      const blob = new Blob([new Uint8Array(array_buffer)], { type: file.type })
+
+      const [type, image_type] = blob.type.split('/')
+      const supported_type = ['webp', 'avif', 'jpeg', 'jpg', 'png', 'gif', 'heic']
+      const is_supported_image = supported_type.includes(image_type)
+      if (type === undefined) {
+        alert(`看起来这不是一个图片格式（blob type: ${blob.type}），请重新选择`)
+      } else if (!is_supported_image) {
+        alert(`🧎对不起，目前暂不支持该格式(${image_type})，我们只支持这些格式：${supported_type.join('|')}`)
+      } else {
+        const is_heic = blob.type.includes('heic') || blob.type.includes('heif')
+        if (is_heic) {
+          const jpg_buf = await heicConvert({
+            buffer: new Uint8Array(array_buffer) as unknown as ArrayBuffer,
+            format: 'JPEG',
+            quality: 0.8,
+          })
+          const jpg_blob = new Blob([new Uint8Array(jpg_buf)], { type: 'image/jpeg' })
+          setWillUploadImage({
+            filename: `img-${Date.now()}.jpg`,
+            blob: jpg_blob,
+            blob_url: URL.createObjectURL(jpg_blob)
+          })
+        } else {
+          setWillUploadImage({ filename: file.name, blob, blob_url: URL.createObjectURL(blob) })
+        }
+      }
+    }
+  }, [])
+
   return (
     <div>
       <ImageUploading
-        inputProps={{
-          // style: { WebkitAppearance: 'none', display: 'none' }
-        }}
         value={files}
-        onChange={(e) => {
-          console.log('onChange', e)
-          setFiles(e)
+        maxNumber={1}
+        onChange={(files) => {
+          const file = files.pop()
+          if (file === undefined) {
+            alert('请选择文件')
+          } else {
+            handleFile(file).catch(e => {
+              console.error('handleFile error', e)
+              alert(`处理图片失败: ${e?.message}`)
+            })
+          }
+        }}
+        onError={(err, files) => {
+          console.error('ImageUploading error', err, files)
+          alert('文件上传处理出错')
         }}
       >
         {({
-          imageList,
+          // imageList,
           onImageUpload,
           onImageRemoveAll,
           onImageUpdate,
           onImageRemove,
           isDragging,
-          dragProps
+          dragProps,
+          errors
         }) => {
           return (
             <div className="upload__image-wrapper">
@@ -161,23 +202,17 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
                 onClick={onImageUpload}
                 {...dragProps}
               >
+                {/* {errors && <div>
+                  {errors.maxNumber && <span>Number of selected images exceed maxNumber</span>}
+                  {errors.acceptType && <span>Your selected file type is not allow</span>}
+                  {errors.maxFileSize && <span>Selected file size exceed maxFileSize</span>}
+                  {errors.resolution && <span>Selected file is not match your desired resolution</span>}
+                </div>} */}
                 <PreviewBox
-                  previewURL={ selectPreviewPicture(imageList, photo ? photo.thumb_url : null) }
+                  canClick={is_edit_mode}
+                  previewURL={ selectPreviewPicture(photo ? photo.thumb_url : null, will_upload_image) }
                   isDragging={ isDragging }
                 />
-                {
-                  // preview_image_url === null ? '点击选择作品，或者拖拽文件到此处' :(
-                  //   imageList.map((image, index) => (
-                  //     <div key={index} className="image-item">
-                  //       <img src={image.dataURL} alt="" width="100" />
-                        /* <div className="image-item__btn-wrapper">
-                          <button onClick={() => onImageUpdate(index)}>Update</button>
-                          <button onClick={() => onImageRemove(index)}>Remove</button>
-                        </div> */
-                  //     </div>
-                  //   ))
-                  // )
-                }
               </button>
               {/* <button onClick={onImageRemoveAll}>Remove all images</button> */}
             </div>
@@ -194,34 +229,23 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
         placeholder='相片介绍，选填'
       />
 
-      <div className={s.ButtonContainer}>
-        <button
-          className={s.ButtonBefore}
-          onClick={handleSubmit}
-          type="button"
-        >提交</button>
+      <div style={{ marginTop: '20px' }}>
+        <SkeuomorphismButton onClick={handleSubmit}>提 交</SkeuomorphismButton>
       </div>
 
       {
-        isProcessing && <div className="loading-wrapper">
-          <Loading />
-        </div>
+        isProcessing && <LoadingMask />
       }
     </div>
   )
 }
 
 function selectPreviewPicture(
-  imageList: ImageListType,
-  exists_photo_thumb_url: string | null
+  exists_photo_thumb_url: string | null,
+  will_upload_image: WillUploadImage,
 ): string | null {
-  if (imageList.length) {
-    const { dataURL } = imageList[0]
-    if (dataURL === undefined) {
-      return exists_photo_thumb_url
-    } else {
-      return dataURL
-    }
+  if (will_upload_image !== null) {
+    return will_upload_image.blob_url
   } else if (exists_photo_thumb_url !== null) {
     return exists_photo_thumb_url
   } else {
@@ -231,6 +255,7 @@ function selectPreviewPicture(
 
 export function PreviewBox({
   previewURL,
+  canClick,
   isDragging,
   height,
   imageAppendClassName = '',
@@ -238,14 +263,21 @@ export function PreviewBox({
   imageAppendClassName?: HTMLElement['className']
   height?: CSSProperties['height'],
   previewURL: string | null
+  canClick: boolean,
   isDragging: boolean
 }) {
-  const [ loaded, blob_url ] = useQueueload(
+
+  useEffect(() => {
+    global_queue.startWorking()
+  }, [previewURL])
+
+  const [ load_status, blob_url ] = useQueueload(
     (previewURL === null) ? undefined : previewURL,
     true
   )
+
   return (
-    <div className={s.PreviewBox}>
+    <div className={s.PreviewBox} style={{ cursor: canClick ? 'pointer' : '' }}>
       {
         useMemo(() => {
           if (previewURL === null) {
@@ -253,7 +285,7 @@ export function PreviewBox({
               { isDragging ? '对，就是这样，该放手了' : '点击此处选择作品，或者拖拽文件到此处' }
             </div>
           } else {
-            if (loaded) {
+            if (load_status === 'LOADED') {
               return (
                 <img
                   className={[s.PreviewImage, isDragging ? s.IsDragging : '', imageAppendClassName].join(' ')}
@@ -261,20 +293,20 @@ export function PreviewBox({
                   src={blob_url}
                 />
               )
+            } else if (load_status === 'FAILURE') {
+              return (<>图片读取失败</>)
             } else {
               return (
                 <div
                   className={[s.PreviewImage, isDragging ? s.IsDragging : '', imageAppendClassName].join(' ')}
                   style={{ height }}
                 >
-                  <div className="loading-wrapper">
-                    <Loading />
-                  </div>
+                  <LoadingMask />
                 </div>
               )
             }
           }
-        }, [blob_url, height, imageAppendClassName, isDragging, loaded, previewURL])
+        }, [previewURL, blob_url, height, imageAppendClassName, isDragging, load_status])
       }
     </div>
   )

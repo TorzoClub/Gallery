@@ -1,21 +1,28 @@
-import { useEffect, useState } from 'react'
+import { pipe } from 'ramda'
+import { useId, useMemo } from 'react'
 import { Wait, Memo, Signal, nextTick } from 'new-vait'
 import { findListByProperty, removeListItemByIdx } from './common'
+import useSWR from 'swr'
 
 import download from './download'
+import useSafeState from 'hooks/useSafeState'
 
-type Load = {
+export const __MAX_PARALLEL_NUMBER__ = 5
+
+type LoadResult = {
   blob: Blob;
   blobUrl: string;
 }
+
+export const global_queue = QueueLoad()
 
 function searchCache(src: string | undefined): readonly [boolean, string] {
   if (src === undefined) {
     return [false, '']
   } else {
-    const task = global_cache.get(src)
+    const task = global_queue.cache.get(src)
     if (task) {
-      return [false, task.blobUrl]
+      return [true, task.blobUrl]
     } else {
       return [false, '']
     }
@@ -23,49 +30,50 @@ function searchCache(src: string | undefined): readonly [boolean, string] {
 }
 
 function blobToBase64(blob: Blob) {
-  return new Promise<string>((resolve, _) => {
+  return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
     reader.onloadend = () => {
       if (typeof reader.result === 'string') {
         resolve(reader.result)
       } else {
-        _(new Error('reader.result !== "string"'))
+        reject(new Error('reader.result !== "string"'))
       }
     }
     reader.readAsDataURL(blob)
-    reader.onerror = _
+    reader.onerror = reject
   })
 }
 
-export function useQueueload(loadsrc: string | undefined, need_base64_url: boolean = false) {
-  const [ cached, url ] = searchCache(loadsrc)
-  const [ loaded, setLoaded ] = useState(cached)
-  const [ back_src, setBackSrc ] = useState<string>(url)
-
-  useEffect(() => {
-    if (loadsrc) {
-      let unmounted = false
-      globalQueueLoad(loadsrc).then(res => {
-        if (unmounted) { return }
-        if (need_base64_url) {
-          return blobToBase64(res.blob).then((base64_url) => {
-            if (unmounted) { return }
-            setBackSrc(base64_url)
-            setLoaded(true)
-          })
-        } else {
-          setBackSrc(res.blobUrl)
-          setLoaded(true)
-        }
-      })
-      return () => { unmounted = true }
-    }
-  }, [loadsrc, need_base64_url])
-
-  return [loaded, back_src] as const
+const __swr_cfg = {
+  revalidateOnFocus: false,
+  revalidateOnReconnect: false,
+  shouldRetryOnError: false,
 }
+export function useQueueload(loadsrc: string | undefined, need_base64_url: boolean = false) {
+  const id = useId()
+  const res = useSWR(`${id}-${loadsrc}-${need_base64_url}`, async () => {
+    const { blob, blobUrl } = await global_queue.load(loadsrc || '')
+    return need_base64_url ? await blobToBase64(blob) : blobUrl
+  }, __swr_cfg)
 
-export const MAX_PARALLEL_NUMBER = 3
+  const status = useMemo(() => {
+    if (res.isLoading || res.isValidating) {
+      return 'LOADING'
+    } else if (res.error) {
+      return 'FAILURE'
+    } else if (res.data) {
+      return 'LOADED'
+    } else {
+      return 'NONE'
+    }
+  }, [res.data, res.error, res.isLoading, res.isValidating])
+
+  const url = useMemo(() => res.data || '', [res.data])
+
+  const retry = res.mutate
+
+  return [ status, url, retry ] as const
+}
 
 type Src = string
 type LoadTask = {
@@ -73,24 +81,40 @@ type LoadTask = {
   priority: number
 }
 
-const [ globalQueueLoad, [getGlobalQueue, setGlobalQueue], global_cache ] = QueueLoad()
-export { globalQueueLoad, getGlobalQueue, setGlobalQueue, global_cache }
+function resortQueue(queue: LoadTask[]) {
+  return queue.sort((a, b) => b.priority - a.priority)
+}
+
+function addTask(queue: LoadTask[], new_task: LoadTask) {
+  const idx = queue.findIndex(t => new_task.priority >= t.priority)
+  if (idx === -1) {
+    return queue.concat(new_task)
+  } else {
+    return queue.slice(0, idx).concat(
+      [ new_task ], queue.slice(idx, queue.length)
+    )
+  }
+}
+
+const removeTaskBySrc = (queue: LoadTask[], src: Src) =>
+  removeListItemByIdx(
+    queue,
+    findListByProperty(queue, 'src', src)
+  )
 
 export function QueueLoad() {
+  const [getWorkingStatus, setWorkingStatus] = Memo(false)
   const [getQueue, setQueue] = Memo<LoadTask[]>([])
+  const setQueueSafely = pipe(resortQueue, setQueue)
+
   const [getConcurrentTasks, setConcurrentTasks] = Memo<LoadTask[]>([])
-  const cache = new Map<Src, Load>()
-  const loaded_signal = Signal<{ src: string, data: Load }>()
+  const cache = new Map<Src, LoadResult>()
+  const loaded_signal = Signal<{ src: string, data: LoadResult }>()
+  const load_failure_signal = Signal<{ src: string, e: any }>()
 
   loaded_signal.receive(({ src, data }) => {
     cache.set(src, data)
   })
-
-  const removeTaskBySrc = (queue: LoadTask[], src: Src) =>
-    removeListItemByIdx(
-      queue,
-      findListByProperty(queue, 'src', src)
-    )
 
   const [isLoading, setLoading] = Memo(false)
   function startLoad() {
@@ -99,85 +123,98 @@ export function QueueLoad() {
       return
     } else if (
       isLoading() &&
-      ( getConcurrentTasks().length >= MAX_PARALLEL_NUMBER )
+      ( getConcurrentTasks().length >= __MAX_PARALLEL_NUMBER__ )
     ) {
       return
     } else {
       setLoading(true)
 
       const [ task, ...remain_queue ] = getQueue()
-      setConcurrentTasks([ task, ...getConcurrentTasks() ])
-
       setQueue(remain_queue)
 
-      download({
-        url: task.src
-      }).then(blob => {
-        return {
-          blob,
-          blobUrl: URL.createObjectURL(blob)
-        }
-      }).then(data => {
-        const concurrent_tasks = getConcurrentTasks()
-        setConcurrentTasks(removeTaskBySrc(concurrent_tasks, task.src))
+      const idx = findListByProperty(getConcurrentTasks(), 'src', task.src)
+      if (idx === -1) {
+        setConcurrentTasks([ task, ...getConcurrentTasks() ]);
+        (async () => {
+          const cached_data = cache.get(task.src)
+          if (cached_data) {
+            return cached_data.blob
+          } else {
+            return download({ url: task.src })
+          }
+        })()
+        // .then(b => timeout(1580 - Math.floor(Math.random()*750)).then(() => b)) // 测试用
+        .then(blob => {
+          const data = {
+            blob,
+            blobUrl: URL.createObjectURL(blob)
+          }
+          const concurrent_tasks = getConcurrentTasks()
+          setConcurrentTasks(removeTaskBySrc(concurrent_tasks, task.src))
 
-        setLoading(false)
-        loaded_signal.trigger({
-          src: task.src,
-          data
+          loaded_signal.trigger({
+            src: task.src,
+            data
+          })
+
+          startLoad()
         })
-        startLoad()
-      })
-    }
-  }
+        .catch(e => {
+          const concurrent_tasks = getConcurrentTasks()
+          setConcurrentTasks(removeTaskBySrc(concurrent_tasks, task.src))
 
-  function addTask(queue: LoadTask[], new_task: LoadTask) {
-    const idx = queue.findIndex(t => {
-      if (new_task.priority < t.priority) {
-        return false
-      } else {
-        return true
+          console.warn('QueueLoad load failure:', e)
+          load_failure_signal.trigger({ src: task.src, e })
+
+          startLoad()
+        })
       }
-    })
-    if (idx === -1) {
-      return [ ...queue, new_task ]
-    } else {
-      return [
-        ...queue.slice(0, idx),
-        new_task,
-        ...queue.slice(idx, queue.length)
-      ]
     }
   }
 
-  async function load(src: string, priority?: number): Promise<Load> {
+  async function load(src: string, priority?: number): Promise<LoadResult> {
     const cached_data = cache.get(src)
     if (cached_data) {
       return cached_data
     } else {
-      const [data, setData] = Wait<Load>()
+      const [data, setData, failure] = Wait<LoadResult>()
 
       const queue = getQueue()
       const idx = findListByProperty(queue, 'src', src)
       if (idx === -1) {
         const p = (priority === undefined) ? 1 : priority
         setQueue(addTask(queue, { src, priority: p }))
-        nextTick().then(startLoad)
+        // nextTick().then(startLoad)
+        nextTick().then(() => getWorkingStatus() && startLoad())
       } else {
         const task = queue[idx]
         setQueue(
           addTask(
             removeListItemByIdx(queue, idx),
-            { src, priority: priority === undefined ? task.priority : priority }
+            {
+              src,
+              priority: priority === undefined ? task.priority : priority
+            }
           )
         )
       }
 
-      loaded_signal.receive(
-        function loadedHandler(loaded: { src: Src, data: Load }) {
+      const cancelLoadedHandler = loaded_signal.receive(
+        (loaded: { src: Src, data: LoadResult }) => {
           if (loaded.src === src) {
-            loaded_signal.cancelReceive(loadedHandler)
+            cancelLoadedHandler()
+            cancelFailureHandler()
             setData(loaded.data)
+          }
+        }
+      )
+
+      const cancelFailureHandler = load_failure_signal.receive(
+        ({ src: failure_src, e }) => {
+          if (failure_src === src) {
+            cancelFailureHandler()
+            cancelLoadedHandler()
+            failure(e)
           }
         }
       )
@@ -186,5 +223,17 @@ export function QueueLoad() {
     }
   }
 
-  return [ load, [ getQueue, setQueue ], cache ] as const
+  function startWorking() {
+    setWorkingStatus(true)
+    getWorkingStatus() && startLoad()
+  }
+
+  return {
+    load,
+    startWorking,
+    getQueue,
+    setQueueSafely,
+    isLoading,
+    cache,
+  }
 }

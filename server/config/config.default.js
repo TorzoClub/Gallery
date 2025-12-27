@@ -6,8 +6,14 @@ const path = require('path');
 const absolutePath = inputPath => path.join(__dirname, '../', inputPath);
 
 const staticPath = absolutePath('./static');
+
+const MAX_IMAGE_DIMENSION = 3840;
+
+// ⚠️ 注意，imageThumbSavePath、imageSavePath 请不要放其他文件
+// 因为在这两个目录里会自动清理无用的文件
 const imageThumbSavePath = path.join(staticPath, './thumb/');
 const imageSavePath = path.join(staticPath, './src/');
+const imageTempPath = path.join(staticPath, './temp/');
 
 /**
  * @param {Egg.EggAppInfo} appInfo app info
@@ -17,7 +23,9 @@ module.exports = appInfo => {
    * built-in config
    * @type {Egg.EggAppConfig}
    **/
-  const config = exports = {};
+  const config = exports = {
+    MAX_IMAGE_DIMENSION,
+  };
 
   // api 前缀，注意要以 / 结尾
   config.apiPrefix = '/';
@@ -40,6 +48,11 @@ module.exports = appInfo => {
   const imagePath = path.join(config.static.prefix, 'src');
   const imageThumbPath = path.join(config.static.prefix, 'thumb');
 
+  const convert_formats = Object.freeze('jpg avif webp'.split(' '));
+  const popularly_formats = Object.freeze([ 'jpg', 'jpeg', 'png', 'gif' ]);
+  const next_gen_formats = Object.freeze([ 'avif', 'webp' ]);
+  const supported_formats = Object.freeze([ ...popularly_formats, ...next_gen_formats ]);
+
   config.multipart = {
     fieldNameSize: 256,
     fieldSize: '15MB',
@@ -52,7 +65,7 @@ module.exports = appInfo => {
     fileExtensions: [],
 
     // 如果希望覆盖框架内置的白名单，可以配置 whitelist 属性.当重写了 whitelist 时，fileExtensions 不生效。
-    whitelist: [ '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.tif', '.avif' ],
+    whitelist: supported_formats.map(format => `.${format}`),
   };
 
   config.development = {
@@ -61,6 +74,7 @@ module.exports = appInfo => {
     ignoreDirs: [
       imageThumbSavePath,
       imageSavePath,
+      imageTempPath,
     ],
   };
 
@@ -70,11 +84,16 @@ module.exports = appInfo => {
 
     startBeforeGenerateThumb: false,
 
-    imageThumbSize: 640,
-    avatarThumbSize: 192,
+    default_image_thumb_size: 640,
+
+    popularly_formats,
+    next_gen_formats,
+    supported_formats,
+    convert_formats,
 
     imageThumbSavePath,
     imageSavePath,
+    imageTempPath,
 
     imagePath,
     imageThumbPath,

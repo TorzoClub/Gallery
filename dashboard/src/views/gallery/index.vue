@@ -1,7 +1,7 @@
 <template>
   <ElContainer
     v-loading="loading"
-    style="padding-top: 20px; width: 1180px"
+    style="padding-top: 20px; max-width: 1180px"
     direction="vertical"
   >
     <ElHeader height="2em">
@@ -61,7 +61,7 @@
         </ElTableColumn>
       </ElTable>
 
-      <ElDialog :title="(choosedGalleryIdx === 'new') ? '创建相册' : '查看/编辑相册信息'" :visible="(choosedGalleryIdx === 'new') || (choosedGalleryIdx >= 0)">
+      <ElDialog :title="(choosedGalleryIdx === 'new') ? '创建相册' : '查看/编辑相册信息'" :visible="(choosedGalleryIdx === 'new') || (choosedGalleryIdx >= 0)" width="580px" size="small">
         <ElForm ref="galleryForm" :model="choosedGalleryForm" :rules="rules">
           <ElFormItem label="相册名称" :label-width="'120px'" prop="name" required>
             <el-input v-model="choosedGalleryForm.name" autocomplete="off"></el-input>

@@ -1,7 +1,7 @@
 <template>
   <ElContainer
     v-loading="loading"
-    style="padding-top: 20px; width: 1024px"
+    style="padding-top: 20px;"
     direction="vertical"
   >
     <ElHeader height="2em">
@@ -23,7 +23,7 @@
             <ImageBox :src="scope.row.avatar_thumb_url" style="width: 64px; height: 64px;" />
           </template>
         </ElTableColumn>
-        <ElTableColumn prop="name" label="成员名" align="center" />
+        <ElTableColumn prop="name" label="成员名" align="center" width="256" />
         <ElTableColumn prop="qq_num" label="QQ号" align="center" width="128" />
         <ElTableColumn prop="created_at" label="创建时间" align="center" width="150">
           <template slot-scope="scope">

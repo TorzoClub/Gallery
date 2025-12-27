@@ -138,12 +138,11 @@
   font-style: italic;
 
   -webkit-filter: blur(0px);
+  filter: blur(0px);
   transform: translateY(0);
   transition-property: -webkit-filter color transform;
   transition-duration: 382ms;
 
   font-weight: 600;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-"Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-sans-serif;
+  font-family: var(--app-default-font);
 }

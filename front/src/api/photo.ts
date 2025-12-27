@@ -1,3 +1,5 @@
+import { appInitInfomation } from 'App'
+import { Memo } from 'new-vait'
 import request from 'utils/request'
 
 type ID = number
@@ -54,7 +56,7 @@ export const normal2InActive = (p: PhotoNormal): PhotoInActive => ({
   member_id: null,
 })
 
-type GalleryCommon = {
+export type GalleryCommon = {
   id: ID
   created_at: DateTimeString
   index: number
@@ -85,7 +87,76 @@ export type fetchListResult = {
 export const fetchList = () => request<fetchListResult>({
   method: 'GET',
   url: 'photo/'
-})
+}).then(transformListPictureType)
+
+function transformListPictureType(data: fetchListResult | fetchListWithQQNumResult) {
+  if (data.active) {
+    data.active.photos = transformPhotoListThumbURL(data.active.photos)
+  }
+
+  data.galleries = data.galleries.map(gallery => {
+    gallery.photos = transformPhotoListThumbURL(gallery.photos)
+    gallery.photos = transformMemberThumbURL(gallery.photos)
+    return gallery
+  })
+
+  return data
+}
+
+function transformMemberThumbURL<T extends PhotoNormal>(list: T[]) {
+  return list.map(photo => {
+    photo.member.avatar_thumb_url = transformPictureURL(photo.member.avatar_thumb_url)
+    return photo
+  })
+}
+
+function transformPhotoListThumbURL<T extends PhotoCommon>(list: T[]) {
+  return (
+    list.map(photo => {
+      return {
+        ...photo,
+        thumb: transformPictureURL(photo.thumb),
+        thumb_url: transformPictureURL(photo.thumb_url),
+        thumb_urlpath: transformPictureURL(photo.thumb_urlpath),
+      }
+    })
+  )
+}
+
+export function toOptimizedImageType(picture_url: string): string {
+  const [ getAppInitInfo ] = appInitInfomation
+  const { avif, webp } = getAppInitInfo().picutre_support
+  if (avif) {
+    return picture_url.replace('.jpg', '.avif')
+  } else if (webp) {
+    return picture_url.replace('.jpg', '.webp')
+  } else {
+    return picture_url
+  }
+}
+
+export function canUseCacheWorker(): boolean {
+  const { NODE_ENV, REACT_APP_CACHE_WORKER_URL } = process.env
+  if (NODE_ENV === 'development') {
+    return false
+  } else if (typeof REACT_APP_CACHE_WORKER_URL !== 'string' || REACT_APP_CACHE_WORKER_URL.length === 0) {
+    return false
+  } else {
+    return true
+  }
+}
+
+export function transformCacheWorkerURL(picture_url: string): string {
+  if (canUseCacheWorker()) {
+    return `${process.env.REACT_APP_CACHE_WORKER_URL}?target=${encodeURIComponent(picture_url)}`
+  } else {
+    return picture_url
+  }
+}
+
+function transformPictureURL(picture_url: string): string {
+  return toOptimizedImageType(picture_url)
+}
 
 export type fetchListWithQQNumResult = {
   active: GalleryInActive | null
@@ -95,7 +166,7 @@ export const fetchListWithQQNum = (qq_num: number) => request<fetchListWithQQNum
   method: 'POST',
   url: 'member/photo',
   data: { qq_num }
-})
+}).then(transformListPictureType)
 
 export const vote = ({
   gallery_id,

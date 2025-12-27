@@ -170,7 +170,12 @@ $BGGradientEdgeWidth: 20px;
     height: 100%;
     width: calc(100vw + #{$BGGradientEdgeWidth} * 2);
 
-    background: linear-gradient(to right, transparent 0px, white #{$BGGradientEdgeWidth}, white calc(100vw + (#{$BGGradientEdgeWidth} * 2) - #{$BGGradientEdgeWidth}), transparent);
+    background: linear-gradient(
+      to right, transparent 0px,
+      #FFF #{$BGGradientEdgeWidth},
+      #FFF calc(100vw + (#{$BGGradientEdgeWidth} * 2) - #{$BGGradientEdgeWidth}),
+      transparent
+    );
   }
 
   .fs-body {

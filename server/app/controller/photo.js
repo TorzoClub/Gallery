@@ -44,7 +44,8 @@ module.exports = app => {
           // 3. or just consume it with another for await
 
           // WARNING: You should almost never use the origin filename as it could contain malicious input.
-          const temp_path = path.join(os.tmpdir(), randomUUID() + path.extname(filename));
+          let temp_path = path.join(os.tmpdir(), randomUUID() + path.extname(filename));
+          temp_path = temp_path.toLowerCase();
           await pipeline(part, fs.createWriteStream(temp_path)); // use `pipeline` not `pipe`
           files.push({
             temp_path,
@@ -78,12 +79,9 @@ module.exports = app => {
     async create(ctx) {
       const [ files, fields ] = await this.processingMultipart(ctx);
 
-      // console.log('done fields', fields);
-      // console.log('done files', files);
-
       const file = this.selectImageFile(files, true);
 
-      const parsed_opts = {
+      const opts = {
         gallery_id: fields.gallery_id,
         qq_num: parseInt(fields.qq_num),
         desc: fields.desc,
@@ -93,13 +91,16 @@ module.exports = app => {
         gallery_id: { type: 'id', required: true },
         qq_num: { type: 'qq_num', required: true },
         desc: { type: 'string', required: true, allowEmpty: true },
-      }, parsed_opts);
+      }, opts);
 
       const result = await this.service.photo.createBySubmission({
-        // mime,
         imagefile_path: file.temp_path,
-        ...parsed_opts,
+        ...opts,
       });
+
+      for (const file of files) {
+        await fs.promises.unlink(file.temp_path);
+      }
 
       ctx.backData(200, result);
     }

@@ -5,48 +5,18 @@ const mock = require('egg-mock');
 const {
   constructEnvironment,
   getPhotoById,
-  test_image_height,
-  test_image_path,
-  test_image_width,
   removePhotoById,
-  test_avatar_image_path
+  test_avatar_image_path,
+  default_upload_image_path,
+  test_avatar_image_width,
+  test_avatar_image_height,
+  default_upload_image_height,
+  default_upload_image_width,
+  submissionPhoto,
+  editSubmissionPhoto,
+  cancelMySubmission
 } = require('./common');
 
-async function editSubmissionPhoto(app, {
-  photo_id,
-  qq_num,
-  desc,
-  image_path = test_avatar_image_path,
-  expect_code = 200
-}) {
-  const { body } = await app.httpRequest()
-    .patch(`/photo/${photo_id}`)
-    .field('desc', desc)
-    .field('qq_num', `${qq_num}`)
-    .attach('image', image_path)
-    .expect(expect_code);
-
-  return body
-}
-
-async function submissionPhoto(app, {
-  gallery_id,
-  qq_num,
-  desc,
-  image_path = test_avatar_image_path,
-  expect_code = 200
-}) {
-  const { body } = await app.httpRequest()
-    .post('/photo')
-    .field('name', `image-${Date.now()}`)
-    .field('gallery_id', `${gallery_id}`)
-    .field('qq_num', `${qq_num}`)
-    .field('desc', desc)
-    .attach('image', image_path)
-    .expect(expect_code);
-
-  return body
-}
 async function findMyPhoto(app, {
   gallery_id,
   qq_num,
@@ -54,17 +24,6 @@ async function findMyPhoto(app, {
 }) {
   const { body } = await app.httpRequest()
     .get(`/gallery/${gallery_id}/submission/${qq_num}`)
-    .expect(expect_code);
-
-  return body
-}
-async function cancelMySubmission(app, {
-  photo_id,
-  qq_num,
-  expect_code = 200
-}) {
-  const { body } = await app.httpRequest()
-    .delete(`/photo/${photo_id}?qq_num=${qq_num}`)
     .expect(expect_code);
 
   return body
@@ -204,8 +163,8 @@ describe('member submission', () => {
     assert(created_photo.member_id === memberA.id)
     assert(created_photo.gallery_id === gallery.id)
     assert(created_photo.desc === 'description')
-    assert(created_photo.width === 160)
-    assert(created_photo.height === 160) // 上传的图片就是 160x160 的
+    assert(created_photo.width === 1)
+    assert(created_photo.height === 1) // 上传的图片就是 1x1 的
   })
 
   it('should prevent submission out of the allowed period', async () => {
@@ -292,7 +251,7 @@ describe('member submission', () => {
     })
 
     const ctx = app.mockContext()
-    const created_file = await ctx.service.image.storeByFilePath(test_avatar_image_path);
+    const created_file = await ctx.service.image.storeByFilePath(default_upload_image_path);
 
     const successes = []
     const failures = []
@@ -384,9 +343,10 @@ describe('member submission', () => {
 })
 
 describe('member edit submission', () => {
-  before(async () => {
-    setEnvironmentSystem('2000/01/01') // 设定时间为 2000/01/01
-  })
+  function mockSystemTime() {
+    setEnvironmentSystem('2000/01/01 00:00:00') // 设定时间为 2000/01/01
+  }
+  before(mockSystemTime)
   after(() => {
     resetEnvironmentDate()
   })
@@ -406,32 +366,42 @@ describe('member edit submission', () => {
       desc: 'description',
     })
 
+    setEnvironmentSystem('2000/01/01 00:00:01')
+
     const edited_photo = await editSubmissionPhoto(app, {
       photo_id: created_photo.id,
-      image_path: test_image_path,
+      image_path: test_avatar_image_path,
       qq_num: `${memberA.qq_num}`,
       desc: 'edited desc',
       expect_code: 200
     })
 
+    setEnvironmentSystem('2000/01/01 00:00:02')
+
     assert(created_photo.id === edited_photo.id)
 
     {
-      const photo = await getPhotoById(token, app, edited_photo.id, 200)
+      setEnvironmentSystem('2000/01/01 00:00:03')
+
+      const photo = await getPhotoById(token, app, created_photo.id, 200)
       assert(photo.desc === 'edited desc')
-      assert(photo.width === test_image_width)
-      assert(photo.height === test_image_height)
+      assert(photo.width === test_avatar_image_width)
+      assert(photo.height === test_avatar_image_height)
     }
     {
+      setEnvironmentSystem('2000/01/01 00:00:04')
+
       await editSubmissionPhoto(app, {
-        photo_id: created_photo.id,
-        image_path: test_image_path,
+        photo_id: edited_photo.id,
+        image_path: default_upload_image_path,
         qq_num: `${memberA.qq_num}`,
-        desc: '',
+        desc: 'again_edit',
         expect_code: 200
       })
       const photo = await getPhotoById(token, app, edited_photo.id, 200)
-      assert(photo.desc === '')
+      assert(photo.desc === 'again_edit')
+      assert(photo.width === default_upload_image_width)
+      assert(photo.height === default_upload_image_height)
     }
   })
 
@@ -442,7 +412,7 @@ describe('member edit submission', () => {
 
     await editSubmissionPhoto(app, {
       photo_id: created_photo.id,
-      image_path: test_image_path,
+      image_path: default_upload_image_path,
       qq_num: `${memberA.qq_num}`,
       desc: 'edited desc',
       expect_code: 404
@@ -453,7 +423,7 @@ describe('member edit submission', () => {
     const [ , { app, memberA, photoA } ] = await preset('1990', '2005', '2020')
     await editSubmissionPhoto(app, {
       photo_id: photoA.id,
-      image_path: test_image_path,
+      image_path: default_upload_image_path,
       qq_num: `${memberA.qq_num}`,
       desc: 'edited desc',
       expect_code: 403
@@ -466,7 +436,7 @@ describe('member edit submission', () => {
       await updateGallery(app, token, 200, gallery.id, { submission_expire: new Date('1995') })
       await editSubmissionPhoto(app, {
         photo_id: created_photo.id,
-        image_path: test_image_path,
+        image_path: default_upload_image_path,
         qq_num: `${memberA.qq_num}`,
         desc: 'edited desc',
         expect_code: 403
@@ -477,7 +447,7 @@ describe('member edit submission', () => {
       await updateGallery(app, token, 200, gallery.id, { submission_expire: new Date('1995'), event_end: new Date('1999') })
       await editSubmissionPhoto(app, {
         photo_id: created_photo.id,
-        image_path: test_image_path,
+        image_path: default_upload_image_path,
         qq_num: `${memberA.qq_num}`,
         desc: 'edited desc',
         expect_code: 403
@@ -488,7 +458,7 @@ describe('member edit submission', () => {
       await updateGallery(app, token, 200, gallery.id, { event_start: new Date('2010'), submission_expire: new Date('2020'), event_end: new Date('2030') })
       await editSubmissionPhoto(app, {
         photo_id: created_photo.id,
-        image_path: test_image_path,
+        image_path: default_upload_image_path,
         qq_num: `${memberA.qq_num}`,
         desc: 'edited desc',
         expect_code: 403
@@ -500,7 +470,7 @@ describe('member edit submission', () => {
     const [ created_photo, { app } ] = await preset('1990', '2005', '2020')
     await editSubmissionPhoto(app, {
       photo_id: created_photo.id,
-      image_path: test_image_path,
+      image_path: default_upload_image_path,
       qq_num: `114514404404`,
       desc: 'edited desc',
       expect_code: 404
@@ -511,11 +481,13 @@ describe('member edit submission', () => {
     const [ created_photo, { token, app, memberA } ] = await preset('1990', '2005', '2020')
     const qq_num = memberA.qq_num
 
+    setEnvironmentSystem('2000/01/01 00:01:00')
+
     const edited_photo = await app.httpRequest()
       .patch(`/photo/${created_photo.id}`)
       .field('qq_num', qq_num)
       // .field('desc', 'dddd')
-      .attach('image', test_image_path)
+      .attach('image', default_upload_image_path)
       .expect(200)
       .then(res => res.body);
     {
@@ -524,13 +496,17 @@ describe('member edit submission', () => {
       assert(photo.id === created_photo.id)
       assert(photo.src !== created_photo.src)
       assert(photo.src === edited_photo.src)
+      assert(photo.width === edited_photo.height)
+      assert(photo.width === edited_photo.height)
     }
+
+    setEnvironmentSystem('2000/01/01 00:02:00')
 
     await app.httpRequest()
       .patch(`/photo/${created_photo.id}`)
       .field('qq_num', qq_num)
       .field('desc', 'editeddddd')
-      // .attach('image', test_image_path)
+      // .attach('image', default_upload_image_path)
       .expect(200);
     {
       const photo = await getPhotoById(token, app, created_photo.id)
@@ -538,6 +514,8 @@ describe('member edit submission', () => {
       assert(photo.id === created_photo.id)
       assert(photo.src === edited_photo.src)
     }
+
+    mockSystemTime()
   })
 
   it('should prevent edit using incorrect data format', async () => {
@@ -546,13 +524,13 @@ describe('member edit submission', () => {
       .patch(`/photo/${created_photo.id}`)
       .field('desc', 'dddd')
       .field('qq_num', 'qq_numincroeect')
-      .attach('image', test_image_path)
+      .attach('image', default_upload_image_path)
       .expect(400);
     await app.httpRequest()
       .patch(`/photo/i23n3cro2221`)
       .field('desc', 'dddd')
       .field('qq_num', `${memberA.qq_num}`)
-      .attach('image', test_image_path)
+      .attach('image', default_upload_image_path)
       .expect(400);
   })
 })

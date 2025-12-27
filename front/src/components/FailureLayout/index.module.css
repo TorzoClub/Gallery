@@ -234,6 +234,7 @@
 .TurnOffEffect {
   animation: turn-off 0.55s cubic-bezier(0.230, 1.000, 0.320, 1.000);
   animation-fill-mode: forwards;
+  background-color: white;
 }
 
 .FailureLayoutContainer {

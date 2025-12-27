@@ -1,7 +1,7 @@
 <template>
   <ElContainer
     v-loading="loading"
-    style="padding-top: 20px; width: 1120px"
+    style="padding-top: 20px; max-width: 1120px"
     direction="vertical"
   >
     <ElHeader height="32px">
@@ -17,6 +17,8 @@
       <ElButton size="small" type="primary" icon="el-icon-view" @click="$router.push('member')">成员投票情况</ElButton>
 
       <ElButton size="small" type="primary" icon="el-icon-sort" @click="clickReSortByVoteCount">按投票数设定排序</ElButton>
+
+      <ElButton size="small" type="text" icon="el-icon-user">投稿数： {{ list.length }}</ElButton>
     </ElHeader>
 
     <ElMain>

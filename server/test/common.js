@@ -3,27 +3,38 @@
 const assert = require('assert');
 const mock = require('egg-mock');
 
+const default_upload_image_path = `${__dirname}/1x1.png`;
 const test_avatar_image_path = `${__dirname}/avatar.png`;
 const test_image_path = `${__dirname}/test.jpg`;
 const test_image_width = 2970;
 const test_image_height = 4200;
 
 module.exports = {
+  default_upload_image_path,
+  default_upload_image_width: 1,
+  default_upload_image_height: 1,
   test_avatar_image_path,
+  test_avatar_image_width: 160,
+  test_avatar_image_height: 160,
+
   test_image_path,
   test_image_width,
   test_image_height,
 
   createApp,
   getToken,
+  prepareData,
+  constructPlainEnvironment,
   constructEnvironment,
   getHomePagePhotoList,
   fetchListWithQQNum,
   uploadImage,
+  adminCleanImage,
 
   createMember,
   getMemberById,
   removeMemberById,
+  adminUdateMember,
 
   commonCreateGallery,
   getGalleryById,
@@ -31,8 +42,18 @@ module.exports = {
   removeGalleryById,
 
   createPhoto,
+  adminUpdatePhoto,
   getPhotoById,
   removePhotoById,
+
+  adminGetStatistic,
+
+  editSubmissionPhoto,
+  submissionPhoto,
+  cancelMySubmission,
+  adminRefreshThumb,
+
+  submitVote,
 };
 
 let globalApp;
@@ -70,37 +91,54 @@ function getToken(app) {
     });
 }
 
-async function constructEnvironment({
-  need_sync = true,
-  baseNum = 100,
-  gallery: gallery_init = {},
+async function prepareData({
+  token, app, baseNum = 100, gallery: gallery_init = {},
 }) {
-  const app = mock.app();
-  await app.ready();
-  if (need_sync) {
-    await app.model.sync({
-      force: true,
-    });
-  }
-  const token = await getToken(app);
-
   const gallery = await commonCreateGallery(token, app, gallery_init);
 
-  const memberA = await createMember(token, app, { name: 'member-A', qq_num: baseNum + 1 });
-  const memberB = await createMember(token, app, { name: 'member-B', qq_num: baseNum + 2 });
-  const memberC = await createMember(token, app, { name: 'member-C', qq_num: baseNum + 3 });
+  const memberA = await createMember(token, app, {
+    name: 'member-A', qq_num: baseNum + 1,
+  });
+  const memberB = await createMember(token, app, {
+    name: 'member-B', qq_num: baseNum + 2,
+    avatar_src: memberA.avatar_src,
+  });
+  const memberC = await createMember(token, app, {
+    name: 'member-C', qq_num: baseNum + 3,
+    avatar_src: memberA.avatar_src,
+  });
 
-  const authorA = await createMember(token, app, { name: 'author-A', qq_num: baseNum + 4 });
-  const authorB = await createMember(token, app, { name: 'author-B', qq_num: baseNum + 5 });
-  const authorC = await createMember(token, app, { name: 'author-C', qq_num: baseNum + 6 });
+  const authorA = await createMember(token, app, {
+    name: 'author-A', qq_num: baseNum + 4,
+    avatar_src: memberA.avatar_src,
+  });
+  const authorB = await createMember(token, app, {
+    name: 'author-B', qq_num: baseNum + 5,
+    avatar_src: memberA.avatar_src,
+  });
+  const authorC = await createMember(token, app, {
+    name: 'author-C', qq_num: baseNum + 6,
+    avatar_src: memberA.avatar_src,
+  });
 
-  const photoA = await createPhoto(token, app, { member_id: authorA.id, gallery_id: gallery.id, desc: 'A' });
-  const photoB = await createPhoto(token, app, { member_id: authorB.id, gallery_id: gallery.id, desc: 'B' });
-  const photoC = await createPhoto(token, app, { member_id: authorC.id, gallery_id: gallery.id, desc: 'C' });
+  const photoA = await createPhoto(token, app, {
+    member_id: authorA.id, gallery_id: gallery.id, desc: 'A',
+    src: memberA.avatar_src,
+  });
+  const photoB = await createPhoto(token, app, {
+    member_id: authorB.id,
+    gallery_id: gallery.id,
+    desc: 'B',
+    src: memberA.avatar_src,
+  });
+  const photoC = await createPhoto(token, app, {
+    member_id: authorC.id,
+    gallery_id: gallery.id,
+    desc: 'C',
+    src: memberA.avatar_src,
+  });
 
   return {
-    app,
-    token,
     gallery,
     authorA,
     authorB,
@@ -111,6 +149,31 @@ async function constructEnvironment({
     photoA,
     photoB,
     photoC,
+  };
+}
+
+async function constructPlainEnvironment(need_sync = true) {
+  const app = mock.app();
+  await app.ready();
+  if (need_sync) {
+    await app.model.sync({
+      force: true,
+    });
+  }
+  const token = await getToken(app);
+  return { app, token };
+}
+
+async function constructEnvironment({
+  need_sync = true,
+  baseNum = 100,
+  gallery = {},
+}) {
+  const { app, token } = await constructPlainEnvironment(need_sync);
+  return {
+    app,
+    token,
+    ...(await prepareData({ token, app, baseNum, gallery })),
   };
 }
 
@@ -130,12 +193,16 @@ async function fetchListWithQQNum(app, qq_num, expectStatusCode = 200) {
     .then(res => res.body);
 }
 
-async function uploadImage(token, app, imagePath = test_avatar_image_path) {
+async function uploadImage(
+  token,
+  app,
+  image_path = default_upload_image_path
+) {
   const { body: newImage } = await app.httpRequest()
     .post('/admin/image/upload')
     .set('Authorization', token)
     .field('name', `image-${Date.now()}`)
-    .attach('image', imagePath)
+    .attach('image', image_path)
     .expect(200);
 
   assert(typeof newImage.src === 'string');
@@ -147,8 +214,17 @@ async function uploadImage(token, app, imagePath = test_avatar_image_path) {
   return newImage;
 }
 
+async function adminCleanImage(token, app) {
+  const { body } = await app.httpRequest()
+    .post('/admin/image/clean-unused')
+    .set('Authorization', token)
+    .expect(200)
+  ;
+  return body;
+}
+
 async function createMember(token, app, appendmemberData = {}) {
-  if (!appendmemberData.src) {
+  if (!appendmemberData.avatar_src) {
     const uploadedImage = await uploadImage(token, app);
     appendmemberData.avatar_src = uploadedImage.src;
   }
@@ -179,11 +255,20 @@ function getMemberById(token, app, id, expectStatusCode = 200) {
     .then(res => res.body);
 }
 
-function removeMemberById(token, app, id) {
+function removeMemberById(token, app, id, expect_code = 200) {
   return app.httpRequest()
     .delete(`/admin/member/${id}`)
     .set('Authorization', token)
-    .expect(200)
+    .expect(expect_code)
+    .then(res => res.body);
+}
+function adminUdateMember(token, app, id, data = {}, expect_code = 200) {
+  return app.httpRequest()
+    .patch(`/admin/member/${id}`)
+    .set('Authorization', token)
+    .type('json')
+    .send(data)
+    .expect(expect_code)
     .then(res => res.body);
 }
 
@@ -241,17 +326,17 @@ function removeGalleryById(token, app, id) {
     });
 }
 
-async function createPhoto(token, app, appendmemberData = {}, expect_code = 200) {
-  if (!appendmemberData.src) {
+async function createPhoto(token, app, append_data = {}, expect_code = 200) {
+  if (!append_data.src) {
     const uploadedImage = await uploadImage(token, app);
-    appendmemberData.src = uploadedImage.src;
+    append_data.src = uploadedImage.src;
   }
   const data = {
     member_id: -1,
     gallery_id: -1,
     desc: 'desc',
     // src: uploadedImage.src,
-    ...appendmemberData,
+    ...append_data,
   };
 
   return app.httpRequest()
@@ -263,6 +348,19 @@ async function createPhoto(token, app, appendmemberData = {}, expect_code = 200)
     .then(res => {
       const photo = res.body;
       assert(photo.src === data.src);
+      return photo;
+    });
+}
+
+async function adminUpdatePhoto(token, app, photo_id, data = {}, expect_code = 200) {
+  return app.httpRequest()
+    .patch(`/admin/photo/${photo_id}`)
+    .set('Authorization', token)
+    .type('json')
+    .send(data)
+    .expect(expect_code)
+    .then(res => {
+      const photo = res.body;
       return photo;
     });
 }
@@ -279,6 +377,84 @@ async function removePhotoById(token, app, photoId, expectStatusCode = 200) {
   return app.httpRequest()
     .delete(`/admin/photo/${photoId}`)
     .set('Authorization', token)
+    .expect(expectStatusCode)
+    .then(res => res.body);
+}
+
+async function adminGetStatistic(token, app, expect_code = 200) {
+  return app.httpRequest()
+    .get('/admin/statistic')
+    .set('Authorization', token)
+    .type('json')
+    .expect(expect_code)
+    .then(res => res.body);
+}
+
+async function editSubmissionPhoto(app, {
+  photo_id,
+  qq_num,
+  desc,
+  image_path = default_upload_image_path,
+  expect_code = 200,
+}) {
+  const { body } = await app.httpRequest()
+    .patch(`/photo/${photo_id}`)
+    .field('desc', desc)
+    .field('qq_num', `${qq_num}`)
+    .attach('image', image_path)
+    .expect(expect_code);
+
+  return body;
+}
+
+async function submissionPhoto(app, {
+  gallery_id,
+  qq_num,
+  desc,
+  image_path = default_upload_image_path,
+  expect_code = 200,
+}) {
+  const { body } = await app.httpRequest()
+    .post('/photo')
+    .field('name', `image-${Date.now()}`)
+    .field('gallery_id', `${gallery_id}`)
+    .field('qq_num', `${qq_num}`)
+    .field('desc', desc)
+    .attach('image', image_path)
+    .expect(expect_code);
+
+  return body;
+}
+async function cancelMySubmission(app, {
+  photo_id,
+  qq_num,
+  expect_code = 200,
+}) {
+  const { body } = await app.httpRequest()
+    .delete(`/photo/${photo_id}?qq_num=${qq_num}`)
+    .expect(expect_code);
+
+  return body;
+}
+
+async function adminRefreshThumb(app, token, {
+  src, thumb_size,
+}) {
+  const res = await app.httpRequest()
+    .post('/admin/image/refresh-thumb')
+    .set('Authorization', token)
+    .type('json')
+    .send({ src, thumb_size })
+    .expect(200);
+
+  return res.body;
+}
+
+async function submitVote(app, qq_num, gallery_id, photo_id_list, expectStatusCode = 200) {
+  return app.httpRequest()
+    .post('/member/vote')
+    .type('json')
+    .send({ gallery_id, photo_id_list, qq_num })
     .expect(expectStatusCode)
     .then(res => res.body);
 }

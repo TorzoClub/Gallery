@@ -1,8 +1,10 @@
-import vait from 'vait'
+import { nextTick, timeout } from 'new-vait'
 import React, { useRef, useEffect, useState } from 'react'
 import useDisableScroll from 'hooks/useDisableScroll'
 
 import './style.scss'
+import Loading from 'components/Loading'
+import useMountState from 'hooks/useMountState'
 
 const getCenter = (totalLength: number, length: number) => (totalLength / 2) - (length / 2)
 
@@ -85,6 +87,24 @@ const calcImageFullScreenPos = (
   }
 }
 
+function usePictureLoading(source_url: string) {
+  const [is_loading, setLoading] = useState(false)
+  useEffect(() => {
+    if (source_url.length) {
+      setLoading(true)
+    } else {
+      setLoading(false)
+    }
+  }, [source_url.length])
+
+  return [
+    is_loading,
+    function onLoad() {
+      setLoading(false)
+    }
+  ] as const
+}
+
 export type Detail = {
   from: ImagePos
   thumb: string
@@ -96,6 +116,7 @@ export default ({ detail, onCancel = () => undefined }: {
   detail: Detail
   onCancel: () => void
 }) => {
+  const isMounted = useMountState()
   const [isShow, setIsShow] = useState(false)
   const detailFrameEl = useRef<HTMLDivElement | null>(null)
   const imageFrameEl = useRef<HTMLDivElement | null>(null)
@@ -130,63 +151,56 @@ export default ({ detail, onCancel = () => undefined }: {
       setTouchStart(null)
       setOpacity(0)
 
-      const firstV = vait.timeout(382)
-      let secondV: any
-
-      firstV
-        .then(() => {
+      timeout(382).then(() => {
+        if (isMounted()) {
           setThumbUrl('')
           setSourceUrl('')
           setFromPos(null)
           setToPos(null)
           setImageFrameTransition(false)
-
-          secondV = vait.timeout(382)
-          return secondV
-        })
-        .then(() => {
+          return timeout(382)
+        }
+      }).then(() => {
+        if (isMounted()) {
           setIsShow(false)
-        })
-
-      return () => {
-        if (firstV) firstV.clear()
-        if (secondV) secondV.clear()
-      }
+        }
+      })
     }
-  }, [detail])
+  }, [detail, isMounted])
 
   useEffect(() => {
-    let fadeInV, nextTickV
     if (isShow && fromPos && detail && imageFrameTransition) {
       window.requestAnimationFrame(() => {
-        nextTickV = vait.nextTick()
-        nextTickV.then(() => {
-          setOpacity(1)
-          setToPos({
-            ...calcImageFullScreenPos({
-              width: detail.width,
-              height: detail.height,
-            }),
-          })
+        nextTick().then(() => {
+          if (isMounted()) {
+            setOpacity(1)
+            setToPos({
+              ...calcImageFullScreenPos({
+                width: detail.width,
+                height: detail.height,
+              }),
+            })
 
-          fadeInV = vait.timeout(382)
-          fadeInV.then(() => {
-            setImageFrameTransition(false)
-          })
+            timeout(382).then(() => {
+              if (isMounted()) {
+                setImageFrameTransition(false)
+              }
+            })
+          }
         })
       })
 
       return () => {
-        setImageFrameTransition(false)
-        if (fadeInV) fadeInV.clear()
-        if (nextTickV) nextTickV.clear()
+        if (isMounted()) {
+          setImageFrameTransition(false)
+        }
       }
     }
-  }, [isShow, detail, fromPos, imageFrameTransition])
+  }, [isShow, detail, fromPos, imageFrameTransition, isMounted])
 
   useEffect(() => {
     const resizeHandle = () => {
-      console.log('resizeHandle', fromPos)
+      // console.log('resizeHandle', fromPos)
       if (!fromPos) {
         return
       }
@@ -246,7 +260,7 @@ export default ({ detail, onCancel = () => undefined }: {
       }
       setTouchMove(willWrite)
     }
-    let touchEndV
+
     const touchEndHandler: HTMLDivElement['ontouchend'] = (e) => {
       const { changedTouches: touches } = e
       if (touches.length !== 1) {
@@ -274,8 +288,10 @@ export default ({ detail, onCancel = () => undefined }: {
         setImageFrameTransition(true)
         setTouchStart(null)
         setTouchMove(null)
-        touchEndV = vait.timeout(382).then(() => {
-          setImageFrameTransition(false)
+        timeout(382).then(() => {
+          if (isMounted()) {
+            setImageFrameTransition(false)
+          }
         })
       }
     }
@@ -290,13 +306,11 @@ export default ({ detail, onCancel = () => undefined }: {
         el.removeEventListener('touchstart', touchStartHandler)
         el.removeEventListener('touchmove', touchMoveHandler)
         el.removeEventListener('touchend', touchEndHandler)
-
-        if (touchEndV) touchEndV.clear()
       }
     }
     // isShow 控制着 imageFrameEl.current
     // 也就是说 isShow = true 的时候 imageFrameEl.current 才不至于是 null
-  }, [isShow, onCancel, touchStart, touchMove])
+  }, [isShow, onCancel, touchStart, touchMove, isMounted])
 
   useEffect(() => {
     if (detailFrameEl.current) {
@@ -319,6 +333,8 @@ export default ({ detail, onCancel = () => undefined }: {
 
   useDisableScroll(Boolean(detail))
 
+  const [ is_loading, onLoad ] = usePictureLoading(sourceUrl)
+
   if (!isShow) {
     return null
   }
@@ -335,9 +351,7 @@ export default ({ detail, onCancel = () => undefined }: {
     <div
       ref={detailFrameEl}
       className="detail-frame"
-      onClick={() => {
-        onCancel()
-      }}
+      onClick={onCancel}
     >
       <div className="bgMask" style={{ opacity }}></div>
       <div
@@ -346,7 +360,8 @@ export default ({ detail, onCancel = () => undefined }: {
         style={{ ...pos, opacity: toPos ? 1 : 0 }}
       >
         <img className="thumb" src={thumbUrl} alt="" />
-        <img className="source" src={sourceUrl} alt="" />
+        <img className="source" src={sourceUrl} alt="" onLoad={onLoad} />
+        { is_loading ? <div className='imgLoading'><Loading /> <span style={{ marginLeft: '4px' }}>加载中</span></div> : '' }
       </div>
     </div>
   )

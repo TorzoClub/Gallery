@@ -1,29 +1,49 @@
-const randomNum = (length: number) => Math.floor(Math.random() * length)
+import { pipe } from 'ramda'
 
-export default shuffleArray
-function shuffleArray<T>(arr: T[]): T[] {
-  if (arr.length < 2) {
-    return arr
-  } else {
-    return _shuffleArray(arr, 0)
-  }
+const randomNum = (range: number) => Math.floor(Math.random() * (range + 1))
+const exchangePos = <T>(arr: T[], idxA: number, idxB: number) => {
+  [arr[idxA], arr[idxB]] = [arr[idxB], arr[idxA]]
 }
 
-function _shuffleArray<T>(arr: T[], idx: number) {
-  if (idx < arr.length) {
-    return _shuffleArray(
-      exchangePos(arr, idx, randomNum(arr.length)),
-      idx + 1
-    )
-  } else {
-    return arr
+const shuffle = <T>(arr: T[]) => {
+  if (arr.length > 1) {
+    for (let i = arr.length - 1; i > 0; --i) {
+      exchangePos(arr, i, randomNum(i))
+    }
   }
-}
-
-function exchangePos<T>(arr: T[], idxA: number, idxB: number) {
-  arr = [...arr]
-  const tmp = arr[idxA]
-  arr[idxA] = arr[idxB]
-  arr[idxB] = tmp
   return arr
 }
+
+const getType = (v: unknown) => v === null ? 'null' : typeof v
+const throwTypeError = <T>(arr: T[]) => {
+  throw new TypeError(`Expected an array, but got ${getType(arr)}`)
+}
+
+export const shuffleArrayMutable = <T>(arr: T[]) =>
+  (Array.isArray(arr) ? shuffle : throwTypeError)(arr)
+
+const copyArray = <T>(arr: T[]) => [...arr]
+const shuffleArrayImmutable = pipe( copyArray, shuffleArrayMutable )
+export default shuffleArrayImmutable
+
+// test code:
+// console.clear()
+// let count = {};
+// const test_array = 'abcd'.split('');
+// for (let i = 0; i < 1000000; i++) {
+//   const result = shuffleArrayImmutable(test_array);
+//   if (count[result.join('')] === undefined) {
+//       count[result.join('')] = 0
+//   }
+//   count[result.join('')] += 1;
+// }
+// const totals = []
+// for (let key in count) {
+//   totals.push(count[key])
+// }
+// const total = totals.reduce((a, b) => a + b, 0)
+// const average = total / totals.length
+// for (let key in count) {
+//   const per = (average - count[key]) / total
+//   console.log(`${key}: ${count[key]}`, `${(per * 100).toFixed(2)}%`);
+// }

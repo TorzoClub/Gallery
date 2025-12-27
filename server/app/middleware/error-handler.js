@@ -23,7 +23,6 @@ const validError = (ctx, err) => {
 
 module.exports = () =>
   async (ctx, next) => {
-
     try {
       await next();
     } catch (err) {
@@ -33,9 +32,7 @@ module.exports = () =>
         return;
       }
 
-      const { WarningError } = ctx.app;
-
-      if (err instanceof WarningError) {
+      if (err instanceof ctx.app.WarningError) {
         const status = err.status || 500;
 
         ctx.backData(status, {
@@ -43,10 +40,14 @@ module.exports = () =>
           message: err.message,
         });
 
+        if (ctx.app.config.env === 'unitest') {
+          ctx.app.logger.debug(err);
+        }
+
         return;
       }
 
-      console.error('error:', err);
+      console.error('error-handler:', err);
 
       ctx.backData(500, {
         ...err,

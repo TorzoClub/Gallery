@@ -1,6 +1,8 @@
 const assert = require('assert');
 const mock = require('egg-mock');
-const { getToken, getGalleryById, removeGalleryById, createApp, updateGalleryById } = require('./common');
+const fs = require('fs');
+const path = require('path');
+const { getToken, getGalleryById, removeGalleryById, createApp, updateGalleryById, commonCreateGallery, createMember, createPhoto, getPhotoById } = require('./common');
 
 describe('controller/admin/gallery', () => {
   let app
@@ -95,6 +97,44 @@ describe('controller/admin/gallery', () => {
     assert(deleted.id === created.id)
 
     getGalleryById(token, app, deleted.id, 404)
+  })
+
+  it('should correctly delete photo when gallery removed', async () => {
+    const gallery = await commonCreateGallery(token, app, {})
+
+    async function addPhoto(qq_num) {
+      const member = await createMember(token, app, { qq_num })
+      const created_photo = await createPhoto(token, app, {
+        gallery_id: gallery.id,
+        member_id: member.id,
+      })
+      return created_photo
+    }
+
+    let photos = []
+    for (let i = 1; i < 10; ++i) {
+      photos = [...photos, await addPhoto(i)]
+    }
+
+    await removeGalleryById(token, app, gallery.id)
+
+    for (const photo of photos) {
+      await getPhotoById(token, app, photo.id, 404)
+    }
+
+    {
+      const file_list = photos.map(photo => {
+        return app.serviceClasses.image.allFilename(photo.src)
+      }).flat()
+
+      for (const file of file_list) {
+        await app.httpRequest().get(`/src/${file}`).expect(404)
+        const exists = fs.existsSync(
+          path.join(app.config.imageSavePath, file)
+        )
+        assert(false === exists)
+      }
+    }
   })
 
   it('should successfully get a gallery list', () => {

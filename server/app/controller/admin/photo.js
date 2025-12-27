@@ -12,8 +12,8 @@ module.exports = app => {
       }, data);
 
       const result = await ctx.service.photo.create({
-        member_id: data.member_id,
         gallery_id: data.gallery_id,
+        member_id: data.member_id,
         desc: data.desc,
         src: data.src,
       });

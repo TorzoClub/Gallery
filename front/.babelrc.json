@@ -1,7 +1,6 @@
 {
   "presets": ["react-app"],
   "plugins": [
-    "styled-jsx/babel",
     "@babel/plugin-proposal-do-expressions"
   ]
 }

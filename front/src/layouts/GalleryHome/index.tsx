@@ -5,7 +5,6 @@ import { global_queue } from 'utils/queue-load'
 const { isLoading: globalQueueIsLoading, load: globalQueueLoad, } = global_queue
 
 import { findListByProperty, removeListItemByIdx, sortByIdList, updateListItemById } from 'utils/common'
-import { AppCriticalError } from 'App'
 
 import {
   type GalleryCommon,
@@ -32,6 +31,7 @@ import ConfirmVote from 'components/ConfirmVote'
 import shuffleArray from 'utils/shuffle-array'
 import { WaterfallLayoutClickCoverHandler } from 'components/Waterfall'
 import SkeuomorphismButton from 'components/SkeuomorphismButton'
+import { signal_critical_error } from 'signals'
 
 const watterfall_refreshed = Signal()
 
@@ -253,7 +253,7 @@ export default () => {
         setShowNormalList(true)
         setList(list)
       }
-    }).catch(err => AppCriticalError(`获取相册列表失败: ${err}`))
+    }).catch(err => signal_critical_error.trigger(`获取相册列表失败: ${err}`))
     return () => { mounted = false }
   }, [loaded, setActive])
 
@@ -305,7 +305,7 @@ export default () => {
           setConfirmState({ in: false })
           setEventLoaded(true)
         }).catch(err => {
-          AppCriticalError(`获取投票信息失败: ${err.message}`)
+          signal_critical_error.trigger(`获取投票信息失败: ${err.message}`)
         })
       })
 

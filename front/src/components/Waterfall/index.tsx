@@ -8,7 +8,6 @@ import PhotoBox, { Props as PhotoBoxProps, CoverClickEvent, Dimension, Dimension
 
 import useSafeState from 'hooks/useSafeState'
 import { excludeByProperty, findListByProperty, removeListItemByIdx, reverseList } from 'utils/common'
-import { AppCriticalError } from 'App'
 
 type Pos = {
   top: string

@@ -2,7 +2,7 @@
 
 同装相册是一个面向活动照片征集、展示和投票的相册站点。公开页用于浏览相册、投稿和投票；后台用于管理相册、相片、成员和投票数据。
 
-当前前端入口是 `web/`，使用 React 19、Vite、TypeScript 和 React Router。`front/` 与 `dashboard/` 是废弃的旧实现，暂留但不再维护，计划后续删除；`server/` 是后端 API，不在本文档范围内。
+当前前端入口是 `web/`，使用 React 19、Vite、TypeScript 和 React Router。`front/` 与 `dashboard/` 已在 v4 分支中删除，旧实现仍可从 `dev` 分支历史追溯；`server/` 是后端 API，不在本文档范围内。
 
 当前状态和后续计划见 [TODOS.md](TODOS.md)。
 

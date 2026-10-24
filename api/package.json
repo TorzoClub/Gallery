@@ -8,6 +8,7 @@
     "dev": "APP_ENV=development node --watch --watch-preserve-output --import tsx --env-file-if-exists=.env.development src/index.ts",
     "start": "APP_ENV=production node --env-file-if-exists=.env.production dist/index.js",
     "build": "tsup",
+    "storage:init": "tsx src/cli/init-storage.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

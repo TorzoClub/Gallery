@@ -14,8 +14,11 @@ cd api
 nvm use 24.22.1
 pnpm install
 cp .env.example .env.development
+pnpm storage:init
 pnpm dev
 ```
+
+`pnpm storage:init` 会创建 storage 目录、空 pool、成员文件和 instance 配置。它不需要 `ADMIN_PASSWORD` / `JWT_SECRET`，适合首次部署或 CI 准备数据目录。已存在的 storage 只会加载校验，不会覆盖。
 
 开发服务器默认监听 `http://localhost:7001`。
 
@@ -187,6 +190,21 @@ pnpm test:watch
 - storage 重启、lock、图片静态服务、缩略图刷新、清理
 - 图片上传、替换、删除
 - 成员/相册/相片/投稿/投票流程
+
+## Storage 初始化
+
+```bash
+pnpm storage:init
+pnpm storage:init --storage-path ./storage
+pnpm storage:init --storage-path ./storage --json
+```
+
+- 默认目录：`STORAGE_PATH`，没有则 `./storage`。
+- 创建内容：`pool.json`、`members.json`、`galleries/`、`stored-images/{source,thumb,temp}`、`instance-config.json`。
+- 已存在时只加载校验，不覆盖。
+- 如果 API 正在运行并持有 lock，会失败退出。
+- 退出码非 0 表示初始化/校验失败。
+- 生产镜像内也可以执行：`docker compose run --rm api node dist/cli/init-storage.js --storage-path /data`。
 
 ## 构建与运行
 

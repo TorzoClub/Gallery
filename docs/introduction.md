@@ -9,8 +9,10 @@
 
 - `web/` 是当前维护的唯一前端入口。
 - `front/`、`dashboard/` 已在 `v4` 分支中删除；旧实现只保留在 `dev` 分支历史中。
-- `server/` 是后端 API，本文档不展开其内部实现；后续会重构。
-- 现有 CI 仍指向旧目录，尚未迁移到 `web/`；迁移完成前，`v4` 上相关 CI 任务会失败。
+- `api/` 是新的后端服务，使用 Hono、Zod、Vitest、Immutable。
+- `web-new/` 是对接新 dispatch API 的新客户端；当前默认前端仍是 `web/`。
+- `server/` 是旧后端，保留只读，不再继续开发；本文档不展开其内部实现。
+- 现有旧 CI 仍指向旧目录；新增的 API workflow 只覆盖 `api/`。
 
 更细的状态和待办见 [TODOS.md](../TODOS.md)。
 
@@ -18,8 +20,10 @@
 
 ```text
 .
-├── web/          当前维护的前端：公开相册 + 后台
-├── server/       后端 API；本文档不覆盖
+├── web/          当前默认前端：公开相册 + 后台
+├── web-new/      对接新 API 的新客户端
+├── api/          新后端：dispatch API + JSON/图片存储
+├── server/       旧后端；只读，不再开发
 ├── docs/         项目文档
 ├── scripts/      仓库辅助脚本
 ├── README.md     项目入口
@@ -43,13 +47,11 @@
   └── /admin   后台管理
         │
         ▼
-      web/ 前端应用
-        │  HTTP API
-        ▼
-      server/ 后端
+      web/ 旧前端 ── HTTP ──> server/ 旧后端
+      web-new/ 新前端 ── HTTP ──> api/ 新后端
 ```
 
-前端只通过 HTTP API 与后端交互。server 的模块、数据模型、鉴权、部署和内部配置不在本文件范围内。
+前端只通过 HTTP API 与后端交互。旧 server 的模块、数据模型、鉴权、部署和内部配置不在本文件范围内。新后端的结构、配置和 dispatch 协议见 [api/README.md](../api/README.md)。
 
 ## 技术栈
 
@@ -59,6 +61,15 @@
 - React Router
 - pnpm
 
+新后端 `/api`：
+
+- Hono + `@hono/node-server`
+- Zod
+- Immutable.js
+- Vitest
+- TypeScript 7
+- sharp
+
 后台没有引入第三方 UI 框架；表格、弹窗、提示、上传和搜索选择器都在项目内实现。
 
 ## 关键决策
@@ -66,8 +77,9 @@
 - `web/` 是唯一活动前端；`front/`、`dashboard/` 已在 `v4` 删除。
 - 公开页和后台共用同一前端入口，但后台整体异步加载。
 - 后台保持轻依赖和工具化，不套用公开页的视觉风格。
-- 文档目前只覆盖前端和项目协作，不覆盖 server 内部。
-- CI 迁移单独处理，见 [TODOS.md](../TODOS.md)。
+- 文档覆盖前端、项目协作和新后端 `api/`；不覆盖旧 server 内部。
+- 旧 CI 迁移单独处理；API 另有独立 workflow。
+- 新后端先独立完成，再迁移 Web 客户端；`web-new/` 已开始对接，默认前端切换待定。
 
 公开页的视觉风格和设计原则见 [designs.md](designs.md)。
 
@@ -87,3 +99,5 @@
 | [TODOS.md](../TODOS.md) | 当前状态、范围、后续待办 |
 | [AGENTS.md](../AGENTS.md) | AI agent 工作边界和验证要求 |
 | [web/README.md](../web/README.md) | 前端 package 与 scripts 简介 |
+| [api/README.md](../api/README.md) | 新后端配置、dispatch、存储、测试和 Docker |
+| [web-new/README.md](../web-new/README.md) | 新客户端与 dispatch API 的对接说明 |

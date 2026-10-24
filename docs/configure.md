@@ -1,6 +1,6 @@
 # 配置
 
-本文只记录 `web/` 前端的运行和构建配置。server 的配置与启动方式不在本文档维护。
+本文记录 `web/` 前端和 `api/` 新后端的运行配置。旧 `server/` 的配置与启动方式不在本文档维护；新后端的完整配置说明见 [api/README.md](../api/README.md)。
 
 ## 环境要求
 
@@ -31,6 +31,24 @@ https-proxy=socks5://127.0.0.1:503
 ```
 
 `.npmrc`、`.env.local` 和 `.env.*.local` 已由 `.gitignore` 忽略，不要提交。
+
+## 新后端 /api
+
+```bash
+cd api
+nvm use 24.22.1
+pnpm install
+pnpm dev
+```
+
+后端配置分两类：
+
+- env 配置：启动后不可变，例如 `APP_ENV`、`HTTP_PORT`、`STORAGE_PATH`、`LOG_LEVEL`、`ADMIN_PASSWORD`、`JWT_SECRET`、`CORS_ORIGINS`、`API_BASE_PATH`、`PUBLIC_BASE_URL`。
+- instance 配置：运行期可修改，保存在 `<STORAGE_PATH>/instance-config.json`，例如缩略图尺寸、图片质量、最大上传大小。通过 admin action 修改。
+
+完整变量、Docker 和测试命令见 [api/README.md](../api/README.md)。
+
+新客户端 `web-new/` 使用相同的 `VITE_` 配置，说明见 [web-new/README.md](../web-new/README.md)。
 
 ## 环境变量
 

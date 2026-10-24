@@ -1,7 +1,11 @@
 node_modules
 dist
-.env.local
-.env.*.local
+coverage
+.vitest
+storage
+.env
+.env.*
+!.env.example
 .npmrc
 *.log
 .DS_Store

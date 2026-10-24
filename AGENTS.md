@@ -15,16 +15,17 @@
 
 ## 当前事实
 
-- `web/` 是唯一活动前端。
+- `web/` 是当前默认前端；`web-new/` 是对接新 API 的迁移客户端。
 - `front/`、`dashboard/` 已从 `v4` 删除；旧历史在 `dev`，不要恢复或继续开发。
+- `api/` 是新的活动后端，使用 Hono/Zod/Vitest/Immutable；`web-new/` 已开始对接，`web/` 仍指向旧 API。
 - `server/` 默认不修改，不依赖其内部细节，也不要把 server 内部信息写进文档。
-- 现有 CI 仍指向旧目录，尚未迁移到 `web/`；不要假设 CI 已经覆盖当前前端，`v4` 上相关旧任务会失败。
+- 现有旧 CI 仍指向旧目录；`.github/workflows/api.yml` 只覆盖 `api/`，不要假设它覆盖前端。
 
 当前状态和后续待办见 [TODOS.md](TODOS.md)。
 
 ## 硬边界
 
-- 未明确要求时，不修改 `server/`。
+- 未明确要求时，不修改 `server/`；新后端工作放在 `api/`。
 - 未明确要求时，不恢复或修改已删除的 `front/`、`dashboard/`；需要参考时看 `dev` 历史。
 - 不新增运行时依赖、UI 框架、动画库、日期库，除非先向用户确认。
 - 不提交 `.npmrc`、`.env.local`、`.env.*.local`、密码、token。
@@ -34,7 +35,7 @@
 ## 工作流程
 
 1. 先读文档，再读相关代码和现有组件。
-2. 修改范围优先限制在 `web/`。
+2. 修改范围优先限制在 `web/`、`web-new/` 或 `api/`。
 3. 保持后台路由和后台样式异步加载，不要把后台代码带回公开页首屏。
 4. 优先复用现有组件和样式，不引入新框架。
 5. 改完后更新相关文档。
@@ -47,9 +48,20 @@ cd web
 pnpm typecheck
 pnpm lint
 pnpm build
+
+cd api
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm build
+
+cd web-new
+pnpm typecheck
+pnpm lint
+pnpm build
 ```
 
-必要时启动 `pnpm dev` 做浏览器冒烟。当前没有统一自动化测试套件。
+必要时启动 `pnpm dev` 做浏览器冒烟；API 测试使用临时 storage，不需要 MySQL。
 
 ## 设计规则
 

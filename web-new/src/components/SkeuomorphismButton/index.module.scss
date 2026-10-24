@@ -1,0 +1,73 @@
+.ButtonContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1em;
+}
+
+// 来自于 https://codepen.io/nicolasjesenberger/pen/abXZRvG
+// 调整了颜色，以及修改了点击的效果
+.ButtonBefore {
+  position: relative;
+  border: 1px solid #0360df;
+  border-radius: 50px;
+  padding: .618em 1.382em;
+  line-height: 1em;
+  // padding: 8px 16px;
+  // min-width: 8em;
+  // background-color: #0360df;
+  // background-image:
+  //   radial-gradient(75% 50% at 50% 0%, #f4feff, transparent),
+  //   radial-gradient(75% 35% at 50% 85%, #8de3fc, transparent);
+  // box-shadow:
+  //   inset 0 -2px 4px 1px rgba(17, 110, 231, .6),
+  //   inset 0 -4px 4px 1px rgba(141, 227, 252, 1),
+  //   inset 0 0 2px 1px rgba(255, 255, 255, .2),
+  //   0 1px 4px 1px rgba(17, 110, 231, .2),
+  //   0 1px 4px 1px rgba(0, 0, 0, .1);
+  color: #fff;
+  // text-align: center;
+  // text-shadow: 0 1px 1px #116ee7;
+  // transition-property: border-color, transform, background-color;
+  // transition-duration: .2s;
+
+  border: 1px solid #306785;
+  background-color: #306785;
+  box-shadow: inset 0 -2px 4px 1px #30678599, inset 0 -4px 4px 1px #8fbdd6, inset 0 0 2px 1px #fff3, 0 1px 4px 1px #116ee700, 0 1px 4px 1px #00000000, 0 8px 10px -8px rgba(0, 0, 0, 0.5);
+  background-image: radial-gradient(75% 50% at 50% 0%, #f4feff, transparent), radial-gradient(75% 35% at 50% 85%, hsl(201 47% 75% / 1), transparent);
+  font-size: 14px;
+  text-shadow: 0 1px 1px #306785;
+
+  cursor: pointer;
+  user-select: none;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 50px;
+    width: 80%;
+    height: 40%;
+    background-image: linear-gradient(to bottom, #f4feff, transparent);
+    opacity: .75;
+
+    background-image: linear-gradient(to bottom, hsl(201 47% 90% / 1), transparent);
+  }
+
+  // &:hover {
+  //   transform: scale(1.04);
+  // }
+
+  &:active::after {
+    display: none;
+  }
+  &:active {
+    background-image: radial-gradient(75% 50% at 50% 0%, #104145, transparent), radial-gradient(75% 35% at 50% 85%, rgb(48 103 133), transparent);
+    box-shadow: inset 0px 0px 5px rgba(0, 0, 0, 0.25), inset 0px 3px 3px rgba(0, 0, 0, 0.25);
+    transform: translateY(1px);
+    // background-image: none;
+    // box-shadow: inset 0px 0px 5px rgba(0, 0, 0, 0.25), inset 0px 3px 3px rgba(0, 0, 0, 0.25);
+  }
+}

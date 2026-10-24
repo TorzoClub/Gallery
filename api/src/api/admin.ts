@@ -1,65 +1,86 @@
-import { serve } from '@hono/node-server'
-import { Hono } from 'hono'
+import { createHash, timingSafeEqual } from 'node:crypto'
+import type { MiddlewareHandler } from 'hono'
 import { sign, verify } from 'hono/jwt'
+import { apiError, isApiError } from '../common/error'
+import type { EnvConfig } from '../config'
+import type { Logger } from '../logger'
 
-// 定义 JWT 密钥（生产环境请使用环境变量 process.env.JWT_SECRET）
-const JWT_SECRET = 'my-super-secret-key-2026'
+function constantTimeEqual(left: string, right: string): boolean {
+  const left_hash = createHash('sha256').update(left).digest()
+  const right_hash = createHash('sha256').update(right).digest()
+  return timingSafeEqual(left_hash, right_hash)
+}
 
-// ==========================================
-// 1. 创建子应用：Admin 模块
-// ==========================================
-const adminApp = new Hono()
-
-// (1) 公开路由：登录接口（必须放在拦截中间件的前面）
-adminApp.post('/login', async (c) => {
-  const body = await c.req.json<{ username?: string; password?: string }>()
-  const { username, password } = body
-
-  if (username === 'admin' && password === '123456') {
-    const payload = {
-      username: 'admin',
-      role: 'super_admin',
-      exp: Math.floor(Date.now() / 1000) + 60 * 60, // 1小时后过期
+export function createAdminAuth(env: EnvConfig, logger: Logger): {
+  login: MiddlewareHandler
+  auth: MiddlewareHandler
+} {
+  const login: MiddlewareHandler = async (c) => {
+    let body: unknown
+    try {
+      body = await c.req.json()
+    } catch {
+      throw apiError(400, 'BAD_REQUEST', '请求体不是合法 JSON')
     }
-    const token = await sign(payload, JWT_SECRET)
-    return c.json({ success: true, message: '登录成功', token })
-  }
 
-  return c.json({ success: false, message: '用户名或密码错误' }, 401)
-})
-
-// (2) JWT 校验中间件（拦截该子应用下的所有后续路由）
-adminApp.use('/*', async (c, next) => {
-  const authHeader = c.req.header('Authorization')
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return c.json({ success: false, code: 401, message: '未提供 Token 或 Token 格式错误' }, 401)
-  }
-
-  const token = authHeader.split(' ')[1]
-
-  try {
-    const payload = await verify(token, JWT_SECRET)
-    // 将解析出的 payload 挂载到上下文中
-    c.set('jwtPayload', payload)
-    await next()
-  } catch (error: any) {
-    let message = 'Token 无效'
-    if (error.name === 'JwtTokenExpired' || error.message?.includes('exp')) {
-      message = 'Token 已超时，请重新登录'
+    if (typeof body !== 'object' || body === null) {
+      throw apiError(400, 'BAD_REQUEST', '请求体格式错误')
     }
-    return c.json({ success: false, code: 401, message }, 401)
+
+    const record = body as Record<string, unknown>
+    const password = typeof record.password === 'string'
+      ? record.password
+      : typeof record.pass === 'string'
+        ? record.pass
+        : undefined
+
+    if (password === undefined) {
+      throw apiError(400, 'BAD_REQUEST', '缺少 password')
+    }
+
+    if (!constantTimeEqual(password, env.admin_password)) {
+      throw apiError(401, 'UNAUTHORIZED', '密码错误')
+    }
+
+    const exp = Math.floor(Date.now() / 1000) + env.jwt_expires_in_seconds
+    const token = await sign({
+      role: 'admin',
+      exp,
+    }, env.jwt_secret, 'HS256')
+
+    return c.json({
+      success: true,
+      data: { token },
+    })
   }
-})
 
-// (3) 受保护的子路由
-adminApp.get('/', (c) => {
-  const payload = c.get('jwtPayload')
-  return c.json({ success: true, message: '欢迎来到管理后台首页', user: payload })
-})
+  const auth: MiddlewareHandler = async (c, next) => {
+    const header = c.req.header('authorization')
+    if (header === undefined || header.trim() === '') {
+      throw apiError(401, 'UNAUTHORIZED', '未提供 Token')
+    }
 
-adminApp.get('/test', (c) => {
-  return c.json({ success: true, data: { test: 'tjioajfioasijf' } })
-})
+    const token = header.startsWith('Bearer ')
+      ? header.slice('Bearer '.length).trim()
+      : header.trim()
 
-export default adminApp
+    try {
+      const payload = await verify(token, env.jwt_secret, 'HS256')
+      if (payload.role !== 'admin') {
+        throw apiError(403, 'FORBIDDEN', '权限不足')
+      }
+      await next()
+    } catch (error) {
+      if (isApiError(error)) {
+        throw error
+      }
+      if (error instanceof Error && error.name === 'JwtTokenExpired') {
+        throw apiError(401, 'UNAUTHORIZED', 'Token 已过期')
+      }
+      logger.warn('admin token rejected', { error: String(error) })
+      throw apiError(403, 'FORBIDDEN', '非法 Token')
+    }
+  }
+
+  return { login, auth }
+}

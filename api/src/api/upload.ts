@@ -1,56 +1,54 @@
-import { Hono } from 'hono'
-import fs from 'node:fs'
-import path from 'node:path'
-import { pipeline } from 'node:stream/promises'
+import type { Handler } from 'hono'
+import { apiError } from '../common/error'
+import type { Instance } from '../instance'
 
-const app = new Hono()
+export function createUploadHandler(instance: Instance): Handler {
+  return async (c) => {
+    const config = instance.getInstanceConfig()
+    const content_length = Number(c.req.header('content-length') ?? '0')
 
-app.post('/', async (c) => {
-  // 1. 解析 multipart/form-data 表单数据
-  const body = await c.req.parseBody()
-  const file = body['file']
-
-  // 2. 校验是否为合法的 File 对象
-  if (!file || typeof file !== 'object' || !('name' in file)) {
-    return c.json({ success: false, message: '请上传有效的文件' }, 400)
-  }
-
-  try {
-    // 3. 生成目标路径 /tmp/[timestamp].[extname]
-    const extname = path.extname(file.name) // 获取扩展名 (如 .png, .jpg)
-    const filename = `${Date.now()}${extname}`
-
-    const tmpDir = path.resolve('/tmp')
-    if (!fs.existsSync(tmpDir)) {
-      fs.mkdirSync(tmpDir, { recursive: true })
+    if (Number.isFinite(content_length) && content_length > config.max_upload_bytes) {
+      throw apiError(
+        413,
+        'BAD_REQUEST',
+        `上传文件不能超过 ${config.max_upload_bytes} 字节`,
+      )
     }
-    const targetPath = path.join(tmpDir, filename)
 
-    // 4. 将 Web 标准 ReadableStream 转换为 Node.js Readable 流
-    const webStream = file.stream()
-    const nodeReadable = fs.ReadStream.fromWeb(webStream)
+    let body: Awaited<ReturnType<typeof c.req.parseBody>>
+    try {
+      body = await c.req.parseBody()
+    } catch {
+      throw apiError(400, 'BAD_REQUEST', '无法解析上传表单')
+    }
 
-    // 5. 创建写入流，并通过 pipeline 执行流式管道传输（自动管理背压与资源释放）
-    const nodeWritable = fs.createWriteStream(targetPath)
-    await pipeline(nodeReadable, nodeWritable)
+    const raw = body.file ?? body.image
+    if (raw === undefined || raw === null) {
+      throw apiError(400, 'BAD_REQUEST', '缺少上传文件，字段名需要是 file 或 image')
+    }
+    if (Array.isArray(raw)) {
+      throw apiError(400, 'BAD_REQUEST', '一次只能上传一个文件')
+    }
+    if (!(raw instanceof File)) {
+      throw apiError(400, 'BAD_REQUEST', '上传字段不是文件')
+    }
+    if (raw.size > config.max_upload_bytes) {
+      throw apiError(
+        413,
+        'BAD_REQUEST',
+        `上传文件不能超过 ${config.max_upload_bytes} 字节`,
+      )
+    }
+
+    const buffer = Buffer.from(await raw.arrayBuffer())
+    const result = await instance.storeTempImage({
+      buffer,
+      original_name: raw.name,
+    })
 
     return c.json({
       success: true,
-      message: '图片流式写入成功！',
-      data: {
-        filename,
-        savedPath: targetPath,
-        size: file.size,
-      }
+      data: result,
     })
-  } catch (error: any) {
-    console.error('文件流写入失败:', error)
-    return c.json({
-      success: false,
-      message: '服务器内部错误',
-      error: error.message
-    }, 500)
   }
-})
-
-export default app
+}

@@ -4,7 +4,7 @@ import * as z from 'zod'
 const EnvSchema = z.object({
   APP_ENV: z.enum(['development', 'test', 'production']).default('development'),
   HTTP_PORT: z.coerce.number().int().min(1).max(65535).default(7001),
-  HOSTNAME: z.string().min(1).optional(),
+  HTTP_HOSTNAME: z.string().min(1).optional(),
   // Deprecated alias kept for existing env files.
   HTTP_HOST: z.string().min(1).optional(),
   STORAGE_PATH: z.string().min(1),
@@ -67,7 +67,7 @@ export function loadEnvConfig(input: NodeJS.ProcessEnv = process.env): EnvConfig
 
   const env = parsed.data
   const storage_path = path.resolve(env.STORAGE_PATH)
-  const hostname = env.HOSTNAME ?? env.HTTP_HOST ?? '0.0.0.0'
+  const hostname = env.HTTP_HOSTNAME ?? env.HTTP_HOST ?? '0.0.0.0'
 
   const public_base_url = (
     env.PUBLIC_BASE_URL ?? `http://localhost:${env.HTTP_PORT}`

@@ -36,10 +36,10 @@ describe('env config', () => {
     expect(config.hostname).toBe('127.0.0.1')
   })
 
-  it('prefers HOSTNAME over the legacy HTTP_HOST alias', () => {
+  it('prefers HTTP_HOSTNAME over the legacy HTTP_HOST alias', () => {
     const config = loadEnvConfig({
       ...base_env,
-      HOSTNAME: '0.0.0.0',
+      HTTP_HOSTNAME: '0.0.0.0',
       HTTP_HOST: '127.0.0.1',
     })
     expect(config.hostname).toBe('0.0.0.0')

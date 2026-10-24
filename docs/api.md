@@ -1,0 +1,206 @@
+# HTTP API
+
+服务端与前端同源，默认地址 `http://localhost:7001`。所有业务接口都是 `POST` + JSON；图片和健康检查是 `GET`。登录流程见 [auth.md](auth.md)。
+
+## 响应格式
+
+请求体统一为：
+
+```json
+{ "payload": {} }
+```
+
+也接受直接把 payload 作为请求体。成功：
+
+```json
+{ "success": true, "data": {} }
+```
+
+失败：
+
+```json
+{
+  "success": false,
+  "code": "INVALID_PAYLOAD",
+  "message": "参数错误",
+  "details": []
+}
+```
+
+## 路由
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| `POST` | `/auth/login` | 后台登录，返回 JWT |
+| `POST` | `/query/:name` | 公开 query |
+| `POST` | `/mutate/:name` | 公开 mutation |
+| `POST` | `/admin/query/:name` | admin query，需要 Bearer token |
+| `POST` | `/admin/mutate/:name` | admin mutation，需要 Bearer token |
+| `POST` | `/upload-image` | 上传图片到临时目录 |
+| `GET` | `/images/source/:file` | 原图 |
+| `GET` | `/images/thumb/:file` | 缩略图 |
+| `GET` | `/healthz` | 健康检查 |
+
+`/admin/*` 的 query/mutation 需要 `Authorization: Bearer <token>`。公开路由调用 admin action 返回 `403`。
+
+## 公开 queries
+
+| action | payload | 返回 |
+|---|---|---|
+| `listGalleries` | `{}` | `{ active, galleries }` |
+| `getGallery` | `{ gallery_id }` | Gallery |
+| `getPhoto` | `{ photo_id }` | Photo |
+| `getSubmission` | `{ gallery_id, qq_num }` | Photo 或 `null` |
+| `confirmMember` | `{ qq_num }` | `{ value: boolean }` |
+| `getMemberPhotos` | `{ qq_num }` | `{ active, galleries }` |
+
+## 公开 mutations
+
+| action | payload | 返回 |
+|---|---|---|
+| `submitPhoto` | `{ gallery_id, qq_num, desc, temp_id }` | Photo |
+| `updateSubmission` | `{ photo_id, qq_num, desc?, temp_id? }` | Photo |
+| `cancelSubmission` | `{ photo_id, qq_num }` | Photo |
+| `vote` | `{ gallery_id, qq_num, photo_ids }` | Vote 结果 |
+
+`temp_id` 来自 `/upload-image`。投稿和投票受相册时间窗口、每人一次投稿、`vote_limit` 等规则限制。
+
+## Admin queries
+
+| action | payload | 返回 |
+|---|---|---|
+| `adminGetInstanceConfig` | `{}` | InstanceConfig |
+| `adminStatistic` | `{}` | `{ gallery_count, member_count, photo_count, vote_count }` |
+| `adminListGalleries` | `{}` | Gallery[] |
+| `adminGetGallery` | `{ gallery_id }` | Gallery |
+| `adminListMembers` | `{}` | Member[] |
+| `adminGetMember` | `{ member_id }` | Member |
+| `adminListPhotos` | `{}` | Photo[] |
+| `adminGetPhoto` | `{ photo_id }` | Photo |
+| `adminListAvailablePhotos` | `{}` | Photo[] |
+| `adminListMemberVotes` | `{ gallery_id }` | Member + votes[] |
+| `adminListPhotoVotes` | `{ gallery_id }` | `{ photo, votes }[]` |
+
+## Admin mutations
+
+| action | payload | 说明 |
+|---|---|---|
+| `adminUpdateInstanceConfig` | 任意 instance 配置字段 | 返回完整配置 |
+| `adminCreateGallery` | `{ name, index, vote_limit, event_start, submission_expire, event_end }` | 创建相册 |
+| `adminUpdateGallery` | `{ gallery_id, ...可选字段 }` | 更新相册 |
+| `adminRemoveGallery` | `{ gallery_id }` | 删除相册 |
+| `adminCreateMember` | `{ qq_num, name, avatar_temp_id }` | 创建成员，必须上传头像 |
+| `adminUpdateMember` | `{ member_id, qq_num?, name?, avatar_temp_id? }` | 更新成员 |
+| `adminRemoveMember` | `{ member_id }` | 删除成员 |
+| `adminClearMemberGalleryVotes` | `{ member_id, gallery_id }` | 清空某成员在某相册的投票 |
+| `adminCreatePhoto` | `{ gallery_id, member_id, desc, index?, temp_id }` | 创建相片 |
+| `adminUpdatePhoto` | `{ photo_id, gallery_id?, member_id?, desc?, index?, temp_id? }` | 更新相片 |
+| `adminRemovePhoto` | `{ photo_id }` | 删除相片 |
+| `adminSortPhotosByVoteCount` | `{ gallery_id }` | 按票数排序 |
+| `adminRefreshThumb` | `{ photo_id }` | 重建相片缩略图 |
+| `adminRefreshAvatar` | `{ member_id }` | 重建头像缩略图 |
+| `adminCleanUnusedImages` | `{}` | 清理无引用图片，返回 `{ removed: string[] }` |
+
+日期字段使用 ISO 8601，例如 `2026-10-01T00:00:00.000Z`。
+
+## 图片上传
+
+`POST /upload-image` 使用 `multipart/form-data`，字段名为 `file` 或 `image`。
+
+成功返回：
+
+```json
+{
+  "success": true,
+  "data": {
+    "temp_id": "temp-....png",
+    "width": 1200,
+    "height": 800,
+    "format": "png",
+    "size": 123456
+  }
+}
+```
+
+上传只写入临时目录。创建/更新相片或成员时把 `temp_id` / `avatar_temp_id` 传给 mutation，服务端才会归一化原图、生成 AVIF 缩略图并写入正式目录。
+
+限制：
+
+- 文件大小不能超过当前 instance 配置的 `max_upload_bytes`，也不能超过进程的 `HTTP_BODY_HARD_LIMIT_BYTES`。
+- 无法解析的图片返回 `BAD_REQUEST`。
+- 临时文件由服务端在启动和清理流程中回收。
+
+## 图片读取
+
+```text
+GET /images/source/:file
+GET /images/thumb/:file
+```
+
+响应带强缓存：
+
+```http
+Cache-Control: public, max-age=31536000, immutable
+```
+
+图片文件名包含时间戳/随机后缀，因此可以长期缓存。
+
+## 健康检查
+
+```http
+GET /healthz
+```
+
+```json
+{
+  "success": true,
+  "data": {
+    "status": "ok",
+    "scene": "production"
+  }
+}
+```
+
+## 错误码
+
+| HTTP | code | 说明 |
+|---:|---|---|
+| 400 | `BAD_REQUEST` / `INVALID_PAYLOAD` | 参数或 JSON 非法 |
+| 401 | `UNAUTHORIZED` | 缺少/无效/过期 token |
+| 403 | `FORBIDDEN` | 非 admin 路由调用 admin action |
+| 404 | `NOT_FOUND` / `UNKNOWN_ACTION` | 资源或 action 不存在 |
+| 409 | `CONFLICT` | 唯一性、时间窗口、引用关系冲突 |
+| 413 | `BAD_REQUEST` | 请求体过大 |
+| 500 | `INTERNAL` | 未预期错误 |
+
+## curl 示例
+
+```bash
+curl -X POST http://localhost:7001/query/listGalleries \
+  -H 'content-type: application/json' \
+  -d '{"payload":{}}'
+
+curl -X POST http://localhost:7001/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"password":"your-password"}'
+
+curl -X POST http://localhost:7001/admin/query/adminStatistic \
+  -H 'content-type: application/json' \
+  -H "authorization: Bearer $TOKEN" \
+  -d '{"payload":{}}'
+```
+
+## SPA 路由边界
+
+以下路径即使没有匹配的 API handler 也不会回落到 `index.html`：
+
+- `/query/*`
+- `/mutate/*`
+- `/admin/query/*`
+- `/admin/mutate/*`
+- `/auth/*`
+- `/upload-image`
+- `/images/*`
+- `/healthz`
+
+其他 GET 请求会返回 SPA 的 `index.html`，并使用 `Cache-Control: no-cache`。

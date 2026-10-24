@@ -1,51 +1,47 @@
 # 同装相册 / Torzo Gallery
 
-同装相册是一个面向活动照片征集、展示和投票的相册站点。公开页用于浏览相册、投稿和投票；后台用于管理相册、相片、成员和投票数据。
+同装相册是一个面向活动照片征集、展示和投票的相册站点。公开页用于浏览相册、投稿和投票；后台用于管理相册、相片、成员、投票和运行期配置。
 
-当前前端入口是 `web/`，使用 React 19、Vite、TypeScript 和 React Router。`front/` 与 `dashboard/` 已在 v4 分支中删除，旧实现仍可从 `dev` 分支历史追溯。
-
-`api/` 是新的后端，使用 Hono、Zod、Vitest、Immutable 和 Node 原生 watch。`web-new/` 是对接新 API 的新客户端；当前默认前端仍是 `web/`，旧的 `server/` 只保留作历史参考。
-
-当前状态和后续计划见 [TODOS.md](TODOS.md)。
+当前是**单体 SPA + dispatch API**：Hono 在同一个 HTTP 服务里提供前端、API、图片和健康检查。`legacy/` 里的旧 `server/`、`web/` 只作历史参考，不参与构建。
 
 ## 快速开始
 
 要求 Node.js >= 24.22.1、pnpm >= 10.24.0。
 
 ```bash
-cd web
 nvm use
-pnpm install
-pnpm dev
-```
-
-默认打开 `http://localhost:3000`。公开页在 `/`，后台在 `/admin`。
-
-## 新后端 /api
-
-```bash
-cd api
-nvm use 24.22.1
 pnpm install
 cp .env.example .env.development
+pnpm storage:init
 pnpm dev
 ```
 
-默认监听 `http://localhost:7001`。配置、dispatch API、图片流程、测试和 Docker 说明见 [api/README.md](api/README.md)。
+默认打开 `http://localhost:3000`。Vite 开发服务器把 API 请求代理到 `http://127.0.0.1:7001`。公开页在 `/`，后台在 `/admin`。
 
-新客户端：
+首次启动 storage、环境变量和代理配置见 [docs/configure.md](docs/configure.md)。
+
+## 生产运行
 
 ```bash
-cd web-new
-nvm use
-pnpm install
-pnpm dev
+cp .env.example .env.production
+# 填写 ADMIN_PASSWORD、JWT_SECRET、STORAGE_PATH、PUBLIC_BASE_URL 等
+pnpm start
 ```
 
-默认打开 `http://localhost:3000`，需要先启动 `api/`。说明见 [web-new/README.md](web-new/README.md)。
+`pnpm start` 会先构建前端到 `dist/client`、服务端到 `dist/server`，然后由 Hono 提供 SPA、API 和图片。默认地址是 `http://localhost:7001`。
 
-代理、环境变量、构建和部署说明见 [docs/configure.md](docs/configure.md)。遇到问题先看 [docs/troubleshooting.md](docs/troubleshooting.md)。
+Docker：
+
+```bash
+docker compose up -d --build
+```
 
 ## 文档
 
-完整文档索引在 [docs/introduction.md](docs/introduction.md)。参与开发或让 agent 接手前，请先阅读 [AGENTS.md](AGENTS.md)。
+- [docs/introduction.md](docs/introduction.md)：项目结构、技术栈和文档索引
+- [docs/configure.md](docs/configure.md)：环境变量、instance 配置、构建、缓存、部署
+- [docs/api.md](docs/api.md)：HTTP 接口和 dispatch action
+- [docs/auth.md](docs/auth.md)：后台登录、JWT 和权限边界
+- [docs/troubleshooting.md](docs/troubleshooting.md)：常见问题
+- [AGENTS.md](AGENTS.md)：协作和 agent 工作边界
+- [TODOS.md](TODOS.md)：当前状态和后续待办

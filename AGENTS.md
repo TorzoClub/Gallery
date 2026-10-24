@@ -8,60 +8,56 @@
 2. `README.md`
 3. `docs/introduction.md`（完整文档索引）
 4. `docs/configure.md`
-5. `docs/designs.md`
+5. `docs/api.md`、`docs/auth.md`
 6. 按任务需要读 `docs/troubleshooting.md`、`docs/glossary.md`、`TODOS.md`
 
 文档索引只在 [docs/introduction.md](docs/introduction.md) 维护，不要在其他文件重复一份。
 
 ## 当前事实
 
-- `web/` 是当前默认前端；`web-new/` 是对接新 API 的迁移客户端。
-- `front/`、`dashboard/` 已从 `v4` 删除；旧历史在 `dev`，不要恢复或继续开发。
-- `api/` 是新的活动后端，使用 Hono/Zod/Vitest/Immutable；`web-new/` 已开始对接，`web/` 仍指向旧 API。
-- `server/` 默认不修改，不依赖其内部细节，也不要把 server 内部信息写进文档。
-- 现有旧 CI 仍指向旧目录；`.github/workflows/api.yml` 只覆盖 `api/`，不要假设它覆盖前端。
-
-当前状态和后续待办见 [TODOS.md](TODOS.md)。
+- 根目录是单体 SPA + dispatch API：Hono 同时提供前端、API 和图片。
+- 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。
+- 服务端测试在 `test/`；当前没有浏览器 UI 交互测试。
+- 前端 bundle 由 Vite 生成 hash 文件；HTML 弱缓存，assets/images 强缓存。
+- `legacy/server/`、`legacy/web/` 已冻结，不参与构建、测试、lint、CI 或部署。
+- storage 是单实例 JSON + 图片池；同一 storage 同时只允许一个进程写。
+- 当前没有 MySQL 运行时依赖。
 
 ## 硬边界
 
-- 未明确要求时，不修改 `server/`；新后端工作放在 `api/`。
-- 未明确要求时，不恢复或修改已删除的 `front/`、`dashboard/`；需要参考时看 `dev` 历史。
+- 未明确要求时，不修改 `legacy/`。
 - 不新增运行时依赖、UI 框架、动画库、日期库，除非先向用户确认。
-- 不提交 `.npmrc`、`.env.local`、`.env.*.local`、密码、token。
+- 不提交 `.npmrc`、`.env`、`.env.*`、密码、token 或 storage 数据。
 - 文档与代码冲突时，以代码和实际配置为准，并修正文档。
-- 不在文档中记录 server 的接口、数据库、鉴权、配置、部署或内部模块。
+- 不在文档中记录密码、JWT secret、真实部署地址等敏感信息。
+- 不做网页 UI 交互测试，除非明确要求；服务端测试是当前默认验证方式。
 
 ## 工作流程
 
-1. 先读文档，再读相关代码和现有组件。
-2. 修改范围优先限制在 `web/`、`web-new/` 或 `api/`。
-3. 保持后台路由和后台样式异步加载，不要把后台代码带回公开页首屏。
-4. 优先复用现有组件和样式，不引入新框架。
-5. 改完后更新相关文档。
-6. 用下面的命令验证。
+1. 先读文档，再读相关代码。
+2. 修改范围优先限制在 `src/`、`test/`、`docs/` 或根配置。
+3. 修改 API 路由、action、缓存策略或登录流程时，同步更新 `docs/api.md`、`docs/auth.md`、`docs/configure.md`。
+4. 改完后运行验证命令。
+5. 需要提交时只 stage 相关路径，不使用全仓库 `git add -A`。
 
 ## 验证命令
 
 ```bash
-cd web
-pnpm typecheck
-pnpm lint
-pnpm build
-
-cd api
+pnpm install --frozen-lockfile
 pnpm typecheck
 pnpm lint
 pnpm test
 pnpm build
-
-cd web-new
-pnpm typecheck
-pnpm lint
-pnpm build
 ```
 
-必要时启动 `pnpm dev` 做浏览器冒烟；API 测试使用临时 storage，不需要 MySQL。
+需要启动服务时：
+
+```bash
+pnpm storage:init
+pnpm dev
+```
+
+生产形态可以 `pnpm start` 或 `node dist/server/index.js`（已构建）。服务器静态/缓存行为由 `test/integration/static.test.ts` 覆盖。
 
 ## 设计规则
 
@@ -87,16 +83,16 @@ pnpm build
 
 ## 文档维护规则
 
-- 命令、环境变量、路由边界变化时，更新 `README.md`、`docs/configure.md`。
+- 命令、环境变量、缓存或部署变化时，更新 `README.md`、`docs/configure.md`。
+- API 路由、action、错误码或登录流程变化时，更新 `docs/api.md`、`docs/auth.md`。
 - 设计原则或公开页风格变化时，更新 `docs/designs.md`。
 - 项目状态、范围、CI 变化时，更新 `TODOS.md`。
 - 新增领域术语时，更新 `docs/glossary.md`。
-- `web/README.md` 只介绍 `package.json` 和 scripts，不重复配置文档。
 
 ## 完成标准
 
-- 变更范围明确，没有波及 `server/` 和废弃目录。
-- 类型检查、lint、构建通过；需要时完成浏览器冒烟。
+- 变更范围明确，没有波及 `legacy/` 或本地 storage。
+- 类型检查、lint、服务端测试、构建通过。
 - 没有引入未经确认的依赖。
 - 相关文档已同步。
-- 没有提交本地敏感配置。
+- 没有提交本地敏感配置或构建产物。

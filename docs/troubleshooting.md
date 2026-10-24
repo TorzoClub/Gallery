@@ -1,32 +1,23 @@
 # 常见问题
 
-本文只覆盖 `web/` 前端侧的排查。server 内部问题不在本文范围。
+本文覆盖根目录单体应用的排查。旧 `server/`、`web/` 已归档到 `legacy/`，不在本文维护。
 
 ## Node 版本不对
-
-先确认版本：
 
 ```bash
 node -v
 ```
 
-项目要求 Node.js >= 24.22.1。使用 nvm：
+要求 Node.js >= 24.22.1：
 
 ```bash
-cd web
 nvm use
-```
-
-如果 `nvm use` 找不到版本：
-
-```bash
 nvm install 24.22.1
-nvm use 24.22.1
 ```
 
 ## pnpm install 失败
 
-先检查代理和 registry。`web/.npmrc` 是本机配置，不应提交：
+先检查代理和 registry。根 `.npmrc` 是本机配置，不应提交：
 
 ```ini
 registry=https://registry.npmjs.org/
@@ -35,59 +26,113 @@ http-proxy=socks5://127.0.0.1:503
 https-proxy=socks5://127.0.0.1:503
 ```
 
-代理端口不可用时，先确认本机代理在运行，或临时移除代理配置。不要把带代理的 `.npmrc` 提交到仓库。
+代理端口不可用时，先确认本机代理在运行，或临时移除代理配置。
 
 ## API 请求失败
 
-检查 `VITE_API_PREFIX`：
+开发环境：
 
-- 开发环境默认是 `http://localhost:7001/`；
-- 生产环境默认是 `/torzo-gallery-server/`；
-- 路径末尾需要 `/`，客户端会自动补齐，但不要混用两个不同来源；
-- 修改 `.env.local` 后重启开发服务器。
+- Vite 在 `http://localhost:3000`。
+- API 在 `http://127.0.0.1:7001`。
+- Vite 代理 `/query`、`/mutate`、`/admin/query`、`/admin/mutate`、`/auth`、`/upload-image`、`/images`、`/healthz`。
+- `.env.development` 的 `VITE_API_PREFIX=/`。
 
-先用浏览器 Network 面板确认请求地址和响应状态，再判断是前端配置还是后端问题。server 的接口和配置不在本文范围。
+先直接请求 API：
+
+```bash
+curl http://127.0.0.1:7001/healthz
+```
+
+如果 API 正常但页面请求失败，检查 Vite 是否启动、代理目标端口是否和 `HTTP_PORT` 一致。浏览器 Network 面板里的请求路径应该是同源 `/query/...`，不是 `http://localhost:7001/...`。
 
 ## 刷新后台深层路由 404
 
-项目使用 `BrowserRouter`。直接访问 `/admin/gallery/1/photo/list` 这类深层路由时，静态服务器必须回退到 `index.html`。
+生产模式由 Hono 做 SPA fallback。如果使用额外反向代理，直接转发到 Hono 即可，不要自己加 `try_files` 到不存在的静态目录。
 
-Nginx 通用配置：
+本地 Vite 已处理 SPA 路由；如果直接访问 `/admin/dashboard` 出现 API 404，检查 Vite proxy 是否错误地代理了 `/admin` 整个前缀。项目只代理 `/admin/query` 和 `/admin/mutate`。
 
-```nginx
-location / {
-  try_files $uri $uri/ /index.html;
-}
+## 登录页打不开或登录 404
+
+- 后台登录页：`GET /admin/login`（SPA）。
+- 登录接口：`POST /auth/login`（API）。
+
+不要把两者混成 `/admin/login` 的 POST。Vite 只把 `/auth` 代理给 API。
+
+## 静态资源缓存不对
+
+生产构建后检查：
+
+```bash
+ls dist/client/assets
+curl -I http://127.0.0.1:7001/
+curl -I http://127.0.0.1:7001/assets/<hash>.js
+curl -I http://127.0.0.1:7001/images/source/<file>
 ```
 
-子路径部署时，回退到对应的 `index.html`，并确认 `VITE_BASE_PATH` 已正确设置。
+预期：
+
+- `/` 和 `/admin/dashboard`：`no-cache`
+- `/assets/*`：`public, max-age=31536000, immutable`
+- `/images/*`：`public, max-age=31536000, immutable`
+
+如果 HTML 被强缓存，检查是否被额外 CDN/反向代理覆盖了 Hono 的 `Cache-Control`。
+
+## 修改前端后还是旧页面
+
+HTML 是 `no-cache`，正常情况下刷新会重新验证。若浏览器或 CDN 仍显示旧页面：
+
+1. 确认请求的是新的 `index.html`；
+2. 检查 CDN 是否缓存了 HTML；
+3. 确认 `pnpm build` 后 `dist/client/assets` 出现了新的 hash 文件；
+4. 生产进程是否重启到了新构建。
+
+## instance 配置修改后没有生效
+
+- 配置只影响**后续**上传和缩略图生成，不会自动重做已有图片。
+- 保存成功后刷新页面确认值。
+- 需要重建已有图片时，在后台使用缩略图重建/刷新操作。
+- `max_upload_bytes` 不能超过 `HTTP_BODY_HARD_LIMIT_BYTES`，否则服务端返回 400。
+
+## storage lock 冲突
+
+同一 `STORAGE_PATH` 只允许一个 API 进程写入。看到 lock 相关错误时：
+
+```bash
+lsof -nP -iTCP:7001 -sTCP:LISTEN
+```
+
+确认是否已有进程在运行。不要手动删除正在使用中的 lock；先停止旧进程。异常退出后的 stale lock 由服务端按 PID 检测处理。
 
 ## 端口被占用
 
-默认开发端口是 3000。查看占用：
-
 ```bash
 lsof -nP -iTCP:3000 -sTCP:LISTEN
+lsof -nP -iTCP:7001 -sTCP:LISTEN
 ```
 
-换端口启动：
+Vite 换端口：
 
 ```bash
-pnpm dev --port 3001
+pnpm exec vite --port 3001
 ```
 
-如果旧进程仍在运行，先确认它是不是你自己的开发服务器，再决定是否停止。
+API 换端口后同时更新 `.env.development` 的 `HTTP_PORT` 和 Vite 代理目标。
+
+## 生产启动报“前端构建产物不存在”
+
+生产模式要求 `dist/client/index.html` 存在：
+
+```bash
+pnpm build
+pnpm start
+```
+
+如果使用 Docker，确认镜像构建阶段执行了 `pnpm build`，运行阶段复制了 `dist/client`。
 
 ## 环境变量修改后不生效
 
-Vite 在启动时读取环境变量。修改 `.env`、`.env.local` 或 `.env.*` 后需要重启 `pnpm dev`。
+- 服务端 env 在进程启动时读取，需要重启 API。
+- `VITE_` 变量在构建时读取，需要重新 `pnpm build:client`。
+- instance 配置在运行期可改，保存后立即影响后续请求。
 
-## 构建正常但页面资源 404
-
-检查：
-
-- `VITE_BASE_PATH` 是否和实际部署路径一致；
-- 静态服务器是否正确提供 `web/dist/assets/`；
-- 是否配置了 SPA fallback。
-
-更完整的配置说明见 [configure.md](configure.md)。
+更多配置见 [configure.md](configure.md)。

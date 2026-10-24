@@ -1,5 +1,15 @@
 .DS_Store
 .pnpm-store/
 .npmrc
-.env.local
-.env.*.local
+node_modules
+dist
+coverage
+.vitest
+/storage
+/storage-dev
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+temp

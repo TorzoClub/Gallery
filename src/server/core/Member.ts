@@ -73,7 +73,6 @@ export function createMember(draft: MemberDraft, now: Date): Member {
 }
 
 export type MemberUpdate = {
-  qq_num?: number
   name?: string
   avatar_src?: string
 }
@@ -81,7 +80,6 @@ export type MemberUpdate = {
 export function updateMember(member: Member, items: MemberUpdate, now: Date): Member {
   return checkMember({
     ...member,
-    ...(items.qq_num === undefined ? {} : { qq_num: asQQNumber(items.qq_num) }),
     ...(items.name === undefined ? {} : { name: items.name }),
     ...(items.avatar_src === undefined ? {} : { avatar_src: items.avatar_src }),
     updated_at: now,

@@ -389,17 +389,7 @@ export function poolUpdateMember(
 ): { pool: Pool; member: Member } {
   const current = findMemberById(pool, member_id)
   const updated = updateMember(current, input, now)
-
-  if (updated.qq_num !== current.qq_num) {
-    const occupied = pool.members.get(updated.qq_num)
-    if (occupied !== undefined && occupied.id !== current.id) {
-      throw conflict(`QQ 号(${updated.qq_num})已经被其他成员使用`)
-    }
-  }
-
-  const members = pool.members
-    .remove(current.qq_num)
-    .set(updated.qq_num, updated)
+  const members = pool.members.set(current.qq_num, updated)
 
   return {
     pool: updatePool(pool, { members }),

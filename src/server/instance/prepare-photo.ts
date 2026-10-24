@@ -1,7 +1,10 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { randomUUID } from 'node:crypto'
+import { createWriteStream } from 'node:fs'
+import { pipeline } from 'node:stream/promises'
+import type { Readable } from 'node:stream'
 import {
+  type GalleryID,
   type MemberID,
   type PhotoID,
 } from '../common/ID'
@@ -9,11 +12,14 @@ import {
   badRequest,
   notFound,
 } from '../common/error'
-import { isSafeFilename, thumbFilename } from '../common/image-name'
-import { createPhoto, type Photo } from '../core/Photo'
+import { formatFromFilename, isSafeFilename, thumbFilename } from '../common/image-name'
+import { crc32ToHex } from '../common/crc32'
+import { isUuidV7, uuidV7Timestamp, uuidv7 } from '../common/uuid'
+import { type PhotoDraft } from '../core/Photo'
 import { type Pool } from '../core/Pool'
 import { type InstanceConfig } from '../config/instance'
 import { type Storage } from '../storage'
+import { fileExists } from '../storage/fs'
 import {
   readImageInfo,
   writeSourceImage,
@@ -21,50 +27,65 @@ import {
   type ImageInfo,
 } from '../storage/image'
 
+export const TEMP_IMAGE_TTL_MS = 24 * 60 * 60 * 1000
+export const TEMP_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
+
 export type TempImage = {
   temp_id: string
   width: number
   height: number
   format: string
   size: number
+  crc32: number
+}
+
+type PreparedImage = {
+  src: string
+  width: number
+  height: number
+  discard(): Promise<void>
+}
+
+export type PreparedPhoto = PhotoDraft & {
+  discard(): Promise<void>
 }
 
 export type PreparedAvatar = {
   avatar_src: string
+  discard(): Promise<void>
 }
 
 export type ImagePipeline = {
   storeTempImage(input: {
-    buffer: Buffer
-    original_name: string
-    max_upload_bytes: number
+    stream: Readable
+    temp_id: string
+    format: string
+    crc32: Promise<number>
   }): Promise<TempImage>
   preparePhoto(input: {
+    gallery_id: GalleryID
     photo_id: PhotoID
     temp_id: string
     desc: string
     index: number
     member_id: MemberID
-    now: Date
-  }): Promise<Photo>
+  }): Promise<PreparedPhoto>
   prepareAvatar(input: {
+    qq_num: number
     temp_id: string
-    now: Date
   }): Promise<PreparedAvatar>
   refreshThumb(source_filename: string): Promise<void>
   refreshAvatar(source_filename: string): Promise<void>
   collectGarbage(prev: Pool, next: Pool): Promise<void>
   cleanUnusedImages(pool: Pool): Promise<string[]>
+  cleanupStaleTemps(): Promise<void>
+  close(): Promise<void>
 }
 
-function safeTempId(filename: string): string {
-  const ext = path.extname(filename).toLowerCase()
-  const safe_ext = /^\.[a-z0-9]+$/.test(ext) ? ext : '.bin'
-  return `${randomUUID()}${safe_ext}`
-}
-
-function imageName(prefix: string, now: Date, format: string): string {
-  return `${prefix}-${now.getTime()}-${randomUUID().slice(0, 8)}.${format}`
+type TempMetadata = {
+  crc32: number
+  format: string
+  size: number
 }
 
 function sourceNamesOfPool(pool: Pool): Set<string> {
@@ -87,144 +108,202 @@ function thumbNamesOfSources(sources: Iterable<string>): Set<string> {
 export function createImagePipeline(options: {
   storage: Storage
   getConfig: () => InstanceConfig
+  now?: () => number
+  cleanup_interval_ms?: number
 }): ImagePipeline {
   const { storage, getConfig } = options
+  const now = options.now ?? Date.now
+  const cleanup_interval_ms = options.cleanup_interval_ms ?? TEMP_CLEANUP_INTERVAL_MS
+  const temp_metadata = new Map<string, TempMetadata>()
+  let closing = false
+  let cleanup_promise: Promise<void> | null = null
 
   async function storeTempImage(input: {
-    buffer: Buffer
-    original_name: string
-    max_upload_bytes: number
+    stream: Readable
+    temp_id: string
+    format: string
+    crc32: Promise<number>
   }): Promise<TempImage> {
-    if (input.buffer.length === 0) {
-      throw badRequest('上传文件为空')
+    if (!isUuidV7(input.temp_id)) {
+      throw badRequest('非法的 temp_id')
     }
-    if (input.buffer.length > input.max_upload_bytes) {
-      throw badRequest(`上传文件不能超过 ${input.max_upload_bytes} 字节`)
+    const format = formatFromFilename(`upload.${input.format}`)
+    if (format === null || format !== input.format) {
+      throw badRequest('不支持的图片格式')
     }
 
-    const temp_id = safeTempId(input.original_name)
-    await storage.saveTempFile(temp_id, input.buffer)
+    const temp_filename = `${input.temp_id}.${format}`
+    const temp_path = storage.tempPath(temp_filename)
 
     try {
-      const info = await readImageInfo(storage.tempPath(temp_id))
+      await pipeline(
+        input.stream,
+        createWriteStream(temp_path, { flags: 'wx', mode: 0o600 }),
+      )
+      const crc32 = await input.crc32
+      const info = await readImageInfo(temp_path)
+      if (info.format !== format) {
+        throw badRequest(`图片实际格式(${info.format})与扩展名(${format})不一致`)
+      }
+      const stat = await fs.stat(temp_path)
+      temp_metadata.set(input.temp_id, {
+        crc32,
+        format: info.format,
+        size: stat.size,
+      })
       return {
-        temp_id,
+        temp_id: input.temp_id,
         width: info.width,
         height: info.height,
         format: info.format,
-        size: input.buffer.length,
+        size: stat.size,
+        crc32,
       }
     } catch (error) {
-      await storage.removeTemp(temp_id)
+      await fs.rm(temp_path, { force: true })
+      temp_metadata.delete(input.temp_id)
       throw error
     }
   }
 
+  async function prepareImage(input: {
+    temp_filename: string
+    format: string
+    crc32: number
+    prefix: string
+    thumb_size: number
+  }): Promise<PreparedImage> {
+    const temp_path = storage.tempPath(input.temp_filename)
+    const source_filename = `${input.prefix}-${crc32ToHex(input.crc32)}.${input.format}`
+    const thumb_name = thumbFilename(source_filename)
+    const source_path = storage.imagePath('source', source_filename)
+    const thumb_path = storage.imagePath('thumb', thumb_name)
+    const source_existed = await fileExists(source_path)
+    const thumb_existed = await fileExists(thumb_path)
+    let source_created = false
+    let thumb_created = false
+    let discarded = false
+
+    const discard = async (): Promise<void> => {
+      if (discarded) {
+        return
+      }
+      discarded = true
+      if (source_created) {
+        await fs.rm(source_path, { force: true })
+      }
+      if (thumb_created) {
+        await fs.rm(thumb_path, { force: true })
+      }
+    }
+
+    try {
+      let source_info: ImageInfo
+      if (source_existed) {
+        source_info = await readImageInfo(source_path)
+      } else {
+        source_info = await writeSourceImage({
+          input_path: temp_path,
+          output_path: source_path,
+          max_dimension: getConfig().max_image_dimension,
+        })
+        source_created = true
+      }
+
+      if (!(source_existed && thumb_existed)) {
+        await writeThumbImage({
+          input_path: source_path,
+          output_path: thumb_path,
+          size: input.thumb_size,
+          quality: getConfig().image_thumb_quality,
+          effort: getConfig().image_thumb_effort,
+        })
+        thumb_created = true
+      }
+
+      return {
+        src: source_filename,
+        width: source_info.width,
+        height: source_info.height,
+        discard,
+      }
+    } catch (error) {
+      await discard()
+      throw error
+    }
+  }
+
+  async function loadTemp(temp_id: string): Promise<{
+    meta: TempMetadata
+    temp_filename: string
+  }> {
+    if (!isUuidV7(temp_id)) {
+      throw badRequest('临时图片不存在或已过期')
+    }
+    const meta = temp_metadata.get(temp_id)
+    const temp_filename = await storage.findTempFile(temp_id)
+    if (meta === undefined || temp_filename === null) {
+      throw badRequest('临时图片不存在或已过期')
+    }
+    return { meta, temp_filename }
+  }
+
+  async function discardTemp(temp_id: string, temp_filename: string): Promise<void> {
+    temp_metadata.delete(temp_id)
+    await storage.removeTemp(temp_filename)
+  }
+
   async function preparePhoto(input: {
+    gallery_id: GalleryID
     photo_id: PhotoID
     temp_id: string
     desc: string
     index: number
     member_id: MemberID
-    now: Date
-  }): Promise<Photo> {
-    if (!isSafeFilename(input.temp_id)) {
-      throw badRequest('非法的 temp_id')
-    }
-
-    const temp_path = storage.tempPath(input.temp_id)
-    let source_filename: string | undefined
-    let thumb_name: string | undefined
-
+  }): Promise<PreparedPhoto> {
+    const { meta, temp_filename } = await loadTemp(input.temp_id)
     try {
-      const info: ImageInfo = await readImageInfo(temp_path)
-      source_filename = imageName(`${input.photo_id}`, input.now, info.format)
-      thumb_name = thumbFilename(source_filename)
-
-      const source_path = storage.imagePath('source', source_filename)
-      const thumb_path = storage.imagePath('thumb', thumb_name)
-
-      const source_info = await writeSourceImage({
-        input_path: temp_path,
-        output_path: source_path,
-        max_dimension: getConfig().max_image_dimension,
+      const prepared = await prepareImage({
+        temp_filename,
+        format: meta.format,
+        crc32: meta.crc32,
+        prefix: `photo-${input.gallery_id}-${input.photo_id}`,
+        thumb_size: getConfig().image_thumb_size,
       })
-
-      await writeThumbImage({
-        input_path: source_path,
-        output_path: thumb_path,
-        size: getConfig().image_thumb_size,
-        quality: getConfig().image_thumb_quality,
-        effort: getConfig().image_thumb_effort,
-      })
-
-      await storage.removeTemp(input.temp_id)
-
-      return createPhoto({
+      return {
         id: input.photo_id,
         index: input.index,
         desc: input.desc,
-        src: source_filename,
-        width: source_info.width,
-        height: source_info.height,
+        src: prepared.src,
+        width: prepared.width,
+        height: prepared.height,
         member_id: input.member_id,
-      }, input.now)
-    } catch (error) {
-      if (source_filename !== undefined) {
-        await fs.rm(storage.imagePath('source', source_filename), { force: true })
+        discard: prepared.discard,
       }
-      if (thumb_name !== undefined) {
-        await fs.rm(storage.imagePath('thumb', thumb_name), { force: true })
-      }
-      await storage.removeTemp(input.temp_id)
-      throw error
+    } finally {
+      await discardTemp(input.temp_id, temp_filename)
     }
   }
 
   async function prepareAvatar(input: {
+    qq_num: number
     temp_id: string
-    now: Date
   }): Promise<PreparedAvatar> {
-    if (!isSafeFilename(input.temp_id)) {
-      throw badRequest('非法的 temp_id')
-    }
-
-    const temp_path = storage.tempPath(input.temp_id)
-    let source_filename: string | undefined
-    let thumb_name: string | undefined
-
+    const { meta, temp_filename } = await loadTemp(input.temp_id)
     try {
-      const info = await readImageInfo(temp_path)
-      source_filename = imageName('avatar', input.now, info.format)
-      thumb_name = thumbFilename(source_filename)
-
-      const source_path = storage.imagePath('source', source_filename)
-      const thumb_path = storage.imagePath('thumb', thumb_name)
-
-      await writeSourceImage({
-        input_path: temp_path,
-        output_path: source_path,
-        max_dimension: getConfig().max_image_dimension,
+      const prepared = await prepareImage({
+        temp_filename,
+        format: meta.format,
+        crc32: meta.crc32,
+        prefix: `avatar-${input.qq_num}`,
+        thumb_size: getConfig().avatar_thumb_size,
       })
-      await writeThumbImage({
-        input_path: source_path,
-        output_path: thumb_path,
-        size: getConfig().avatar_thumb_size,
-        quality: getConfig().image_thumb_quality,
-        effort: getConfig().image_thumb_effort,
-      })
-      await storage.removeTemp(input.temp_id)
-
-      return { avatar_src: source_filename }
-    } catch (error) {
-      if (source_filename !== undefined) {
-        await fs.rm(storage.imagePath('source', source_filename), { force: true })
+      return {
+        avatar_src: prepared.src,
+        discard: prepared.discard,
       }
-      if (thumb_name !== undefined) {
-        await fs.rm(storage.imagePath('thumb', thumb_name), { force: true })
-      }
-      await storage.removeTemp(input.temp_id)
-      throw error
+    } finally {
+      await discardTemp(input.temp_id, temp_filename)
     }
   }
 
@@ -236,7 +315,7 @@ export function createImagePipeline(options: {
     const source_path = storage.imagePath('source', source_filename)
     const thumb_name = thumbFilename(source_filename)
     const thumb_path = storage.imagePath('thumb', thumb_name)
-    const temp_path = storage.tempPath(`${randomUUID()}.avif`)
+    const temp_path = storage.tempPath(`${uuidv7()}.avif`)
 
     try {
       await writeThumbImage({
@@ -297,6 +376,64 @@ export function createImagePipeline(options: {
     return removed
   }
 
+  async function cleanupStaleTemps(): Promise<void> {
+    if (closing) {
+      return
+    }
+    if (cleanup_promise !== null) {
+      return cleanup_promise
+    }
+
+    cleanup_promise = (async () => {
+      const cutoff = now() - TEMP_IMAGE_TTL_MS
+      let entries: string[]
+      try {
+        entries = await fs.readdir(storage.paths.temp)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          return
+        }
+        throw error
+      }
+
+      for (const filename of entries) {
+        const ext = path.extname(filename)
+        const temp_id = filename.slice(0, filename.length - ext.length)
+        if (formatFromFilename(filename) === null) {
+          continue
+        }
+        const timestamp = uuidV7Timestamp(temp_id)
+        if (timestamp === null || timestamp > cutoff) {
+          continue
+        }
+        await storage.removeTemp(filename)
+        temp_metadata.delete(temp_id)
+      }
+    })()
+
+    try {
+      await cleanup_promise
+    } finally {
+      cleanup_promise = null
+    }
+  }
+
+  const cleanup_timer = setInterval(() => {
+    void cleanupStaleTemps().catch(() => undefined)
+  }, cleanup_interval_ms)
+  cleanup_timer.unref()
+
+  async function close(): Promise<void> {
+    if (closing) {
+      return
+    }
+    closing = true
+    clearInterval(cleanup_timer)
+    if (cleanup_promise !== null) {
+      await cleanup_promise
+    }
+  }
+
   return {
     storeTempImage,
     preparePhoto,
@@ -305,5 +442,7 @@ export function createImagePipeline(options: {
     refreshAvatar,
     collectGarbage,
     cleanUnusedImages,
+    cleanupStaleTemps,
+    close,
   }
 }

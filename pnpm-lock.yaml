@@ -17,6 +17,9 @@ importers:
       axios:
         specifier: ^1.20.0
         version: 1.20.0
+      busboy:
+        specifier: ^1.6.0
+        version: 1.6.0
       heic-convert:
         specifier: ^2.1.0
         version: 2.1.0
@@ -50,6 +53,9 @@ importers:
       swr:
         specifier: ^2.3.8
         version: 2.5.1(react@19.3.1)
+      uuid:
+        specifier: ^14.0.3
+        version: 14.0.3
       vait:
         specifier: ^4.2.1
         version: 4.2.1
@@ -60,6 +66,9 @@ importers:
         specifier: ^4.4.7
         version: 4.5.7(@types/react@19.3.0)(react@19.3.1)
     devDependencies:
+      '@types/busboy':
+        specifier: ^1.5.5
+        version: 1.5.5
       '@types/heic-convert':
         specifier: ^2.1.0
         version: 2.1.1
@@ -846,6 +855,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@types/busboy@1.5.5':
+    resolution: {integrity: sha512-IwqrfVFxWa23c4WeE7uZswssCqGfvnl5Q7b1pdshbT3HaQDa3UIbJx5BAxtcj9nZYX9tVDArM9TUv9SpvORbpQ==}
+
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
 
@@ -1053,6 +1065,10 @@ packages:
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
     peerDependencies:
       esbuild: '>=0.18'
+
+  busboy@1.6.0:
+    resolution: {integrity: sha512-8SFQbg/0hQ9xy3UNTB0YEnsNBbWfhf7RtnzpL7TkBiTBRfrQ9Fxcnz7VJsleJpyp6rVLvXiuORqjlHi5q+PYuA==}
+    engines: {node: '>=10.16.0'}
 
   cac@7.1.0:
     resolution: {integrity: sha512-LMDU/U2yA4IPIY8KT0NsNPWEYZvAMkbgyspxJ6btJaYV+WMDOHAZCmB0lsTObiHaRS1V/ztKAl7+TSkTqXyeoA==}
@@ -1520,6 +1536,10 @@ packages:
   std-env@4.3.0:
     resolution: {integrity: sha512-OtU/EgQ1kIm5KwqQpBC6ZEMXrZRui11w8zgfTWp8cdO9B8OaPsbA8bTHO2P+HNo1VlUTGMVBwPhydu6poeXiag==}
 
+  streamsearch@1.1.0:
+    resolution: {integrity: sha512-Mcc5wHehp9aXz1ax6bZUyY5afg9u2rv5cqQI3mRrYkGC8rW2hM02jWuwjtL++LS5qinSyhj2QfLyNsuc+VsExg==}
+    engines: {node: '>=10.0.0'}
+
   sucrase@3.35.1:
     resolution: {integrity: sha512-DhuTmvZWux4H1UOnWMB3sk0sbaCVOoQZjv8u1rDoTV0HTdGem9hkAZtl4JZy8P2z4Bg0nT+YMeOFyVr4zcG5Tw==}
     engines: {node: '>=16 || 14 >=14.17'}
@@ -1610,6 +1630,10 @@ packages:
 
   utrie@1.0.2:
     resolution: {integrity: sha512-1MLa5ouZiOmQzUbjbu9VmjLzn1QLXBhwpUa7kdLUQK+KQ5KA9I1vk5U4YHe/X2Ch7PYnJfWuWT+VbuxbGwljhw==}
+
+  uuid@14.0.3:
+    resolution: {integrity: sha512-Sc5u1VVln93y1Xnz4R+CunOZc7R9LUcTmhj7Rc7Eg3HVcf7rVn2FOoa812fe0W8p3jD7xeoGSYbfqCGGH2B6xw==}
+    hasBin: true
 
   vait@4.2.1:
     resolution: {integrity: sha512-ixzzgnIMRCl/OMSbNSexZDkNhjt1SC4navs6w2yDXExG/DpMWOuZhkUZqkQrsw8cAB0wfke1hxrgdZiJURcRuA==}
@@ -2173,6 +2197,10 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.65.0':
     optional: true
 
+  '@types/busboy@1.5.5':
+    dependencies:
+      '@types/node': 24.19.2
+
   '@types/chai@5.2.3':
     dependencies:
       '@types/deep-eql': 4.0.2
@@ -2306,6 +2334,10 @@ snapshots:
     dependencies:
       esbuild: 0.28.2
       load-tsconfig: 0.2.5
+
+  busboy@1.6.0:
+    dependencies:
+      streamsearch: 1.1.0
 
   cac@7.1.0: {}
 
@@ -2785,6 +2817,8 @@ snapshots:
 
   std-env@4.3.0: {}
 
+  streamsearch@1.1.0: {}
+
   sucrase@3.35.1:
     dependencies:
       '@jridgewell/gen-mapping': 0.3.13
@@ -2902,6 +2936,8 @@ snapshots:
   utrie@1.0.2:
     dependencies:
       base64-arraybuffer: 1.0.2
+
+  uuid@14.0.3: {}
 
   vait@4.2.1: {}
 

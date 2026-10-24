@@ -2,7 +2,7 @@ import React, { FormEvent, useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { createMember, getMember, updateMember } from '../api/member'
-import type { Member, MemberPayload, UploadResult } from '../api/types'
+import type { Member, MemberCreatePayload, MemberUpdatePayload, UploadResult } from '../api/types'
 import { PageHeader, PageLoading, Spinner } from '../components/Feedback'
 import Field from '../components/Field'
 import Icon from '../components/Icon'
@@ -82,7 +82,7 @@ export default function MemberEditPage() {
     if (!form.name.trim()) {
       nextErrors.name = '请输入成员名称'
     }
-    if (!/^\d+$/.test(form.qq_num.trim()) || Number(form.qq_num) <= 0) {
+    if (isNew && (!/^\d+$/.test(form.qq_num.trim()) || Number(form.qq_num) <= 0)) {
       nextErrors.qq_num = 'QQ 号需要是大于 0 的整数'
     }
     if (isNew && !form.avatar_temp_id) {
@@ -104,23 +104,26 @@ export default function MemberEditPage() {
       return
     }
 
-    const payload: MemberPayload = {
+    const update_payload: MemberUpdatePayload = {
       name: form.name.trim(),
-      qq_num: Number(form.qq_num),
     }
-
     if (form.avatar_temp_id) {
-      payload.avatar_temp_id = form.avatar_temp_id
+      update_payload.avatar_temp_id = form.avatar_temp_id
     }
 
     setSubmitting(true)
     try {
       if (isNew) {
-        await createMember(payload)
-        toast.success(`【${payload.name}】已创建`)
+        const create_payload: MemberCreatePayload = {
+          name: form.name.trim(),
+          ...(form.avatar_temp_id ? { avatar_temp_id: form.avatar_temp_id } : {}),
+          qq_num: Number(form.qq_num),
+        }
+        await createMember(create_payload)
+        toast.success(`【${create_payload.name}】已创建`)
       } else {
-        await updateMember(numericID, payload)
-        toast.success(`【${payload.name}】已更新`)
+        await updateMember(numericID, update_payload)
+        toast.success(`【${update_payload.name}】已更新`)
       }
       navigate('/admin/member', { replace: true })
     } catch (err) {
@@ -180,7 +183,13 @@ export default function MemberEditPage() {
             />
           </Field>
 
-          <Field label="成员 QQ 号" htmlFor="member-qq" required error={errors.qq_num}>
+          <Field
+            label="成员 QQ 号"
+            htmlFor="member-qq"
+            required
+            error={errors.qq_num}
+            hint={isNew ? undefined : 'QQ 号创建后不可修改'}
+          >
             <input
               id="member-qq"
               className="adm-input"
@@ -188,6 +197,7 @@ export default function MemberEditPage() {
               value={form.qq_num}
               onChange={event => setField('qq_num', event.target.value)}
               placeholder="请输入 QQ 号"
+              disabled={!isNew}
             />
           </Field>
 

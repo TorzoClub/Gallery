@@ -41,9 +41,14 @@ export interface GalleryPayload {
   index: number
 }
 
-export interface MemberPayload {
+export interface MemberCreatePayload {
   name: string
   qq_num: number
+  avatar_temp_id?: string
+}
+
+export interface MemberUpdatePayload {
+  name?: string
   avatar_temp_id?: string
 }
 

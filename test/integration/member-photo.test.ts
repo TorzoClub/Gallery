@@ -21,7 +21,7 @@ describe('member actions', () => {
     const member = await ctx.createMember({ qq_num: 30001, name: 'Alice' })
     expect(member.qq_num).toBe(30001)
     expect(member.id).toBeGreaterThan(0)
-    expect(String(member.avatar_src)).toMatch(/\.png$/)
+    expect(String(member.avatar_src)).toMatch(/^avatar-30001-[0-9a-f]{8}\.png$/)
 
     const list = await ctx.adminQuery('adminListMembers')
     expect(list.status).toBe(200)
@@ -33,14 +33,20 @@ describe('member actions', () => {
     const updated = await ctx.adminMutate('adminUpdateMember', {
       member_id: member.id,
       name: 'Alice 2',
-      qq_num: 30002,
     })
     expect(updated.status).toBe(200)
-    expect(updated.body.data.qq_num).toBe(30002)
+    expect(updated.body.data.qq_num).toBe(30001)
     expect(updated.body.data.id).toBe(member.id)
 
-    const photos = await ctx.query('getMemberPhotos', { qq_num: 30002 })
+    const photos = await ctx.query('getMemberPhotos', { qq_num: 30001 })
     expect(photos.status).toBe(200)
+
+    const rejected = await ctx.adminMutate('adminUpdateMember', {
+      member_id: member.id,
+      qq_num: 30002,
+    })
+    expect(rejected.status).toBe(400)
+    expect(rejected.body.code).toBe('INVALID_PAYLOAD')
   })
 
   it('rejects duplicate qq numbers', async () => {
@@ -66,6 +72,7 @@ describe('member actions', () => {
       avatar_temp_id: new_avatar.temp_id,
     })
     expect(updated.status).toBe(200)
+    expect(updated.body.data.avatar_src).toMatch(/^avatar-30004-[0-9a-f]{8}\.png$/)
     expect(updated.body.data.avatar_src).not.toBe(old_source)
     await expect(fs.access(old_path)).rejects.toMatchObject({ code: 'ENOENT' })
   })
@@ -143,7 +150,7 @@ describe('photo actions', () => {
     expect(removed.body.data.id).toBe(member.id)
   })
 
-  it('keeps the photo linked when a member changes QQ number', async () => {
+  it('rejects QQ changes and keeps the photo linked', async () => {
     const member = await ctx.createMember({ qq_num: 31004 })
     const gallery = await ctx.createGallery()
     const photo = await ctx.createPhoto({
@@ -155,11 +162,11 @@ describe('photo actions', () => {
       member_id: member.id,
       qq_num: 31005,
     })
-    expect(updated.status).toBe(200)
+    expect(updated.status).toBe(400)
 
     const got = await ctx.adminQuery('adminGetPhoto', { photo_id: photo.id })
     expect(got.status).toBe(200)
     expect(got.body.data.member_id).toBe(member.id)
-    expect(got.body.data.member.qq_num).toBe(31005)
+    expect(got.body.data.member.qq_num).toBe(31004)
   })
 })

@@ -90,7 +90,7 @@
 | `adminUpdateGallery` | `{ gallery_id, ...可选字段 }` | 更新相册 |
 | `adminRemoveGallery` | `{ gallery_id }` | 删除相册 |
 | `adminCreateMember` | `{ qq_num, name, avatar_temp_id }` | 创建成员，必须上传头像 |
-| `adminUpdateMember` | `{ member_id, qq_num?, name?, avatar_temp_id? }` | 更新成员 |
+| `adminUpdateMember` | `{ member_id, name?, avatar_temp_id? }` | 更新成员；QQ 不可修改 |
 | `adminRemoveMember` | `{ member_id }` | 删除成员 |
 | `adminClearMemberGalleryVotes` | `{ member_id, gallery_id }` | 清空某成员在某相册的投票 |
 | `adminCreatePhoto` | `{ gallery_id, member_id, desc, index?, temp_id }` | 创建相片 |
@@ -113,16 +113,17 @@
 {
   "success": true,
   "data": {
-    "temp_id": "temp-....png",
+    "temp_id": "0192f0c1-7a2b-7c3d-8e4f-123456789abc",
     "width": 1200,
     "height": 800,
     "format": "png",
-    "size": 123456
+    "size": 123456,
+    "crc32": 907060870
   }
 }
 ```
 
-上传只写入临时目录。创建/更新相片或成员时把 `temp_id` / `avatar_temp_id` 传给 mutation，服务端才会归一化原图、生成 AVIF 缩略图并写入正式目录。
+上传只写入 `stored-images/temp/<uuidv7>.<format>`。`temp_id` 本身是 UUIDv7，不带扩展名；扩展名只允许 `[0-9A-Za-z]`，归一化后的格式还必须和实际图片内容一致。创建/更新相片或成员时把 `temp_id` / `avatar_temp_id` 传给 mutation，服务端才会归一化原图、生成 AVIF 缩略图并写入正式目录。临时文件默认 24 小时过期。
 
 限制：
 
@@ -143,7 +144,7 @@ GET /images/thumb/:file
 Cache-Control: public, max-age=31536000, immutable
 ```
 
-图片文件名包含时间戳/随机后缀，因此可以长期缓存。
+地址形如 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`，例如 `photo-2-3-4a9b66db.png`；头像形如 `avatar-<qq_num>-<crc32>.<format>`。CRC32 是上传文件内容的 8 位小写十六进制值，缩略图使用相同 basename 的 `.avif`。不同内容会得到不同文件名，因此可以长期强缓存。
 
 ## 健康检查
 

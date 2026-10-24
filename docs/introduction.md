@@ -85,7 +85,7 @@
 ## 关键决策
 
 - 单体同源：前端与 API 在同一个 HTTP 服务下，避免 CORS 和跨服务部署。
-- 前端 bundle 使用 hash 文件名并强缓存；HTML 使用 `no-cache` 弱缓存；图片使用时间戳文件名并强缓存。
+- 前端 bundle 使用 hash 文件名并强缓存；HTML 使用 `no-cache` 弱缓存；图片使用实体 ID + 内容 CRC32 文件名并强缓存；上传临时文件使用 UUIDv7。
 - 公开页和后台共用前端入口，后台整体异步加载。
 - 后台保持轻依赖和工具化，不套用公开页视觉风格。
 - 后端通过 dispatch action 执行业务，admin action 只能从 admin 路由调用。

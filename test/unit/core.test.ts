@@ -113,17 +113,17 @@ describe('ids', () => {
     expect(photo.pool.next_id).toBe(5)
   })
 
-  it('keeps the same member id when QQ changes and moves the map key', () => {
+  it('updates a member without changing the QQ map key', () => {
     const created = addMember(makePool(), 10001, 'A')
     const member_id = created.member_id
     const updated = poolUpdateMember(created.pool, now, asMemberID(member_id), {
-      qq_num: 20002,
+      name: 'B',
     })
 
     expect(Number(updated.member.id)).toBe(member_id)
-    expect(updated.pool.members.has(10001 as any)).toBe(false)
-    expect(updated.pool.members.has(20002 as any)).toBe(true)
-    expect(Number(findMemberById(updated.pool, asMemberID(member_id)).qq_num)).toBe(20002)
+    expect(updated.pool.members.has(10001 as any)).toBe(true)
+    expect(Number(findMemberById(updated.pool, asMemberID(member_id)).qq_num)).toBe(10001)
+    expect(findMemberById(updated.pool, asMemberID(member_id)).name).toBe('B')
   })
 })
 

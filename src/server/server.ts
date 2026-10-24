@@ -52,7 +52,7 @@ export async function startServer(options: {
     server = serve({
       fetch: app.fetch,
       port: env.http_port,
-      hostname: env.http_host,
+      hostname: env.hostname,
     }, (info) => {
       logger.info('api server listening', {
         host: info.address,

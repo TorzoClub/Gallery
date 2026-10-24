@@ -33,6 +33,16 @@ describe('env config', () => {
     ])
     expect(config.app_env).toBe('test')
     expect(config.http_port).toBe(7011)
+    expect(config.hostname).toBe('127.0.0.1')
+  })
+
+  it('prefers HOSTNAME over the legacy HTTP_HOST alias', () => {
+    const config = loadEnvConfig({
+      ...base_env,
+      HOSTNAME: '0.0.0.0',
+      HTTP_HOST: '127.0.0.1',
+    })
+    expect(config.hostname).toBe('0.0.0.0')
   })
 
   it('defaults to wildcard CORS in non-production and empty in production', () => {

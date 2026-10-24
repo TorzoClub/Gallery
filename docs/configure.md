@@ -36,7 +36,7 @@ pnpm dev
 |---|---|---|
 | `APP_ENV` | `development` | `development` / `test` / `production` |
 | `HTTP_PORT` | `7001` | HTTP 端口 |
-| `HTTP_HOST` | `0.0.0.0` | 监听地址 |
+| `HOSTNAME` | `0.0.0.0` | `@hono/node-server` 监听 hostname；兼容旧 `HTTP_HOST` |
 | `STORAGE_PATH` | 必填 | JSON 和图片 storage 目录 |
 | `LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
 | `ADMIN_PASSWORD` | 必填 | 后台登录密码 |

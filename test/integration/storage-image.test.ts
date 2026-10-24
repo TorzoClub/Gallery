@@ -1,5 +1,8 @@
 import fs from 'node:fs/promises'
+import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import sharp from 'sharp'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   createTestContext,
@@ -26,6 +29,33 @@ async function context(): Promise<TestContext> {
   active = await createTestContext({ remove_dir_on_close: false })
   dirs.push(active.dir)
   return active
+}
+
+const pixel_rotated_image_path = fileURLToPath(new URL('./test-pic.jpg', import.meta.url))
+
+async function makeExifOriented6Image(): Promise<string> {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'torzo-exif-'))
+  dirs.push(dir)
+  const output_path = path.join(dir, 'ori6.jpg')
+  await sharp(pixel_rotated_image_path)
+    .withMetadata({ orientation: 6 })
+    .toFile(output_path)
+  return output_path
+}
+
+type ImageMetadata = {
+  width?: number | undefined
+  height?: number | undefined
+  orientation?: number | undefined
+}
+
+function expectedOrientedSize(metadata: ImageMetadata): { width: number; height: number } {
+  if (metadata.width === undefined || metadata.height === undefined) {
+    throw new Error('测试图片缺少尺寸')
+  }
+  return (metadata.orientation ?? 1) >= 5
+    ? { width: metadata.height, height: metadata.width }
+    : { width: metadata.width, height: metadata.height }
 }
 
 describe('storage persistence', () => {
@@ -161,6 +191,59 @@ describe('image flow', () => {
       body: large_form,
     })
     expect(large.status).toBe(413)
+  })
+
+  it('handles photo dimensions rotated by EXIF Orientation', async () => {
+    const ctx = await context()
+    const member = await ctx.createMember({ qq_num: 51003 })
+    const gallery = await ctx.createGallery()
+    const ori6_path = await makeExifOriented6Image()
+    const metadata = await sharp(ori6_path).metadata()
+    const expected = expectedOrientedSize(metadata)
+    expect(metadata.orientation).toBe(6)
+
+    const buffer = await fs.readFile(ori6_path)
+    const uploaded = await ctx.uploadImage(buffer, 'ori6.jpg')
+    expect(uploaded.width).toBe(expected.width)
+    expect(uploaded.height).toBe(expected.height)
+
+    const response = await ctx.adminMutate('adminCreatePhoto', {
+      gallery_id: gallery.id,
+      member_id: member.id,
+      desc: 'exif orientation',
+      temp_id: uploaded.temp_id,
+    })
+    expect(response.status).toBe(200)
+    expect(response.body.data.width).toBe(expected.width)
+    expect(response.body.data.height).toBe(expected.height)
+    expect(response.body.data.width).toBeGreaterThan(response.body.data.height)
+  })
+
+  it('handles thumbnails rotated by EXIF Orientation', async () => {
+    const ctx = await context()
+    const member = await ctx.createMember({ qq_num: 51004 })
+    const gallery = await ctx.createGallery()
+    const ori6_path = await makeExifOriented6Image()
+    const expected = expectedOrientedSize(await sharp(ori6_path).metadata())
+
+    const photo = await ctx.createPhoto({
+      gallery_id: gallery.id as number,
+      member_id: member.id as number,
+      image: await fs.readFile(ori6_path),
+    })
+
+    const source_response = await ctx.app.request(`/images/source/${photo.src}`)
+    expect(source_response.status).toBe(200)
+    const source_metadata = await sharp(Buffer.from(await source_response.arrayBuffer())).metadata()
+    expect(source_metadata.width).toBe(expected.width)
+    expect(source_metadata.height).toBe(expected.height)
+
+    const thumb_response = await ctx.app.request(`/images/thumb/${photo.thumb}`)
+    expect(thumb_response.status).toBe(200)
+    const thumb_metadata = await sharp(Buffer.from(await thumb_response.arrayBuffer())).metadata()
+    expect(thumb_metadata.width).toBeGreaterThan(thumb_metadata.height)
+    expect(thumb_metadata.width).toBe(640)
+    expect(thumb_metadata.height).toBe(Math.round(expected.height * 640 / expected.width))
   })
 
   it('replaces a photo image and removes the old files', async () => {

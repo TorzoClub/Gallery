@@ -1,0 +1,14 @@
+services:
+  api:
+    build: .
+    init: true
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    ports:
+      - "7001:7001"
+    volumes:
+      - torzo-data:/data
+
+volumes:
+  torzo-data:

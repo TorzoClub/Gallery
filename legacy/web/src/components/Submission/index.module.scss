@@ -1,0 +1,54 @@
+.Submission {
+  display: flex;
+  justify-content: center;
+  cursor: default;
+}
+
+.ScriptPlayer {
+  padding: 40px 0;
+  width: 320px;
+  box-sizing: border-box;
+  text-align: center;
+
+  color: rgba(58, 58, 69, 0.9);
+  font-family: "Noto Sans CJK SC", "Source Han Sans", "Source Han Sans CN", "Helvetica Neue", Helvetica, "Han Heiti", "微软雅黑", "黑体", sans-serif;
+
+  font-size: 20px;
+}
+.ScriptPlayerSelects {
+  margin-top: 40px;
+  margin-bottom: 0;
+  padding: 0;
+  text-align: left;
+}
+.ScriptPlayerSelect {
+  margin-bottom: 0.5em;
+  font-size: 18px;
+}
+.ScriptPlayerSelect:last-child {
+  margin-bottom: 0;
+}
+
+.ScriptPlayerSelect:hover .TextContentEffectChar {
+  text-decoration: underline;
+}
+.ScriptPlayerSelect:hover .TextContentEffect {
+  cursor: pointer;
+}
+
+.ScriptPlayerText {
+  background-color: grey;
+}
+.TextContentEffect {
+  text-align: inherit;
+}
+.TextContentEffectChar {
+  display: inline-block;
+  cursor: inherit;
+}
+.TextContentEffectCharShow {
+  opacity: 1;
+}
+.TextContentEffectCharHide {
+  opacity: 0;
+}

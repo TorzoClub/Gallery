@@ -21,7 +21,6 @@
 │   ├── server/              Hono dispatch API、storage、图片、CLI
 │   └── shared/              DTO、instance config 类型
 ├── test/                    服务端测试
-├── scripts/dev.ts           同时启动 API watch + Vite
 ├── public/                  favicon、bg、manifest
 ├── index.html               Vite SPA 入口
 ├── docs/                    项目文档
@@ -50,22 +49,45 @@
 
 ## 请求流
 
+development 和 production 都由同一个 Node HTTP Server 监听唯一端口。Hono 始终在后端最前面；development 的 Vite 只是同进程 middleware，不单独监听端口。
+
 ```text
 浏览器
+  │  HTTP / WebSocket：唯一端口 HTTP_PORT
+  ▼
+Node HTTP Server
   │
-  ├── GET /, /admin/*        SPA + HTML 弱缓存
-  ├── GET /assets/*          hash bundle + 强缓存
-  ├── GET /images/*          图片 + 强缓存
-  └── POST /query/*, /mutate/*, /admin/*, /auth/login, /upload-image
-        │
+  ├── API 路径（isApiLikePath）
+  │     ├── POST /query/*, /mutate/*
+  │     ├── POST /admin/query/*, /admin/mutate/*
+  │     ├── POST /auth/login, /upload-image
+  │     ├── GET /images/source|thumb/*
+  │     └── GET /healthz
+  │           ▼
+  │        Hono API listener
+  │           ├── dispatch action
+  │           ├── instance / core / storage
+  │           └── sharp 图片流程
+  │
+  ├── development：其他请求
+  │     ▼
+  │   Vite middleware（同进程，不单独监听）
+  │     ├── index.html / SPA 路由
+  │     ├── /src/*、/@vite/client
+  │     ├── public 静态资源
+  │     └── HMR WebSocket（同一端口）
+  │
+  └── production：其他请求
         ▼
-      Hono
-        ├── dispatch action
-        ├── instance / core / storage
-        └── sharp 图片流程
+      Hono static
+        ├── dist/client 真实文件
+        ├── SPA fallback 到 index.html
+        └── hash assets / 图片强缓存
 ```
 
-开发时 Vite 在 `:3000` 提供前端，把 API 请求代理到 `:7001`。生产时 Hono 在 `:7001` 同时提供前端和 API。
+- API 路径不会进入 Vite。
+- development 的 HMR WebSocket 也使用同一个端口，没有独立的 Vite 端口。
+- production 不加载 Vite，所有非 API 请求由 Hono 静态服务和 SPA fallback 处理。
 
 ## 技术栈
 

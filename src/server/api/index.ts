@@ -35,9 +35,14 @@ const API_LIKE_PREFIXES = [
   '/healthz',
 ]
 
-function isApiLikePath(pathname: string): boolean {
+export function isApiLikePath(pathname: string, base_path = '/'): boolean {
+  const base = base_path === '/' ? '' : base_path.replace(/\/+$/, '')
+  const normalized = base !== '' && (pathname === base || pathname.startsWith(`${base}/`))
+    ? pathname.slice(base.length) || '/'
+    : pathname
+
   return API_LIKE_PREFIXES.some((prefix) => (
-    pathname === prefix || pathname.startsWith(`${prefix}/`)
+    normalized === prefix || normalized.startsWith(`${prefix}/`)
   ))
 }
 
@@ -236,7 +241,7 @@ export function constructApi(deps: Deps): Hono {
 
     app.get('*', async (c) => {
       const pathname = c.req.path
-      if (isApiLikePath(pathname) || pathname.startsWith('/assets/')) {
+      if (isApiLikePath(pathname, env.api_base_path) || pathname.startsWith('/assets/')) {
         return c.json({
           success: false,
           code: 'NOT_FOUND',

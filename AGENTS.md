@@ -15,7 +15,7 @@
 
 ## 当前事实
 
-- 根目录是单体 SPA + dispatch API：Hono 同时提供前端、API 和图片。
+- 根目录是单体 SPA + dispatch API：一个 Node HTTP Server 监听唯一端口；Hono 始终在后端最前面，development 的非 API 请求进入同进程 Vite middleware，production 由 Hono 提供前端静态文件。
 - 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。
 - 服务端测试在 `test/`；当前没有浏览器 UI 交互测试。
 - 前端 bundle 由 Vite 生成 hash 文件；HTML 弱缓存，assets/images 强缓存。

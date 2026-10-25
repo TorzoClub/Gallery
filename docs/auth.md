@@ -2,10 +2,10 @@
 
 ## 页面与接口的区别
 
-- 后台登录页是 SPA 路由：`GET /admin/login`，由 Hono 返回 `index.html`。
+- 后台登录页是 SPA 路由：`GET /admin/login`。production 由 Hono 的 SPA fallback 返回 `index.html`；development 由同进程 Vite middleware 返回。
 - 登录接口是 API：`POST /auth/login`。
 
-两者路径不同，避免 Vite 开发代理把后台页面请求转发到 API。
+两者路径不同，避免 API 请求和 SPA 页面路由互相冲突。
 
 ## 登录流程
 

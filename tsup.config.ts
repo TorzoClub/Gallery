@@ -12,6 +12,6 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   splitting: false,
-  external: ['sharp'],
+  external: ['sharp', 'vite'],
   tsconfig: 'tsconfig.server.json',
 })

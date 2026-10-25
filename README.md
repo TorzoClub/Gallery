@@ -2,7 +2,7 @@
 
 同装相册是一个面向活动照片征集、展示和投票的相册站点。公开页用于浏览相册、投稿和投票；后台用于管理相册、相片、成员、投票和运行期配置。
 
-当前是**单体 SPA + dispatch API**：Hono 在同一个 HTTP 服务里提供前端、API、图片和健康检查。`legacy/` 里的旧 `server/`、`web/` 只作历史参考，不参与构建。
+当前是**单体 SPA + dispatch API**：同一个 Node HTTP Server 监听唯一端口，Hono 在后端最前面处理 API；development 的非 API 请求进入同进程 Vite middleware，production 由 Hono 提供 `dist/client`。`legacy/` 里的旧 `server/`、`web/` 只作历史参考，不参与构建。
 
 ## 快速开始
 
@@ -16,7 +16,7 @@ pnpm storage:init
 pnpm dev
 ```
 
-默认打开 `http://localhost:3000`。Vite 开发服务器把 API 请求代理到 `http://127.0.0.1:7001`。公开页在 `/`，后台在 `/admin`。
+默认打开 `http://localhost:7001`。development 和 production 一样，只有一个后端端口：Hono 处理 API，Vite 作为同进程 middleware 提供开发页面。公开页在 `/`，后台在 `/admin`。
 
 首次启动 storage、环境变量和代理配置见 [docs/configure.md](docs/configure.md)。
 

@@ -779,7 +779,6 @@ export const mutations = {
 
   adminUpdatePhoto: defineMutation({
     schema: PhotoUpdateSchema.extend({
-      gallery_id: idSchema,
       photo_id: idSchema,
     }).strict(),
     admin: true,

@@ -4,7 +4,9 @@ import * as z from 'zod'
 const EnvSchema = z.object({
   APP_ENV: z.enum(['development', 'test', 'production']).default('development'),
   HTTP_PORT: z.coerce.number().int().min(1).max(65535).default(7001),
-  HTTP_HOST: z.string().min(1).default('0.0.0.0'),
+  HTTP_HOSTNAME: z.string().min(1).optional(),
+  // Deprecated alias kept for existing env files.
+  HTTP_HOST: z.string().min(1).optional(),
   STORAGE_PATH: z.string().min(1),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   ADMIN_PASSWORD: z.string().min(1),
@@ -26,7 +28,7 @@ export type AppEnv = z.infer<typeof EnvSchema>['APP_ENV']
 export type EnvConfig = Readonly<{
   app_env: AppEnv
   http_port: number
-  http_host: string
+  hostname: string
   storage_path: string
   log_level: 'debug' | 'info' | 'warn' | 'error'
   admin_password: string
@@ -65,6 +67,7 @@ export function loadEnvConfig(input: NodeJS.ProcessEnv = process.env): EnvConfig
 
   const env = parsed.data
   const storage_path = path.resolve(env.STORAGE_PATH)
+  const hostname = env.HTTP_HOSTNAME ?? env.HTTP_HOST ?? '0.0.0.0'
 
   const public_base_url = (
     env.PUBLIC_BASE_URL ?? `http://localhost:${env.HTTP_PORT}`
@@ -82,7 +85,7 @@ export function loadEnvConfig(input: NodeJS.ProcessEnv = process.env): EnvConfig
   return Object.freeze({
     app_env: env.APP_ENV,
     http_port: env.HTTP_PORT,
-    http_host: env.HTTP_HOST,
+    hostname,
     storage_path,
     log_level: env.LOG_LEVEL,
     admin_password: env.ADMIN_PASSWORD,

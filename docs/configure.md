@@ -21,10 +21,23 @@ pnpm storage:init
 pnpm dev
 ```
 
-- Vite：`http://localhost:3000`
-- API：`http://127.0.0.1:7001`
-- Vite 把 `/query`、`/mutate`、`/admin/query`、`/admin/mutate`、`/auth`、`/upload-image`、`/images`、`/healthz` 代理到 API。
+- 只有一个端口：`HTTP_PORT`（默认 `7001`）。
+- Hono 在 Node HTTP Server 最前面处理 API。
+- development 下非 API 请求进入同进程的 Vite middleware；production 下进入 Hono 的 `dist/client` 静态服务。
 - 公开页 `/`，后台 `/admin`。
+- 单体 SPA 服务要求 `API_BASE_PATH=/`；`VITE_BASE_PATH` 也按根路径部署。
+- 不再有独立的 Vite 3000 端口或 proxy。
+
+从局域网访问时，示例：
+
+```dotenv
+HTTP_HOSTNAME=0.0.0.0
+HTTP_PORT=3000
+PUBLIC_BASE_URL=http://10.0.0.5:3000
+CORS_ORIGINS=http://10.0.0.5:3000
+```
+
+`PUBLIC_BASE_URL` 必须是浏览器实际访问的 origin，否则 API 返回的图片 URL 会指向 `localhost`。
 
 本机需要代理时，在根 `.npmrc` 配置。`.npmrc`、`.env`、`.env.*` 已忽略，不要提交。
 
@@ -35,8 +48,8 @@ pnpm dev
 | 变量 | 默认 | 说明 |
 |---|---|---|
 | `APP_ENV` | `development` | `development` / `test` / `production` |
-| `HTTP_PORT` | `7001` | HTTP 端口 |
-| `HTTP_HOST` | `0.0.0.0` | 监听地址 |
+| `HTTP_PORT` | `7001` | 唯一 HTTP 端口（development/production 共用） |
+| `HTTP_HOSTNAME` | `0.0.0.0` | 监听地址，不是公网域名；兼容旧 `HTTP_HOST` |
 | `STORAGE_PATH` | 必填 | JSON 和图片 storage 目录 |
 | `LOG_LEVEL` | `info` | `debug` / `info` / `warn` / `error` |
 | `ADMIN_PASSWORD` | 必填 | 后台登录密码 |
@@ -44,11 +57,19 @@ pnpm dev
 | `JWT_EXPIRES_IN_SECONDS` | `43200` | token 有效期，最少 60 秒 |
 | `CORS_ORIGINS` | dev `*`，prod 空 | 逗号分隔的 CORS 白名单；同源部署通常留空 |
 | `API_BASE_PATH` | `/` | API 基础路径；SPA 部署要求 `/` |
-| `PUBLIC_BASE_URL` | `http://localhost:<port>` | 图片 URL 前缀；production 必须显式设置 |
+| `PUBLIC_BASE_URL` | `http://localhost:<port>` | 浏览器访问的 origin，用于图片 URL；production 必须显式设置 |
 | `HTTP_BODY_HARD_LIMIT_BYTES` | `67108864` | 请求体硬上限 |
 | `ALLOW_EMPTY_DATA` | `false` | 仅首次初始化生产空 storage 时临时设为 `true` |
 
 生产模式缺少 `ADMIN_PASSWORD`、`JWT_SECRET` 或 `PUBLIC_BASE_URL` 会退出；`JWT_SECRET` 少于 32 字符也会退出。
+
+### 监听地址与公开 URL
+
+- `HTTP_HOSTNAME` 是服务器绑定地址，不是域名，也不是 `Host` 校验：`0.0.0.0` 监听所有网卡，`127.0.0.1` 仅本机，`10.0.0.5` 仅该网卡。浏览器不能直接访问 `0.0.0.0`。
+- `HTTP_PORT` 是唯一 HTTP 端口。development 和 production 都使用它；Vite 不再单独监听端口。
+- `PUBLIC_BASE_URL` 是浏览器实际访问的 origin，用于生成图片绝对 URL；它不控制监听。远程访问时若仍写 `http://localhost:<port>`，图片会指向访问者自己的机器。
+- 三者示例：监听 `0.0.0.0:3000`，并通过 `http://10.0.0.5:3000` 访问时，应设置 `HTTP_HOSTNAME=0.0.0.0`、`HTTP_PORT=3000`、`PUBLIC_BASE_URL=http://10.0.0.5:3000`。
+- `HTTP_HOST` 是旧的兼容别名；优先使用 `HTTP_HOSTNAME`。
 
 前端构建变量：
 
@@ -101,9 +122,7 @@ adminUpdateInstanceConfig
 
 | 命令 | 作用 |
 |---|---|
-| `pnpm dev` | API watch + Vite |
-| `pnpm dev:server` | 只启动 API watch |
-| `pnpm dev:client` | 只启动 Vite |
+| `pnpm dev` | 单进程、单端口的后端优先开发模式（Vite middleware） |
 | `pnpm storage:init` | 初始化 storage 目录和空数据 |
 | `pnpm typecheck` | client + server TypeScript 检查 |
 | `pnpm lint` | oxlint |
@@ -156,12 +175,12 @@ dist/
 
 前端 bundle 由 Vite 生成 hash 文件名。HTML 不 hash，所以使用 `no-cache`，确保每次先重新验证 HTML，再加载新的 hash bundle。相片文件名为 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`，头像为 `avatar-<qq_num>-<crc32>.<format>`，缩略图使用相同 basename 的 `.avif`；文件名由内容 CRC 驱动，因此可以长期强缓存。
 
-Hono 的静态服务顺序：
+production 下 Hono 的静态服务顺序（development 的非 API 请求先由 Vite middleware 处理）：
 
 1. API 路由；
 2. `dist/client` 真实文件；
 3. SPA fallback 到 `index.html`；
-4. API-like GET 和缺失的 `/assets/*` 返回 JSON 404，不返回 HTML。
+4. API-like GET 和缺失的 `/assets/*` 返回 JSON 404，不返回 HTML（development 的 `/assets/*` 由 Vite 处理）。
 
 ## 部署
 

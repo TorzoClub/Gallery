@@ -40,8 +40,6 @@
         .noscript {
           width: 100vw;
           height: 100vh;
-          background-image: url("%BASE_URL%bg.png");
-          background-repeat: repeat;
           display: flex;
           justify-content: center;
           align-items: center;
@@ -121,6 +119,11 @@
       </style>
     </div>
     <style>
+      :root {
+        --skeu-pinstripe-bg: #e8e8e8;
+        --skeu-pinstripe-light: rgba(255, 255, 255, 0.7);
+        --skeu-pinstripe-dark: rgba(220, 220, 220, 0.4);
+      }
       body {
         min-height: 100vh;
         min-width: 100vw;

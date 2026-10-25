@@ -38,7 +38,8 @@
 | `POST` | `/admin/mutate/:name` | admin mutation，需要 Bearer token |
 | `POST` | `/upload-image` | 上传图片到临时目录 |
 | `GET` | `/images/source/:file` | 原图 |
-| `GET` | `/images/thumb/:file` | 缩略图 |
+| `GET` | `/images/optimized/:file` | 全尺寸 SDR/HDR AVIF；始终返回 image/avif |
+| `GET` | `/images/thumb/:file` | SDR/HDR 缩略图；始终返回 image/avif |
 | `GET` | `/healthz` | 健康检查 |
 
 `/admin/*` 的 query/mutation 需要 `Authorization: Bearer <token>`。公开路由调用 admin action 返回 `403`。
@@ -97,9 +98,8 @@
 | `adminUpdatePhoto` | `{ photo_id, gallery_id?, member_id?, desc?, index?, temp_id? }` | 更新相片 |
 | `adminRemovePhoto` | `{ photo_id }` | 删除相片 |
 | `adminSortPhotosByVoteCount` | `{ gallery_id }` | 按票数排序 |
-| `adminRefreshThumb` | `{ photo_id }` | 重建相片缩略图 |
+| `adminRefreshThumb` | `{ photo_id }` | 按 `is_hdr` 重建 SDR/HDR optimized 和缩略图 |
 | `adminRefreshAvatar` | `{ member_id }` | 重建头像缩略图 |
-| `adminCleanUnusedImages` | `{}` | 清理无引用图片，返回 `{ removed: string[] }` |
 
 日期字段使用 ISO 8601，例如 `2026-10-01T00:00:00.000Z`。
 
@@ -123,7 +123,7 @@
 }
 ```
 
-上传只写入 `stored-images/temp/<uuidv7>.<format>`。`temp_id` 本身是 UUIDv7，不带扩展名；扩展名只允许 `[0-9A-Za-z]`，归一化后的格式还必须和实际图片内容一致。创建/更新相片或成员时把 `temp_id` / `avatar_temp_id` 传给 mutation，服务端才会归一化原图、生成 AVIF 缩略图并写入正式目录。临时文件默认 24 小时过期。
+上传只写入 `stored-images/temp/<uuidv7>.<format>`。`temp_id` 本身是 UUIDv7，不带扩展名；扩展名只允许 `[0-9A-Za-z]`，归一化后的格式还必须和实际图片内容一致。创建/更新相片或成员时把 `temp_id` / `avatar_temp_id` 传给 mutation：source 保存原图，相片生成 SDR optimized/thumb，HDR 相片额外生成 HDR optimized/thumb。临时文件默认 24 小时过期。
 
 限制：
 
@@ -134,8 +134,9 @@
 ## 图片读取
 
 ```text
-GET /images/source/:file
-GET /images/thumb/:file
+GET /images/source/:file       # 原图原始字节
+GET /images/optimized/:file    # SDR/HDR AVIF 全尺寸变体
+GET /images/thumb/:file        # SDR/HDR AVIF 缩略图
 ```
 
 响应带强缓存：
@@ -144,7 +145,19 @@ GET /images/thumb/:file
 Cache-Control: public, max-age=31536000, immutable
 ```
 
-地址形如 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`，例如 `photo-2-3-4a9b66db.png`；头像形如 `avatar-<qq_num>-<crc32>.<format>`。CRC32 是上传文件内容的 8 位小写十六进制值，缩略图使用相同 basename 的 `.avif`。不同内容会得到不同文件名，因此可以长期强缓存。
+source 地址形如 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`，例如 `photo-2-3-4a9b66db.jpg`。SDR/HDR 变体在扩展名前插入 `-sdr` / `-hdr`：
+
+```text
+source/photo-2-3-4a9b66db.jpg
+optimized/photo-2-3-4a9b66db-sdr.jpg   # AVIF
+optimized/photo-2-3-4a9b66db-hdr.jpg   # AVIF，仅 is_hdr=true
+thumb/photo-2-3-4a9b66db-sdr.jpg
+thumb/photo-2-3-4a9b66db-hdr.jpg
+```
+
+头像文件名始终为 `avatar-<qq_num>-<crc32>.<format>`，source 和 thumb 同名；头像 thumb 只生成 SDR AVIF。
+
+`PhotoDTO` 的 `src` / `src_url` 指向 source 原图，`thumb` / `thumb_url` 指向 SDR 缩略图，`is_hdr` 表示是否存在 HDR 变体。SDR 原图只有 `-sdr` 变体；HDR 原图同时有 `-sdr` 和 `-hdr`。前端只有在系统 HDR 且 `is_hdr=true` 时才请求 `-hdr`；否则使用 `-sdr`。HDR 变体缺失时直接 404，不回落 SDR；需要时在后台执行重建。
 
 ## 健康检查
 

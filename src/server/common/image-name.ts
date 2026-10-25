@@ -37,8 +37,15 @@ export function isSafeFilename(filename: string): boolean {
   return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(filename)
 }
 
-export function thumbFilename(source_filename: string): string {
-  return `${basenameWithoutExtension(source_filename)}.avif`
+export function photoVariantFilename(
+  source_filename: string,
+  variant: 'sdr' | 'hdr',
+): string {
+  return `${basenameWithoutExtension(source_filename)}-${variant}.${extensionOf(source_filename)}`
+}
+
+export function avatarThumbFilename(source_filename: string): string {
+  return source_filename
 }
 
 export function mimeTypeOf(filename: string): string {

@@ -21,6 +21,10 @@
 | UUIDv7 | UUID version 7 | 带时间前缀的 UUID，用作 temp_id，便于按时间清理。 |
 | CRC32 | CRC-32 | 上传文件内容的 32 位校验值，用于生成相片/头像文件名。 |
 | temp_id | Temp ID | 上传后返回的 UUIDv7，对应 `stored-images/temp/<temp_id>.<format>`。 |
+| optimized | Optimized image | 相片的 SDR/HDR 全尺寸 AVIF；文件名为 source basename 加 `-sdr`/`-hdr`，位于 `stored-images/optimized/`。 |
+| avif_source_quality | AVIF source quality | optimized 全尺寸 AVIF 的质量配置，默认 75。 |
+| is_hdr | Is HDR | 相片是否存在 HDR 变体。 |
+| image_processing_effort | Image processing effort | 所有图片处理的 CPU effort 配置，默认 8。 |
 | legacy | Legacy | `legacy/` 下冻结的旧 server/web/脚本/CI，只作历史参考。 |
 
 更完整的项目说明见 [introduction.md](introduction.md)。

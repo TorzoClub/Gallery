@@ -161,10 +161,33 @@ export function cancelMySubmission(p: { qq_num: number | string; photo_id: numbe
   })
 }
 
-// The new API serves an AVIF thumbnail directly. Keep this helper for callers
-// that used to swap source extensions for next-generation variants.
-export function toOptimizedImageType(picture_url: string): string {
-  return picture_url
+// The optimized/thumb files keep the source extension and append the variant
+// before it: photo-...-<crc>.jpg -> photo-...-<crc>-sdr.jpg / -hdr.jpg.
+function withVariant(picture_url: string, variant: 'sdr' | 'hdr'): string {
+  const [pathname, query] = picture_url.split('?', 2)
+  const slash = pathname.lastIndexOf('/')
+  const dot = pathname.lastIndexOf('.')
+  const variant_path = dot > slash
+    ? `${pathname.slice(0, dot)}-${variant}${pathname.slice(dot)}`
+    : `${pathname}-${variant}`
+  return query === undefined ? variant_path : `${variant_path}?${query}`
+}
+
+export function toOptimizedImageType(picture_url: string, hdr: boolean): string {
+  if (!picture_url.includes('/images/source/')) {
+    return picture_url
+  }
+  return withVariant(
+    picture_url.replace('/images/source/', '/images/optimized/'),
+    hdr ? 'hdr' : 'sdr',
+  )
+}
+
+export function toThumbVariantUrl(picture_url: string, hdr: boolean): string {
+  if (!hdr) {
+    return picture_url
+  }
+  return picture_url.replace(/-sdr(\.[^./]+)$/, '-hdr$1')
 }
 
 export function canUseCacheWorker(): boolean {

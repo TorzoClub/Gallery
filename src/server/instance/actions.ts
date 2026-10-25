@@ -12,7 +12,11 @@ import {
   forbidden,
   notFound,
 } from '../common/error'
-import { isSafeFilename, thumbFilename } from '../common/image-name'
+import {
+  avatarThumbFilename,
+  isSafeFilename,
+  photoVariantFilename,
+} from '../common/image-name'
 import {
   InstanceConfigUpdateSchema,
   assertInstanceConfigWithinHardLimit,
@@ -86,7 +90,6 @@ export type MutationContext = QueryContext & {
   prepareAvatar: ImagePipeline['prepareAvatar']
   refreshThumb: ImagePipeline['refreshThumb']
   refreshAvatar: ImagePipeline['refreshAvatar']
-  cleanUnusedImages: ImagePipeline['cleanUnusedImages']
 }
 
 export type QueryDef<I, O> = {
@@ -482,6 +485,7 @@ export const mutations = {
               src: prepared.src,
               width: prepared.width,
               height: prepared.height,
+              is_hdr: prepared.is_hdr,
             },
           )
           return {
@@ -810,6 +814,7 @@ export const mutations = {
               src: prepared.src,
               width: prepared.width,
               height: prepared.height,
+              is_hdr: prepared.is_hdr,
             },
           )
           return {
@@ -899,12 +904,12 @@ export const mutations = {
     admin: true,
     run: async (ctx, payload) => {
       const found = findPhoto(ctx.pool, toPhotoID(payload.photo_id))
-      await ctx.refreshThumb(found.photo.src)
+      await ctx.refreshThumb(found.photo.src, found.photo.is_hdr)
       return {
         pool: ctx.pool,
         result: {
           src: found.photo.src,
-          thumb: thumbFilename(found.photo.src),
+          thumb: photoVariantFilename(found.photo.src, 'sdr'),
         },
       }
     },
@@ -920,23 +925,12 @@ export const mutations = {
         pool: ctx.pool,
         result: {
           avatar_src: member.avatar_src,
-          avatar_thumb: thumbFilename(member.avatar_src),
+          avatar_thumb: avatarThumbFilename(member.avatar_src),
         },
       }
     },
   }),
 
-  adminCleanUnusedImages: defineMutation({
-    schema: EmptySchema,
-    admin: true,
-    run: async (ctx) => {
-      const removed = await ctx.cleanUnusedImages(ctx.pool)
-      return {
-        pool: ctx.pool,
-        result: { removed },
-      }
-    },
-  }),
 }
 
 for (const key of Object.keys(queries)) {

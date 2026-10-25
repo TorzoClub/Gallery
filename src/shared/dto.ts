@@ -22,6 +22,7 @@ export type PhotoDTO = {
   format: string
   width: number
   height: number
+  is_hdr: boolean
   thumb: string
   src_url: string
   thumb_url: string

@@ -102,7 +102,6 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
       prepareAvatar: images.prepareAvatar,
       refreshThumb: images.refreshThumb,
       refreshAvatar: images.refreshAvatar,
-      cleanUnusedImages: images.cleanUnusedImages,
     }
   }
 

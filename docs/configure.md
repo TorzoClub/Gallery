@@ -90,9 +90,10 @@ CORS_ORIGINS=http://10.0.0.5:3000
 |---|---:|---:|---|
 | `avatar_thumb_size` | 128 | 16–2048 | 头像缩略图边长 |
 | `image_thumb_size` | 640 | 32–4096 | 相片缩略图边长 |
-| `image_thumb_quality` | 40 | 1–100 | AVIF 质量 |
-| `image_thumb_effort` | 8 | 0–9 | sharp effort |
-| `max_image_dimension` | 3840 | 256–16384 | 原图归一化最大边 |
+| `image_thumb_quality` | 40 | 1–100 | 缩略图 AVIF 质量 |
+| `avif_source_quality` | 75 | 1–100 | 全尺寸 optimized AVIF 质量 |
+| `image_processing_effort` | 8 | 0–9 | 所有图片处理的 sharp effort |
+| `max_image_dimension` | 3840 | 256–16384 | optimized 全尺寸图最大边 |
 | `max_upload_bytes` | 16777216 | 1024–1GiB | 上传大小上限，且不能超过请求体硬上限 |
 
 通过后台 `/admin/dashboard` 的“运行期配置”修改，或调用：
@@ -102,14 +103,18 @@ adminGetInstanceConfig
 adminUpdateInstanceConfig
 ```
 
-修改只影响后续上传和缩略图生成，不会自动重做已有图片。已有图片可以在后台用缩略图重建功能处理。
+修改只影响后续上传和 optimized/缩略图生成，不会自动重做已有图片。source 始终保留原图，不受这些图像处理配置影响。已有图片可以在后台用“重新生成图片”处理。
 
 ## 临时文件
 
 上传先写入：
 
 ```text
-<STORAGE_PATH>/stored-images/temp/<uuidv7>.<format>
+<STORAGE_PATH>/stored-images/
+├── source/       # 原图原始字节：photo-...-<crc>.<format> / avatar-...-<crc>.<format>
+├── optimized/    # photo-...-<crc>-sdr.<format> / -hdr.<format>，AVIF
+├── thumb/        # photo 的 sdr/hdr 变体；头像与 source 同名，SDR AVIF
+└── temp/         # <uuidv7>.<format>
 ```
 
 - `temp_id` 是 UUIDv7，响应中不带扩展名。
@@ -141,7 +146,7 @@ pnpm storage:init --storage-path ./storage-dev
 pnpm storage:init --storage-path ./storage-dev --json
 ```
 
-创建 `pool.json`、`members.json`、`galleries/`、`stored-images/{source,thumb,temp}` 和 `instance-config.json`。已存在的 storage 只加载校验，不覆盖；如果 API 正在持有 lock，会失败。
+创建 `pool.json`、`members.json`、`galleries/`、`stored-images/{source,optimized,thumb,temp}` 和 `instance-config.json`。已存在的 storage 只加载校验，不覆盖；如果 API 正在持有 lock，会失败。
 
 Docker 内：
 
@@ -168,12 +173,16 @@ dist/
 | 路径 | Cache-Control |
 |---|---|
 | `/assets/*` | `public, max-age=31536000, immutable` |
-| `/images/source/*`、`/images/thumb/*` | `public, max-age=31536000, immutable` |
+| `/images/source/*`、`/images/optimized/*`、`/images/thumb/*` | `public, max-age=31536000, immutable` |
 | `/`、`index.html`、SPA fallback | `no-cache` |
 | `public` 下的图片 | `public, max-age=31536000, immutable` |
 | 其他静态文件（如 manifest） | `public, max-age=3600` |
 
-前端 bundle 由 Vite 生成 hash 文件名。HTML 不 hash，所以使用 `no-cache`，确保每次先重新验证 HTML，再加载新的 hash bundle。相片文件名为 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`，头像为 `avatar-<qq_num>-<crc32>.<format>`，缩略图使用相同 basename 的 `.avif`；文件名由内容 CRC 驱动，因此可以长期强缓存。
+前端 bundle 由 Vite 生成 hash 文件名。HTML 不 hash，所以使用 `no-cache`，确保每次先重新验证 HTML，再加载新的 hash bundle。source 文件名为 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`；optimized/thumb 在扩展名前加 `-sdr`，HDR 图片再加 `-hdr`。头像为 `avatar-<qq_num>-<crc32>.<format>`，source 和 thumb 同名。
+
+SDR 原图只生成 SDR 变体；HDR 输入会按输入位深输出 10/12-bit HDR AVIF，同时生成 8-bit SDR 版本；gain map 的 SDR 版本使用内嵌 base SDR，HDR 版本使用 `withGainMap()`。HDR 变体不 flatten，SDR 变体 flatten 白底。sharp 的 AVIF 输出不保留独立 gain map，HDR 动态范围会烘焙进主图。
+
+前端只读取一次系统 HDR 状态（`dynamic-range: high`）；系统 HDR 且 `photo.is_hdr=true` 时使用 `-hdr`，否则使用 `-sdr`。不会因显示器或系统开关变化实时切换。
 
 production 下 Hono 的静态服务顺序（development 的非 API 请求先由 Vite middleware 处理）：
 

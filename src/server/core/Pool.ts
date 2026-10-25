@@ -486,6 +486,7 @@ export type PhotoUpdateInput = {
   src?: string
   width?: number
   height?: number
+  is_hdr?: boolean
   member_id?: MemberID
 }
 
@@ -509,6 +510,7 @@ export function poolUpdatePhoto(
     ...(input.src === undefined ? {} : { src: input.src }),
     ...(input.width === undefined ? {} : { width: input.width }),
     ...(input.height === undefined ? {} : { height: input.height }),
+    ...(input.is_hdr === undefined ? {} : { is_hdr: input.is_hdr }),
     ...(input.member_id === undefined ? {} : { member_id: input.member_id }),
   }
   const next_gallery = galleryUpdatePhoto(now, gallery, photo_id, patch)

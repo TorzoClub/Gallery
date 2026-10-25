@@ -12,7 +12,12 @@ import {
   badRequest,
   notFound,
 } from '../common/error'
-import { formatFromFilename, isSafeFilename, thumbFilename } from '../common/image-name'
+import {
+  avatarThumbFilename,
+  formatFromFilename,
+  isSafeFilename,
+  photoVariantFilename,
+} from '../common/image-name'
 import { crc32ToHex } from '../common/crc32'
 import { isUuidV7, uuidV7Timestamp, uuidv7 } from '../common/uuid'
 import { type PhotoDraft } from '../core/Photo'
@@ -22,7 +27,7 @@ import { type Storage } from '../storage'
 import { fileExists } from '../storage/fs'
 import {
   readImageInfo,
-  writeSourceImage,
+  writeOptimizedImage,
   writeThumbImage,
   type ImageInfo,
 } from '../storage/image'
@@ -43,6 +48,7 @@ type PreparedImage = {
   src: string
   width: number
   height: number
+  is_hdr: boolean
   discard(): Promise<void>
 }
 
@@ -74,10 +80,9 @@ export type ImagePipeline = {
     qq_num: number
     temp_id: string
   }): Promise<PreparedAvatar>
-  refreshThumb(source_filename: string): Promise<void>
+  refreshThumb(source_filename: string, is_hdr: boolean): Promise<void>
   refreshAvatar(source_filename: string): Promise<void>
   collectGarbage(prev: Pool, next: Pool): Promise<void>
-  cleanUnusedImages(pool: Pool): Promise<string[]>
   cleanupStaleTemps(): Promise<void>
   close(): Promise<void>
 }
@@ -95,14 +100,6 @@ function sourceNamesOfPool(pool: Pool): Set<string> {
   })
   pool.members.forEach((member) => used.add(member.avatar_src))
   return used
-}
-
-function thumbNamesOfSources(sources: Iterable<string>): Set<string> {
-  const result = new Set<string>()
-  for (const source of sources) {
-    result.add(thumbFilename(source))
-  }
-  return result
 }
 
 export function createImagePipeline(options: {
@@ -172,17 +169,24 @@ export function createImagePipeline(options: {
     crc32: number
     prefix: string
     thumb_size: number
+    kind: 'photo' | 'avatar'
   }): Promise<PreparedImage> {
     const temp_path = storage.tempPath(input.temp_filename)
     const source_filename = `${input.prefix}-${crc32ToHex(input.crc32)}.${input.format}`
-    const thumb_name = thumbFilename(source_filename)
     const source_path = storage.imagePath('source', source_filename)
-    const thumb_path = storage.imagePath('thumb', thumb_name)
     const source_existed = await fileExists(source_path)
-    const thumb_existed = await fileExists(thumb_path)
     let source_created = false
-    let thumb_created = false
     let discarded = false
+
+    type DerivedFile = {
+      kind: 'optimized' | 'thumb'
+      variant: 'sdr' | 'hdr'
+      path: string
+      existed: boolean
+      created: boolean
+    }
+
+    const derived: DerivedFile[] = []
 
     const discard = async (): Promise<void> => {
       if (discarded) {
@@ -192,39 +196,102 @@ export function createImagePipeline(options: {
       if (source_created) {
         await fs.rm(source_path, { force: true })
       }
-      if (thumb_created) {
-        await fs.rm(thumb_path, { force: true })
+      for (const file of derived) {
+        if (file.created) {
+          await fs.rm(file.path, { force: true })
+        }
       }
     }
 
     try {
-      let source_info: ImageInfo
-      if (source_existed) {
-        source_info = await readImageInfo(source_path)
-      } else {
-        source_info = await writeSourceImage({
-          input_path: temp_path,
-          output_path: source_path,
-          max_dimension: getConfig().max_image_dimension,
-        })
+      if (!source_existed) {
+        const staging = storage.tempPath(`${uuidv7()}.${input.format}`)
+        try {
+          await fs.copyFile(temp_path, staging)
+          await fs.rename(staging, source_path)
+        } finally {
+          await fs.rm(staging, { force: true })
+        }
         source_created = true
       }
 
-      if (!(source_existed && thumb_existed)) {
-        await writeThumbImage({
-          input_path: source_path,
-          output_path: thumb_path,
-          size: input.thumb_size,
-          quality: getConfig().image_thumb_quality,
-          effort: getConfig().image_thumb_effort,
+      const source_info = source_existed
+        ? await readImageInfo(source_path)
+        : await readImageInfo(temp_path)
+
+      if (input.kind === 'photo') {
+        for (const variant of source_info.is_hdr ? ['sdr', 'hdr'] as const : ['sdr'] as const) {
+          const target = storage.imagePath(
+            'optimized',
+            photoVariantFilename(source_filename, variant),
+          )
+          derived.push({
+            kind: 'optimized',
+            variant,
+            path: target,
+            existed: await fileExists(target),
+            created: false,
+          })
+          const thumb_target = storage.imagePath(
+            'thumb',
+            photoVariantFilename(source_filename, variant),
+          )
+          derived.push({
+            kind: 'thumb',
+            variant,
+            path: thumb_target,
+            existed: await fileExists(thumb_target),
+            created: false,
+          })
+        }
+      } else {
+        const target = storage.imagePath('thumb', avatarThumbFilename(source_filename))
+        derived.push({
+          kind: 'thumb',
+          variant: 'sdr',
+          path: target,
+          existed: await fileExists(target),
+          created: false,
         })
-        thumb_created = true
+      }
+
+      for (const file of derived) {
+        if (!source_created && file.existed) {
+          continue
+        }
+        file.created = true
+        const staging = storage.tempPath(`${uuidv7()}.avif`)
+        try {
+          if (file.kind === 'optimized') {
+            await writeOptimizedImage({
+              input_path: source_path,
+              output_path: staging,
+              max_dimension: getConfig().max_image_dimension,
+              quality: getConfig().avif_source_quality,
+              effort: getConfig().image_processing_effort,
+              variant: file.variant,
+            })
+          } else {
+            await writeThumbImage({
+              input_path: source_path,
+              output_path: staging,
+              size: input.thumb_size,
+              quality: getConfig().image_thumb_quality,
+              effort: getConfig().image_processing_effort,
+              variant: file.variant,
+            })
+          }
+          await fs.rename(staging, file.path)
+        } finally {
+          await fs.rm(staging, { force: true })
+        }
       }
 
       return {
         src: source_filename,
         width: source_info.width,
         height: source_info.height,
+        is_hdr: source_info.is_hdr,
         discard,
       }
     } catch (error) {
@@ -269,6 +336,7 @@ export function createImagePipeline(options: {
         crc32: meta.crc32,
         prefix: `photo-${input.gallery_id}-${input.photo_id}`,
         thumb_size: getConfig().image_thumb_size,
+        kind: 'photo',
       })
       return {
         id: input.photo_id,
@@ -277,6 +345,7 @@ export function createImagePipeline(options: {
         src: prepared.src,
         width: prepared.width,
         height: prepared.height,
+        is_hdr: prepared.is_hdr,
         member_id: input.member_id,
         discard: prepared.discard,
       }
@@ -297,6 +366,7 @@ export function createImagePipeline(options: {
         crc32: meta.crc32,
         prefix: `avatar-${input.qq_num}`,
         thumb_size: getConfig().avatar_thumb_size,
+        kind: 'avatar',
       })
       return {
         avatar_src: prepared.src,
@@ -307,13 +377,17 @@ export function createImagePipeline(options: {
     }
   }
 
-  async function refreshWithSize(source_filename: string, size: number): Promise<void> {
+  async function refreshThumbFile(
+    source_filename: string,
+    thumb_name: string,
+    size: number,
+    variant: 'sdr' | 'hdr',
+  ): Promise<void> {
     if (!isSafeFilename(source_filename)) {
       throw badRequest('非法的图片文件名')
     }
 
     const source_path = storage.imagePath('source', source_filename)
-    const thumb_name = thumbFilename(source_filename)
     const thumb_path = storage.imagePath('thumb', thumb_name)
     const temp_path = storage.tempPath(`${uuidv7()}.avif`)
 
@@ -323,7 +397,8 @@ export function createImagePipeline(options: {
         output_path: temp_path,
         size,
         quality: getConfig().image_thumb_quality,
-        effort: getConfig().image_thumb_effort,
+        effort: getConfig().image_processing_effort,
+        variant,
       })
       await fs.rename(temp_path, thumb_path)
     } catch (error) {
@@ -335,12 +410,67 @@ export function createImagePipeline(options: {
     }
   }
 
-  async function refreshThumb(source_filename: string): Promise<void> {
-    await refreshWithSize(source_filename, getConfig().image_thumb_size)
+  async function refreshOptimizedFile(
+    source_filename: string,
+    variant: 'sdr' | 'hdr',
+  ): Promise<void> {
+    if (!isSafeFilename(source_filename)) {
+      throw badRequest('非法的图片文件名')
+    }
+
+    const source_path = storage.imagePath('source', source_filename)
+    const optimized_path = storage.imagePath(
+      'optimized',
+      photoVariantFilename(source_filename, variant),
+    )
+    const staging = storage.tempPath(`${uuidv7()}.avif`)
+
+    try {
+      await writeOptimizedImage({
+        input_path: source_path,
+        output_path: staging,
+        max_dimension: getConfig().max_image_dimension,
+        quality: getConfig().avif_source_quality,
+        effort: getConfig().image_processing_effort,
+        variant,
+      })
+      await fs.rename(staging, optimized_path)
+    } catch (error) {
+      await fs.rm(staging, { force: true })
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        throw notFound('原图不存在')
+      }
+      throw error
+    }
+  }
+
+  async function refreshThumb(source_filename: string, is_hdr: boolean): Promise<void> {
+    await refreshOptimizedFile(source_filename, 'sdr')
+    await refreshThumbFile(
+      source_filename,
+      photoVariantFilename(source_filename, 'sdr'),
+      getConfig().image_thumb_size,
+      'sdr',
+    )
+
+    if (is_hdr) {
+      await refreshOptimizedFile(source_filename, 'hdr')
+      await refreshThumbFile(
+        source_filename,
+        photoVariantFilename(source_filename, 'hdr'),
+        getConfig().image_thumb_size,
+        'hdr',
+      )
+    }
   }
 
   async function refreshAvatar(source_filename: string): Promise<void> {
-    await refreshWithSize(source_filename, getConfig().avatar_thumb_size)
+    await refreshThumbFile(
+      source_filename,
+      avatarThumbFilename(source_filename),
+      getConfig().avatar_thumb_size,
+      'sdr',
+    )
   }
 
   async function collectGarbage(prev: Pool, next: Pool): Promise<void> {
@@ -351,29 +481,6 @@ export function createImagePipeline(options: {
         await storage.removeImage(source)
       }
     }
-  }
-
-  async function cleanUnusedImages(pool: Pool): Promise<string[]> {
-    const used_sources = sourceNamesOfPool(pool)
-    const used_thumbs = thumbNamesOfSources(used_sources)
-    const removed: string[] = []
-
-    for (const filename of await storage.listImageFiles('source')) {
-      if (!used_sources.has(filename)) {
-        await storage.removeImage(filename)
-        removed.push(storage.imagePath('source', filename))
-      }
-    }
-
-    for (const filename of await storage.listImageFiles('thumb')) {
-      if (!used_thumbs.has(filename)) {
-        const file = storage.imagePath('thumb', filename)
-        await fs.rm(file, { force: true })
-        removed.push(file)
-      }
-    }
-
-    return removed
   }
 
   async function cleanupStaleTemps(): Promise<void> {
@@ -441,7 +548,6 @@ export function createImagePipeline(options: {
     refreshThumb,
     refreshAvatar,
     collectGarbage,
-    cleanUnusedImages,
     cleanupStaleTemps,
     close,
   }

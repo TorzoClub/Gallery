@@ -70,6 +70,7 @@ ls dist/client/assets
 curl -I http://127.0.0.1:7001/
 curl -I http://127.0.0.1:7001/assets/<hash>.js
 curl -I http://127.0.0.1:7001/images/source/<file>
+curl -I http://127.0.0.1:7001/images/optimized/<file>
 ```
 
 预期：
@@ -100,11 +101,19 @@ HTML 是 `no-cache`，正常情况下刷新会重新验证。若浏览器或 CDN
 
 QQ number 是成员身份的一部分，创建后不可修改。`adminUpdateMember` 不接受 `qq_num`；如果需要新 QQ，必须创建新成员。
 
+## 大图 404 / optimized 不存在
+
+- 前端请求的是 `/images/optimized/` 下的 `-sdr` 或 `-hdr` 变体，不修改扩展名。
+- 系统 HDR 检测只读取一次；切换显示器或系统 HDR 开关后需要刷新页面。
+- 旧相片或缺失衍生图会直接 404，不回退原图。
+- 在后台对相片执行“重新生成图片”，会按 `is_hdr` 重建 SDR/HDR optimized 和缩略图。
+- HDR 图片按输入位深使用 10/12-bit HDR optimized AVIF，同时有 8-bit SDR 版本；HDR 变体缺失时不会回退 SDR。
+
 ## instance 配置修改后没有生效
 
-- 配置只影响**后续**上传和缩略图生成，不会自动重做已有图片。
+- 配置只影响**后续**上传和 optimized/缩略图生成，不会自动重做已有图片。
 - 保存成功后刷新页面确认值。
-- 需要重建已有图片时，在后台使用缩略图重建/刷新操作。
+- 需要重建已有图片时，在后台使用“重新生成图片”操作。
 - `max_upload_bytes` 不能超过 `HTTP_BODY_HARD_LIMIT_BYTES`，否则服务端返回 400。
 
 ## storage lock 冲突

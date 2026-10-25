@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { PhotoJsonSchema } from '../../src/server/storage/codec'
 import { asGalleryID, asMemberID, asPhotoID } from '../../src/server/common/ID'
 import { isApiError } from '../../src/server/common/error'
 import {
@@ -75,6 +76,7 @@ function addPreparedPhoto(
     src: `${Number(pool.next_id)}.png`,
     width: 100,
     height: 100,
+    is_hdr: false,
     member_id: asMemberID(member_id),
   }, now)
   const next = poolAddPhoto(pool, now, asGalleryID(gallery_id), {
@@ -84,6 +86,7 @@ function addPreparedPhoto(
     src: photo.src,
     width: photo.width,
     height: photo.height,
+    is_hdr: false,
     member_id: photo.member_id,
   })
   return { pool: next.pool, photo_id: Number(next.photo.id) }
@@ -163,6 +166,7 @@ describe('submission and voting rules', () => {
       src: `${Number(photo_id)}.png`,
       width: 100,
       height: 100,
+      is_hdr: false,
       member_id: asMemberID(member.member_id),
     })
 
@@ -179,6 +183,7 @@ describe('submission and voting rules', () => {
         src: `${Number(second_photo_id)}.png`,
         width: 100,
         height: 100,
+        is_hdr: false,
         member_id: asMemberID(member.member_id),
       },
     )).toThrowError(/已经在这个相册投过稿/)
@@ -287,5 +292,23 @@ describe('sorting', () => {
       photoA.photo_id,
       photoB.photo_id,
     ])
+  })
+})
+
+describe('photo json compatibility', () => {
+  it('defaults a missing is_hdr to false', () => {
+    const photo = PhotoJsonSchema.parse({
+      id: 1,
+      index: 0,
+      desc: 'legacy',
+      src: 'photo-1-1-deadbeef.jpg',
+      format: 'jpg',
+      width: 100,
+      height: 100,
+      member_id: 1,
+      created_at: '2026-01-01T00:00:00.000Z',
+      updated_at: '2026-01-01T00:00:00.000Z',
+    })
+    expect(photo.is_hdr).toBe(false)
   })
 })

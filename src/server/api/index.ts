@@ -195,13 +195,13 @@ export function constructApi(deps: Deps): Hono {
 
   app.get('/images/:kind/:file', async (c) => {
     const kind = c.req.param('kind')
-    if (kind !== 'source' && kind !== 'thumb') {
+    if (kind !== 'source' && kind !== 'optimized' && kind !== 'thumb') {
       throw apiError(404, 'NOT_FOUND', '图片不存在')
     }
     const file = c.req.param('file')
     const buffer = await instance.readImage(kind, file)
     return c.body(new Uint8Array(buffer), 200, {
-      'Content-Type': mimeTypeOf(file),
+      'Content-Type': kind === 'source' ? mimeTypeOf(file) : 'image/avif',
       'Cache-Control': 'public, max-age=31536000, immutable',
     })
   })

@@ -95,7 +95,6 @@ describe('photo actions', () => {
     await expect(fs.access(thumb_path)).resolves.toBeUndefined()
 
     const updated = await ctx.adminMutate('adminUpdatePhoto', {
-      gallery_id: gallery.id,
       photo_id: photo.id,
       desc: 'new',
     })

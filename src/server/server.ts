@@ -38,6 +38,10 @@ export async function startServer(options: {
 }): Promise<StartedServer> {
   const { env, logger } = options
 
+  if (env.api_base_path !== '/') {
+    throw new Error('单体 SPA 服务要求 API_BASE_PATH=/')
+  }
+
   const storage = await createStorage({
     storage_path: env.storage_path,
     allow_empty_data: env.app_env !== 'production' || env.allow_empty_data,
@@ -90,8 +94,7 @@ export async function startServer(options: {
 
   http_server.on('request', (request: IncomingMessage, response: ServerResponse) => {
     try {
-      const host = request.headers.host ?? 'localhost'
-      const pathname = new URL(request.url ?? '/', `http://${host}`).pathname
+      const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
 
       if (isApiLikePath(pathname, env.api_base_path)) {
         void Promise.resolve(api_listener(request, response)).catch((error) => {

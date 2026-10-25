@@ -1,6 +1,6 @@
 # HTTP API
 
-服务端与前端同源，默认地址 `http://localhost:7001`。所有业务接口都是 `POST` + JSON；图片和健康检查是 `GET`。登录流程见 [auth.md](auth.md)。
+服务端与前端同源，默认地址 `http://localhost:7001`。除 `/upload-image`（multipart）外，业务接口都是 `POST` + JSON；图片和健康检查是 `GET`。登录流程见 [auth.md](auth.md)。
 
 ## 响应格式
 
@@ -204,4 +204,4 @@ curl -X POST http://localhost:7001/admin/query/adminStatistic \
 - `/images/*`
 - `/healthz`
 
-其他 GET 请求会返回 SPA 的 `index.html`，并使用 `Cache-Control: no-cache`。
+其他 GET 请求在 development 由 Vite middleware、在 production 由 Hono SPA fallback 返回 `index.html`；production 响应使用 `Cache-Control: no-cache`。

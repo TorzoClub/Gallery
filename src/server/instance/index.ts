@@ -236,8 +236,11 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
     }
     closing = true
     await sequence(async () => undefined)
-    await images.close()
-    await storage.close()
+    try {
+      await images.close()
+    } finally {
+      await storage.close()
+    }
     closed = true
   }
 

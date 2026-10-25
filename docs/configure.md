@@ -25,6 +25,7 @@ pnpm dev
 - Hono 在 Node HTTP Server 最前面处理 API。
 - development 下非 API 请求进入同进程的 Vite middleware；production 下进入 Hono 的 `dist/client` 静态服务。
 - 公开页 `/`，后台 `/admin`。
+- 单体 SPA 服务要求 `API_BASE_PATH=/`；`VITE_BASE_PATH` 也按根路径部署。
 - 不再有独立的 Vite 3000 端口或 proxy。
 
 从局域网访问时，示例：
@@ -174,12 +175,12 @@ dist/
 
 前端 bundle 由 Vite 生成 hash 文件名。HTML 不 hash，所以使用 `no-cache`，确保每次先重新验证 HTML，再加载新的 hash bundle。相片文件名为 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`，头像为 `avatar-<qq_num>-<crc32>.<format>`，缩略图使用相同 basename 的 `.avif`；文件名由内容 CRC 驱动，因此可以长期强缓存。
 
-Hono 的静态服务顺序：
+production 下 Hono 的静态服务顺序（development 的非 API 请求先由 Vite middleware 处理）：
 
 1. API 路由；
 2. `dist/client` 真实文件；
 3. SPA fallback 到 `index.html`；
-4. API-like GET 和缺失的 `/assets/*` 返回 JSON 404，不返回 HTML。
+4. API-like GET 和缺失的 `/assets/*` 返回 JSON 404，不返回 HTML（development 的 `/assets/*` 由 Vite 处理）。
 
 ## 部署
 

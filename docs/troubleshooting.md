@@ -46,7 +46,7 @@ http://<HTTP_HOSTNAME>:<HTTP_PORT>
 curl http://127.0.0.1:7001/healthz
 ```
 
-如果页面打不开，确认只启动了一个 `pnpm dev`，且没有旧的 Vite 3000 端口进程。
+如果页面打不开，确认只启动了一个 `pnpm dev`，且没有旧的独立 Vite 端口进程。
 
 ## 刷新后台深层路由 404
 
@@ -112,7 +112,7 @@ QQ number 是成员身份的一部分，创建后不可修改。`adminUpdateMemb
 同一 `STORAGE_PATH` 只允许一个 API 进程写入。看到 lock 相关错误时：
 
 ```bash
-lsof -nP -iTCP:7001 -sTCP:LISTEN
+lsof -nP -iTCP:${HTTP_PORT:-7001} -sTCP:LISTEN
 ```
 
 确认是否已有进程在运行。不要手动删除正在使用中的 lock；先停止旧进程。异常退出后的 stale lock 由服务端按 PID 检测处理。
@@ -120,7 +120,7 @@ lsof -nP -iTCP:7001 -sTCP:LISTEN
 ## 端口被占用
 
 ```bash
-lsof -nP -iTCP:7001 -sTCP:LISTEN
+lsof -nP -iTCP:${HTTP_PORT:-7001} -sTCP:LISTEN
 ```
 
 只改 `HTTP_PORT`；development 和 production 都使用这一个端口。不要再启动第二个 Vite 端口。

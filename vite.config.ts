@@ -30,7 +30,6 @@ function normalizeBase(input: string | undefined) {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const apiTarget = env.VITE_API_TARGET || `http://127.0.0.1:${env.HTTP_PORT || '7001'}`
 
   return {
     base: normalizeBase(env.VITE_BASE_PATH),
@@ -60,19 +59,6 @@ export default defineConfig(({ mode }) => {
         'heic-convert/browser',
         '@juggle/resize-observer',
       ],
-    },
-    server: {
-      port: 3000,
-      proxy: {
-        '/query': apiTarget,
-        '/mutate': apiTarget,
-        '/admin/query': apiTarget,
-        '/admin/mutate': apiTarget,
-        '/auth': apiTarget,
-        '/upload-image': apiTarget,
-        '/images': apiTarget,
-        '/healthz': apiTarget,
-      },
     },
     build: {
       outDir: 'dist/client',

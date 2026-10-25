@@ -1,17 +1,35 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { Server } from 'node:http'
-import { serve, type ServerType } from '@hono/node-server'
-import { constructApi } from './api'
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
+import { getRequestListener } from '@hono/node-server'
+import type { ViteDevServer } from 'vite'
+import { constructApi, isApiLikePath } from './api'
 import { type EnvConfig } from './config'
 import { createInstance, type Instance } from './instance'
 import type { Logger } from './logger'
 import { createStorage } from './storage'
 
 export type StartedServer = {
-  server: ServerType
+  server: Server
   instance: Instance
   close(): Promise<void>
+}
+
+function sendInternalError(
+  response: ServerResponse,
+  logger: Logger,
+  error: unknown,
+): void {
+  logger.error('request handling failed', {
+    error: error instanceof Error ? error.stack : String(error),
+  })
+  if (response.headersSent) {
+    response.destroy()
+    return
+  }
+  response.statusCode = 500
+  response.setHeader('content-type', 'text/plain; charset=utf-8')
+  response.end('Internal Server Error')
 }
 
 export async function startServer(options: {
@@ -47,24 +65,96 @@ export async function startServer(options: {
     logger,
     client_dir: has_client ? client_dir : undefined,
   })
-  let server: ServerType
+  const api_listener = getRequestListener(app.fetch, { autoCleanupIncoming: true })
+
+  const http_server = createServer()
+  let vite: ViteDevServer | undefined
+
   try {
-    server = serve({
-      fetch: app.fetch,
-      port: env.http_port,
-      hostname: env.hostname,
-    }, (info) => {
-      logger.info('api server listening', {
-        host: info.address,
-        port: info.port,
-        scene: env.app_env,
-        base_path: env.api_base_path,
+    if (env.app_env === 'development') {
+      const { createServer: createViteServer } = await import('vite')
+      vite = await createViteServer({
+        appType: 'spa',
+        server: {
+          middlewareMode: { server: http_server },
+          hmr: { server: http_server },
+          ws: { server: http_server },
+        },
       })
-    })
+      logger.info('vite middleware attached')
+    }
   } catch (error) {
     await instance.close()
     throw error
   }
+
+  http_server.on('request', (request: IncomingMessage, response: ServerResponse) => {
+    try {
+      const host = request.headers.host ?? 'localhost'
+      const pathname = new URL(request.url ?? '/', `http://${host}`).pathname
+
+      if (isApiLikePath(pathname, env.api_base_path)) {
+        void Promise.resolve(api_listener(request, response)).catch((error) => {
+          sendInternalError(response, logger, error)
+        })
+        return
+      }
+
+      if (vite !== undefined) {
+        vite.middlewares(request, response, (error: unknown) => {
+          if (error !== undefined && error !== null) {
+            sendInternalError(response, logger, error)
+            return
+          }
+          if (!response.headersSent) {
+            response.statusCode = 404
+            response.end('Not Found')
+          }
+        })
+        return
+      }
+
+      void Promise.resolve(api_listener(request, response)).catch((error) => {
+        sendInternalError(response, logger, error)
+      })
+    } catch (error) {
+      sendInternalError(response, logger, error)
+    }
+  })
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const on_error = (error: Error) => {
+        http_server.off('listening', on_listening)
+        reject(error)
+      }
+      const on_listening = () => {
+        http_server.off('error', on_error)
+        resolve()
+      }
+      http_server.once('error', on_error)
+      http_server.once('listening', on_listening)
+      http_server.listen({
+        port: env.http_port,
+        hostname: env.hostname,
+      })
+    })
+  } catch (error) {
+    if (vite !== undefined) {
+      await vite.close()
+    }
+    await instance.close()
+    throw error
+  }
+
+  const address = http_server.address()
+  logger.info('api server listening', {
+    host: typeof address === 'object' && address !== null ? address.address : env.hostname,
+    port: typeof address === 'object' && address !== null ? address.port : env.http_port,
+    scene: env.app_env,
+    base_path: env.api_base_path,
+    vite: vite !== undefined,
+  })
 
   let closed = false
   async function close(): Promise<void> {
@@ -73,21 +163,28 @@ export async function startServer(options: {
     }
     closed = true
 
-    const force_timer = setTimeout(() => {
-      try {
-        ;(server as Server).closeAllConnections()
-      } catch {
-        // HTTP/2 or adapter without this method.
+    try {
+      if (vite !== undefined) {
+        await vite.close()
+        vite = undefined
       }
-    }, 5000)
-    force_timer.unref()
+    } finally {
+      const force_timer = setTimeout(() => {
+        try {
+          http_server.closeAllConnections()
+        } catch {
+          // HTTP/2 or adapter without this method.
+        }
+      }, 5000)
+      force_timer.unref()
 
-    await new Promise<void>((resolve) => {
-      server.close(() => resolve())
-    })
-    clearTimeout(force_timer)
-    await instance.close()
+      await new Promise<void>((resolve) => {
+        http_server.close(() => resolve())
+      })
+      clearTimeout(force_timer)
+      await instance.close()
+    }
   }
 
-  return { server, instance, close }
+  return { server: http_server, instance, close }
 }

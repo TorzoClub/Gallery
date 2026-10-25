@@ -16,7 +16,7 @@ pnpm storage:init
 pnpm dev
 ```
 
-默认打开 `http://localhost:3000`。Vite 开发服务器把 API 请求代理到 `http://127.0.0.1:7001`。公开页在 `/`，后台在 `/admin`。
+默认打开 `http://localhost:7001`。development 和 production 一样，只有一个后端端口：Hono 处理 API，Vite 作为同进程 middleware 提供开发页面。公开页在 `/`，后台在 `/admin`。
 
 首次启动 storage、环境变量和代理配置见 [docs/configure.md](docs/configure.md)。
 

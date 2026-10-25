@@ -21,7 +21,6 @@
 │   ├── server/              Hono dispatch API、storage、图片、CLI
 │   └── shared/              DTO、instance config 类型
 ├── test/                    服务端测试
-├── scripts/dev.ts           同时启动 API watch + Vite
 ├── public/                  favicon、bg、manifest
 ├── index.html               Vite SPA 入口
 ├── docs/                    项目文档
@@ -65,7 +64,7 @@
         └── sharp 图片流程
 ```
 
-开发时 Vite 在 `:3000` 提供前端，把 API 请求代理到 `:7001`。生产时 Hono 在 `:7001` 同时提供前端和 API。
+development 和 production 都由 Hono 所在的 Node HTTP Server 监听唯一端口。开发时非 API 请求进入同进程的 Vite middleware；生产时进入 Hono 的 `dist/client` 静态服务。
 
 ## 技术栈
 

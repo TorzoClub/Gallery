@@ -6,9 +6,7 @@
   "description": "Torzo Gallery monolithic SPA + dispatch API",
   "main": "dist/server/index.js",
   "scripts": {
-    "dev": "tsx scripts/dev.ts",
-    "dev:server": "APP_ENV=development node --watch --watch-preserve-output --import tsx --env-file-if-exists=.env.development src/server/index.ts",
-    "dev:client": "vite",
+    "dev": "APP_ENV=development tsx watch --exclude 'node_modules/**' --exclude './storage/**' --exclude './storage-dev/**' --exclude 'dist/**' --exclude 'legacy/**' --exclude '.git/**' --env-file=.env.development src/server/index.ts",
     "build": "pnpm build:client && pnpm build:server",
     "build:client": "vite build",
     "build:server": "tsup",
@@ -16,7 +14,7 @@
     "start:prod": "APP_ENV=production node --env-file-if-exists=.env.production dist/server/index.js",
     "storage:init": "tsx src/server/cli/init-storage.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
-    "lint": "oxlint src test scripts",
+    "lint": "oxlint src test",
     "test": "vitest run",
     "test:watch": "vitest"
   },

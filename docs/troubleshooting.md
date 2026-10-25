@@ -30,33 +30,36 @@ https-proxy=socks5://127.0.0.1:503
 
 ## API 请求失败
 
-开发环境：
+开发环境也只有一个端口：
 
-- Vite 在 `http://localhost:3000`。
-- API 在 `http://127.0.0.1:7001`。
-- Vite 代理 `/query`、`/mutate`、`/admin/query`、`/admin/mutate`、`/auth`、`/upload-image`、`/images`、`/healthz`。
+```text
+http://<HTTP_HOSTNAME>:<HTTP_PORT>
+```
+
+- `/query`、`/mutate`、`/admin/query`、`/admin/mutate`、`/auth`、`/upload-image`、`/images`、`/healthz` 由 Hono 处理。
+- 页面、`/@vite/client`、`/src/*` 等由同进程 Vite middleware 处理。
 - `.env.development` 的 `VITE_API_PREFIX=/`。
 
-先直接请求 API：
+先直接请求：
 
 ```bash
 curl http://127.0.0.1:7001/healthz
 ```
 
-如果 API 正常但页面请求失败，检查 Vite 是否启动、代理目标端口是否和 `HTTP_PORT` 一致。浏览器 Network 面板里的请求路径应该是同源 `/query/...`，不是 `http://localhost:7001/...`。
+如果页面打不开，确认只启动了一个 `pnpm dev`，且没有旧的 Vite 3000 端口进程。
 
 ## 刷新后台深层路由 404
 
 生产模式由 Hono 做 SPA fallback。如果使用额外反向代理，直接转发到 Hono 即可，不要自己加 `try_files` 到不存在的静态目录。
 
-本地 Vite 已处理 SPA 路由；如果直接访问 `/admin/dashboard` 出现 API 404，检查 Vite proxy 是否错误地代理了 `/admin` 整个前缀。项目只代理 `/admin/query` 和 `/admin/mutate`。
+Vite middleware 和 production 的 Hono SPA fallback 都应在同一个端口处理 `/admin/dashboard`。如果出现 API 404，检查请求是否错误地进入了 API 路由；`/admin/login`、`/admin/dashboard` 不是 API 路径。
 
 ## 登录页打不开或登录 404
 
 - 后台登录页：`GET /admin/login`（SPA）。
 - 登录接口：`POST /auth/login`（API）。
 
-不要把两者混成 `/admin/login` 的 POST。Vite 只把 `/auth` 代理给 API。
+不要把两者混成 `/admin/login` 的 POST。`/auth/login` 是 API，`/admin/login` 是 SPA 页面。
 
 ## 静态资源缓存不对
 
@@ -117,17 +120,10 @@ lsof -nP -iTCP:7001 -sTCP:LISTEN
 ## 端口被占用
 
 ```bash
-lsof -nP -iTCP:3000 -sTCP:LISTEN
 lsof -nP -iTCP:7001 -sTCP:LISTEN
 ```
 
-Vite 换端口：
-
-```bash
-pnpm exec vite --port 3001
-```
-
-API 换端口后同时更新 `.env.development` 的 `HTTP_PORT` 和 Vite 代理目标。
+只改 `HTTP_PORT`；development 和 production 都使用这一个端口。不要再启动第二个 Vite 端口。
 
 ## 生产启动报“前端构建产物不存在”
 

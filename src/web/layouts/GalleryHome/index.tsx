@@ -15,8 +15,7 @@ import {
   fetchList,
   vote,
   canUseCacheWorker,
-  toOptimizedImageType,
-  toThumbVariantUrl,
+  toHdrVariantUrl,
   transformCacheWorkerURL
 } from 'api/photo'
 import { isHdrDisplay } from 'utils/hdr'
@@ -66,7 +65,7 @@ function usePhotoLoadingPriority(
     const m = new Map<number, string>()
     photo_list.forEach(p => m.set(
       p.id,
-      toThumbVariantUrl(p.thumb_url, p.is_hdr && isHdrDisplay()),
+      toHdrVariantUrl(p.thumb, p.is_hdr && isHdrDisplay()),
     ))
     return m
   }, [photo_list])
@@ -416,17 +415,22 @@ export default () => {
     />
   ), [handleClickAnyWhere, showConfirmVoteLayout])
 
-  const getSrcUrl = useCallback((url: string, is_hdr: boolean) => {
-    const new_type_url = toOptimizedImageType(url, is_hdr && hdr_display)
+  const getSrcUrl = useCallback((url: string) => {
     if (canUseCacheWorker()) {
-      return `${transformCacheWorkerURL(new_type_url)}&redirect=1`
+      return `${transformCacheWorkerURL(url)}&redirect=1`
     } else {
-      return new_type_url
+      return url
     }
-  }, [hdr_display])
+  }, [])
 
   const HandleClickCover = useCallback((gallerycommon: GalleryCommon & {
-    photos: Array<{ id: number; src_url: string; is_hdr: boolean; width: number; height: number }>
+    photos: Array<{
+      id: number
+      src_optimized: string
+      is_hdr: boolean
+      width: number
+      height: number
+    }>
   }) => {
     const handler: WaterfallLayoutClickCoverHandler = ({ from, thumbBlobUrl }, photo_id) => {
       const idx = findListByProperty(gallerycommon.photos, 'id', photo_id)
@@ -435,14 +439,14 @@ export default () => {
         setImageDetail({
           from: from,
           thumb: thumbBlobUrl,
-          src: getSrcUrl(photo.src_url, photo.is_hdr),
+          src: getSrcUrl(toHdrVariantUrl(photo.src_optimized, photo.is_hdr && hdr_display)),
           height: photo.height,
           width: photo.width
         })
       }
     }
     return handler
-  }, [getSrcUrl])
+  }, [getSrcUrl, hdr_display])
 
   const [show_normal_list, setShowNormalList] = useState(false)
 

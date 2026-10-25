@@ -145,19 +145,34 @@ GET /images/thumb/:file        # SDR/HDR AVIF 缩略图
 Cache-Control: public, max-age=31536000, immutable
 ```
 
-source 地址形如 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`，例如 `photo-2-3-4a9b66db.jpg`。SDR/HDR 变体在扩展名前插入 `-sdr` / `-hdr`：
+source 地址形如 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`，例如 `photo-2-3-4a9b66db.jpg`。SDR/HDR 相片变体使用 `.avif`，`-sdr` / `-hdr` 不能省略：
 
 ```text
 source/photo-2-3-4a9b66db.jpg
-optimized/photo-2-3-4a9b66db-sdr.jpg   # AVIF
-optimized/photo-2-3-4a9b66db-hdr.jpg   # AVIF，仅 is_hdr=true
-thumb/photo-2-3-4a9b66db-sdr.jpg
-thumb/photo-2-3-4a9b66db-hdr.jpg
+optimized/photo-2-3-4a9b66db-sdr.avif
+optimized/photo-2-3-4a9b66db-hdr.avif   # 仅 is_hdr=true
+thumb/photo-2-3-4a9b66db-sdr.avif
+thumb/photo-2-3-4a9b66db-hdr.avif       # 仅 is_hdr=true
 ```
 
 头像文件名始终为 `avatar-<qq_num>-<crc32>.<format>`，source 和 thumb 同名；头像 thumb 只生成 SDR AVIF。
 
-`PhotoDTO` 的 `src` / `src_url` 指向 source 原图，`thumb` / `thumb_url` 指向 SDR 缩略图，`is_hdr` 表示是否存在 HDR 变体。SDR 原图只有 `-sdr` 变体；HDR 原图同时有 `-sdr` 和 `-hdr`。前端只有在系统 HDR 且 `is_hdr=true` 时才请求 `-hdr`；否则使用 `-sdr`。HDR 变体缺失时直接 404，不回落 SDR；需要时在后台执行重建。
+`PhotoDTO` 的 `src` / `src_url` 指向 source 原图；`src_optimized` 和 `thumb` 是带版本参数的 SDR 派生图 URL：
+
+```json
+{
+  "src_url": "http://localhost:7001/images/source/photo-2-3-4a9b66db.jpg",
+  "src_optimized": "http://localhost:7001/images/optimized/photo-2-3-4a9b66db-sdr.avif?v=5a493005",
+  "thumb": "http://localhost:7001/images/thumb/photo-2-3-4a9b66db-sdr.avif?v=5a493005",
+  "thumb_url": "http://localhost:7001/images/thumb/photo-2-3-4a9b66db-sdr.avif?v=5a493005",
+  "is_hdr": true
+}
+```
+
+- `thumb_url` 是 `thumb` 的同值兼容别名。
+- `?v=` 来自 `Instance.getInstanceHash()`，即当前 `instance_config` 的 CRC32；配置变化后 URL 变化，避免浏览器继续使用旧的 immutable 缓存。
+- 头像 `avatar_thumb_url` 同样带 `?v=`。
+- SDR 原图只有 `-sdr` 变体；HDR 原图同时有 `-sdr` 和 `-hdr`。前端只有在系统 HDR 且 `is_hdr=true` 时才请求 `-hdr`；否则使用 `-sdr`。HDR 变体缺失时直接 404，不回落 SDR；需要时在后台执行重建。
 
 ## 健康检查
 

@@ -109,7 +109,7 @@ Node HTTP Server
 - 单体同源：前端与 API 在同一个 HTTP 服务下，避免 CORS 和跨服务部署。
 - 前端 bundle 使用 hash 文件名并强缓存；HTML 使用 `no-cache` 弱缓存；source 保存原始上传字节，optimized/thumb 使用实体 ID + 内容 CRC32 文件名并强缓存；上传临时文件使用 UUIDv7。
 - 公开页和后台共用前端入口，后台整体异步加载。
-- 图片分三类：`source` 原图、`optimized` 全尺寸 SDR/HDR AVIF、`thumb` SDR/HDR AVIF 缩略图；相片变体在扩展名前加 `-sdr`/`-hdr`，头像 source/thumb 同名。
+- 图片分三类：`source` 原图、`optimized` 全尺寸 SDR/HDR AVIF、`thumb` SDR/HDR AVIF 缩略图；相片 optimized/thumb 固定为 `-sdr.avif`/`-hdr.avif`，头像 source/thumb 同名。派生图 URL 带 instance hash 版本参数。
 - 后台保持轻依赖和工具化，不套用公开页视觉风格。
 - 后端通过 dispatch action 执行业务，admin action 只能从 admin 路由调用。
 - storage 是单实例 JSON + 图片池；同一 storage 只允许一个进程写。

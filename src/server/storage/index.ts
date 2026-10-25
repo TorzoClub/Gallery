@@ -3,7 +3,13 @@ import path from 'node:path'
 import Immutable from 'immutable'
 import { asGalleryID, asNextID, asSchemaVersion } from '../common/ID'
 import { notFound } from '../common/error'
-import { formatFromFilename, isSafeFilename, photoVariantFilename } from '../common/image-name'
+import {
+  formatFromFilename,
+  isSafeFilename,
+  legacyPhotoVariantFilename,
+  legacyUnversionedPhotoFilenames,
+  photoVariantFilename,
+} from '../common/image-name'
 import { type Gallery } from '../core/Gallery'
 import { type Member } from '../core/Member'
 import { type Photo } from '../core/Photo'
@@ -379,8 +385,17 @@ export async function createStorage(options: CreateStorageOptions): Promise<Stor
     await removeFile(path.join(paths.source, source_filename))
     for (const variant of ['sdr', 'hdr'] as const) {
       const variant_name = photoVariantFilename(source_filename, variant)
+      const legacy_variant_name = legacyPhotoVariantFilename(source_filename, variant)
       await removeFile(path.join(paths.optimized, variant_name))
       await removeFile(path.join(paths.thumb, variant_name))
+      if (legacy_variant_name !== variant_name) {
+        await removeFile(path.join(paths.optimized, legacy_variant_name))
+        await removeFile(path.join(paths.thumb, legacy_variant_name))
+      }
+    }
+    for (const legacy_name of legacyUnversionedPhotoFilenames(source_filename)) {
+      await removeFile(path.join(paths.optimized, legacy_name))
+      await removeFile(path.join(paths.thumb, legacy_name))
     }
     await removeFile(path.join(paths.thumb, source_filename))
   }

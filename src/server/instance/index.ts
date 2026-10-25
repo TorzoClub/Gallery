@@ -9,6 +9,7 @@ import {
   type InstanceConfig,
 } from '../config/instance'
 import { type EnvConfig } from '../config'
+import { crc32Hex } from '../common/crc32'
 import { type Pool } from '../core/Pool'
 import type { Logger } from '../logger'
 import type { Readable } from 'node:stream'
@@ -39,6 +40,7 @@ export type DispatchOptions = {
 export type Instance = {
   read(): Pool
   getInstanceConfig(): InstanceConfig
+  getInstanceHash(): string
   isAdminAction(name: string): boolean
   dispatchQuery(name: string, payload: unknown, options: DispatchOptions): Promise<unknown>
   dispatchMutation(name: string, payload: unknown, options: DispatchOptions): Promise<unknown>
@@ -58,6 +60,10 @@ export type CreateInstanceOptions = {
   logger: Logger
 }
 
+function calcInstanceConfigCRC32(config: InstanceConfig): string {
+  return crc32Hex(Buffer.from(JSON.stringify(config)))
+}
+
 function validationError(error: z.ZodError): never {
   throw apiError(400, 'INVALID_PAYLOAD', '参数错误', error.issues.map((issue) => ({
     path: issue.path.join('.'),
@@ -74,6 +80,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
   const loaded = await storage.load()
   let pool: Pool = loaded.pool
   let instance_config: InstanceConfig = loaded.instance_config
+  let instance_hash = calcInstanceConfigCRC32(instance_config)
 
   assertInstanceConfigWithinHardLimit(instance_config, env.http_body_hard_limit_bytes)
 
@@ -97,6 +104,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
       pool,
       env,
       config: instance_config,
+      instance_hash,
       now,
       preparePhoto: images.preparePhoto,
       prepareAvatar: images.prepareAvatar,
@@ -110,6 +118,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
       pool,
       env,
       config: instance_config,
+      instance_hash,
       now,
     }
   }
@@ -201,6 +210,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
 
       if (outcome.instance_config !== undefined) {
         instance_config = outcome.instance_config
+        instance_hash = calcInstanceConfigCRC32(instance_config)
       }
       if (outcome.pool !== prev_pool) {
         pool = outcome.pool
@@ -246,6 +256,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
   return {
     read: () => pool,
     getInstanceConfig: () => instance_config,
+    getInstanceHash: () => instance_hash,
     isAdminAction: (name) => __admin_list.includes(name),
     dispatchQuery,
     dispatchMutation,

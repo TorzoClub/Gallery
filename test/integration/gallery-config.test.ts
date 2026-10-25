@@ -75,6 +75,10 @@ describe('gallery actions', () => {
   })
 })
 
+function thumbFilename(url: string): string {
+  return decodeURIComponent(new URL(url).pathname.split('/').pop() as string)
+}
+
 describe('instance configuration', () => {
   it('updates runtime config and persists it in storage', async () => {
     const response = await ctx.adminMutate('adminUpdateInstanceConfig', {
@@ -107,14 +111,21 @@ describe('instance configuration', () => {
       member_id: member.id as number,
       image: await makePng(800, 600),
     })
+    const hash_before = ctx.instance.getInstanceHash()
     const before_meta = await sharp(
-      ctx.storage.imagePath('thumb', before.thumb as string),
+      ctx.storage.imagePath('thumb', thumbFilename(before.thumb as string)),
     ).metadata()
     expect(before_meta.width).toBe(640)
 
     await ctx.adminMutate('adminUpdateInstanceConfig', {
       image_thumb_size: 100,
     })
+    const hash_after = ctx.instance.getInstanceHash()
+    expect(hash_after).not.toBe(hash_before)
+    const fetched = await ctx.adminQuery('adminGetPhoto', { photo_id: before.id })
+    expect(fetched.status).toBe(200)
+    expect(fetched.body.data.src_optimized).toContain(`?v=${hash_after}`)
+    expect(fetched.body.data.thumb).toContain(`?v=${hash_after}`)
 
     const after = await ctx.createPhoto({
       gallery_id: gallery.id as number,
@@ -122,7 +133,7 @@ describe('instance configuration', () => {
       image: await makePng(800, 600),
     })
     const after_meta = await sharp(
-      ctx.storage.imagePath('thumb', after.thumb as string),
+      ctx.storage.imagePath('thumb', thumbFilename(after.thumb as string)),
     ).metadata()
     expect(after_meta.width).toBe(100)
   })

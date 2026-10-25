@@ -32,12 +32,22 @@ import type {
   StatisticDTO,
 } from '../../shared/dto'
 
-function imageUrl(env: EnvConfig, kind: 'source' | 'thumb', filename: string): string {
+function imageUrl(
+  env: EnvConfig,
+  kind: 'source' | 'optimized' | 'thumb',
+  filename: string,
+  instance_hash?: string,
+): string {
   const prefix = env.api_base_path === '/' ? '' : env.api_base_path
-  return `${env.public_base_url}${prefix}/images/${kind}/${encodeURIComponent(filename)}`
+  const base = `${env.public_base_url}${prefix}/images/${kind}/${encodeURIComponent(filename)}`
+  return instance_hash === undefined ? base : `${base}?v=${instance_hash}`
 }
 
-export function memberDto(member: Member, env: EnvConfig): MemberDTO {
+export function memberDto(
+  member: Member,
+  env: EnvConfig,
+  instance_hash: string,
+): MemberDTO {
   const avatar_thumb = avatarThumbFilename(member.avatar_src)
   return {
     id: Number(member.id),
@@ -45,7 +55,7 @@ export function memberDto(member: Member, env: EnvConfig): MemberDTO {
     name: member.name,
     avatar_src: member.avatar_src,
     avatar_thumb,
-    avatar_thumb_url: imageUrl(env, 'thumb', avatar_thumb),
+    avatar_thumb_url: imageUrl(env, 'thumb', avatar_thumb, instance_hash),
     created_at: member.created_at.toISOString(),
     updated_at: member.updated_at.toISOString(),
   }
@@ -56,12 +66,14 @@ export function photoDto(options: {
   gallery: Gallery
   photo: Photo
   env: EnvConfig
+  instance_hash: string
   voted?: boolean
   hide_member?: boolean
 }): PhotoDTO {
-  const { pool, gallery, photo, env } = options
+  const { pool, gallery, photo, env, instance_hash } = options
   const member = findMemberByIdOrNull(pool, photo.member_id)
   const thumb = photoVariantFilename(photo.src, 'sdr')
+  const thumb_url = imageUrl(env, 'thumb', thumb, instance_hash)
   const hide_member = options.hide_member === true
 
   return {
@@ -75,11 +87,12 @@ export function photoDto(options: {
     width: photo.width,
     height: photo.height,
     is_hdr: photo.is_hdr,
-    thumb,
+    thumb: thumb_url,
     src_url: imageUrl(env, 'source', photo.src),
-    thumb_url: imageUrl(env, 'thumb', thumb),
+    src_optimized: imageUrl(env, 'optimized', thumb, instance_hash),
+    thumb_url,
     vote_count: voteCountByPhoto(gallery, photo.id),
-    member: member === undefined || hide_member ? null : memberDto(member, env),
+    member: member === undefined || hide_member ? null : memberDto(member, env, instance_hash),
     ...(options.voted === undefined ? {} : { is_voted: options.voted }),
     created_at: photo.created_at.toISOString(),
     updated_at: photo.updated_at.toISOString(),
@@ -90,11 +103,12 @@ export function galleryDto(options: {
   pool: Pool
   gallery: Gallery
   env: EnvConfig
+  instance_hash: string
   now: Date
   member?: Member
   hide_member?: boolean
 }): GalleryDTO {
-  const { pool, gallery, env, now, member } = options
+  const { pool, gallery, env, instance_hash, now, member } = options
   const voted_photo_ids = new Set(
     member === undefined
       ? []
@@ -108,6 +122,7 @@ export function galleryDto(options: {
     gallery,
     photo,
     env,
+    instance_hash,
     hide_member: options.hide_member,
     voted: member === undefined ? undefined : voted_photo_ids.has(photo.id),
   }))
@@ -134,9 +149,10 @@ export function galleryDto(options: {
 export function publicHomeDto(options: {
   pool: Pool
   env: EnvConfig
+  instance_hash: string
   now: Date
 }): PublicHomeDTO {
-  const { pool, env, now } = options
+  const { pool, env, instance_hash, now } = options
   const galleries = pool.galleries
     .valueSeq()
     .toArray()
@@ -152,6 +168,7 @@ export function publicHomeDto(options: {
         pool,
         gallery: active_gallery,
         env,
+        instance_hash,
         now,
         hide_member: true,
       })
@@ -160,17 +177,18 @@ export function publicHomeDto(options: {
     active,
     galleries: galleries
       .filter((gallery) => !galleryInEvent(now, gallery))
-      .map((gallery) => galleryDto({ pool, gallery, env, now })),
+      .map((gallery) => galleryDto({ pool, gallery, env, instance_hash, now })),
   }
 }
 
 export function memberHomeDto(options: {
   pool: Pool
   env: EnvConfig
+  instance_hash: string
   now: Date
   member: Member
 }): PublicHomeDTO {
-  const { pool, env, now, member } = options
+  const { pool, env, instance_hash, now, member } = options
   const galleries = pool.galleries
     .valueSeq()
     .toArray()
@@ -186,6 +204,7 @@ export function memberHomeDto(options: {
         pool,
         gallery: active_gallery,
         env,
+        instance_hash,
         now,
         member,
         hide_member: true,
@@ -195,7 +214,7 @@ export function memberHomeDto(options: {
     active,
     galleries: galleries
       .filter((gallery) => !galleryInEvent(now, gallery))
-      .map((gallery) => galleryDto({ pool, gallery, env, now, member })),
+      .map((gallery) => galleryDto({ pool, gallery, env, instance_hash, now, member })),
   }
 }
 

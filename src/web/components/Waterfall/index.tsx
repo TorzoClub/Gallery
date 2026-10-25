@@ -1,6 +1,6 @@
 import { FunctionComponent, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Memo, MemoGetter, MemoSetter, Signal } from 'vait'
-import { Photo, toThumbVariantUrl } from 'api/photo'
+import { Photo, toHdrVariantUrl } from 'api/photo'
 import { isHdrDisplay } from 'utils/hdr'
 
 import './index.scss'
@@ -134,8 +134,8 @@ export default (props: Props) => {
                     width: photo.width,
                     height: photo.height,
                     src: photo.src_url,
-                    thumb: toThumbVariantUrl(
-                      photo.thumb_url,
+                    thumb: toHdrVariantUrl(
+                      photo.thumb,
                       photo.is_hdr && isHdrDisplay(),
                     ),
                   },

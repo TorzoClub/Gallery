@@ -25,6 +25,7 @@ export type PhotoDTO = {
   is_hdr: boolean
   thumb: string
   src_url: string
+  src_optimized: string
   thumb_url: string
   vote_count: number
   member: MemberDTO | null

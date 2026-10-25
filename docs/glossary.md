@@ -24,6 +24,7 @@
 | optimized | Optimized image | 相片的 SDR/HDR 全尺寸 AVIF；文件名为 source basename 加 `-sdr`/`-hdr`，位于 `stored-images/optimized/`。 |
 | avif_source_quality | AVIF source quality | optimized 全尺寸 AVIF 的质量配置，默认 75。 |
 | is_hdr | Is HDR | 相片是否存在 HDR 变体。 |
+| instance hash | Instance hash | 当前 instance_config 的 CRC32，用作派生图 URL 的 `?v` 缓存版本。 |
 | image_processing_effort | Image processing effort | 所有图片处理的 CPU effort 配置，默认 8。 |
 | legacy | Legacy | `legacy/` 下冻结的旧 server/web/脚本/CI，只作历史参考。 |
 

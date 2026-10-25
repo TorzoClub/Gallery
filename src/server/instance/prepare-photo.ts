@@ -16,6 +16,8 @@ import {
   avatarThumbFilename,
   formatFromFilename,
   isSafeFilename,
+  legacyPhotoVariantFilename,
+  legacyUnversionedPhotoFilenames,
   photoVariantFilename,
 } from '../common/image-name'
 import { crc32ToHex } from '../common/crc32'
@@ -163,6 +165,20 @@ export function createImagePipeline(options: {
     }
   }
 
+  async function cleanupLegacyPhotoVariants(
+    source_filename: string,
+    kind: 'optimized' | 'thumb',
+    variant: 'sdr' | 'hdr',
+  ): Promise<void> {
+    const legacy_variant = legacyPhotoVariantFilename(source_filename, variant)
+    if (legacy_variant !== photoVariantFilename(source_filename, variant)) {
+      await fs.rm(storage.imagePath(kind, legacy_variant), { force: true })
+    }
+    for (const legacy_name of legacyUnversionedPhotoFilenames(source_filename)) {
+      await fs.rm(storage.imagePath(kind, legacy_name), { force: true })
+    }
+  }
+
   async function prepareImage(input: {
     temp_filename: string
     format: string
@@ -287,6 +303,13 @@ export function createImagePipeline(options: {
         }
       }
 
+      if (input.kind === 'photo') {
+        for (const variant of ['sdr', 'hdr'] as const) {
+          await cleanupLegacyPhotoVariants(source_filename, 'optimized', variant)
+          await cleanupLegacyPhotoVariants(source_filename, 'thumb', variant)
+        }
+      }
+
       return {
         src: source_filename,
         width: source_info.width,
@@ -382,6 +405,7 @@ export function createImagePipeline(options: {
     thumb_name: string,
     size: number,
     variant: 'sdr' | 'hdr',
+    cleanup_legacy: boolean,
   ): Promise<void> {
     if (!isSafeFilename(source_filename)) {
       throw badRequest('非法的图片文件名')
@@ -401,6 +425,9 @@ export function createImagePipeline(options: {
         variant,
       })
       await fs.rename(temp_path, thumb_path)
+      if (cleanup_legacy) {
+        await cleanupLegacyPhotoVariants(source_filename, 'thumb', variant)
+      }
     } catch (error) {
       await fs.rm(temp_path, { force: true })
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -435,6 +462,7 @@ export function createImagePipeline(options: {
         variant,
       })
       await fs.rename(staging, optimized_path)
+      await cleanupLegacyPhotoVariants(source_filename, 'optimized', variant)
     } catch (error) {
       await fs.rm(staging, { force: true })
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -451,6 +479,7 @@ export function createImagePipeline(options: {
       photoVariantFilename(source_filename, 'sdr'),
       getConfig().image_thumb_size,
       'sdr',
+      true,
     )
 
     if (is_hdr) {
@@ -460,7 +489,17 @@ export function createImagePipeline(options: {
         photoVariantFilename(source_filename, 'hdr'),
         getConfig().image_thumb_size,
         'hdr',
+        true,
       )
+    } else {
+      await fs.rm(storage.imagePath('optimized', photoVariantFilename(source_filename, 'hdr')), {
+        force: true,
+      })
+      await fs.rm(storage.imagePath('thumb', photoVariantFilename(source_filename, 'hdr')), {
+        force: true,
+      })
+      await cleanupLegacyPhotoVariants(source_filename, 'optimized', 'hdr')
+      await cleanupLegacyPhotoVariants(source_filename, 'thumb', 'hdr')
     }
   }
 
@@ -470,6 +509,7 @@ export function createImagePipeline(options: {
       avatarThumbFilename(source_filename),
       getConfig().avatar_thumb_size,
       'sdr',
+      false,
     )
   }
 

@@ -82,6 +82,7 @@ export type QueryContext = {
   pool: Pool
   env: EnvConfig
   config: InstanceConfig
+  instance_hash: string
   now: Date
 }
 
@@ -232,7 +233,7 @@ export const queries = {
     admin: false,
     run: (ctx): PublicHomeDTO => publicHomeDto({
       pool: ctx.pool,
-      env: ctx.env,
+      env: ctx.env, instance_hash: ctx.instance_hash,
       now: ctx.now,
     }),
   }),
@@ -245,7 +246,7 @@ export const queries = {
       return galleryDto({
         pool: ctx.pool,
         gallery,
-        env: ctx.env,
+        env: ctx.env, instance_hash: ctx.instance_hash,
         now: ctx.now,
         hide_member: galleryInEvent(ctx.now, gallery),
       })
@@ -261,7 +262,7 @@ export const queries = {
         pool: ctx.pool,
         gallery: found.gallery,
         photo: found.photo,
-        env: ctx.env,
+        env: ctx.env, instance_hash: ctx.instance_hash,
         hide_member: galleryInEvent(ctx.now, found.gallery),
       })
     },
@@ -276,7 +277,7 @@ export const queries = {
       const photo = findSubmissionPhoto(gallery, Number(member.id))
       return photo === undefined
         ? null
-        : photoDto({ pool: ctx.pool, gallery, photo, env: ctx.env })
+        : photoDto({ pool: ctx.pool, gallery, photo, env: ctx.env, instance_hash: ctx.instance_hash })
     },
   }),
 
@@ -296,7 +297,7 @@ export const queries = {
       const member = findMemberByQQ(ctx.pool, asQQNumber(payload.qq_num))
       return memberHomeDto({
         pool: ctx.pool,
-        env: ctx.env,
+        env: ctx.env, instance_hash: ctx.instance_hash,
         now: ctx.now,
         member,
       })
@@ -321,7 +322,7 @@ export const queries = {
     run: (ctx): GalleryDTO[] => poolGalleriesSorted(ctx.pool).map((gallery) => galleryDto({
       pool: ctx.pool,
       gallery,
-      env: ctx.env,
+      env: ctx.env, instance_hash: ctx.instance_hash,
       now: ctx.now,
     })),
   }),
@@ -331,14 +332,14 @@ export const queries = {
     admin: true,
     run: (ctx, payload): GalleryDTO => {
       const gallery = findGallery(ctx.pool, toGalleryID(payload.gallery_id))
-      return galleryDto({ pool: ctx.pool, gallery, env: ctx.env, now: ctx.now })
+      return galleryDto({ pool: ctx.pool, gallery, env: ctx.env, instance_hash: ctx.instance_hash, now: ctx.now })
     },
   }),
 
   adminListMembers: defineQuery({
     schema: EmptySchema,
     admin: true,
-    run: (ctx): MemberDTO[] => poolMembersSorted(ctx.pool).map((member) => memberDto(member, ctx.env)),
+    run: (ctx): MemberDTO[] => poolMembersSorted(ctx.pool).map((member) => memberDto(member, ctx.env, ctx.instance_hash)),
   }),
 
   adminGetMember: defineQuery({
@@ -346,7 +347,7 @@ export const queries = {
     admin: true,
     run: (ctx, payload): MemberDTO => {
       const member = findMemberById(ctx.pool, asMemberID(payload.member_id))
-      return memberDto(member, ctx.env)
+      return memberDto(member, ctx.env, ctx.instance_hash)
     },
   }),
 
@@ -357,7 +358,7 @@ export const queries = {
       pool: ctx.pool,
       gallery,
       photo,
-      env: ctx.env,
+      env: ctx.env, instance_hash: ctx.instance_hash,
     })),
   }),
 
@@ -370,7 +371,7 @@ export const queries = {
         pool: ctx.pool,
         gallery: found.gallery,
         photo: found.photo,
-        env: ctx.env,
+        env: ctx.env, instance_hash: ctx.instance_hash,
       })
     },
   }),
@@ -382,7 +383,7 @@ export const queries = {
       pool: ctx.pool,
       gallery,
       photo,
-      env: ctx.env,
+      env: ctx.env, instance_hash: ctx.instance_hash,
     })),
   }),
 
@@ -392,7 +393,7 @@ export const queries = {
     run: (ctx, payload): MemberVoteDTO[] => {
       const gallery = findGallery(ctx.pool, toGalleryID(payload.gallery_id))
       return poolMembersSorted(ctx.pool).map((member) => ({
-        ...memberDto(member, ctx.env),
+        ...memberDto(member, ctx.env, ctx.instance_hash),
         votes: galleryVotesForMember(gallery, member.id).map((vote) => voteDto(gallery, vote)),
       }))
     },
@@ -404,7 +405,7 @@ export const queries = {
     run: (ctx, payload): Array<{ photo: PhotoDTO; votes: VoteDTO[] }> => {
       const gallery = findGallery(ctx.pool, toGalleryID(payload.gallery_id))
       return galleryPhotosSorted(gallery).map((photo) => ({
-        photo: photoDto({ pool: ctx.pool, gallery, photo, env: ctx.env }),
+        photo: photoDto({ pool: ctx.pool, gallery, photo, env: ctx.env, instance_hash: ctx.instance_hash }),
         votes: galleryVotesForPhoto(gallery, photo.id).map((vote) => voteDto(gallery, vote)),
       }))
     },
@@ -444,7 +445,7 @@ export const mutations = {
             pool: next.pool,
             gallery: next.gallery,
             photo: next.photo,
-            env: ctx.env,
+            env: ctx.env, instance_hash: ctx.instance_hash,
           }),
         }
       } catch (error) {
@@ -494,7 +495,7 @@ export const mutations = {
               pool: next.pool,
               gallery: next.gallery,
               photo: next.photo,
-              env: ctx.env,
+              env: ctx.env, instance_hash: ctx.instance_hash,
             }),
           }
         } catch (error) {
@@ -516,7 +517,7 @@ export const mutations = {
           pool: next.pool,
           gallery: next.gallery,
           photo: next.photo,
-          env: ctx.env,
+          env: ctx.env, instance_hash: ctx.instance_hash,
         }),
       }
     },
@@ -537,7 +538,7 @@ export const mutations = {
         pool: ctx.pool,
         gallery: found.gallery,
         photo: found.photo,
-        env: ctx.env,
+        env: ctx.env, instance_hash: ctx.instance_hash,
       })
       const next = poolRemoveSubmission(
         ctx.pool,
@@ -603,7 +604,7 @@ export const mutations = {
         result: galleryDto({
           pool: next.pool,
           gallery: next.gallery,
-          env: ctx.env,
+          env: ctx.env, instance_hash: ctx.instance_hash,
           now: ctx.now,
         }),
       }
@@ -630,7 +631,7 @@ export const mutations = {
         result: galleryDto({
           pool: next.pool,
           gallery: next.gallery,
-          env: ctx.env,
+          env: ctx.env, instance_hash: ctx.instance_hash,
           now: ctx.now,
         }),
       }
@@ -645,7 +646,7 @@ export const mutations = {
       const result = galleryDto({
         pool: ctx.pool,
         gallery,
-        env: ctx.env,
+        env: ctx.env, instance_hash: ctx.instance_hash,
         now: ctx.now,
       })
       return {
@@ -671,7 +672,7 @@ export const mutations = {
         })
         return {
           pool: next.pool,
-          result: memberDto(next.member, ctx.env),
+          result: memberDto(next.member, ctx.env, ctx.instance_hash),
         }
       } catch (error) {
         await avatar.discard()
@@ -704,7 +705,7 @@ export const mutations = {
         })
         return {
           pool: next.pool,
-          result: memberDto(next.member, ctx.env),
+          result: memberDto(next.member, ctx.env, ctx.instance_hash),
         }
       } catch (error) {
         if (avatar_discard !== undefined) {
@@ -720,7 +721,7 @@ export const mutations = {
     admin: true,
     run: async (ctx, payload) => {
       const member = findMemberById(ctx.pool, asMemberID(payload.member_id))
-      const result = memberDto(member, ctx.env)
+      const result = memberDto(member, ctx.env, ctx.instance_hash)
       const next = poolDeleteMember(ctx.pool, member.id)
       return { pool: next.pool, result }
     },
@@ -771,7 +772,7 @@ export const mutations = {
             pool: next.pool,
             gallery: next.gallery,
             photo: next.photo,
-            env: ctx.env,
+            env: ctx.env, instance_hash: ctx.instance_hash,
           }),
         }
       } catch (error) {
@@ -823,7 +824,7 @@ export const mutations = {
               pool: next.pool,
               gallery: next.gallery,
               photo: next.photo,
-              env: ctx.env,
+              env: ctx.env, instance_hash: ctx.instance_hash,
             }),
           }
         } catch (error) {
@@ -851,7 +852,7 @@ export const mutations = {
           pool: next.pool,
           gallery: next.gallery,
           photo: next.photo,
-          env: ctx.env,
+          env: ctx.env, instance_hash: ctx.instance_hash,
         }),
       }
     },
@@ -866,7 +867,7 @@ export const mutations = {
         pool: ctx.pool,
         gallery: found.gallery,
         photo: found.photo,
-        env: ctx.env,
+        env: ctx.env, instance_hash: ctx.instance_hash,
       })
       const next = poolRemovePhoto(
         ctx.pool,
@@ -892,7 +893,7 @@ export const mutations = {
         result: galleryDto({
           pool: next.pool,
           gallery: next.gallery,
-          env: ctx.env,
+          env: ctx.env, instance_hash: ctx.instance_hash,
           now: ctx.now,
         }),
       }

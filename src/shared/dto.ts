@@ -79,6 +79,7 @@ export type TempUploadResult = {
   height: number
   format: string
   size: number
+  crc32: number
 }
 
 export type UploadResult = TempUploadResult & {

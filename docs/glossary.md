@@ -18,6 +18,9 @@
 | env 配置 | Env config | 进程启动后不可变的环境变量配置。 |
 | hash bundle | Hashed bundle | 文件名带内容 hash 的 Vite 产物，可长期强缓存。 |
 | SPA fallback | SPA fallback | 未命中文件的 GET 请求返回 `index.html`，但 API 路径除外。 |
+| UUIDv7 | UUID version 7 | 带时间前缀的 UUID，用作 temp_id，便于按时间清理。 |
+| CRC32 | CRC-32 | 上传文件内容的 32 位校验值，用于生成相片/头像文件名。 |
+| temp_id | Temp ID | 上传后返回的 UUIDv7，对应 `stored-images/temp/<temp_id>.<format>`。 |
 | legacy | Legacy | `legacy/` 下冻结的旧 server/web/脚本/CI，只作历史参考。 |
 
 更完整的项目说明见 [introduction.md](introduction.md)。

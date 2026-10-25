@@ -87,7 +87,6 @@ export type MutationContext = QueryContext & {
   refreshThumb: ImagePipeline['refreshThumb']
   refreshAvatar: ImagePipeline['refreshAvatar']
   cleanUnusedImages: ImagePipeline['cleanUnusedImages']
-  removeImage: (source_filename: string) => Promise<void>
 }
 
 export type QueryDef<I, O> = {
@@ -140,7 +139,6 @@ const MemberCreateSchema = z.object({
 })
 
 const MemberUpdateSchema = z.object({
-  qq_num: qqSchema.optional(),
   name: z.string().min(1).optional(),
   avatar_temp_id: tempIdSchema.optional(),
 }).strict()
@@ -432,19 +430,11 @@ export const mutations = {
         desc: payload.desc,
         index: 0,
         member_id: member.id,
-        now: ctx.now,
+        gallery_id: gallery.id,
       })
 
       try {
-        const next = poolSubmitPhoto(ctx.pool, ctx.now, gallery.id, member.id, {
-          id: prepared.id,
-          index: prepared.index,
-          desc: prepared.desc,
-          src: prepared.src,
-          width: prepared.width,
-          height: prepared.height,
-          member_id: prepared.member_id,
-        })
+        const next = poolSubmitPhoto(ctx.pool, ctx.now, gallery.id, member.id, prepared)
         return {
           pool: next.pool,
           result: photoDto({
@@ -455,7 +445,7 @@ export const mutations = {
           }),
         }
       } catch (error) {
-        await ctx.removeImage(prepared.src)
+        await prepared.discard()
         throw error
       }
     },
@@ -479,7 +469,7 @@ export const mutations = {
           desc: payload.desc ?? found.photo.desc,
           index: found.photo.index,
           member_id: found.photo.member_id,
-          now: ctx.now,
+          gallery_id: found.gallery.id,
         })
         try {
           const next = poolUpdatePhoto(
@@ -504,7 +494,7 @@ export const mutations = {
             }),
           }
         } catch (error) {
-          await ctx.removeImage(prepared.src)
+          await prepared.discard()
           throw error
         }
       }
@@ -666,8 +656,8 @@ export const mutations = {
     admin: true,
     run: async (ctx, payload) => {
       const avatar = await ctx.prepareAvatar({
+        qq_num: payload.qq_num,
         temp_id: payload.avatar_temp_id,
-        now: ctx.now,
       })
       try {
         const next = poolCreateMember(ctx.pool, ctx.now, {
@@ -680,7 +670,7 @@ export const mutations = {
           result: memberDto(next.member, ctx.env),
         }
       } catch (error) {
-        await ctx.removeImage(avatar.avatar_src)
+        await avatar.discard()
         throw error
       }
     },
@@ -692,18 +682,19 @@ export const mutations = {
     run: async (ctx, payload) => {
       const member = findMemberById(ctx.pool, asMemberID(payload.member_id))
       let avatar_src: string | undefined
+      let avatar_discard: (() => Promise<void>) | undefined
 
       if (payload.avatar_temp_id !== undefined) {
         const avatar = await ctx.prepareAvatar({
+          qq_num: member.qq_num,
           temp_id: payload.avatar_temp_id,
-          now: ctx.now,
         })
         avatar_src = avatar.avatar_src
+        avatar_discard = avatar.discard
       }
 
       try {
         const next = poolUpdateMember(ctx.pool, ctx.now, member.id, {
-          ...(payload.qq_num === undefined ? {} : { qq_num: payload.qq_num }),
           ...(payload.name === undefined ? {} : { name: payload.name }),
           ...(avatar_src === undefined ? {} : { avatar_src }),
         })
@@ -712,8 +703,8 @@ export const mutations = {
           result: memberDto(next.member, ctx.env),
         }
       } catch (error) {
-        if (avatar_src !== undefined) {
-          await ctx.removeImage(avatar_src)
+        if (avatar_discard !== undefined) {
+          await avatar_discard()
         }
         throw error
       }
@@ -765,24 +756,11 @@ export const mutations = {
         desc: payload.desc,
         index: payload.index,
         member_id: asMemberID(payload.member_id),
-        now: ctx.now,
+        gallery_id: gallery.id,
       })
 
       try {
-        const next = poolAddPhoto(
-          ctx.pool,
-          ctx.now,
-          gallery.id,
-          {
-            id: prepared.id,
-            index: prepared.index,
-            desc: prepared.desc,
-            src: prepared.src,
-            width: prepared.width,
-            height: prepared.height,
-            member_id: prepared.member_id,
-          },
-        )
+        const next = poolAddPhoto(ctx.pool, ctx.now, gallery.id, prepared)
         return {
           pool: next.pool,
           result: photoDto({
@@ -793,7 +771,7 @@ export const mutations = {
           }),
         }
       } catch (error) {
-        await ctx.removeImage(prepared.src)
+        await prepared.discard()
         throw error
       }
     },
@@ -816,7 +794,7 @@ export const mutations = {
           member_id: payload.member_id === undefined
             ? found.photo.member_id
             : asMemberID(payload.member_id),
-          now: ctx.now,
+          gallery_id: found.gallery.id,
         })
         try {
           const next = poolUpdatePhoto(
@@ -845,7 +823,7 @@ export const mutations = {
             }),
           }
         } catch (error) {
-          await ctx.removeImage(prepared.src)
+          await prepared.discard()
           throw error
         }
       }

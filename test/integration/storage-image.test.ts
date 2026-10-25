@@ -3,14 +3,17 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createTestContext,
   makePng,
   type TestContext,
 } from '../helpers/app'
 import { createStorage } from '../../src/server/storage'
+import { crc32Hex } from '../../src/server/common/crc32'
+import { isUuidV7, uuidV7Timestamp, uuidv7 } from '../../src/server/common/uuid'
 import { createLogger } from '../../src/server/logger'
+import { createImagePipeline, TEMP_IMAGE_TTL_MS, TEMP_CLEANUP_INTERVAL_MS } from '../../src/server/instance/prepare-photo'
 
 const dirs: string[] = []
 let active: TestContext | undefined
@@ -129,11 +132,15 @@ describe('image flow', () => {
     const ctx = await context()
     const member = await ctx.createMember({ qq_num: 51001 })
     const gallery = await ctx.createGallery()
+    const image = await makePng(300, 200)
     const photo = await ctx.createPhoto({
       gallery_id: gallery.id as number,
       member_id: member.id as number,
-      image: await makePng(300, 200),
+      image,
     })
+    const source_name = `photo-${gallery.id}-${photo.id}-${crc32Hex(image)}.png`
+    expect(photo.src).toBe(source_name)
+    expect(photo.thumb).toBe(`${source_name.slice(0, -4)}.avif`)
 
     const source_response = await ctx.app.request(`/images/source/${photo.src}`)
     expect(source_response.status).toBe(200)
@@ -191,6 +198,26 @@ describe('image flow', () => {
       body: large_form,
     })
     expect(large.status).toBe(413)
+
+    const mismatch_form = new FormData()
+    mismatch_form.append('file', new File([new Uint8Array(await makePng())], 'mismatch.jpg', {
+      type: 'image/jpeg',
+    }))
+    const mismatch = await ctx.app.request('/upload-image', {
+      method: 'POST',
+      body: mismatch_form,
+    })
+    expect(mismatch.status).toBe(400)
+
+    const bad_ext_form = new FormData()
+    bad_ext_form.append('file', new File([new Uint8Array([1, 2, 3])], 'bad.php', {
+      type: 'application/octet-stream',
+    }))
+    const bad_ext = await ctx.app.request('/upload-image', {
+      method: 'POST',
+      body: bad_ext_form,
+    })
+    expect(bad_ext.status).toBe(400)
   })
 
   it('handles photo dimensions rotated by EXIF Orientation', async () => {
@@ -226,11 +253,15 @@ describe('image flow', () => {
     const ori6_path = await makeExifOriented6Image()
     const expected = expectedOrientedSize(await sharp(ori6_path).metadata())
 
-    const photo = await ctx.createPhoto({
-      gallery_id: gallery.id as number,
-      member_id: member.id as number,
-      image: await fs.readFile(ori6_path),
+    const uploaded = await ctx.uploadImage(await fs.readFile(ori6_path), 'ori6.jpg')
+    const created = await ctx.adminMutate('adminCreatePhoto', {
+      gallery_id: gallery.id,
+      member_id: member.id,
+      desc: 'exif thumb',
+      temp_id: uploaded.temp_id,
     })
+    expect(created.status).toBe(200)
+    const photo = created.body.data
 
     const source_response = await ctx.app.request(`/images/source/${photo.src}`)
     expect(source_response.status).toBe(200)
@@ -246,6 +277,74 @@ describe('image flow', () => {
     expect(thumb_metadata.height).toBe(Math.round(expected.height * 640 / expected.width))
   })
 
+  it('stores uploads as UUIDv7 temp files with crc32 metadata', async () => {
+    const ctx = await context()
+    const member = await ctx.createMember({ qq_num: 51005 })
+    const gallery = await ctx.createGallery()
+    const image = await makePng(300, 200)
+    const uploaded = await ctx.uploadImage(image)
+
+    expect(isUuidV7(uploaded.temp_id)).toBe(true)
+    expect(uploaded.crc32).toBe(Number.parseInt(crc32Hex(image), 16))
+    expect(Math.abs(Date.now() - (uuidV7Timestamp(uploaded.temp_id) ?? 0))).toBeLessThan(10_000)
+
+    const temp_path = path.join(ctx.storage.paths.temp, `${uploaded.temp_id}.${uploaded.format}`)
+    await expect(fs.access(temp_path)).resolves.toBeUndefined()
+
+    const path_attack = await ctx.uploadImage(await makePng(), '../../evil.png')
+    expect(isUuidV7(path_attack.temp_id)).toBe(true)
+    const attack_path = path.join(ctx.storage.paths.temp, `${path_attack.temp_id}.png`)
+    await expect(fs.access(attack_path)).resolves.toBeUndefined()
+    expect(path.basename(attack_path)).not.toContain('evil')
+
+    const created = await ctx.adminMutate('adminCreatePhoto', {
+      gallery_id: gallery.id,
+      member_id: member.id,
+      desc: 'temp upload',
+      temp_id: uploaded.temp_id,
+    })
+    expect(created.status).toBe(200)
+    await expect(fs.access(temp_path)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('cleans only stale UUIDv7 temp files', async () => {
+    const ctx = await context()
+    const now_ms = Date.now()
+    const pipeline = createImagePipeline({
+      storage: ctx.storage,
+      getConfig: () => ctx.instance.getInstanceConfig(),
+      now: () => now_ms,
+    })
+    const old_id = uuidv7({ msecs: now_ms - TEMP_IMAGE_TTL_MS - 1000 })
+    const recent_id = uuidv7({ msecs: now_ms - 1000 })
+    const old_path = path.join(ctx.storage.paths.temp, `${old_id}.png`)
+    const recent_path = path.join(ctx.storage.paths.temp, `${recent_id}.png`)
+    await fs.writeFile(old_path, 'old')
+    await fs.writeFile(recent_path, 'recent')
+
+    try {
+      await pipeline.cleanupStaleTemps()
+      await expect(fs.access(old_path)).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(fs.access(recent_path)).resolves.toBeUndefined()
+    } finally {
+      await pipeline.close()
+    }
+  })
+
+  it('stops the cleanup timer on close', async () => {
+    const ctx = await context()
+    vi.useFakeTimers()
+    const pipeline = createImagePipeline({
+      storage: ctx.storage,
+      getConfig: () => ctx.instance.getInstanceConfig(),
+      cleanup_interval_ms: TEMP_CLEANUP_INTERVAL_MS,
+    })
+    expect(vi.getTimerCount()).toBe(1)
+    await pipeline.close()
+    expect(vi.getTimerCount()).toBe(0)
+    vi.useRealTimers()
+  })
+
   it('replaces a photo image and removes the old files', async () => {
     const ctx = await context()
     const member = await ctx.createMember({ qq_num: 51002 })
@@ -258,18 +357,51 @@ describe('image flow', () => {
 
     const old_source = photo.src as string
     const old_thumb = photo.thumb as string
-    const temp = await ctx.uploadImage(await makePng(320, 240, { r: 10, g: 20, b: 220 }))
+    const first_image = await makePng(320, 240, { r: 10, g: 20, b: 220 })
+    const temp = await ctx.uploadImage(first_image)
     const updated = await ctx.adminMutate('adminUpdatePhoto', {
       gallery_id: gallery.id,
       photo_id: photo.id,
       temp_id: temp.temp_id,
     })
     expect(updated.status).toBe(200)
-    expect(updated.body.data.src).not.toBe(old_source)
+    const first_source = `photo-${gallery.id}-${photo.id}-${crc32Hex(first_image)}.png`
+    expect(updated.body.data.src).toBe(first_source)
+    expect(updated.body.data.thumb).toBe(`${first_source.slice(0, -4)}.avif`)
 
     await expect(fs.access(ctx.storage.imagePath('source', old_source)))
       .rejects.toMatchObject({ code: 'ENOENT' })
     await expect(fs.access(ctx.storage.imagePath('thumb', old_thumb)))
       .rejects.toMatchObject({ code: 'ENOENT' })
+
+    const second_image = await makePng(340, 260)
+    const second_temp = await ctx.uploadImage(second_image)
+    const second = await ctx.adminMutate('adminUpdatePhoto', {
+      gallery_id: gallery.id,
+      photo_id: photo.id,
+      temp_id: second_temp.temp_id,
+    })
+    expect(second.status).toBe(200)
+    const second_source = `photo-${gallery.id}-${photo.id}-${crc32Hex(second_image)}.png`
+    expect(second.body.data.src).toBe(second_source)
+    expect(second.body.data.thumb).toBe(`${second_source.slice(0, -4)}.avif`)
+    await expect(fs.access(ctx.storage.imagePath('source', first_source)))
+      .rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(fs.access(ctx.storage.imagePath('thumb', `${first_source.slice(0, -4)}.avif`)))
+      .rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(fs.access(ctx.storage.imagePath('source', second_source)))
+      .resolves.toBeUndefined()
+
+    // 相同内容复用同一个 CRC 文件名，不产生新文件。
+    const same_temp = await ctx.uploadImage(second_image)
+    const same = await ctx.adminMutate('adminUpdatePhoto', {
+      gallery_id: gallery.id,
+      photo_id: photo.id,
+      temp_id: same_temp.temp_id,
+    })
+    expect(same.status).toBe(200)
+    expect(same.body.data.src).toBe(second_source)
+    await expect(fs.access(ctx.storage.imagePath('source', second_source)))
+      .resolves.toBeUndefined()
   })
 })

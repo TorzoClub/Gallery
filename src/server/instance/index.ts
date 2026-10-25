@@ -11,6 +11,7 @@ import {
 import { type EnvConfig } from '../config'
 import { type Pool } from '../core/Pool'
 import type { Logger } from '../logger'
+import type { Readable } from 'node:stream'
 import {
   type ImageKind,
   type Storage,
@@ -41,7 +42,12 @@ export type Instance = {
   isAdminAction(name: string): boolean
   dispatchQuery(name: string, payload: unknown, options: DispatchOptions): Promise<unknown>
   dispatchMutation(name: string, payload: unknown, options: DispatchOptions): Promise<unknown>
-  storeTempImage(input: { buffer: Buffer; original_name: string }): Promise<TempImage>
+  storeTempImage(input: {
+    stream: Readable
+    temp_id: string
+    format: string
+    crc32: Promise<number>
+  }): Promise<TempImage>
   readImage(kind: ImageKind, filename: string): Promise<Buffer>
   close(): Promise<void>
 }
@@ -97,7 +103,6 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
       refreshThumb: images.refreshThumb,
       refreshAvatar: images.refreshAvatar,
       cleanUnusedImages: images.cleanUnusedImages,
-      removeImage: storage.removeImage,
     }
   }
 
@@ -216,15 +221,13 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
   }
 
   async function storeTempImage(input: {
-    buffer: Buffer
-    original_name: string
+    stream: Readable
+    temp_id: string
+    format: string
+    crc32: Promise<number>
   }): Promise<TempImage> {
     ensureOpen()
-    return images.storeTempImage({
-      buffer: input.buffer,
-      original_name: input.original_name,
-      max_upload_bytes: instance_config.max_upload_bytes,
-    })
+    return images.storeTempImage(input)
   }
 
   async function close(): Promise<void> {
@@ -233,6 +236,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
     }
     closing = true
     await sequence(async () => undefined)
+    await images.close()
     await storage.close()
     closed = true
   }

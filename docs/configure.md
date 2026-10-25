@@ -83,6 +83,20 @@ adminUpdateInstanceConfig
 
 修改只影响后续上传和缩略图生成，不会自动重做已有图片。已有图片可以在后台用缩略图重建功能处理。
 
+## 临时文件
+
+上传先写入：
+
+```text
+<STORAGE_PATH>/stored-images/temp/<uuidv7>.<format>
+```
+
+- `temp_id` 是 UUIDv7，响应中不带扩展名。
+- 上传流在 `createUploadHandler` 里边读边算 CRC32，并在超过 `max_upload_bytes` 时中止。
+- 创建相片/头像后临时文件立即删除。
+- image pipeline 每 24 小时清理超过 24 小时的 UUIDv7 临时文件。
+- API 进程关闭时会停止清理定时器。
+
 ## 命令
 
 | 命令 | 作用 |
@@ -140,7 +154,7 @@ dist/
 | `public` 下的图片 | `public, max-age=31536000, immutable` |
 | 其他静态文件（如 manifest） | `public, max-age=3600` |
 
-前端 bundle 由 Vite 生成 hash 文件名。HTML 不 hash，所以使用 `no-cache`，确保每次先重新验证 HTML，再加载新的 hash bundle。图片文件名使用时间戳，因此可以长期强缓存。
+前端 bundle 由 Vite 生成 hash 文件名。HTML 不 hash，所以使用 `no-cache`，确保每次先重新验证 HTML，再加载新的 hash bundle。相片文件名为 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`，头像为 `avatar-<qq_num>-<crc32>.<format>`，缩略图使用相同 basename 的 `.avif`；文件名由内容 CRC 驱动，因此可以长期强缓存。
 
 Hono 的静态服务顺序：
 

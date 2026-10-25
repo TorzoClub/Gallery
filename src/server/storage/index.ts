@@ -3,7 +3,7 @@ import path from 'node:path'
 import Immutable from 'immutable'
 import { asGalleryID, asNextID, asSchemaVersion } from '../common/ID'
 import { notFound } from '../common/error'
-import { isSafeFilename } from '../common/image-name'
+import { formatFromFilename, isSafeFilename } from '../common/image-name'
 import { type Gallery } from '../core/Gallery'
 import { type Member } from '../core/Member'
 import { type Photo } from '../core/Photo'
@@ -41,6 +41,7 @@ import {
   writeJsonAtomic,
 } from './fs'
 import { acquireStorageLock, type StorageLock } from './lock'
+import { isUuidV7 } from '../common/uuid'
 
 export type ImageKind = 'source' | 'thumb'
 
@@ -64,6 +65,7 @@ export type Storage = {
   readImage(kind: ImageKind, filename: string): Promise<Buffer>
   imagePath(kind: ImageKind, filename: string): string
   tempPath(filename: string): string
+  findTempFile(temp_id: string): Promise<string | null>
   saveTempFile(filename: string, buffer: Buffer): Promise<void>
   removeTemp(filename: string): Promise<void>
   removeImage(source_filename: string): Promise<void>
@@ -334,6 +336,27 @@ export async function createStorage(options: CreateStorageOptions): Promise<Stor
     return path.join(paths.temp, filename)
   }
 
+  async function findTempFile(temp_id: string): Promise<string | null> {
+    if (!isUuidV7(temp_id)) {
+      return null
+    }
+    const prefix = `${temp_id}.`
+    let entries: string[]
+    try {
+      entries = await fs.readdir(paths.temp)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return null
+      }
+      throw error
+    }
+    return entries.find((name) => (
+      name.startsWith(prefix)
+      && isSafeFilename(name)
+      && formatFromFilename(name) !== null
+    )) ?? null
+  }
+
   async function saveTempFile(filename: string, buffer: Buffer): Promise<void> {
     await writeBufferAtomic(tempPath(filename), buffer)
   }
@@ -390,6 +413,7 @@ export async function createStorage(options: CreateStorageOptions): Promise<Stor
     readImage,
     imagePath,
     tempPath,
+    findTempFile,
     saveTempFile,
     removeTemp,
     removeImage,

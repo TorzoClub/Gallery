@@ -30,7 +30,7 @@ export type TestContext = {
   adminMutate(name: string, payload?: unknown): Promise<ApiResponse>
   query(name: string, payload?: unknown): Promise<ApiResponse>
   mutate(name: string, payload?: unknown): Promise<ApiResponse>
-  uploadImage(buffer?: Buffer, filename?: string): Promise<{ temp_id: string; width: number; height: number; format: string }>
+  uploadImage(buffer?: Buffer, filename?: string): Promise<{ temp_id: string; width: number; height: number; format: string; size: number; crc32: number }>
   createMember(input?: { qq_num?: number; name?: string; avatar?: Buffer }): Promise<Record<string, unknown>>
   createGallery(input?: Partial<GalleryInput>): Promise<Record<string, unknown>>
   createPhoto(input: {
@@ -177,7 +177,7 @@ export async function createTestContext(options: {
   async function uploadImage(
     buffer?: Buffer,
     filename = 'photo.png',
-  ): Promise<{ temp_id: string; width: number; height: number; format: string }> {
+  ): Promise<{ temp_id: string; width: number; height: number; format: string; size: number; crc32: number }> {
     const form = new FormData()
     form.append('file', new File([new Uint8Array(buffer ?? await makePng())], filename, {
       type: filename.endsWith('.png') ? 'image/png' : 'image/jpeg',

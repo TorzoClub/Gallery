@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React from 'react'
 import { Memo } from 'vait'
 
 import GalleryHome from './layouts/GalleryHome'
@@ -17,9 +17,11 @@ export default function AppHome() {
   return (
     <div className="app">
       <Link
+        className='home-app__about'
+        aria-label='关于同装相册'
         style={{ position: 'absolute', top: 0, right: '24px' }}
         to='/behind'
-      >about</Link>
+      >About</Link>
 
       <GalleryHome />
     </div>

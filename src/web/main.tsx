@@ -3,7 +3,8 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { OutterPromise } from 'vait'
 
-import HomeApp, { appInitInfomation } from './HomeApp'
+import { appInitInfomation } from './HomeApp'
+import PublicRoot, { isBehindPath } from './PublicRoot'
 import { FailureLayoutContainer, useFailureLayout } from './components/FailureLayout'
 
 const AdminApp = lazy(() => import('./admin/AdminApp'))
@@ -42,7 +43,9 @@ function TitleSync() {
   const location = useLocation()
 
   useEffect(() => {
-    if (!location.pathname.startsWith('/admin')) {
+    if (isBehindPath(location.pathname)) {
+      document.title = '同装摄影集 · About'
+    } else if (!location.pathname.startsWith('/admin')) {
       document.title = '同装摄影集'
     }
   }, [location.pathname])
@@ -52,7 +55,6 @@ function TitleSync() {
 
 import { signal_critical_error } from './signals'
 import LoadingLayout from './layouts/GalleryHome/components/LoadingLayout'
-import BehindApp from './BehindApp'
 
 export default function CriticalFailureLayout({ children }: { children: ReactNode }) {
   const [ showFailure, , failure_layout ] = useFailureLayout(children)
@@ -69,7 +71,7 @@ const build_description = import.meta.env.VITE_BUILD_DESCRIPTION
 
 function Bootstrap() {
   return (
-    <>
+    <div className='bootstrap'>
       <CriticalFailureLayout>
         <RootErrorBoundary>
           <BrowserRouter basename={basename}>
@@ -83,11 +85,7 @@ function Bootstrap() {
                   </Suspense>
                 )}
               />
-              <Route
-                path="/behind/"
-                element={<BehindApp />}
-              />
-              <Route path="/*" element={<HomeApp />} />
+              <Route path="/*" element={<PublicRoot />} />
             </Routes>
           </BrowserRouter>
         </RootErrorBoundary>
@@ -100,6 +98,10 @@ function Bootstrap() {
         )
       }
       <style>{`
+        .bootstrap {
+          padding-top: env(safe-area-inset-top);
+          padding-bottom: env(safe-area-inset-bottom);
+        }
         .build-description {
           position: fixed;
           bottom: 0;
@@ -115,7 +117,7 @@ function Bootstrap() {
           white-space: break-spaces;
         }
       `}</style>
-    </>
+    </div>
   )
 }
 

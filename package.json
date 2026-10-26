@@ -1,6 +1,6 @@
 {
   "name": "torzo-gallery",
-  "version": "3.0.0",
+  "version": "4.0.0-preview",
   "private": true,
   "type": "module",
   "description": "Torzo Gallery monolithic SPA + dispatch API",

@@ -1,0 +1,206 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  overflow: hidden;
+  pointer-events: auto;
+  isolation: isolate;
+  background: transparent;
+  font-family: "Courier New", monospace;
+  animation: tv-overlay 900ms linear both;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 24%);
+}
+
+.noiseCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.42;
+  mix-blend-mode: screen;
+  image-rendering: pixelated;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 8%, #000 92%, transparent);
+}
+
+.mosaicCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.78;
+  mix-blend-mode: normal;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+
+.scanlines,
+.noise,
+.roll,
+.flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.scanlines {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgb(255 255 255 / 16%) 0,
+    rgb(255 255 255 / 16%) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  opacity: 0.38;
+  mix-blend-mode: screen;
+  animation: tv-scanlines 900ms steps(2, end) both;
+}
+
+.noise {
+  inset: -10%;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgb(255 255 255 / 18%) 0,
+      rgb(255 255 255 / 18%) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgb(255 255 255 / 9%) 0,
+      rgb(255 255 255 / 9%) 2px,
+      transparent 2px,
+      transparent 7px
+    ),
+    radial-gradient(circle at 32% 44%, rgb(255 255 255 / 16%), transparent 34%);
+  opacity: 0.32;
+  mix-blend-mode: screen;
+  animation: tv-noise 180ms steps(2, end) infinite;
+}
+
+.roll {
+  top: -22%;
+  height: 22%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgb(255 255 255 / 6%),
+    rgb(255 255 255 / 19%),
+    rgb(255 255 255 / 4%),
+    transparent
+  );
+  filter: blur(1px);
+  animation: tv-roll 900ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.flash {
+  background: #fff;
+  opacity: 0;
+  animation: tv-flash 900ms steps(1, end) both;
+}
+
+@keyframes tv-overlay {
+  0% {
+    opacity: 1;
+  }
+  86% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes tv-scanlines {
+  0% {
+    opacity: 0.1;
+  }
+  14% {
+    opacity: 0.62;
+  }
+  32% {
+    opacity: 0.44;
+  }
+  64% {
+    opacity: 0.36;
+  }
+  86% {
+    opacity: 0.2;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes tv-noise {
+  0% {
+    transform: translate3d(-3%, 1%, 0);
+  }
+  50% {
+    transform: translate3d(4%, -2%, 0);
+  }
+  100% {
+    transform: translate3d(-2%, 3%, 0);
+  }
+}
+
+@keyframes tv-roll {
+  0% {
+    opacity: 0;
+    transform: translateY(-10%);
+  }
+  14% {
+    opacity: 0;
+    transform: translateY(-10%);
+  }
+  28% {
+    opacity: 0.9;
+    transform: translateY(42%);
+  }
+  53% {
+    opacity: 0.5;
+    transform: translateY(150%);
+  }
+  78% {
+    opacity: 0.18;
+    transform: translateY(235%);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(260%);
+  }
+}
+
+@keyframes tv-flash {
+  0% {
+    opacity: 0;
+  }
+  7% {
+    opacity: 0.62;
+  }
+  11% {
+    opacity: 0;
+  }
+  45% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay {
+    display: none;
+  }
+}

@@ -40,6 +40,7 @@
         .noscript {
           width: 100vw;
           height: 100vh;
+          height: 100dvh;
           display: flex;
           justify-content: center;
           align-items: center;
@@ -106,6 +107,7 @@
           top: 0;
           width: 100vw;
           height: 100vh;
+          height: 100dvh;
           display: flex;
           justify-content: center;
           align-items: center;
@@ -131,14 +133,23 @@
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
       }
-      body {
+      body, html {
         margin: 0;
         padding: 0;
+      }
+      body {
         min-height: 100vh;
+        min-height: 100dvh;
         min-width: 100vw;
         background-repeat: repeat;
         background-color: var(--skeu-pinstripe-bg);
         background-image: repeating-linear-gradient(90deg, var(--skeu-pinstripe-light), var(--skeu-pinstripe-light) 1px, var(--skeu-pinstripe-dark) 1px, var(--skeu-pinstripe-dark) 2px);
+      }
+      /* iOS / iPadOS：去掉纹理，只留纯色 */
+      @supports (-webkit-touch-callout: none) {
+        body {
+          background-image: none;
+        }
       }
     </style>
     <!--

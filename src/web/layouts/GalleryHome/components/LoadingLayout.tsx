@@ -12,7 +12,9 @@ export default function LoadingLayout() {
         justifyContent: 'center',
         alignItems: 'center',
         width: '100vw',
-        height: '100vh'
+        // height: '100vh',
+        height: 'calc(100dvh + env(safe-area-inset-bottom))',
+
       }}
     >
       <div

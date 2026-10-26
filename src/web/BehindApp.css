@@ -1,0 +1,61 @@
+.behind-app {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background-color: white;
+
+  /* background:
+    radial-gradient(circle at 50% 0%, #ffffffd6 0%, transparent 52%),
+    var(--skeu-pinstripe-bg, #e8e8e8); */
+  color: #252525;
+}
+
+.behind-app__inner {
+  box-sizing: border-box;
+  width: min(100%, 760px);
+  min-height: 100%;
+  margin: 0 auto;
+  padding:
+    calc(env(safe-area-inset-top) + 42px)
+    24px
+    calc(env(safe-area-inset-bottom) + 64px);
+}
+
+.behind-app__back {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  color: #555;
+  font-size: 13px;
+  text-decoration: none;
+  border-bottom: 1px solid #a9a9a9;
+}
+
+.behind-app__back:hover {
+  color: #111;
+  border-bottom-color: #111;
+}
+
+.behind-app__eyebrow {
+  margin: 56px 0 8px;
+  color: #777;
+  font: 11px/1.2 "Courier New", monospace;
+  letter-spacing: 0.18em;
+}
+
+.behind-app__title {
+  margin: 0;
+  font-size: clamp(38px, 9vw, 76px);
+  font-weight: 400;
+  line-height: 0.98;
+  letter-spacing: -0.06em;
+}
+
+.behind-app__version {
+  margin: 18px 0 0;
+  color: #666;
+  font-size: 14px;
+}

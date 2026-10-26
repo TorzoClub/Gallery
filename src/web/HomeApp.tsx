@@ -1,0 +1,27 @@
+import React, { useEffect } from 'react'
+import { Memo } from 'vait'
+
+import GalleryHome from './layouts/GalleryHome'
+// import CoverScroller from './layouts/CoverScroller'
+// import BgImageUrl from 'assets/bg.png'
+
+import './HomeApp.css'
+import { Link } from 'react-router-dom'
+
+
+export const appInitInfomation = Memo({
+  picutre_support: { avif: false, webp: false }
+})
+
+export default function AppHome() {
+  return (
+    <div className="app">
+      <Link
+        style={{ position: 'absolute', top: 0, right: '24px' }}
+        to='/behind'
+      >about</Link>
+
+      <GalleryHome />
+    </div>
+  )
+}

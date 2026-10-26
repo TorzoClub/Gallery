@@ -23,26 +23,26 @@
   .loading-block {
     position: relative;
 
-    $size: 1.5em;
+    $size: 30px;
 
     width: $size;
     height: $size;
 
     .loading-block-line {
       &.highlight {
-        background-color: grey;
+        background-color: black;
         transition-delay: 32ms;
       }
 
-      background-color: #CECECE;
+      background-color: #E7E7E7;
       transition: background-color 200ms;
       transition-delay: 250ms;
 
       position: absolute;
       top: 0;
-      left: calc(50% - 2px / 2);
+      left: calc(50% - 3px / 2);
       height: calc(50% - #{$size * 0.20});
-      width: 2px;
+      width: 3px;
       transform-origin: center calc($size / 2);
     }
   }

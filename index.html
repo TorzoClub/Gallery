@@ -120,11 +120,20 @@
     </div>
     <style>
       :root {
-        --skeu-pinstripe-bg: #e8e8e8;
+        /* --skeu-pinstripe-bg: #e8e8e8; */
+        --skeu-pinstripe-bg:hsl(217deg 20% 80% / 50%);
         --skeu-pinstripe-light: rgba(255, 255, 255, 0.7);
         --skeu-pinstripe-dark: rgba(220, 220, 220, 0.4);
+        --app-default-font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif,
+          "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+        font-family: var(--app-default-font);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
       body {
+        margin: 0;
+        padding: 0;
         min-height: 100vh;
         min-width: 100vw;
         background-repeat: repeat;

@@ -4,7 +4,7 @@ import style from './index.module.scss'
 export const LoadingMask: FunctionComponent<{
   backgroundOpacity?: number | string
 }> = ({
-  backgroundOpacity = 0.8
+  backgroundOpacity = 1
 }) => (
   <div className={style['loading-mask']} style={{
     backgroundColor: `rgba(255, 255, 255, ${backgroundOpacity})`,

@@ -450,7 +450,7 @@ export default () => {
   const [show_normal_list, setShowNormalList] = useState(false)
 
   const show_normal_list_btn_node = useMemo(() => {
-    if (active && !show_normal_list) {
+    if (active && !show_normal_list && (list.length >= 1)) {
       return (
         <SkeuomorphismButton onClick={() => setShowNormalList(true)}>
           查看过往相册

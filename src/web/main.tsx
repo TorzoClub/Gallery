@@ -1,11 +1,10 @@
-import React, { Suspense, lazy, useEffect } from 'react'
+import React, { ReactNode, Suspense, lazy, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { Memo, OutterPromise } from 'vait'
+import { OutterPromise } from 'vait'
 
-import App, { appInitInfomation } from './App'
-import { FailureLayoutContainer } from './components/FailureLayout'
-import './index.css'
+import HomeApp, { appInitInfomation } from './HomeApp'
+import { FailureLayoutContainer, useFailureLayout } from './components/FailureLayout'
 
 const AdminApp = lazy(() => import('./admin/AdminApp'))
 
@@ -39,37 +38,6 @@ class RootErrorBoundary extends React.Component<
   }
 }
 
-function AdminBootSplash() {
-  return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '0.8em',
-      background: '#f5f6f8',
-      color: '#4b5563',
-      fontFamily: 'sans-serif',
-      fontSize: 15,
-    }}>
-      <span style={{
-        width: 20,
-        height: 20,
-        border: '2px solid #c7d2fe',
-        borderTopColor: '#4f46e5',
-        borderRadius: '50%',
-        animation: 'admin-boot-spin 0.8s linear infinite',
-      }} />
-      正在加载后台…
-      <style>{`
-        @keyframes admin-boot-spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-    </div>
-  )
-}
-
 function TitleSync() {
   const location = useLocation()
 
@@ -82,45 +50,74 @@ function TitleSync() {
   return null
 }
 
-function Bootstrap() {
-  return (
-    <RootErrorBoundary>
-      <BrowserRouter basename={basename}>
-        <TitleSync />
-        <Routes>
-          <Route
-            path="/admin/*"
-            element={(
-              <Suspense fallback={<AdminBootSplash />}>
-                <AdminApp />
-              </Suspense>
-            )}
-          />
-          <Route path="/*" element={<App />} />
-        </Routes>
-      </BrowserRouter>
-    </RootErrorBoundary>
-  )
+import { signal_critical_error } from './signals'
+import LoadingLayout from './layouts/GalleryHome/components/LoadingLayout'
+import BehindApp from './BehindApp'
+
+export default function CriticalFailureLayout({ children }: { children: ReactNode }) {
+  const [ showFailure, , failure_layout ] = useFailureLayout(children)
+
+  useEffect(() => {
+    signal_critical_error.receive(showFailure)
+    return () => signal_critical_error.cancelReceive(showFailure)
+  }, [showFailure])
+
+  return <>{failure_layout}</>
 }
 
-initPictureSupportInfomation()
-  .then(picutre_support => {
-    const [ getAppInitInfo, setAppInitInfo ] = appInitInfomation
-    setAppInitInfo({
-      ...getAppInitInfo(),
-      picutre_support,
-    })
+const build_description = import.meta.env.VITE_BUILD_DESCRIPTION
 
-    const mount_el = document.getElementById('root')
-    if (mount_el === null) {
-      alert('没有找到#root元素！')
-    } else {
-      ReactDOM.createRoot(mount_el).render(<Bootstrap />)
-    }
-  })
-  .catch(err => {
-    alert(`页面初始化错误：${err?.message}`)
-  })
+function Bootstrap() {
+  return (
+    <>
+      <CriticalFailureLayout>
+        <RootErrorBoundary>
+          <BrowserRouter basename={basename}>
+            <TitleSync />
+            <Routes>
+              <Route
+                path="/admin/*"
+                element={(
+                  <Suspense fallback={<LoadingLayout />}>
+                    <AdminApp />
+                  </Suspense>
+                )}
+              />
+              <Route
+                path="/behind/"
+                element={<BehindApp />}
+              />
+              <Route path="/*" element={<HomeApp />} />
+            </Routes>
+          </BrowserRouter>
+        </RootErrorBoundary>
+      </CriticalFailureLayout>
+      {
+        build_description && build_description.length && (
+          <pre className="build-description">
+            <code>{ build_description }</code>
+          </pre>
+        )
+      }
+      <style>{`
+        .build-description {
+          position: fixed;
+          bottom: 0;
+          right: 24px;
+          color: grey;
+          font-size: 12px;
+          padding: 0;
+          margin: 0;
+          line-height: 1em;
+          max-width: 100vw;
+          word-break: break-all;
+          display: inline-block;
+          white-space: break-spaces;
+        }
+      `}</style>
+    </>
+  )
+}
 
 function PictureTypeSupported(base64sample: string) {
   return () => {
@@ -142,3 +139,22 @@ export async function initPictureSupportInfomation() {
   ])
   return { avif, webp } as const
 }
+
+initPictureSupportInfomation()
+  .then(picutre_support => {
+    const [ getAppInitInfo, setAppInitInfo ] = appInitInfomation
+    setAppInitInfo({
+      ...getAppInitInfo(),
+      picutre_support,
+    })
+
+    const mount_el = document.getElementById('root')
+    if (mount_el === null) {
+      alert('没有找到#root元素！')
+    } else {
+      ReactDOM.createRoot(mount_el).render(<Bootstrap />)
+    }
+  })
+  .catch(err => {
+    alert(`页面初始化错误：${err?.message}`)
+  })

@@ -57,8 +57,12 @@ export function legacyUnversionedPhotoFilenames(source_filename: string): string
   return [...new Set([`${base}.avif`, `${base}.${source_ext}`])]
 }
 
+export function photoThumbFilename(source_filename: string): string {
+  return `${basenameWithoutExtension(source_filename)}.avif`
+}
+
 export function avatarThumbFilename(source_filename: string): string {
-  return source_filename
+  return `${basenameWithoutExtension(source_filename)}.avif`
 }
 
 export function mimeTypeOf(filename: string): string {

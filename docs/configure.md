@@ -112,8 +112,8 @@ adminUpdateInstanceConfig
 ```text
 <STORAGE_PATH>/stored-images/
 ├── source/       # 原图原始字节：photo-...-<crc>.<format> / avatar-...-<crc>.<format>
-├── optimized/    # photo-...-<crc>-sdr.avif / -hdr.avif
-├── thumb/        # photo 的 -sdr.avif/-hdr.avif；头像与 source 同名，SDR AVIF
+├── optimized/    # photo-...-<crc>-sdr.avif
+├── thumb/        # photo-...-<crc>.avif；头像 avatar-...-<crc>.avif，SDR AVIF
 └── temp/         # <uuidv7>.<format>
 ```
 
@@ -178,11 +178,9 @@ dist/
 | `public` 下的图片 | `public, max-age=31536000, immutable` |
 | 其他静态文件（如 manifest） | `public, max-age=3600` |
 
-前端 bundle 由 Vite 生成 hash 文件名。HTML 不 hash，所以使用 `no-cache`，确保每次先重新验证 HTML，再加载新的 hash bundle。source 文件名为 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`；photo optimized/thumb 固定为 `-sdr.avif` / `-hdr.avif`，不省略变体。头像为 `avatar-<qq_num>-<crc32>.<format>`，source 和 thumb 同名。
+前端 bundle 由 Vite 生成 hash 文件名。HTML 不 hash，所以使用 `no-cache`，确保每次先重新验证 HTML，再加载新的 hash bundle。source 文件名为 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`；photo optimized 固定为 `-sdr.avif`，photo thumb 为无后缀 `.avif`。头像 source 为 `avatar-<qq_num>-<crc32>.<format>`，thumb 为 `avatar-<qq_num>-<crc32>.avif`。
 
-SDR 原图只生成 SDR 变体；HDR 输入会按输入位深输出 10/12-bit HDR AVIF，同时生成 8-bit SDR 版本；gain map 的 SDR 版本使用内嵌 base SDR，HDR 版本使用 `withGainMap()`。HDR 变体不 flatten，SDR 变体 flatten 白底。sharp 的 AVIF 输出不保留独立 gain map，HDR 动态范围会烘焙进主图。
-
-前端只读取一次系统 HDR 状态（`dynamic-range: high`）；系统 HDR 且 `photo.is_hdr=true` 时使用 `-hdr`，否则使用 `-sdr`。不会因显示器或系统开关变化实时切换。
+当前 Phase 0 所有输入都只生成 8-bit SDR optimized/thumb；HDR optimized 暂不生成。后续 HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
 
 派生图 URL 带 `?v=<instance_hash>`；`instance_hash` 是当前 instance_config 的 CRC32。修改 instance 配置后，API 返回新的版本 URL，避免 immutable 缓存命中旧图。旧命名的相片变体会在“重新生成图片”时清理。
 

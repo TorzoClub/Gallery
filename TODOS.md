@@ -9,7 +9,7 @@
 - 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。
 - 前端由 Vite 构建到 `dist/client`，服务端由 tsup 构建到 `dist/server`。
 - 静态缓存：HTML 弱缓存，hash assets 强缓存，API/图片强缓存。
-- 服务端测试 69 个用例通过；不包含浏览器 UI 交互测试。
+- 服务端测试 70 个用例通过；不包含浏览器 UI 交互测试。
 - `legacy/server/`、`legacy/web/` 已冻结，旧 CI 归档到 `legacy/.github/workflows/`。
 - storage 仍为单实例 JSON + 图片池；没有 MySQL 运行时依赖。
 
@@ -27,6 +27,8 @@
 
 ## 后续待办
 
+- [x] 图片管线 Phase 0：SDR-only 回退，thumb 无后缀，头像 thumb 使用 `.avif`，`has_hdr_optimized=false`。
+- [ ] 图片管线 Phase 1：按 [docs/todo/hdr-supports.md](docs/todo/hdr-supports.md) 引入 libavif HDR AVIF 和 Docker-first 环境。
 - [ ] 浏览器 UI 交互测试（公开页投稿/投票、后台编辑、配置表单）。
 - [ ] 真实部署的 CI/CD 和密钥管理。
 - [ ] 如果未来需要多实例，设计跨进程 storage 写锁/共享存储方案。

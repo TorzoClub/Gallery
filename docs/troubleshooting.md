@@ -103,12 +103,11 @@ QQ number 是成员身份的一部分，创建后不可修改。`adminUpdateMemb
 
 ## 大图 404 / optimized 不存在
 
-- 前端请求的是 `/images/optimized/` 下的 `-sdr.avif` 或 `-hdr.avif` 变体，不修改扩展名。
-- 系统 HDR 检测只读取一次；切换显示器或系统 HDR 开关后需要刷新页面。
+- 前端请求的是 `/images/optimized/` 下的 `-sdr.avif` 和无后缀 thumb。
 - 旧相片或缺失衍生图会直接 404，不回退原图。
-- 在后台执行“重新生成图片”，会按 `is_hdr` 重建相片的 SDR/HDR optimized 和 thumb，并重建成员头像 thumb；相片旧命名文件会被清理。
+- 在后台执行“重新生成图片”，会重建相片的 SDR optimized/thumb 和成员头像 thumb；旧命名文件及旧的 HDR AVIF 会被清理。
 - 旧 storage 中可能残留 `.jpg`/无变体文件；执行一次重建即可转换为 `.avif` 命名。
-- HDR 图片按输入位深使用 10/12-bit HDR optimized AVIF，同时有 8-bit SDR 版本；HDR 变体缺失时不会回退 SDR。
+- 当前 Phase 0 不生成 HDR optimized；HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
 - 修改 instance 配置后，派生图 URL 的 `?v` 会变化；如果仍看到旧图，刷新页面获取新 API 响应。
 
 ## instance 配置修改后没有生效

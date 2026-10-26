@@ -1,4 +1,4 @@
-import { avatarThumbFilename, photoVariantFilename } from '../common/image-name'
+import { avatarThumbFilename, photoThumbFilename, photoVariantFilename } from '../common/image-name'
 import { type EnvConfig } from '../config'
 import {
   galleryCanSubmission,
@@ -72,7 +72,8 @@ export function photoDto(options: {
 }): PhotoDTO {
   const { pool, gallery, photo, env, instance_hash } = options
   const member = findMemberByIdOrNull(pool, photo.member_id)
-  const thumb = photoVariantFilename(photo.src, 'sdr')
+  const thumb = photoThumbFilename(photo.src)
+  const optimized = photoVariantFilename(photo.src, 'sdr')
   const thumb_url = imageUrl(env, 'thumb', thumb, instance_hash)
   const hide_member = options.hide_member === true
 
@@ -86,10 +87,11 @@ export function photoDto(options: {
     format: photo.format,
     width: photo.width,
     height: photo.height,
-    is_hdr: photo.is_hdr,
+    has_hdr_optimized: photo.has_hdr_optimized,
     thumb: thumb_url,
     src_url: imageUrl(env, 'source', photo.src),
-    src_optimized: imageUrl(env, 'optimized', thumb, instance_hash),
+    src_optimized: imageUrl(env, 'optimized', optimized, instance_hash),
+    src_optimized_hdr: null,
     thumb_url,
     vote_count: voteCountByPhoto(gallery, photo.id),
     member: member === undefined || hide_member ? null : memberDto(member, env, instance_hash),

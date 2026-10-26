@@ -8,6 +8,7 @@ import {
   isSafeFilename,
   legacyPhotoVariantFilename,
   legacyUnversionedPhotoFilenames,
+  photoThumbFilename,
   photoVariantFilename,
 } from '../common/image-name'
 import { type Gallery } from '../core/Gallery'
@@ -382,20 +383,39 @@ export async function createStorage(options: CreateStorageOptions): Promise<Stor
     if (!isSafeFilename(source_filename)) {
       throw new Error('非法的图片文件名')
     }
+    const photo_base = photoThumbFilename(source_filename)
+    const source_ext = source_filename.slice(source_filename.lastIndexOf('.') + 1).toLowerCase()
+    const legacy_thumb_base = `${source_filename.slice(0, source_filename.lastIndexOf('.'))}.${source_ext}`
+
     await removeFile(path.join(paths.source, source_filename))
+
+    // Optimized: current SDR/HDR files plus all pre-variant and pre-avif names.
     for (const variant of ['sdr', 'hdr'] as const) {
       const variant_name = photoVariantFilename(source_filename, variant)
       const legacy_variant_name = legacyPhotoVariantFilename(source_filename, variant)
       await removeFile(path.join(paths.optimized, variant_name))
-      await removeFile(path.join(paths.thumb, variant_name))
       if (legacy_variant_name !== variant_name) {
         await removeFile(path.join(paths.optimized, legacy_variant_name))
-        await removeFile(path.join(paths.thumb, legacy_variant_name))
       }
     }
     for (const legacy_name of legacyUnversionedPhotoFilenames(source_filename)) {
       await removeFile(path.join(paths.optimized, legacy_name))
-      await removeFile(path.join(paths.thumb, legacy_name))
+    }
+
+    // Thumb: current no-suffix file, old variant files and old avatar same-name file.
+    await removeFile(path.join(paths.thumb, photo_base))
+    for (const variant of ['sdr', 'hdr'] as const) {
+      const legacy_variant_name = legacyPhotoVariantFilename(source_filename, variant)
+      if (legacy_variant_name !== photo_base) {
+        await removeFile(path.join(paths.thumb, legacy_variant_name))
+      }
+      const old_avif_variant = photoVariantFilename(source_filename, variant)
+      if (old_avif_variant !== photo_base) {
+        await removeFile(path.join(paths.thumb, old_avif_variant))
+      }
+    }
+    if (legacy_thumb_base !== photo_base) {
+      await removeFile(path.join(paths.thumb, legacy_thumb_base))
     }
     await removeFile(path.join(paths.thumb, source_filename))
   }

@@ -15,10 +15,8 @@ import {
   fetchList,
   vote,
   canUseCacheWorker,
-  toHdrVariantUrl,
   transformCacheWorkerURL
 } from 'api/photo'
-import { isHdrDisplay } from 'utils/hdr'
 
 import LoadingLayout from './components/LoadingLayout'
 import ActivityLayout from './components/ActivityLayout'
@@ -65,7 +63,7 @@ function usePhotoLoadingPriority(
     const m = new Map<number, string>()
     photo_list.forEach(p => m.set(
       p.id,
-      toHdrVariantUrl(p.thumb, p.is_hdr && isHdrDisplay()),
+      p.thumb,
     ))
     return m
   }, [photo_list])
@@ -201,7 +199,6 @@ type PageStatus = 'LOADING' | 'NONE_EVENT' | 'SUBMISSION' | 'VOTE';
 const page_status: PageStatus = 'LOADING'
 
 export default () => {
-  const hdr_display = isHdrDisplay()
   const [loaded, setLoaded] = useState(false)
 
   const [showArrow, setShowArrow] = useState(false)
@@ -242,23 +239,26 @@ export default () => {
   useEffect(() => {
     let mounted = true
     if (loaded === true) { return }
-    fetchList().then(({ active, galleries: list }) => {
-      if (mounted === false) { return }
-      setLoaded(true)
+    timeout(4000)
+      .then(() => fetchList())
+      .then(({ active, galleries: list }) => {
+        if (mounted === false) { return }
+        setLoaded(true)
 
-      if (active !== null) {
-        setActive({
-          ...active,
-          photos: shuffleArray(active.photos)
-        })
-        setShowNormalList(false)
-        setList(list)
-      } else {
-        setActive(null)
-        setShowNormalList(true)
-        setList(list)
-      }
-    }).catch(err => signal_critical_error.trigger(`获取相册列表失败: ${err}`))
+        if (active !== null) {
+          setActive({
+            ...active,
+            photos: shuffleArray(active.photos)
+          })
+          setShowNormalList(false)
+          setList(list)
+        } else {
+          setActive(null)
+          setShowNormalList(true)
+          setList(list)
+        }
+      })
+      .catch(err => signal_critical_error.trigger(`获取相册列表失败: ${err}`))
     return () => { mounted = false }
   }, [loaded, setActive])
 
@@ -427,7 +427,6 @@ export default () => {
     photos: Array<{
       id: number
       src_optimized: string
-      is_hdr: boolean
       width: number
       height: number
     }>
@@ -439,14 +438,14 @@ export default () => {
         setImageDetail({
           from: from,
           thumb: thumbBlobUrl,
-          src: getSrcUrl(toHdrVariantUrl(photo.src_optimized, photo.is_hdr && hdr_display)),
+          src: getSrcUrl(photo.src_optimized),
           height: photo.height,
           width: photo.width
         })
       }
     }
     return handler
-  }, [getSrcUrl, hdr_display])
+  }, [getSrcUrl])
 
   const [show_normal_list, setShowNormalList] = useState(false)
 

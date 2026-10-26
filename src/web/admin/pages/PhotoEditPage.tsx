@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { listMembers } from '../api/member'
 import { createPhoto, getPhoto, updatePhoto } from '../api/photo'
+import { refreshThumb } from '../api/image'
 import type { Member, Photo, UploadResult } from '../api/types'
 import { PageHeader, PageLoading, Spinner } from '../components/Feedback'
 import Field from '../components/Field'
@@ -41,6 +42,7 @@ export default function PhotoEditPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [refreshingThumb, setRefreshingThumb] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
 
   const load = useCallback(async () => {
@@ -101,6 +103,24 @@ export default function PhotoEditPage() {
     return Object.keys(nextErrors).length === 0
   }
 
+  const handleRefreshThumb = async () => {
+    if (isNew || refreshingThumb || submitting || imageUploading) {
+      return
+    }
+    setRefreshingThumb(true)
+    try {
+      await refreshThumb({ photo_id: photoID })
+      const photo = await getPhoto(photoID)
+      const separator = photo.thumb_url.includes('?') ? '&' : '?'
+      setPreviewUrl(`${photo.thumb_url}${separator}refresh=${Date.now()}`)
+      toast.success('缩略图已重新生成')
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, '重新生成缩略图失败'))
+    } finally {
+      setRefreshingThumb(false)
+    }
+  }
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (submitting || imageUploading || !validate()) {
@@ -156,6 +176,18 @@ export default function PhotoEditPage() {
         subtitle={isNew ? `相册 ID：${galleryID}` : `相片 ID：${photoID}`}
         backTo={`/admin/gallery/${galleryID}/photo/list`}
         backLabel="返回相片列表"
+        actions={!isNew ? (
+          <button
+            type="button"
+            className="adm-button"
+            disabled={refreshingThumb || submitting || imageUploading}
+            onClick={() => void handleRefreshThumb()}
+          >
+            {refreshingThumb
+              ? <><Spinner size={16} /> 生成中…</>
+              : <><Icon name="refresh" size={16} /> 重新生成缩略图</>}
+          </button>
+        ) : undefined}
       />
 
       {loadError ? (

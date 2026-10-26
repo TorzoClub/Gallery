@@ -15,7 +15,7 @@ import {
 import {
   avatarThumbFilename,
   isSafeFilename,
-  photoVariantFilename,
+  photoThumbFilename,
 } from '../common/image-name'
 import {
   InstanceConfigUpdateSchema,
@@ -486,7 +486,7 @@ export const mutations = {
               src: prepared.src,
               width: prepared.width,
               height: prepared.height,
-              is_hdr: prepared.is_hdr,
+              has_hdr_optimized: prepared.has_hdr_optimized,
             },
           )
           return {
@@ -815,7 +815,7 @@ export const mutations = {
               src: prepared.src,
               width: prepared.width,
               height: prepared.height,
-              is_hdr: prepared.is_hdr,
+              has_hdr_optimized: prepared.has_hdr_optimized,
             },
           )
           return {
@@ -905,12 +905,12 @@ export const mutations = {
     admin: true,
     run: async (ctx, payload) => {
       const found = findPhoto(ctx.pool, toPhotoID(payload.photo_id))
-      await ctx.refreshThumb(found.photo.src, found.photo.is_hdr)
+      await ctx.refreshThumb(found.photo.src)
       return {
         pool: ctx.pool,
         result: {
           src: found.photo.src,
-          thumb: photoVariantFilename(found.photo.src, 'sdr'),
+          thumb: photoThumbFilename(found.photo.src),
         },
       }
     },

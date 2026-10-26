@@ -329,7 +329,7 @@ async function preparePhoto(
   src: string
   width: number
   height: number
-  is_hdr: boolean
+  has_hdr_optimized: boolean
 }> {
   let buffer: Buffer
   try {
@@ -355,7 +355,7 @@ async function preparePhoto(
       src: prepared.src,
       width: prepared.width,
       height: prepared.height,
-      is_hdr: prepared.is_hdr,
+      has_hdr_optimized: prepared.has_hdr_optimized,
     }
   } catch (error) {
     throw new Error(
@@ -517,7 +517,7 @@ async function buildPhotos(input: {
       format,
       width: item.image.width,
       height: item.image.height,
-      is_hdr: item.image.is_hdr,
+      has_hdr_optimized: false,
       member_id: item.member.id,
       created_at,
       updated_at,

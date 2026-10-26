@@ -28,6 +28,15 @@ function variantName(source: string, variant: 'sdr' | 'hdr'): string {
   return `${source.slice(0, dot)}-${variant}.avif`
 }
 
+function thumbName(source: string): string {
+  const dot = source.lastIndexOf('.')
+  return `${source.slice(0, dot)}.avif`
+}
+
+function avatarThumbName(source: string): string {
+  return thumbName(source)
+}
+
 function jsonResponse(value: unknown): Response {
   return new Response(JSON.stringify(value), {
     status: 200,
@@ -305,9 +314,9 @@ describe('legacy migration', () => {
       const first_photo = first?.photos.valueSeq().toArray().find(photo => photo.desc === 'first')
       expect(first_photo?.index).toBe(3)
       expect(first_photo?.created_at.toISOString()).toBe('2024-01-02T00:00:00.000Z')
-      expect(first_photo?.is_hdr).toBe(false)
+      expect(first_photo?.has_hdr_optimized).toBe(false)
       const hdr_photo = first?.photos.valueSeq().toArray().find(photo => photo.desc === 'hdr')
-      expect(hdr_photo?.is_hdr).toBe(true)
+      expect(hdr_photo?.has_hdr_optimized).toBe(false)
 
       const first_member = members.find(member => member.name === 'A')
       expect(first_member?.qq_num).toBe(10001)
@@ -318,11 +327,13 @@ describe('legacy migration', () => {
         .resolves.toEqual(photo_a)
       await expect(fs.access(storage.imagePath('optimized', variantName(first_photo!.src, 'sdr'))))
         .resolves.toBeUndefined()
-      await expect(fs.access(storage.imagePath('thumb', variantName(first_photo!.src, 'sdr'))))
+      await expect(fs.access(storage.imagePath('thumb', thumbName(first_photo!.src))))
+        .resolves.toBeUndefined()
+      await expect(fs.access(storage.imagePath('optimized', variantName(hdr_photo!.src, 'sdr'))))
         .resolves.toBeUndefined()
       await expect(fs.access(storage.imagePath('optimized', variantName(hdr_photo!.src, 'hdr'))))
-        .resolves.toBeUndefined()
-      await expect(fs.access(storage.imagePath('thumb', first_member!.avatar_src)))
+        .rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(fs.access(storage.imagePath('thumb', avatarThumbName(first_member!.avatar_src))))
         .resolves.toBeUndefined()
     } finally {
       await storage.close()

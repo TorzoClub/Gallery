@@ -71,33 +71,6 @@ function isHdr(metadata: SharpMetadata): boolean {
     || metadata.depth === 'float'
 }
 
-function outputBitDepth(metadata: SharpMetadata): 8 | 10 | 12 {
-  if (!isHdr(metadata)) {
-    return 8
-  }
-  return bitsPerSample(metadata) >= 12 ? 12 : 10
-}
-
-type GainMapSharp = {
-  withGainMap?: () => SharpImage
-}
-
-function prepareSharp(
-  input_path: string,
-  metadata: SharpMetadata,
-  variant: 'sdr' | 'hdr',
-): SharpImage {
-  const input = sharp(input_path)
-  if (variant === 'hdr' && hasGainMap(metadata)) {
-    const gain_map_capable = input as unknown as GainMapSharp
-    if (gain_map_capable.withGainMap !== undefined) {
-      return gain_map_capable.withGainMap()
-    }
-    throw new Error('当前 sharp 不支持 HDR gain map 转换')
-  }
-  return input
-}
-
 export async function readImageInfo(file_path: string): Promise<ImageInfo> {
   try {
     const metadata = await sharp(file_path).metadata()
@@ -128,19 +101,11 @@ export async function writeOptimizedImage(options: {
   max_dimension: number
   quality: number
   effort: number
-  variant: 'sdr' | 'hdr'
 }): Promise<void> {
-  const metadata = await sharp(options.input_path).metadata()
-  const hdr_variant = options.variant === 'hdr'
-  let image = prepareSharp(options.input_path, metadata, options.variant).rotate()
-
-  if (hdr_variant) {
-    image = image.keepIccProfile()
-  } else {
-    image = image.toColourspace('srgb').flatten({ background: '#FFFFFF' })
-  }
-
-  await image
+  await sharp(options.input_path)
+    .rotate()
+    .toColourspace('srgb')
+    .flatten({ background: '#FFFFFF' })
     .resize({
       width: options.max_dimension,
       height: options.max_dimension,
@@ -150,7 +115,7 @@ export async function writeOptimizedImage(options: {
     .avif({
       quality: options.quality,
       effort: options.effort,
-      bitdepth: hdr_variant ? outputBitDepth(metadata) : 8,
+      bitdepth: 8,
     })
     .toFile(options.output_path)
 }
@@ -161,19 +126,11 @@ export async function writeThumbImage(options: {
   size: number
   quality: number
   effort: number
-  variant: 'sdr' | 'hdr'
 }): Promise<void> {
-  const metadata = await sharp(options.input_path).metadata()
-  const hdr_variant = options.variant === 'hdr'
-  let image = prepareSharp(options.input_path, metadata, options.variant).rotate()
-
-  if (hdr_variant) {
-    image = image.keepIccProfile()
-  } else {
-    image = image.toColourspace('srgb').flatten({ background: '#FFFFFF' })
-  }
-
-  await image
+  await sharp(options.input_path)
+    .rotate()
+    .toColourspace('srgb')
+    .flatten({ background: '#FFFFFF' })
     .resize({
       width: options.size,
       withoutEnlargement: true,
@@ -181,7 +138,7 @@ export async function writeThumbImage(options: {
     .avif({
       quality: options.quality,
       effort: options.effort,
-      bitdepth: hdr_variant ? outputBitDepth(metadata) : 8,
+      bitdepth: 8,
     })
     .toFile(options.output_path)
 }

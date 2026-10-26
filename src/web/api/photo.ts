@@ -161,15 +161,6 @@ export function cancelMySubmission(p: { qq_num: number | string; photo_id: numbe
   })
 }
 
-export function toHdrVariantUrl(picture_url: string, hdr: boolean): string {
-  if (!hdr) {
-    return picture_url
-  }
-  const [pathname, query] = picture_url.split('?', 2)
-  const hdr_path = pathname.replace(/-sdr\.avif$/, '-hdr.avif')
-  return query === undefined ? hdr_path : `${hdr_path}?${query}`
-}
-
 export function canUseCacheWorker(): boolean {
   const cacheWorkerURL = import.meta.env.VITE_CACHE_WORKER_URL
   if (import.meta.env.DEV) {

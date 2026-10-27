@@ -5,7 +5,7 @@ import DialogLayout, { Props as DialogLayoutProps } from 'components/DialogLayou
 
 import Article from './Article'
 import WaitingInputFrame from './WaitingInputFrame'
-import Loading, { LoadingMask } from 'components/Loading'
+import { LoadingMask } from 'components/LoadingMask'
 import { SubmitButton } from 'layouts/GalleryHome/components/ActivityLayout'
 
 export type ConfirmQQState = Pick<DialogLayoutProps, 'in'> & {

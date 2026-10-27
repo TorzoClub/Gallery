@@ -1,6 +1,7 @@
-import React, { FunctionComponent, useEffect, useState } from 'react'
-import style from './index.module.scss'
+import { type FunctionComponent } from 'react'
+
 import Spinner from '../Spinner'
+import style from './index.module.scss'
 
 export const LoadingMask: FunctionComponent<{
   backgroundOpacity?: number | string

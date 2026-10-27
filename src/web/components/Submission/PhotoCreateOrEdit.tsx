@@ -7,7 +7,7 @@ import { PhotoInActive, PhotoNormal, submitPhoto, updateSubmission } from 'api/p
 import { uploadImage } from 'api/upload'
 
 import s from './PhotoCreateOrEdit.module.scss'
-import { LoadingMask } from 'components/Loading'
+import { LoadingMask } from 'components/LoadingMask'
 import { global_queue, useQueueload } from 'utils/queue-load'
 import SkeuomorphismButton from 'components/SkeuomorphismButton'
 

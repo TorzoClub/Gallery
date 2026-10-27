@@ -8,7 +8,7 @@ import { componentScript, script, select, Script, Select, Content, useSubmission
 
 import WaitingInputFrame from 'components/ConfirmQQ/WaitingInputFrame'
 import { timeout } from 'vait'
-import { LoadingMask } from 'components/Loading'
+import { LoadingMask } from 'components/LoadingMask'
 import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
 
 import image_同装同装 from '../../assets/同装 同装.png'

@@ -26,3 +26,51 @@
     background: #1b2027;
   }
 }
+
+
+.behind-app__brand {
+  width: min(100%, 360px);
+  margin: 0 auto;
+  padding: 34px 16px 0;
+  text-align: center;
+}
+
+.behind-app__logo {
+  display: block;
+  width: min(256px, 78%);
+  height: auto;
+  margin: 0 auto;
+}
+
+.behind-app__title {
+  margin: 28px 0 0;
+  font-size: 32px;
+  line-height: 1em;
+  letter-spacing: .1em;
+  background: linear-gradient(to right, #7092a9 20%, #325c78 40%, #325c78 60%, #7092a9 80%);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: behind-title-shine 2s linear infinite;
+}
+
+.behind-app__year {
+  display: block;
+  margin-top: 10px;
+  color: #aaa;
+  font-family: "Franklin Gothic Medium", "Arial Narrow", Arial, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1em;
+}
+
+.behind-app__report {
+  padding-top: 24px;
+}
+
+@keyframes behind-title-shine {
+  to {
+    background-position: -200% center;
+  }
+}

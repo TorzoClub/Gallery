@@ -6,6 +6,8 @@ import './BehindApp.css'
 import ReportCard, { type ReportCardRow } from './components/ReportCard'
 import SkeuomorphismButton from './components/SkeuomorphismButton'
 
+import __logo_src from './torzo-gallery-logo.jpg'
+
 const __api_prefix = import.meta.env.VITE_API_PREFIX ?? 'N/A'
 const __base_path = import.meta.env.VITE_BASE_PATH ?? 'N/A'
 
@@ -24,7 +26,12 @@ export default function BehindApp() {
   return (
     <section className='behind-app' aria-label='关于同装相册'>
       <div className='behind-app__inner'>
-        <ReportCard report={REPORT_ROWS} />
+        <div className='behind-app__brand'>
+          <img className='behind-app__logo' src={__logo_src} alt='Torzo Gallery' />
+          <h1 className='behind-app__title'>{pkg.title}</h1>
+          <time className='behind-app__year'>2 0 2 6</time>
+        </div>
+        <ReportCard className='behind-app__report' report={REPORT_ROWS} />
         <div className='behind-app__actions'>
           <SkeuomorphismButton onClick={() => {
             navigate('/', { replace: true })

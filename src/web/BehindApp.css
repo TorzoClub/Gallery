@@ -5,13 +5,15 @@
   box-sizing: border-box;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: #e6e9ec;
+  background: white;
   color: #252525;
+  transform: translate3d(0, 0, 0);
 }
 
 .behind-app__inner {
   box-sizing: border-box;
-  width: 100%;
+  width: 100vw;
+  overflow-x: hidden;
   min-height: 100%;
 }
 
@@ -19,6 +21,18 @@
   width: min(100% - 32px, 360px);
   margin: 0 auto;
   padding: 0 0 calc(env(safe-area-inset-bottom) + 56px);
+  transition: opacity 1s, transform 1s;
+  opacity: 1;
+  transform: translate(0, 0px);
+  transition-behavior:  allow-discrete;
+  transition-delay: 1500ms;
+}
+
+@starting-style {
+  .behind-app__actions {
+    opacity: 0;
+    transform: translate(0, -10px);
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -27,11 +41,10 @@
   }
 }
 
-
 .behind-app__brand {
   width: min(100%, 360px);
   margin: 0 auto;
-  padding: 34px 16px 0;
+  padding: 22px 16px 0;
   text-align: center;
 }
 
@@ -63,6 +76,20 @@
   font-size: 20px;
   font-weight: 700;
   line-height: 1em;
+}
+
+.behind-app__card-wrapper {
+  position: relative;
+  transform: translate3d(0, 0px, 0);
+  opacity: 1;
+  transition: opacity 1s, transform 1s;
+  transition-behavior:  allow-discrete;
+}
+@starting-style {
+  .behind-app__card-wrapper {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0);
+  }
 }
 
 .behind-app__report {

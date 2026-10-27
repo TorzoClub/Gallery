@@ -1,9 +1,9 @@
 
 .reportPage {
-  --page: #e6e9ec;
-  --paper-a: #f8e083;
-  --paper-b: #efcd5a;
-  --ink: #263757;
+  --page: transparent;
+  --paper-a: hsl(49 100% 85% / 1);
+  --paper-b: hsl(49 100% 75% / 1);
+  --ink: #00473b;
   --stamp: #b3392f;
   --bump: none;
   --mottle: none;
@@ -24,12 +24,6 @@
   background: var(--page);
   color: var(--ink);
   font-family: "Courier New", Courier, "Songti SC", SimSun, monospace;
-}
-
-@media (prefers-color-scheme: dark) {
-  .reportPage {
-    --page: #1b2027;
-  }
 }
 
 .sheet {
@@ -71,11 +65,12 @@
     radial-gradient(120% 55% at 18% 0%, rgb(255 255 255 / 38%), transparent 60%),
     linear-gradient(172deg, var(--paper-a), var(--paper-b));
   background-blend-mode: multiply, normal, normal, normal;
-  box-shadow:
-    0 2px 3px rgb(0 0 0 / 28%),
-    inset 0 1px 0 rgb(255 255 255 / 65%),
-    inset 0 -9px 14px -8px rgb(110 70 0 / 35%),
-    inset 0 0 16px rgb(140 95 0 / 10%);
+  // box-shadow:
+  //   0 2px 3px rgb(0 0 0 / 28%),
+  //   inset 0 1px 0 rgb(255 255 255 / 65%),
+  //   inset 0 -9px 14px -8px rgb(110 70 0 / 35%),
+  //   inset 0 0 16px rgb(140 95 0 / 10%);
+  // box-shadow: -4px 4px 2px -2px rgba(0, 0, 0, 0.12);
 }
 
 .card::after {

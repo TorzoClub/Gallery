@@ -3,6 +3,7 @@
   flex-direction: column;
   align-items: center;
   gap: 1em;
+  user-select: none;
 }
 
 // 来自于 https://codepen.io/nicolasjesenberger/pen/abXZRvG
@@ -54,6 +55,7 @@
     opacity: .75;
 
     background-image: linear-gradient(to bottom, hsl(201 47% 90% / 1), transparent);
+    user-select: none;
   }
 
   // &:hover {
@@ -67,6 +69,7 @@
     background-image: radial-gradient(75% 50% at 50% 0%, #104145, transparent), radial-gradient(75% 35% at 50% 85%, rgb(48 103 133), transparent);
     box-shadow: inset 0px 0px 5px rgba(0, 0, 0, 0.25), inset 0px 3px 3px rgba(0, 0, 0, 0.25);
     transform: translateY(1px);
+    user-select: none;
     // background-image: none;
     // box-shadow: inset 0px 0px 5px rgba(0, 0, 0, 0.25), inset 0px 3px 3px rgba(0, 0, 0, 0.25);
   }

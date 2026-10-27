@@ -64,7 +64,7 @@ export function playChannelSwitchSound(): void {
 
       const now = context.currentTime
       const master = context.createGain()
-      master.gain.value = 2.98
+      master.gain.value = 1.28
       master.connect(context.destination)
 
       // CRT 换台时那一下低沉的 "po"。
@@ -74,7 +74,7 @@ export function playChannelSwitchSound(): void {
       thump.frequency.setValueAtTime(118, now)
       thump.frequency.exponentialRampToValueAtTime(42, now + 0.2)
       thumpGain.gain.setValueAtTime(0.0001, now)
-      thumpGain.gain.linearRampToValueAtTime(0.26, now + 0.012)
+      thumpGain.gain.linearRampToValueAtTime(0.62, now + 0.012)
       thumpGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24)
       thump.connect(thumpGain)
       thumpGain.connect(master)

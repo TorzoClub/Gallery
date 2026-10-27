@@ -3,8 +3,8 @@ import React, { useRef, useEffect, useState } from 'react'
 import useDisableScroll from 'hooks/useDisableScroll'
 
 import './style.scss'
-import Loading from 'components/Loading'
 import useMountState from 'hooks/useMountState'
+import Spinner from '../Spinner'
 
 const getCenter = (totalLength: number, length: number) => (totalLength / 2) - (length / 2)
 
@@ -361,7 +361,7 @@ export default ({ detail, onCancel = () => undefined }: {
       >
         <img className="thumb" src={thumbUrl || undefined} alt="" />
         <img className="source" src={sourceUrl || undefined} alt="" onLoad={onLoad} />
-        { is_loading ? <div className='imgLoading'><Loading /> <span style={{ marginLeft: '4px' }}>加载中</span></div> : '' }
+        { is_loading ? <div className='imgLoading'><Spinner audioVolume={.8} /> <span style={{ marginLeft: '4px' }}>加载中</span></div> : '' }
       </div>
     </div>
   )

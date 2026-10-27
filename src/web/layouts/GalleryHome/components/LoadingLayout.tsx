@@ -1,5 +1,5 @@
 import React from 'react'
-import Loading from 'components/Loading'
+import Spinner from 'components/Spinner'
 
 export default function LoadingLayout() {
   return (
@@ -14,7 +14,6 @@ export default function LoadingLayout() {
         width: '100vw',
         // height: '100vh',
         height: 'calc(100dvh + env(safe-area-inset-bottom))',
-
       }}
     >
       <div
@@ -26,7 +25,7 @@ export default function LoadingLayout() {
           boxShadow: '0 0 1px grey, 0 4px 12px -4px hsl(0 0% 70% / 1)',
         }}
       >
-        <Loading />
+        <Spinner sweepSpeed={30} decay={.9} />
       </div>
     </div>
   )

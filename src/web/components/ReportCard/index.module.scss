@@ -121,7 +121,7 @@
   grid-template-columns: 38% 62%;
   align-items: center;
   min-height: 34px;
-  border-top: 1px solid rgb(38 55 87 / 90%);
+  border-top: 1px solid var(--ink);
 }
 
 .row > * {
@@ -132,7 +132,7 @@
   align-self: stretch;
   display: flex;
   align-items: center;
-  border-left: 1.5px solid rgb(38 55 87 / 95%);
+  border-left: 1.5px solid var(--ink);
 }
 
 .cols {

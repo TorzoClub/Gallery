@@ -3,10 +3,10 @@ import { GalleryInActive, Photo } from 'api/photo'
 import { ConfirmQQState } from 'components/ConfirmQQ'
 
 import Gallery, { Props as GalleryProps } from 'components/Gallery'
-import Loading from 'components/Loading'
 import GuideLayout from 'components/GuideLayout'
 import SkeuomorphismButton from 'components/SkeuomorphismButton'
 import { removeListItemByIdx } from 'utils/common'
+import Spinner from '@/components/Spinner'
 
 type ActivityLayoutProps = {
   show_submit_button_area: boolean
@@ -95,7 +95,7 @@ export default function ActivityLayout({
         <div className="submit-button-area">
           {(() => {
             if (submiting) {
-              return <Loading />
+              return <Spinner audioVolume={.8} />
             } else if (submit_request_was_sent) {
               return <div className="submitted">感谢你的投票</div>
             } else {

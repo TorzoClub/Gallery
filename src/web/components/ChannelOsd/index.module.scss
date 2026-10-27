@@ -10,7 +10,12 @@
   font-weight: 900;
   line-height: 1;
   letter-spacing: 0.01em;
-  text-shadow: 0 0 1px black;
+  text-shadow:
+    -2px -2px 0 #000,
+    2px -2px 0 #000,
+    -2px 2px 0 #000,
+    2px 2px 0 #000,
+    0 0 3px #000;
 }
 
 @media (max-width: 640px) {

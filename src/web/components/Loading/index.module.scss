@@ -11,39 +11,3 @@
   align-content: center;
   justify-content: center;
 }
-
-.loading {
-  // width: 100%;
-  // height: 100%;
-
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-
-  .loading-block {
-    position: relative;
-
-    $size: 30px;
-
-    width: $size;
-    height: $size;
-
-    .loading-block-line {
-      &.highlight {
-        background-color: black;
-        transition-delay: 32ms;
-      }
-
-      background-color: #E7E7E7;
-      transition: background-color 200ms;
-      transition-delay: 250ms;
-
-      position: absolute;
-      top: 0;
-      left: calc(50% - 3px / 2);
-      height: calc(50% - #{$size * 0.20});
-      width: 3px;
-      transform-origin: center calc($size / 2);
-    }
-  }
-}

@@ -65,14 +65,14 @@ export default function PublicRoot() {
     }
 
     previousBehind.current = behind
-    setOsd(null)
     setAfterglow(null)
+    setOsd({
+      id: ++nextOsdId.current,
+      name: behind ? 'CH. Behind' : 'CH. Home',
+    })
 
     if (prefersReducedMotion()) {
       setBehindVisible(behind)
-      if (behind) {
-        setOsd({ id: ++nextOsdId.current, name: 'Behind' })
-      }
       return
     }
 
@@ -93,11 +93,6 @@ export default function PublicRoot() {
     setBehindVisible(state.target === 'behind')
     setSwitchState(current => (current?.id === state.id ? null : current))
 
-    nextOsdId.current += 1
-    setOsd({
-      id: nextOsdId.current,
-      name: state.target === 'behind' ? 'Behind' : 'Home',
-    })
     setAfterglow({
       id: state.id,
       startVh: 30 + Math.random() * 30,

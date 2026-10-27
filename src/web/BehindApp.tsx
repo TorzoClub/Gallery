@@ -37,8 +37,8 @@ function AppYearLabel(props: { year: string | number }) {
       return
     }
 
-    const amplitudeEm = 0.05
-    const angularVelocity = (Math.PI * 2) / 3.8
+    const amplitudeEm = 0.04
+    const angularVelocity = (Math.PI * 2) / 5
     let start: number | null = null
     let frame = 0
 

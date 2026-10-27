@@ -7,7 +7,7 @@ import ReportCard, { type ReportCardRow } from './components/ReportCard'
 import SkeuomorphismButton from './components/SkeuomorphismButton'
 
 import __logo_src from './torzo-gallery-logo.jpg'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const REPORT_ROWS: readonly ReportCardRow[] = [
   ['Version', `v${pkg.version}`],
@@ -17,6 +17,63 @@ const REPORT_ROWS: readonly ReportCardRow[] = [
   ['API prefix', import.meta.env.VITE_API_PREFIX ?? 'N/A'],
   ['Base path', import.meta.env.VITE_BASE_PATH ?? 'N/A'],
 ]
+
+function AppYearLabel(props: { year: string | number }) {
+  const year = `${props.year}`
+  const timeRef = useRef<HTMLTimeElement>(null)
+
+  useEffect(() => {
+    const element = timeRef.current
+    if (element === null) {
+      return
+    }
+
+    const spans = element.querySelectorAll('span')
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduced) {
+      spans.forEach(span => {
+        span.style.transform = 'translate3d(0, 0, 0)'
+      })
+      return
+    }
+
+    const amplitudeEm = 0.05
+    const angularVelocity = (Math.PI * 2) / 3.8
+    let start: number | null = null
+    let frame = 0
+
+    const animate = (now: number) => {
+      if (start === null) {
+        start = now
+      }
+
+      const elapsed = (now - start) / 1000
+      spans.forEach((span, index) => {
+        // 奇数位与偶数位从相反方向开始，同时保持完整正弦往复。
+        const phase = index * Math.PI
+        const offset = Math.sin(elapsed * angularVelocity + phase) * amplitudeEm
+        span.style.transform = `translate3d(0, ${offset.toFixed(5)}em, 0)`
+      })
+
+      frame = window.requestAnimationFrame(animate)
+    }
+
+    frame = window.requestAnimationFrame(animate)
+    return () => {
+      window.cancelAnimationFrame(frame)
+    }
+  }, [year])
+
+  return (
+    <time ref={timeRef} className='behind-app__year'>
+      {
+        [...year].map((num, idx) => {
+          return <span key={idx}>{num}</span>
+        })
+      }
+    </time>
+  )
+}
 
 export default function BehindApp() {
   const navigate = useNavigate()
@@ -37,7 +94,7 @@ export default function BehindApp() {
         <div className='behind-app__brand'>
           <img className='behind-app__logo' src={__logo_src} alt='Torzo Gallery' />
           <h1 className='behind-app__title'>{pkg.title}</h1>
-          <time className='behind-app__year'>2 0 2 6</time>
+          <AppYearLabel year={2026} />
         </div>
         <div className='behind-app__card-wrapper' style={{
           display: show_card ? '' : 'none',

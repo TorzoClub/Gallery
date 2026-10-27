@@ -78,6 +78,13 @@
   line-height: 1em;
 }
 
+.behind-app__year span {
+  display: inline-block;
+  padding: 0 .2em;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}
+
 .behind-app__card-wrapper {
   position: relative;
   transform: translate3d(0, 0px, 0);

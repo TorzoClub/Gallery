@@ -6,7 +6,7 @@ import './BehindApp.css'
 import ReportCard, { type ReportCardRow } from './components/ReportCard'
 import SkeuomorphismButton from './components/SkeuomorphismButton'
 
-import __logo_src from './torzo-gallery-logo.jpg'
+import __logo_src from './about-image.jpg'
 import { useEffect, useRef, useState } from 'react'
 
 const REPORT_ROWS: readonly ReportCardRow[] = [

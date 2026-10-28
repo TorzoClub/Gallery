@@ -112,8 +112,8 @@ function applyConfig(element: HTMLDivElement, config: ReportCardConfig): void {
   const paper = config.paper
   const missing = clamp(config.ink.missing)
 
-  set('--paper-a', shade(paper.color, 0.16))
-  set('--paper-b', shade(paper.color, -0.05))
+  // set('--paper-a', shade(paper.color, 0.16))
+  // set('--paper-b', shade(paper.color, -0.05))
 
   const frequency = (0.35 + clamp(paper.grain) * 0.8).toFixed(3)
   set('--bump', noiseImage(240, 'report-card-paper-bump',

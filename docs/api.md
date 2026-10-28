@@ -54,6 +54,8 @@
 | `getSubmission` | `{ gallery_id, qq_num }` | Photo 或 `null` |
 | `confirmMember` | `{ qq_num }` | `{ value: boolean }` |
 | `getMemberPhotos` | `{ qq_num }` | `{ active, galleries }` |
+| `fetchClientPool` | `{}` | ClientPool；活动期 GalleryInEvent |
+| `fetchMemberView` | `{ qq_num }` | 当前成员自己的投票/投稿状态 |
 
 ## 公开 mutations
 
@@ -65,6 +67,65 @@
 | `vote` | `{ gallery_id, qq_num, photo_ids }` | Vote 结果 |
 
 `temp_id` 来自 `/upload-image`。投稿和投票受相册时间窗口、每人一次投稿、`vote_limit` 等规则限制。
+
+### ClientPool
+
+公开页使用 `fetchClientPool` 获取统一快照：
+
+```json
+{
+  "schema_version": 1,
+  "next_id": 42,
+  "instance_hash": "5a493005",
+  "app_startup_time": 1790000000000,
+  "submissions": 12,
+  "votes": 31,
+  "version_time": 1790000000123,
+  "build_date": "2026-10-28",
+  "git_hash": "5d25b84",
+  "galleries": [],
+  "members": []
+}
+```
+
+- `galleries` 中的元素是 `Gallery | GalleryInEvent`，用 `in_event` 区分。
+- `GalleryInEvent` 不包含 `vote_records`，其中 `photos[].member_id` 为 `null`。
+- 普通 `Gallery` 保留 `member_id` 和 `vote_records`。
+- `members` 保留完整成员列表。
+- `submissions` 统计全部相片；`votes` 统计非活动 Gallery 的投票数。
+- `app_startup_time` 是服务端程序启动时间（epoch ms）。
+- `version_time` 是本次 ClientPool 生成时间（epoch ms），用于 SSE/异步响应防旧数据覆盖。
+- `build_date` / `git_hash` 在 dev 下为 `N/A`，`pnpm build` / `pnpm start` 构建时注入。
+
+### fetchMemberView
+
+活动期 ClientPool 不返回投票记录，因此单独提供：
+
+```text
+POST /query/fetchMemberView
+payload: { "qq_num": 123456 }
+```
+
+返回当前成员自己的：
+
+```json
+{
+  "member_id": 1,
+  "active_gallery_id": 2,
+  "vote_submitted": false,
+  "voted_photo_ids": [],
+  "submitted_photo": null
+}
+```
+
+不返回其他成员的投票记录。
+
+### 前端页面
+
+- `/` 重定向到 `/explore`。
+- `/explore` 是公开相册页。
+- `/behind` 是同级 About 页面，不再作为 `/` 的 fixed 子页面。
+- `/admin/*` 保持后台入口。
 
 ## Admin queries
 

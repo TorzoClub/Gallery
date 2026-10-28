@@ -27,6 +27,7 @@ import { type EnvConfig } from '../config'
 import {
   galleryCanSubmission,
   galleryInEvent,
+  galleryPhotoByMember,
   galleryPhotosSorted,
   galleryVotesForMember,
   galleryVotesForPhoto,
@@ -62,6 +63,10 @@ import {
 } from '../core/Pool'
 import { type Photo } from '../core/Photo'
 import type { ImagePipeline } from './prepare-photo'
+import { toClientPhoto, toClientPool } from './to-client-pool'
+import type { ClientMemberView, ClientPool } from '../../shared/client-pool'
+import { BUILD_DATE, GIT_HASH } from '../../shared/build-info'
+
 import {
   galleryDto,
   memberDto,
@@ -84,6 +89,7 @@ export type QueryContext = {
   env: EnvConfig
   config: InstanceConfig
   instance_hash: string
+  app_startup_time: number
   now: Date
 }
 
@@ -322,6 +328,47 @@ export const queries = {
         now: ctx.now,
         member,
       })
+    },
+  }),
+
+  fetchClientPool: defineQuery({
+    schema: EmptySchema,
+    admin: false,
+    run: (ctx): ClientPool => toClientPool(ctx.pool, ctx.now, {
+      instance_hash: ctx.instance_hash,
+      app_startup_time: ctx.app_startup_time,
+      version_time: Date.now(),
+      build_date: BUILD_DATE,
+      git_hash: GIT_HASH,
+    }),
+  }),
+
+  fetchMemberView: defineQuery({
+    schema: MemberLookupSchema,
+    admin: false,
+    run: (ctx, payload): ClientMemberView => {
+      const member = findMemberByQQ(ctx.pool, asQQNumber(payload.qq_num))
+      const active_gallery = poolGalleriesSorted(ctx.pool)
+        .find(gallery => galleryInEvent(ctx.now, gallery))
+      if (active_gallery === undefined) {
+        return {
+          member_id: Number(member.id),
+          active_gallery_id: null,
+          vote_submitted: false,
+          voted_photo_ids: [],
+          submitted_photo: null,
+        }
+      }
+
+      const submitted = galleryPhotoByMember(active_gallery, member.id)
+      const votes = galleryVotesForMember(active_gallery, member.id)
+      return {
+        member_id: Number(member.id),
+        active_gallery_id: Number(active_gallery.id),
+        vote_submitted: votes.length > 0,
+        voted_photo_ids: votes.map(vote => Number(vote.photo_id)),
+        submitted_photo: submitted === undefined ? null : toClientPhoto(submitted),
+      }
     },
   }),
 

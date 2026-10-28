@@ -1,4 +1,4 @@
-import { confirmQQNum } from 'api/member'
+import { confirmMember } from 'api/client-pool'
 import ConfirmQQ, { ConfirmQQState } from 'components/ConfirmQQ'
 import React, { useCallback } from 'react'
 import { useAssignState } from 'utils/common'
@@ -16,7 +16,7 @@ export default ({ onConfirmSuccess }: { onConfirmSuccess(qqnum: string): void })
     try {
       setConfirmState({ isLoading: true })
 
-      const [confirmResult] = await Promise.all([confirmQQNum(Number(qq_num)), timeout(1500)])
+      const [confirmResult] = await Promise.all([confirmMember(Number(qq_num)), timeout(1500)])
 
       if (confirmResult) {
         onConfirmSuccess(qq_num)

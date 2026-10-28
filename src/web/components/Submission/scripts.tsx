@@ -1,5 +1,5 @@
 import React, { CSSProperties, ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
-import { confirmQQNum, getSubmissionByQQNum } from 'api/member'
+import { cancelSubmission, confirmMember, fetchMemberView } from 'api/client-pool'
 
 import s from './scripts.module.scss'
 import { disintegrate } from './thanos-disintegration'
@@ -12,16 +12,18 @@ import { LoadingMask } from 'components/LoadingMask'
 import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
 
 import image_同装同装 from '../../assets/同装 同装.png'
-import { GalleryCommon, PhotoInActive, PhotoNormal, cancelMySubmission, normal2InActive } from 'api/photo'
+import { getClientPoolState, reloadClientPool } from 'pool/store'
+import { submittedPhotoView, type GalleryView, type PhotoView } from 'pool/view'
 import { thunkify } from 'ramda'
 import { useQueueload } from 'utils/queue-load'
 import { dateDiffInDays, isInvalidDate, isNextMonth, isNextWeek, monthDiff, stringifyWeekDay } from 'utils/date'
 import { signal_critical_error } from 'signals'
 import Spinner from '../Spinner'
+import { playTextBlip } from '@/utils/text-audio'
 
 type InitArgs = {
   gallery_photo_count: number
-  submission_expire: GalleryCommon['submission_expire']
+  submission_expire: GalleryView['submission_expire']
 }
 export function init(init_args : InitArgs) {
   function RequestInputQQNumber(p: { loginSuccess: (qq_num: string) => Promise<void> }) {
@@ -47,7 +49,7 @@ export function init(init_args : InitArgs) {
               console.log('handlesubmitDetect')
               setLoading(true)
               try {
-                const [confirmResult] = await Promise.all([confirmQQNum(Number(qq_num)), timeout(1500)])
+                const [confirmResult] = await Promise.all([confirmMember(Number(qq_num)), timeout(1500)])
                 if (confirmResult) {
                   // ctx.stored_qq_num = qq_num
                   useSubmissionStore.setState({ qq_num })
@@ -114,14 +116,14 @@ export function init(init_args : InitArgs) {
     }
   }
 
-  const script_大感谢 = (type: 'CREATE' | 'EDIT', photo: PhotoNormal) => {
+  const script_大感谢 = (type: 'CREATE' | 'EDIT', photo: PhotoView) => {
     return componentScript([], ({ changeScript }) => {
       useEffect(() => {
         setTimeout(() => {
           if (type === 'CREATE') {
-            _EVENT_.created.trigger(normal2InActive(photo))
+            _EVENT_.created.trigger(photo)
           } else if (type === 'EDIT') {
-            _EVENT_.updated.trigger(normal2InActive(photo))
+            _EVENT_.updated.trigger(photo)
           }
         }, 1500)
       }, [])
@@ -177,6 +179,7 @@ export function init(init_args : InitArgs) {
         )
       },
       get 'delete_line'() {
+        playTextBlip('X')
         return timeline['额好吧'] + 1000
       },
       get '可以的'() {
@@ -234,8 +237,8 @@ export function init(init_args : InitArgs) {
           if (photo) {
             if (qq_num) {
               const t = timeout(1500)
-              const canceling = cancelMySubmission({
-                qq_num,
+              const canceling = cancelSubmission({
+                qq_num: Number(qq_num),
                 photo_id: photo.id,
               })
               Promise.all([t, canceling]).then(() => {
@@ -417,7 +420,7 @@ export function init(init_args : InitArgs) {
     </>
   })
 
-  function computeExpectTime(submission_expire: null | GalleryCommon['submission_expire']): null | string {
+  function computeExpectTime(submission_expire: null | GalleryView['submission_expire']): null | string {
     if (submission_expire === null) {
       throw new Error('computeExpectTime failure: submission_expire is null')
     } else {
@@ -482,17 +485,20 @@ export function init(init_args : InitArgs) {
         const { gallery_id, qq_num } = useSubmissionStore.getState()
         if ((gallery_id === null) || (qq_num === null)) {
           signal_critical_error.trigger(`gallery_id(${gallery_id}) 或者 qq_num${qq_num} 为 null`)
-        } else {
-          const my_submission = await getSubmissionByQQNum(gallery_id, qq_num)
-          if (my_submission === null) {
-            useSubmissionStore.setState({ photo: null })
-          } else {
-            useSubmissionStore.setState({
-              photo: normal2InActive(my_submission)
-            })
-          }
-          return my_submission
+          return undefined
         }
+
+        const [member_view] = await Promise.all([
+          fetchMemberView(Number(qq_num)),
+          reloadClientPool(),
+        ])
+        const pool_state = getClientPoolState()
+        if (pool_state.status !== 'ready') {
+          throw new Error('ClientPool 尚未加载完成')
+        }
+        const my_submission = submittedPhotoView(pool_state.pool, member_view)
+        useSubmissionStore.setState({ photo: my_submission })
+        return my_submission
       }
 
       const select_是的吧我要参加 = (): Select => (
@@ -544,9 +550,12 @@ export function init(init_args : InitArgs) {
 
       if (init_args.gallery_photo_count === 0) {
         return scriptAdvance({
+          // 首次文案没有用户手势，AudioContext 还不能可靠播放逐字音效，
+          // 因此第一面整体使用 instant，文案和选项都瞬间显示。
           Content: '听说你是第一个参加摄影大赛的',
-          show_content_waittime: 1000,
-          show_select_timeout: 1000,
+          instant: true,
+          show_content_waittime: 0,
+          show_select_timeout: 0,
           selects: [
             select_是的吧我要参加(),
             select('否，我不想参加', script_听说你在下周会来参加投票())
@@ -554,9 +563,12 @@ export function init(init_args : InitArgs) {
         })
       } else {
         return scriptAdvance({
+          // 首次文案没有用户手势，AudioContext 还不能可靠播放逐字音效，
+          // 因此第一面整体使用 instant，文案和选项都瞬间显示。
           Content: '听说你要参加摄影大赛',
-          show_content_waittime: 1000,
-          show_select_timeout: 1000,
+          instant: true,
+          show_content_waittime: 0,
+          show_select_timeout: 0,
           selects: [
             select_是的吧我要参加(),
             select('否，我不想参加', script_听说你在下周会来参加投票()),

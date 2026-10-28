@@ -1,6 +1,6 @@
 import { FunctionComponent, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Memo, MemoGetter, MemoSetter, Signal } from 'vait'
-import { Photo } from 'api/photo'
+import type { PhotoView } from 'pool/view'
 
 import './index.scss'
 
@@ -26,7 +26,7 @@ export type WaterfallLayoutConfigure = {
   column_gutter: number
 }
 
-export type WaterfallLayoutClickCoverHandler = (clickInfo: CoverClickEvent, photo: Photo['id']) => void
+export type WaterfallLayoutClickCoverHandler = (clickInfo: CoverClickEvent, photo: PhotoView['id']) => void
 
 function calcTotalBoxWidth({
   column_count,
@@ -43,8 +43,8 @@ export type Props = {
   layout_configure: WaterfallLayoutConfigure
   cannot_add_vote: boolean
 
-  photos: Photo[]
-  onClickVote(photo_id: Photo['id']): void
+  photos: PhotoView[]
+  onClickVote(photo_id: PhotoView['id']): void
   onClickCover: WaterfallLayoutClickCoverHandler
 
   onWatterfallRefreshed(): void
@@ -79,7 +79,7 @@ export default (props: Props) => {
     }
   }, [onWatterfallRefreshed, refresh_signal])
 
-  const posStyle = useCallback((id: Photo['id']) => {
+  const posStyle = useCallback((id: PhotoView['id']) => {
     const pos: Pos | undefined = pos_map[id]
     if (pos) {
       return {
@@ -527,7 +527,7 @@ function useLayout({
 }: {
   layout_configure: WaterfallLayoutConfigure
   box_width: number
-  photos: Photo[]
+  photos: PhotoView[]
 }) {
   const refresh_signal = useMemo(() => Signal(), [])
   const [ refFn, dim_map_changed_signal, getDimMap ] = useDimensionMap(
@@ -537,7 +537,7 @@ function useLayout({
   )
 
   const generateWaterfallColumns = useCallback((
-    photos: Photo[],
+    photos: PhotoView[],
     column_count: number,
     dim_map: DimensionMap
   ) => {

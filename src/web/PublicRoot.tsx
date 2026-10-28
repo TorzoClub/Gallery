@@ -1,18 +1,15 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 
 import BehindApp from './BehindApp'
 import ChannelAfterglow from './components/ChannelAfterglow'
 import ChannelOsd, { type ChannelOsdName } from './components/ChannelOsd'
 import ChannelSwitch from './components/ChannelSwitch'
 import HomeApp from './HomeApp'
+import { isBehindPath, isExplorePath } from './routes'
 import styles from './PublicRoot.module.scss'
 import { playChannelSwitchSound, primeChannelAudio } from './utils/crt-audio'
-
-export function isBehindPath(pathname: string): boolean {
-  const normalized = pathname.replace(/\/+$/, '') || '/'
-  return normalized === '/behind' || normalized.startsWith('/behind/')
-}
+import { primeTextAudio } from './utils/text-audio'
 
 function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -23,7 +20,7 @@ function prefersReducedMotion(): boolean {
 
 type SwitchState = {
   id: number
-  target: 'behind' | 'home'
+  target: 'behind' | 'explore'
 }
 
 type OsdState = {
@@ -36,9 +33,22 @@ type AfterglowState = {
   startVh: number
 }
 
+const hiddenStageStyle: React.CSSProperties = {
+  position: 'relative',
+  overflow: 'hidden',
+  height: 0,
+  visibility: 'hidden',
+  pointerEvents: 'none',
+}
+
+const activeStageStyle: React.CSSProperties = {
+  position: 'relative',
+}
+
 export default function PublicRoot() {
   const location = useLocation()
   const behind = isBehindPath(location.pathname)
+  const explore = isExplorePath(location.pathname)
   const previousBehind = useRef(behind)
   const nextSwitchId = useRef(0)
   const nextOsdId = useRef(0)
@@ -50,7 +60,10 @@ export default function PublicRoot() {
   const [afterglow, setAfterglow] = useState<AfterglowState | null>(null)
 
   useEffect(() => {
-    const prime = () => primeChannelAudio()
+    const prime = () => {
+      primeChannelAudio()
+      primeTextAudio()
+    }
     window.addEventListener('pointerdown', prime, { once: true, capture: true })
     window.addEventListener('keydown', prime, { once: true, capture: true })
     return () => {
@@ -68,7 +81,7 @@ export default function PublicRoot() {
     setAfterglow(null)
     setOsd({
       id: ++nextOsdId.current,
-      name: behind ? 'CH. Behind' : 'CH. Home',
+      name: behind ? 'CH. Behind' : 'CH. Explore',
     })
 
     if (prefersReducedMotion()) {
@@ -77,7 +90,7 @@ export default function PublicRoot() {
     }
 
     if (behind) {
-      // 换台完成前只让 Home 抖动，不提前露出 Behind。
+      // 换台完成前只让 Explore 抖动，不提前露出 Behind。
       setBehindVisible(false)
     }
 
@@ -85,7 +98,7 @@ export default function PublicRoot() {
     nextSwitchId.current += 1
     setSwitchState({
       id: nextSwitchId.current,
-      target: behind ? 'behind' : 'home',
+      target: behind ? 'behind' : 'explore',
     })
   }, [behind])
 
@@ -166,7 +179,11 @@ export default function PublicRoot() {
     }
   }, [switchState])
 
-  const lockScroll = behind || switchState !== null
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [behindVisible])
+
+  const lockScroll = switchState !== null
   useEffect(() => {
     if (!lockScroll) {
       return
@@ -179,16 +196,30 @@ export default function PublicRoot() {
     }
   }, [lockScroll])
 
+  if (!behind && !explore) {
+    return <Navigate to='/explore' replace />
+  }
+
   return (
     <>
-      <div ref={homeStageRef} className={styles.channelBackground}>
+      <div
+        ref={behindStageRef}
+        className={styles.pageStage}
+        style={behindVisible ? activeStageStyle : hiddenStageStyle}
+        aria-hidden={!behindVisible}
+        inert={!behindVisible}
+      >
+        <BehindApp thisIsDisplay={behindVisible} />
+      </div>
+      <div
+        ref={homeStageRef}
+        className={styles.pageStage}
+        style={behindVisible ? hiddenStageStyle : activeStageStyle}
+        aria-hidden={behindVisible}
+        inert={behindVisible}
+      >
         <HomeApp />
       </div>
-      {behindVisible && (
-        <div ref={behindStageRef} className={styles.channelBehind}>
-          <BehindApp />
-        </div>
-      )}
       {afterglow && (
         <ChannelAfterglow
           key={`afterglow-${afterglow.id}`}

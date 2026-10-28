@@ -57,7 +57,7 @@ export const DEFAULT_REPORT_CARD_CONFIG: ReportCardConfig = {
 
 export const DEFAULT_REPORT_CARD_ROWS: readonly ReportCardRow[] = [
   ['Version', 'v4.0.0-preview'],
-  ['Uptime', '4y 2m 1d'],
+  ['Uptime', '4y2m1d'],
   ['Submissions', '245'],
   ['Votes', '2189'],
   ['API prefix', '/'],
@@ -66,7 +66,7 @@ export const DEFAULT_REPORT_CARD_ROWS: readonly ReportCardRow[] = [
 
 export const DEFAULT_REPORT_CARD_BUILD: ReportCardBuild = {
   date: '2026-10-27',
-  hash: '2ja24f9',
+  hash: '2fa24f9',
 }
 
 function clamp(value: number, min = 0, max = 1): number {

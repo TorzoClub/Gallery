@@ -3,8 +3,10 @@ import ImageUploadingImport, { type ImageType, type ImageListType } from 'react-
 import heicConvert from 'heic-convert/browser'
 
 import { useSubmissionStore } from '.'
-import { PhotoInActive, PhotoNormal, submitPhoto, updateSubmission } from 'api/photo'
+import { fetchMemberView, submitPhoto, updateSubmission } from 'api/client-pool'
 import { uploadImage } from 'api/upload'
+import { getClientPoolState, reloadClientPool } from 'pool/store'
+import { submittedPhotoView, type PhotoView } from 'pool/view'
 
 import s from './PhotoCreateOrEdit.module.scss'
 import { LoadingMask } from 'components/LoadingMask'
@@ -21,7 +23,7 @@ const ImageUploading = (
 type WillUploadImage = null | { blob: Blob, filename: string, blob_url: string }
 
 type Props = {
-  onUpdateDone(data: PhotoNormal): void
+  onUpdateDone(data: PhotoView): void
 }
 export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
   const [ isProcessing, setProcessing ] = useState(false)
@@ -52,15 +54,14 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
         temp_id = (await uploadImage(file)).temp_id
       }
 
-      if (is_edit_mode) {
-        const photo_id = (photo as PhotoInActive).id
-        const edited_photo = await updateSubmission({
-          photo_id,
+      const current_photo_id = photo?.id
+      if (is_edit_mode && current_photo_id !== undefined) {
+        await updateSubmission({
+          photo_id: current_photo_id,
           qq_num: Number(qq_num),
           desc: description,
           ...(temp_id === undefined ? {} : { temp_id }),
         })
-        onUpdateDone(edited_photo)
       } else {
         if (!temp_id) {
           throw new Error('请选择一张图像')
@@ -68,14 +69,28 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
         if (gallery_id === null) {
           throw new Error('缺少相册信息')
         }
-        const created_photo = await submitPhoto({
+        await submitPhoto({
           gallery_id,
           qq_num: Number(qq_num),
           desc: description,
           temp_id,
         })
-        onUpdateDone(created_photo)
       }
+
+      const [member_view] = await Promise.all([
+        fetchMemberView(Number(qq_num)),
+        reloadClientPool(),
+      ])
+      const pool_state = getClientPoolState()
+      if (pool_state.status !== 'ready') {
+        throw new Error('ClientPool 尚未加载完成')
+      }
+      const updated_photo = submittedPhotoView(pool_state.pool, member_view)
+      if (updated_photo === null) {
+        throw new Error('投稿成功，但无法读取投稿数据')
+      }
+      useSubmissionStore.setState({ photo: updated_photo })
+      onUpdateDone(updated_photo)
     } catch (err) {
       alert(`错误: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
@@ -199,7 +214,7 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
       </div>
 
       {
-        isProcessing && <LoadingMask />
+        isProcessing && <LoadingMask opacity={0.7} />
       }
     </div>
   )
@@ -266,7 +281,7 @@ export function PreviewBox({
                   className={[s.PreviewImage, isDragging ? s.IsDragging : '', imageAppendClassName].join(' ')}
                   style={{ height }}
                 >
-                  <LoadingMask />
+                  <LoadingMask opacity={0.7} />
                 </div>
               )
             }

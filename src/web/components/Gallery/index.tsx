@@ -4,7 +4,7 @@ import './index.scss'
 
 import Title from 'components/Title'
 import Waterfall, { WaterfallLayoutConfigure, Props as WaterfallLayoutProps } from 'components/Waterfall'
-import { Gallery, Photo } from 'api/photo'
+import type { GalleryView } from 'pool/view'
 import { CoverClickEvent, Props as PhotoBoxProps } from 'components/PhotoBox'
 import Submission from 'components/Submission'
 import useSafeState from 'hooks/useSafeState'
@@ -31,7 +31,7 @@ const normalLayout = ({
   }
 }
 
-const compactLayout = (g: Gallery, {
+const compactLayout = (g: GalleryView, {
   column_count,
   column_gutter,
   vote_event_vertial_gutter,
@@ -87,7 +87,7 @@ function computeGalleryWidthWithAutoColumnCount(
   } as const
 }
 
-const getLayoutConfigure = (gallery: Gallery): WaterfallLayoutConfigure => {
+const getLayoutConfigure = (gallery: GalleryView): WaterfallLayoutConfigure => {
   const viewport_width = getViewportWidth()
   if (viewport_width > 1900) {
     const box_width = 232
@@ -136,10 +136,10 @@ const getLayoutConfigure = (gallery: Gallery): WaterfallLayoutConfigure => {
 export type Props = {
   cannot_add_vote?: boolean
   show_vote_button: boolean
-  gallery: Gallery
+  gallery: GalleryView
   selected_id_list: WaterfallLayoutProps['selected_id_list']
-  onClickVote?: (photo_id: Photo['id']) => void
-  onClickCover: (clickInfo: CoverClickEvent, photo_id: Photo['id']) => void
+  onClickVote?: (photo_id: number) => void
+  onClickCover: (clickInfo: CoverClickEvent, photo_id: number) => void
   onWatterfallRefreshed(): void
 }
 export default ({
@@ -203,7 +203,7 @@ export default ({
   )
 }
 
-function useWaterfallLayout(gallery: Gallery) {
+function useWaterfallLayout(gallery: GalleryView) {
   const [layout, refreshLayout] = useSafeState(getLayoutConfigure(gallery))
 
   useEffect(() => {
@@ -224,7 +224,7 @@ function useWaterfallLayout(gallery: Gallery) {
   return layout
 }
 
-function useTitleNode(gallery: Gallery) {
+function useTitleNode(gallery: GalleryView) {
   const [open, setOpen] = useState(false)
   useEffect(() => {
     if (gallery.can_submission) {

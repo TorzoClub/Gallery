@@ -1,10 +1,11 @@
 import React, { ReactNode, Suspense, lazy, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { OutterPromise } from 'vait'
 
 import { appInitInfomation } from './HomeApp'
-import PublicRoot, { isBehindPath } from './PublicRoot'
+import PublicRoot from './PublicRoot'
+import { isBehindPath } from './routes'
 import { FailureLayoutContainer, useFailureLayout } from './components/FailureLayout'
 
 const AdminApp = lazy(() => import('./admin/AdminApp'))
@@ -45,6 +46,8 @@ function TitleSync() {
   useEffect(() => {
     if (isBehindPath(location.pathname)) {
       document.title = '同装摄影集 · About'
+    } else if (location.pathname.startsWith('/explore')) {
+      document.title = '同装摄影集'
     } else if (!location.pathname.startsWith('/admin')) {
       document.title = '同装摄影集'
     }
@@ -77,6 +80,7 @@ function Bootstrap() {
           <BrowserRouter basename={basename}>
             <TitleSync />
             <Routes>
+              <Route path="/" element={<Navigate to="/explore" replace />} />
               <Route
                 path="/admin/*"
                 element={(

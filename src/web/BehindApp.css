@@ -1,20 +1,14 @@
 .behind-app {
-  position: fixed;
-  inset: 0;
-  z-index: 9000;
   box-sizing: border-box;
-  overflow-y: auto;
-  overscroll-behavior: contain;
   background: white;
   color: #252525;
-  transform: translate3d(0, 0, 0);
 }
 
 .behind-app__inner {
   box-sizing: border-box;
-  width: 100vw;
+  width: 100%;
   overflow-x: hidden;
-  min-height: 100%;
+  min-height: 100dvh;
 }
 
 .behind-app__actions {

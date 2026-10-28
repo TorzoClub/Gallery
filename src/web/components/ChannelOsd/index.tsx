@@ -2,7 +2,7 @@ import React from 'react'
 
 import styles from './index.module.scss'
 
-export type ChannelOsdName = 'Home' | 'Behind' | `CH. ${'Home' | 'Behind'}`
+export type ChannelOsdName = 'Explore' | 'Behind' | `CH. ${'Explore' | 'Behind'}`
 
 export default function ChannelOsd({ name }: { name: ChannelOsdName }) {
   return (

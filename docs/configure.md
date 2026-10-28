@@ -24,7 +24,7 @@ pnpm dev
 - 只有一个端口：`HTTP_PORT`（默认 `7001`）。
 - Hono 在 Node HTTP Server 最前面处理 API。
 - development 下非 API 请求进入同进程的 Vite middleware；production 下进入 Hono 的 `dist/client` 静态服务。
-- 公开页 `/`，后台 `/admin`。
+- 公开页 `/explore`（`/` 重定向），About 页 `/behind`，后台 `/admin`。
 - 单体 SPA 服务要求 `API_BASE_PATH=/`；`VITE_BASE_PATH` 也按根路径部署。
 - 不再有独立的 Vite 3000 端口或 proxy。
 
@@ -137,6 +137,8 @@ adminUpdateInstanceConfig
 | `pnpm start:prod` | 直接启动已构建的生产服务 |
 
 `pnpm start` 先执行前端和服务端构建，然后由 Hono 提供 `dist/client`。
+
+构建时会注入 `build_date` 和 `git_hash`，并随 ClientPool 暴露给 Behind 页面；development 下两者都是 `N/A`。`git_hash` 取 `git rev-parse --short HEAD`，没有 git 元数据时回退 `N/A`。
 
 ## Storage 初始化
 

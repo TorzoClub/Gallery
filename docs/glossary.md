@@ -9,7 +9,7 @@
 | 成员 | Member | 参与活动的人，可以是投稿者，也可以是投票者。 |
 | 投稿 | Submission | 成员向某个相册提交相片的行为或结果。 |
 | 投票 | Vote | 成员对相片表达喜欢并计入票数的操作。 |
-| 公开页 | Public page | 普通访问者看到的相册页面，入口是 `/`。 |
+| 公开页 | Public page | 普通访问者看到的相册页面，入口是 `/explore`；`/` 重定向到它。 |
 | 后台 | Admin | 管理相册、相片、成员、投票和配置的页面，入口是 `/admin`。 |
 | dispatch | Dispatch API | 通过 action 名称分发 query/mutation，而不是每个业务一个 REST 路径。 |
 | query | Query | 只读 action，走 `/query/:name` 或 `/admin/query/:name`。 |
@@ -25,6 +25,9 @@
 | avif_source_quality | AVIF source quality | optimized 全尺寸 AVIF 的质量配置，默认 75。 |
 | has_hdr_optimized | Has HDR optimized | 磁盘上是否确实存在 HDR optimized 文件；Phase 0 固定为 false。 |
 | instance hash | Instance hash | 当前 instance_config 的 CRC32，用作派生图 URL 的 `?v` 缓存版本。 |
+| ClientPool | ClientPool | 公开页使用的 Pool 快照；活动期使用 `GalleryInEvent` 屏蔽成员和投票记录。 |
+| GalleryInEvent | GalleryInEvent | 活动期相册，含 `in_event: true`，不含 `vote_records`，照片不带成员 ID。 |
+| version_time | Version time | ClientPool 生成时间戳，用于拒绝旧快照覆盖新数据。 |
 | image_processing_effort | Image processing effort | 所有图片处理的 CPU effort 配置，默认 8。 |
 | legacy | Legacy | `legacy/` 下冻结的旧 server/web/脚本/CI，只作历史参考。 |
 

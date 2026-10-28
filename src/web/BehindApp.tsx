@@ -3,20 +3,16 @@ import { useNavigate } from 'react-router-dom'
 
 import './BehindApp.css'
 
-import ReportCard, { type ReportCardRow } from './components/ReportCard'
+import ReportCard, { type ReportCardBuild, type ReportCardRow } from './components/ReportCard'
 import SkeuomorphismButton from './components/SkeuomorphismButton'
 
 import __logo_src from './about-image.jpg'
 import { useEffect, useRef, useState } from 'react'
+import { useClientPool } from './pool/store'
+import { formatUptime } from '@shared/uptime'
 
-const REPORT_ROWS: readonly ReportCardRow[] = [
-  ['Version', `v${pkg.version}`],
-  ['Uptime', '4y2m1d'],
-  ['Submissions', '245'],
-  ['Votes', '2189'],
-  ['API prefix', import.meta.env.VITE_API_PREFIX ?? 'N/A'],
-  ['Base path', import.meta.env.VITE_BASE_PATH ?? 'N/A'],
-]
+const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'N/A'
+const BASE_PATH = import.meta.env.VITE_BASE_PATH ?? 'N/A'
 
 function AppYearLabel(props: { year: string | number }) {
   const year = `${props.year}`
@@ -75,18 +71,56 @@ function AppYearLabel(props: { year: string | number }) {
   )
 }
 
-export default function BehindApp() {
+export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean }) {
   const navigate = useNavigate()
+  const pool_state = useClientPool()
+  const pool = pool_state.status === 'ready' ? pool_state.pool : null
   const [show_card, setShowCard] = useState(false)
+  const [uptime, setUptime] = useState('—')
+
+  useEffect(() => {
+    if (pool === null) {
+      setUptime('—')
+      return
+    }
+
+    const update = () => setUptime(formatUptime(pool.app_startup_time))
+    update()
+    const timer = window.setInterval(update, 60_000)
+    return () => window.clearInterval(timer)
+  }, [pool])
+
+  const report: readonly ReportCardRow[] = [
+    ['Version', `v${pkg.version}`],
+    ['Uptime', uptime],
+    ['Submissions', pool === null ? '—' : String(pool.submissions)],
+    ['Votes', pool === null ? '—' : String(pool.votes)],
+    ['API prefix', API_PREFIX],
+    ['Base path', BASE_PATH],
+  ]
+
+  const build: ReportCardBuild = {
+    date: pool?.build_date ?? 'N/A',
+    hash: pool?.git_hash ?? 'N/A',
+  }
 
   // WARNING: 为什么要采纳这种设计？
-  // 因为 <ReportCard> 的首帧渲染过慢，画面会卡顿，于是就得做成：先显示出页面后
-  // 再显示 ReportCard ，采用动画过渡的方式
-  // 这是妥协。只能寄希望于未来，硬件性能提升和浏览器优化
+  // ReportCard 的首帧渲染很重，直接和页面一起挂载会让切页明显卡顿。
+  // PublicRoot 只在 CRT 换台动画结束后才把 thisIsDisplay 置为 true，
+  // 因此这里的 500ms 是从真正显示 Behind 之后开始算的；
+  // 换台动画本身不会触发 ReportCard 的副作用。
+  // 离开 Behind 时 thisIsDisplay 变回 false，立即卸载卡片并取消计时。
+  // 这是用显示生命周期换首帧流畅度的妥协；如果未来显著优化了 ReportCard，
+  // 应该移除这层延迟，恢复普通的声明式挂载。
   useEffect(() => {
-    const h = setTimeout(() => setShowCard(true), 500)
-    return () => clearTimeout(h)
-  }, [])
+    if (!thisIsDisplay) {
+      setShowCard(false)
+      return
+    }
+
+    const h = window.setTimeout(() => setShowCard(true), 500)
+    return () => window.clearTimeout(h)
+  }, [thisIsDisplay])
 
   return (
     <section className='behind-app' aria-label='关于同装相册'>
@@ -96,24 +130,29 @@ export default function BehindApp() {
           <h1 className='behind-app__title'>{pkg.title}</h1>
           <AppYearLabel year={2026} />
         </div>
-        <div className='behind-app__card-wrapper' style={{
-          display: show_card ? '' : 'none',
-        }}>
-          <ReportCard
-            className='behind-app__report'
-            report={REPORT_ROWS}
-          />
-        </div>
         <div className='behind-app__actions'>
           <SkeuomorphismButton onClick={() => {
-            setShowCard(true)
-            navigate('/', { replace: true })
+            navigate('/explore', { replace: true })
+            setShowCard(false)
           }}>回到相册</SkeuomorphismButton>
           <div style={{ height: '22px' }} />
           <SkeuomorphismButton onClick={() => {
             navigate('/admin', { replace: true })
+            setShowCard(false)
           }}>进入后台管理</SkeuomorphismButton>
         </div>
+        {show_card && (
+          <div className='behind-app__card-wrapper'>
+            <ReportCard
+              className='behind-app__report'
+              report={report}
+              build={build}
+            />
+          </div>
+        )}
+        {/* {show_card && (
+
+        )} */}
       </div>
     </section>
   )

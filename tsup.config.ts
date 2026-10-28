@@ -1,4 +1,7 @@
 import { defineConfig } from 'tsup'
+import { getBuildInfo } from './build-info.config'
+
+const build_info = getBuildInfo()
 
 export default defineConfig({
   entry: {
@@ -15,4 +18,8 @@ export default defineConfig({
   splitting: false,
   external: ['sharp', 'vite'],
   tsconfig: 'tsconfig.server.json',
+  define: {
+    __BUILD_DATE__: JSON.stringify(build_info.build_date),
+    __GIT_HASH__: JSON.stringify(build_info.git_hash),
+  },
 })

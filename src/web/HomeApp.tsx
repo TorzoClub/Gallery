@@ -1,7 +1,7 @@
 import React from 'react'
 import { Memo } from 'vait'
 
-import GalleryHome from './layouts/GalleryHome'
+import ExplorePage from './layouts/Explore'
 // import CoverScroller from './layouts/CoverScroller'
 // import BgImageUrl from 'assets/bg.png'
 
@@ -23,7 +23,7 @@ export default function AppHome() {
         to='/behind'
       >About</Link>
 
-      <GalleryHome />
+      <ExplorePage />
     </div>
   )
 }

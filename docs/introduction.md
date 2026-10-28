@@ -89,6 +89,16 @@ Node HTTP Server
 - development 的 HMR WebSocket 也使用同一个端口，没有独立的 Vite 端口。
 - production 不加载 Vite，所有非 API 请求由 Hono 静态服务和 SPA fallback 处理。
 
+### mutation 生命周期
+
+后台和公开页的写操作走两阶段 mutation：
+
+1. `prepare`：异步图片处理在这里执行，不进入持久化串行区；需要新 photo id 时调用内部 mutation `allocateId`。
+2. `commit`：同步完成纯 JS pool 变更，不允许在 commit 中 `await`。
+3. persistence：pool/config 的写入统一进入串行队列，按 commit 顺序落盘。
+
+`inner_mutations` 只供 `prepare` 内部调用，不属于 HTTP action 表，不会通过 `/mutate` 或 `/admin/mutate` 暴露。任何 pool 变化，包括 `next_id`，都必须立即进入持久化队列；不允许把状态变更留到下一次 mutation。
+
 ## 技术栈
 
 - React 19

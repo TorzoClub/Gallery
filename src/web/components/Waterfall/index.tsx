@@ -133,7 +133,7 @@ export default (props: Props) => {
                     width: photo.width,
                     height: photo.height,
                     src: photo.src_url,
-                    thumb: photo.thumb_url,
+                    thumb: photo.thumb,
                   },
                   avatar: photo.member ? {
                     width: 0,

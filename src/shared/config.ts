@@ -3,7 +3,8 @@ export type InstanceConfig = Readonly<{
   avatar_thumb_size: number
   image_thumb_size: number
   image_thumb_quality: number
-  image_thumb_effort: number
+  avif_source_quality: number
+  image_processing_effort: number
   max_image_dimension: number
   max_upload_bytes: number
 }>

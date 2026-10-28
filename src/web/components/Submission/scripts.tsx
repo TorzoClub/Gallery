@@ -8,7 +8,7 @@ import { componentScript, script, select, Script, Select, Content, useSubmission
 
 import WaitingInputFrame from 'components/ConfirmQQ/WaitingInputFrame'
 import { timeout } from 'vait'
-import Loading, { LoadingMask } from 'components/Loading'
+import { LoadingMask } from 'components/LoadingMask'
 import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
 
 import image_同装同装 from '../../assets/同装 同装.png'
@@ -17,6 +17,7 @@ import { thunkify } from 'ramda'
 import { useQueueload } from 'utils/queue-load'
 import { dateDiffInDays, isInvalidDate, isNextMonth, isNextWeek, monthDiff, stringifyWeekDay } from 'utils/date'
 import { signal_critical_error } from 'signals'
+import Spinner from '../Spinner'
 
 type InitArgs = {
   gallery_photo_count: number
@@ -271,7 +272,7 @@ export function init(init_args : InitArgs) {
               />
             </div>
           } else if (removing) {
-            removing_node = <div style={removing_node_style}><Loading /></div>
+            removing_node = <div style={removing_node_style}><Spinner audioVolume={.8} /></div>
           }
           return (
             <div style={{ position: 'relative' }}>

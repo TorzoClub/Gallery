@@ -3,7 +3,14 @@ import path from 'node:path'
 import Immutable from 'immutable'
 import { asGalleryID, asNextID, asSchemaVersion } from '../common/ID'
 import { notFound } from '../common/error'
-import { formatFromFilename, isSafeFilename } from '../common/image-name'
+import {
+  formatFromFilename,
+  isSafeFilename,
+  legacyPhotoVariantFilename,
+  legacyUnversionedPhotoFilenames,
+  photoThumbFilename,
+  photoVariantFilename,
+} from '../common/image-name'
 import { type Gallery } from '../core/Gallery'
 import { type Member } from '../core/Member'
 import { type Photo } from '../core/Photo'
@@ -43,12 +50,13 @@ import {
 import { acquireStorageLock, type StorageLock } from './lock'
 import { isUuidV7 } from '../common/uuid'
 
-export type ImageKind = 'source' | 'thumb'
+export type ImageKind = 'source' | 'optimized' | 'thumb'
 
 export type StoragePaths = Readonly<{
   root: string
   galleries: string
   source: string
+  optimized: string
   thumb: string
   temp: string
   pool_file: string
@@ -70,7 +78,6 @@ export type Storage = {
   removeTemp(filename: string): Promise<void>
   removeImage(source_filename: string): Promise<void>
   cleanupTemp(): Promise<void>
-  listImageFiles(kind: ImageKind): Promise<string[]>
   close(): Promise<void>
 }
 
@@ -87,6 +94,7 @@ function makePaths(storage_path: string): StoragePaths {
     root,
     galleries: path.join(root, 'galleries'),
     source: path.join(images, 'source'),
+    optimized: path.join(images, 'optimized'),
     thumb: path.join(images, 'thumb'),
     temp: path.join(images, 'temp'),
     pool_file: path.join(root, 'pool.json'),
@@ -211,6 +219,7 @@ export async function createStorage(options: CreateStorageOptions): Promise<Stor
   await ensureDir(paths.root)
   await ensureDir(paths.galleries)
   await ensureDir(paths.source)
+  await ensureDir(paths.optimized)
   await ensureDir(paths.thumb)
   await ensureDir(paths.temp)
 
@@ -314,7 +323,12 @@ export async function createStorage(options: CreateStorageOptions): Promise<Stor
     if (!isSafeFilename(filename)) {
       throw notFound('图片不存在')
     }
-    return path.join(kind === 'source' ? paths.source : paths.thumb, filename)
+    const dir = kind === 'source'
+      ? paths.source
+      : kind === 'optimized'
+        ? paths.optimized
+        : paths.thumb
+    return path.join(dir, filename)
   }
 
   async function readImage(kind: ImageKind, filename: string): Promise<Buffer> {
@@ -369,32 +383,46 @@ export async function createStorage(options: CreateStorageOptions): Promise<Stor
     if (!isSafeFilename(source_filename)) {
       throw new Error('非法的图片文件名')
     }
+    const photo_base = photoThumbFilename(source_filename)
+    const source_ext = source_filename.slice(source_filename.lastIndexOf('.') + 1).toLowerCase()
+    const legacy_thumb_base = `${source_filename.slice(0, source_filename.lastIndexOf('.'))}.${source_ext}`
+
     await removeFile(path.join(paths.source, source_filename))
-    const thumb_name = `${source_filename.slice(0, source_filename.lastIndexOf('.'))}.avif`
-    if (isSafeFilename(thumb_name)) {
-      await removeFile(path.join(paths.thumb, thumb_name))
+
+    // Optimized: current SDR/HDR files plus all pre-variant and pre-avif names.
+    for (const variant of ['sdr', 'hdr'] as const) {
+      const variant_name = photoVariantFilename(source_filename, variant)
+      const legacy_variant_name = legacyPhotoVariantFilename(source_filename, variant)
+      await removeFile(path.join(paths.optimized, variant_name))
+      if (legacy_variant_name !== variant_name) {
+        await removeFile(path.join(paths.optimized, legacy_variant_name))
+      }
     }
+    for (const legacy_name of legacyUnversionedPhotoFilenames(source_filename)) {
+      await removeFile(path.join(paths.optimized, legacy_name))
+    }
+
+    // Thumb: current no-suffix file, old variant files and old avatar same-name file.
+    await removeFile(path.join(paths.thumb, photo_base))
+    for (const variant of ['sdr', 'hdr'] as const) {
+      const legacy_variant_name = legacyPhotoVariantFilename(source_filename, variant)
+      if (legacy_variant_name !== photo_base) {
+        await removeFile(path.join(paths.thumb, legacy_variant_name))
+      }
+      const old_avif_variant = photoVariantFilename(source_filename, variant)
+      if (old_avif_variant !== photo_base) {
+        await removeFile(path.join(paths.thumb, old_avif_variant))
+      }
+    }
+    if (legacy_thumb_base !== photo_base) {
+      await removeFile(path.join(paths.thumb, legacy_thumb_base))
+    }
+    await removeFile(path.join(paths.thumb, source_filename))
   }
 
   async function cleanupTemp(): Promise<void> {
     await fs.rm(paths.temp, { recursive: true, force: true })
     await ensureDir(paths.temp)
-  }
-
-  async function listImageFiles(kind: ImageKind): Promise<string[]> {
-    const dir = kind === 'source' ? paths.source : paths.thumb
-    try {
-      const entries = await fs.readdir(dir, { withFileTypes: true })
-      return entries
-        .filter((entry) => entry.isFile())
-        .map((entry) => entry.name)
-        .sort()
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-        return []
-      }
-      throw error
-    }
   }
 
   async function close(): Promise<void> {
@@ -418,7 +446,6 @@ export async function createStorage(options: CreateStorageOptions): Promise<Stor
     removeTemp,
     removeImage,
     cleanupTemp,
-    listImageFiles,
     close,
   }
 }

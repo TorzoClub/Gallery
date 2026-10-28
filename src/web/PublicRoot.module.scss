@@ -1,0 +1,12 @@
+.channelBackground {
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}
+
+.channelBehind {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+}

@@ -52,6 +52,8 @@ describe('dispatch authentication and envelopes', () => {
     const config = await ctx.adminQuery('adminGetInstanceConfig')
     expect(config.status).toBe(200)
     expect(config.body.data.image_thumb_size).toBe(640)
+    expect(config.body.data.avif_source_quality).toBe(75)
+    expect(config.body.data.image_processing_effort).toBe(8)
     expect(config.body.data.max_upload_bytes).toBe(16 * 1024 * 1024)
   })
 
@@ -59,6 +61,10 @@ describe('dispatch authentication and envelopes', () => {
     const unknown = await ctx.query('doesNotExist')
     expect(unknown.status).toBe(404)
     expect(unknown.body.code).toBe('UNKNOWN_ACTION')
+
+    const removed = await ctx.adminMutate('adminCleanUnusedImages')
+    expect(removed.status).toBe(404)
+    expect(removed.body.code).toBe('UNKNOWN_ACTION')
 
     const malformed = await ctx.app.request('/query/listGalleries', {
       method: 'POST',

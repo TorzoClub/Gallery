@@ -60,6 +60,19 @@ function expectedOrientedSize(metadata: ImageMetadata): { width: number; height:
     ? { width: metadata.height, height: metadata.width }
     : { width: metadata.width, height: metadata.height }
 }
+function variantName(source: string, variant: 'sdr' | 'hdr'): string {
+  const dot = source.lastIndexOf('.')
+  return `${source.slice(0, dot)}-${variant}.avif`
+}
+
+function thumbName(source: string): string {
+  const dot = source.lastIndexOf('.')
+  return `${source.slice(0, dot)}.avif`
+}
+
+function filenameFromUrl(value: string): string {
+  return decodeURIComponent(new URL(value).pathname.split('/').pop() as string)
+}
 
 describe('storage persistence', () => {
   it('reloads pool, members, galleries, next_id and instance config', async () => {
@@ -128,7 +141,7 @@ describe('storage persistence', () => {
 })
 
 describe('image flow', () => {
-  it('serves source/thumb, refreshes a thumb and cleans orphan files', async () => {
+  it('serves source/optimized/thumb and refreshes derived images', async () => {
     const ctx = await context()
     const member = await ctx.createMember({ qq_num: 51001 })
     const gallery = await ctx.createGallery()
@@ -140,34 +153,67 @@ describe('image flow', () => {
     })
     const source_name = `photo-${gallery.id}-${photo.id}-${crc32Hex(image)}.png`
     expect(photo.src).toBe(source_name)
-    expect(photo.thumb).toBe(`${source_name.slice(0, -4)}.avif`)
+    expect(photo.has_hdr_optimized).toBe(false)
+    const thumb_name = thumbName(source_name)
+    const optimized_name = variantName(source_name, 'sdr')
+    const instance_hash = ctx.instance.getInstanceHash()
+    expect(photo.thumb).toContain(`/images/thumb/${thumb_name}?v=${instance_hash}`)
+    expect(photo.thumb_url).toBe(photo.thumb)
+    expect(photo.src_optimized).toContain(`/images/optimized/${optimized_name}?v=${instance_hash}`)
+    expect(photo.src_optimized_hdr).toBeNull()
+    expect(photo.src_url).toBe(`http://test.local/images/source/${source_name}`)
+    expect(photo.src_url).not.toContain('?v=')
 
     const source_response = await ctx.app.request(`/images/source/${photo.src}`)
     expect(source_response.status).toBe(200)
     expect(source_response.headers.get('content-type')).toBe('image/png')
     expect(source_response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+    expect(Buffer.from(await source_response.arrayBuffer())).toEqual(image)
 
-    const thumb_response = await ctx.app.request(`/images/thumb/${photo.thumb}`)
+    const optimized_url = new URL(photo.src_optimized as string).pathname
+    const optimized_response = await ctx.app.request(optimized_url)
+    expect(optimized_response.status).toBe(200)
+    expect(optimized_response.headers.get('content-type')).toBe('image/avif')
+    expect(optimized_response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+    const optimized_metadata = await sharp(Buffer.from(await optimized_response.arrayBuffer())).metadata()
+    expect(optimized_metadata.format).toBe('heif')
+    expect(optimized_metadata.width).toBe(300)
+    expect(optimized_metadata.height).toBe(200)
+
+    const hdr_response = await ctx.app.request(`/images/optimized/${variantName(source_name, 'hdr')}`)
+    expect(hdr_response.status).toBe(404)
+
+    const thumb_response = await ctx.app.request(`/images/thumb/${filenameFromUrl(photo.thumb as string)}`)
     expect(thumb_response.status).toBe(200)
     expect(thumb_response.headers.get('content-type')).toBe('image/avif')
     expect(thumb_response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
 
-    const thumb_path = ctx.storage.imagePath('thumb', photo.thumb as string)
+    const old_photo_base = source_name.slice(0, source_name.lastIndexOf('.'))
+    const old_suffixed = `${old_photo_base}-sdr.png`
+    const old_source_ext = `${old_photo_base}.png`
+    const old_thumb_avif = `${old_photo_base}-sdr.avif`
+    for (const file of [old_suffixed, old_source_ext]) {
+      await fs.writeFile(ctx.storage.imagePath('optimized', file), 'old')
+      await fs.writeFile(ctx.storage.imagePath('thumb', file), 'old')
+    }
+    await fs.writeFile(ctx.storage.imagePath('thumb', old_thumb_avif), 'old')
+
+    await fs.rm(ctx.storage.imagePath('optimized', variantName(source_name, 'sdr')))
+    const thumb_path = ctx.storage.imagePath('thumb', thumb_name)
     await fs.rm(thumb_path)
     const refreshed = await ctx.adminMutate('adminRefreshThumb', { photo_id: photo.id })
     expect(refreshed.status).toBe(200)
+    await expect(fs.access(ctx.storage.imagePath('optimized', variantName(source_name, 'sdr'))))
+      .resolves.toBeUndefined()
     await expect(fs.access(thumb_path)).resolves.toBeUndefined()
-
-    const orphan_source = path.join(ctx.storage.paths.source, 'orphan.png')
-    const orphan_thumb = path.join(ctx.storage.paths.thumb, 'orphan.avif')
-    await fs.writeFile(orphan_source, 'orphan')
-    await fs.writeFile(orphan_thumb, 'orphan')
-
-    const cleaned = await ctx.adminMutate('adminCleanUnusedImages')
-    expect(cleaned.status).toBe(200)
-    expect(cleaned.body.data.removed).toContain(orphan_source)
-    await expect(fs.access(orphan_source)).rejects.toMatchObject({ code: 'ENOENT' })
-    await expect(fs.access(orphan_thumb)).rejects.toMatchObject({ code: 'ENOENT' })
+    for (const file of [old_suffixed, old_source_ext]) {
+      await expect(fs.access(ctx.storage.imagePath('optimized', file)))
+        .rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(fs.access(ctx.storage.imagePath('thumb', file)))
+        .rejects.toMatchObject({ code: 'ENOENT' })
+    }
+    await expect(fs.access(ctx.storage.imagePath('thumb', old_thumb_avif)))
+      .rejects.toMatchObject({ code: 'ENOENT' })
 
     // Referenced files survive.
     await expect(fs.access(ctx.storage.imagePath('source', photo.src as string)))
@@ -251,7 +297,8 @@ describe('image flow', () => {
     const member = await ctx.createMember({ qq_num: 51004 })
     const gallery = await ctx.createGallery()
     const ori6_path = await makeExifOriented6Image()
-    const expected = expectedOrientedSize(await sharp(ori6_path).metadata())
+    const metadata = await sharp(ori6_path).metadata()
+    const expected = expectedOrientedSize(metadata)
 
     const uploaded = await ctx.uploadImage(await fs.readFile(ori6_path), 'ori6.jpg')
     const created = await ctx.adminMutate('adminCreatePhoto', {
@@ -266,15 +313,77 @@ describe('image flow', () => {
     const source_response = await ctx.app.request(`/images/source/${photo.src}`)
     expect(source_response.status).toBe(200)
     const source_metadata = await sharp(Buffer.from(await source_response.arrayBuffer())).metadata()
-    expect(source_metadata.width).toBe(expected.width)
-    expect(source_metadata.height).toBe(expected.height)
+    expect(source_metadata.width).toBe(metadata.width)
+    expect(source_metadata.height).toBe(metadata.height)
+    expect(source_metadata.orientation).toBe(6)
 
-    const thumb_response = await ctx.app.request(`/images/thumb/${photo.thumb}`)
+    const optimized_response = await ctx.app.request(new URL(photo.src_optimized as string).pathname)
+    expect(optimized_response.status).toBe(200)
+    const optimized_metadata = await sharp(Buffer.from(await optimized_response.arrayBuffer())).metadata()
+    expect(optimized_metadata.width).toBe(expected.width)
+    expect(optimized_metadata.height).toBe(expected.height)
+
+    const thumb_response = await ctx.app.request(`/images/thumb/${filenameFromUrl(photo.thumb as string)}`)
     expect(thumb_response.status).toBe(200)
     const thumb_metadata = await sharp(Buffer.from(await thumb_response.arrayBuffer())).metadata()
     expect(thumb_metadata.width).toBeGreaterThan(thumb_metadata.height)
     expect(thumb_metadata.width).toBe(640)
     expect(thumb_metadata.height).toBe(Math.round(expected.height * 640 / expected.width))
+  })
+
+  it('keeps a 10-bit source and generates only SDR derived images', async () => {
+    const ctx = await context()
+    const member = await ctx.createMember({ qq_num: 51006 })
+    const gallery = await ctx.createGallery()
+    const avif = await sharp(await makePng(240, 160))
+      .avif({ bitdepth: 10, quality: 75, effort: 6 })
+      .toBuffer()
+    const photo = await ctx.createPhoto({
+      gallery_id: gallery.id as number,
+      member_id: member.id as number,
+      image: avif,
+      image_filename: 'hdr.avif',
+    })
+    expect(photo.has_hdr_optimized).toBe(false)
+    const photo_src = photo.src as string
+    const photo_thumb = photo.thumb as string
+    expect(photo.src_optimized_hdr).toBeNull()
+
+    const source_response = await ctx.app.request(`/images/source/${photo_src}`)
+    expect(source_response.status).toBe(200)
+    expect(Buffer.from(await source_response.arrayBuffer())).toEqual(avif)
+
+    const sdr_url = new URL(photo.src_optimized as string).pathname
+    const hdr_url = `/images/optimized/${variantName(photo_src, 'hdr')}`
+    const sdr_response = await ctx.app.request(sdr_url)
+    const hdr_response = await ctx.app.request(hdr_url)
+    expect(sdr_response.status).toBe(200)
+    expect(hdr_response.status).toBe(404)
+    expect(sdr_response.headers.get('content-type')).toBe('image/avif')
+
+    const sdr = await sharp(Buffer.from(await sdr_response.arrayBuffer())).metadata()
+    expect(sdr.bitsPerSample).toBe(8)
+
+    expect(photo_thumb).toContain(`/images/thumb/${thumbName(photo_src)}?v=`)
+    const sdr_thumb_name = thumbName(photo_src)
+    const sdr_thumb = await ctx.app.request(`/images/thumb/${sdr_thumb_name}`)
+    const hdr_thumb = await ctx.app.request(`/images/thumb/${variantName(photo_src, 'hdr')}`)
+    expect(sdr_thumb.status).toBe(200)
+    expect(hdr_thumb.status).toBe(404)
+    expect(sdr_thumb.headers.get('content-type')).toBe('image/avif')
+
+    await fs.rm(ctx.storage.imagePath('optimized', variantName(photo_src, 'sdr')))
+    await fs.rm(ctx.storage.imagePath('thumb', thumbName(photo_src)))
+    const refreshed = await ctx.adminMutate('adminRefreshThumb', { photo_id: photo.id })
+    expect(refreshed.status).toBe(200)
+    await expect(fs.access(ctx.storage.imagePath('optimized', variantName(photo_src, 'sdr'))))
+      .resolves.toBeUndefined()
+    await expect(fs.access(ctx.storage.imagePath('thumb', thumbName(photo_src))))
+      .resolves.toBeUndefined()
+    await expect(fs.access(ctx.storage.imagePath('optimized', variantName(photo_src, 'hdr'))))
+      .rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(fs.access(ctx.storage.imagePath('thumb', variantName(photo_src, 'hdr'))))
+      .rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('stores uploads as UUIDv7 temp files with crc32 metadata', async () => {
@@ -345,6 +454,63 @@ describe('image flow', () => {
     vi.useRealTimers()
   })
 
+  it('stores avatar source and an SDR thumb named .avif', async () => {
+    const ctx = await context()
+    const avatar = await makePng(300, 200)
+    const member = await ctx.createMember({ qq_num: 51007, avatar })
+    const avatar_src = member.avatar_src as string
+    const avatar_thumb = member.avatar_thumb as string
+    expect(avatar_src).toMatch(/^avatar-51007-[0-9a-f]{8}\.png$/)
+    expect(avatar_thumb).toMatch(/^avatar-51007-[0-9a-f]{8}\.avif$/)
+    expect(avatar_src).not.toBe(avatar_thumb)
+
+    const source_response = await ctx.app.request(`/images/source/${avatar_src}`)
+    expect(source_response.status).toBe(200)
+    expect(Buffer.from(await source_response.arrayBuffer())).toEqual(avatar)
+
+    const thumb_response = await ctx.app.request(`/images/thumb/${avatar_thumb}`)
+    expect(thumb_response.status).toBe(200)
+    expect(thumb_response.headers.get('content-type')).toBe('image/avif')
+    const thumb = await sharp(Buffer.from(await thumb_response.arrayBuffer())).metadata()
+    expect(thumb.bitsPerSample).toBe(8)
+
+    const hdr_avatar = await sharp(await makePng(300, 200))
+      .avif({ bitdepth: 10, quality: 75, effort: 6 })
+      .toBuffer()
+    const hdr_member = await ctx.createMember({
+      qq_num: 51008,
+      avatar: hdr_avatar,
+      avatar_filename: 'avatar.avif',
+    })
+    expect(hdr_member.avatar_src).toBe(hdr_member.avatar_thumb)
+    expect(member.avatar_thumb_url).toContain(`?v=${ctx.instance.getInstanceHash()}`)
+    const hdr_avatar_thumb = hdr_member.avatar_thumb as string
+    const hdr_thumb_response = await ctx.app.request(`/images/thumb/${hdr_avatar_thumb}`)
+    expect(hdr_thumb_response.status).toBe(200)
+    const hdr_thumb = await sharp(Buffer.from(await hdr_thumb_response.arrayBuffer())).metadata()
+    expect(hdr_thumb.bitsPerSample).toBe(8)
+  })
+
+  it('rebuilds an avatar thumb without deleting it', async () => {
+    const ctx = await context()
+    const avatar = await makePng(128, 128)
+    const member = await ctx.createMember({ qq_num: 51009, avatar })
+    const thumb_name = filenameFromUrl(member.avatar_thumb_url as string)
+    const thumb_path = ctx.storage.imagePath('thumb', thumb_name)
+    const old_thumb_path = ctx.storage.imagePath('thumb', member.avatar_src as string)
+    await fs.writeFile(old_thumb_path, 'old')
+    await fs.rm(thumb_path)
+    await expect(fs.access(thumb_path)).rejects.toMatchObject({ code: 'ENOENT' })
+
+    const refreshed = await ctx.adminMutate('adminRefreshAvatar', { member_id: member.id })
+    expect(refreshed.status).toBe(200)
+    await expect(fs.access(thumb_path)).resolves.toBeUndefined()
+    await expect(fs.access(old_thumb_path)).rejects.toMatchObject({ code: 'ENOENT' })
+    const metadata = await sharp(await fs.readFile(thumb_path)).metadata()
+    expect(metadata.format).toBe('heif')
+    expect(metadata.width).toBe(128)
+  })
+
   it('replaces a photo image and removes the old files', async () => {
     const ctx = await context()
     const member = await ctx.createMember({ qq_num: 51002 })
@@ -356,7 +522,8 @@ describe('image flow', () => {
     })
 
     const old_source = photo.src as string
-    const old_thumb = photo.thumb as string
+    const old_thumb = filenameFromUrl(photo.thumb as string)
+    const old_base = old_source.slice(0, old_source.lastIndexOf('.'))
     const first_image = await makePng(320, 240, { r: 10, g: 20, b: 220 })
     const temp = await ctx.uploadImage(first_image)
     const updated = await ctx.adminMutate('adminUpdatePhoto', {
@@ -367,9 +534,13 @@ describe('image flow', () => {
     expect(updated.status).toBe(200)
     const first_source = `photo-${gallery.id}-${photo.id}-${crc32Hex(first_image)}.png`
     expect(updated.body.data.src).toBe(first_source)
-    expect(updated.body.data.thumb).toBe(`${first_source.slice(0, -4)}.avif`)
+    expect(updated.body.data.thumb).toContain(`/images/thumb/${thumbName(first_source)}?v=`)
 
     await expect(fs.access(ctx.storage.imagePath('source', old_source)))
+      .rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(fs.access(ctx.storage.imagePath('optimized', variantName(old_source, 'sdr'))))
+      .rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(fs.access(ctx.storage.imagePath('thumb', thumbName(old_source))))
       .rejects.toMatchObject({ code: 'ENOENT' })
     await expect(fs.access(ctx.storage.imagePath('thumb', old_thumb)))
       .rejects.toMatchObject({ code: 'ENOENT' })
@@ -384,12 +555,16 @@ describe('image flow', () => {
     expect(second.status).toBe(200)
     const second_source = `photo-${gallery.id}-${photo.id}-${crc32Hex(second_image)}.png`
     expect(second.body.data.src).toBe(second_source)
-    expect(second.body.data.thumb).toBe(`${second_source.slice(0, -4)}.avif`)
+    expect(second.body.data.thumb).toContain(`/images/thumb/${thumbName(second_source)}?v=`)
     await expect(fs.access(ctx.storage.imagePath('source', first_source)))
       .rejects.toMatchObject({ code: 'ENOENT' })
-    await expect(fs.access(ctx.storage.imagePath('thumb', `${first_source.slice(0, -4)}.avif`)))
+    await expect(fs.access(ctx.storage.imagePath('optimized', variantName(first_source, 'sdr'))))
+      .rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(fs.access(ctx.storage.imagePath('thumb', thumbName(first_source))))
       .rejects.toMatchObject({ code: 'ENOENT' })
     await expect(fs.access(ctx.storage.imagePath('source', second_source)))
+      .resolves.toBeUndefined()
+    await expect(fs.access(ctx.storage.imagePath('optimized', variantName(second_source, 'sdr'))))
       .resolves.toBeUndefined()
 
     // 相同内容复用同一个 CRC 文件名，不产生新文件。

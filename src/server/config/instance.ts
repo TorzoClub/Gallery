@@ -8,7 +8,8 @@ const InstanceConfigDataSchema = z.object({
   avatar_thumb_size: z.number().int().min(16).max(2048).default(128),
   image_thumb_size: z.number().int().min(32).max(4096).default(640),
   image_thumb_quality: z.number().int().min(1).max(100).default(40),
-  image_thumb_effort: z.number().int().min(0).max(9).default(8),
+  avif_source_quality: z.number().int().min(1).max(100).default(75),
+  image_processing_effort: z.number().int().min(0).max(9).default(8),
   max_image_dimension: z.number().int().min(256).max(16384).default(3840),
   max_upload_bytes: z
     .number()
@@ -29,7 +30,8 @@ export const DEFAULT_INSTANCE_CONFIG: InstanceConfig = Object.freeze({
   avatar_thumb_size: 128,
   image_thumb_size: 640,
   image_thumb_quality: 40,
-  image_thumb_effort: 8,
+  avif_source_quality: 75,
+  image_processing_effort: 8,
   max_image_dimension: 3840,
   max_upload_bytes: 16 * 1024 * 1024,
 })

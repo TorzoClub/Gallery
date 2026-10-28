@@ -37,7 +37,31 @@ export function isSafeFilename(filename: string): boolean {
   return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(filename)
 }
 
-export function thumbFilename(source_filename: string): string {
+export function photoVariantFilename(
+  source_filename: string,
+  variant: 'sdr' | 'hdr',
+): string {
+  return `${basenameWithoutExtension(source_filename)}-${variant}.avif`
+}
+
+export function legacyPhotoVariantFilename(
+  source_filename: string,
+  variant: 'sdr' | 'hdr',
+): string {
+  return `${basenameWithoutExtension(source_filename)}-${variant}.${extensionOf(source_filename)}`
+}
+
+export function legacyUnversionedPhotoFilenames(source_filename: string): string[] {
+  const base = basenameWithoutExtension(source_filename)
+  const source_ext = extensionOf(source_filename)
+  return [...new Set([`${base}.avif`, `${base}.${source_ext}`])]
+}
+
+export function photoThumbFilename(source_filename: string): string {
+  return `${basenameWithoutExtension(source_filename)}.avif`
+}
+
+export function avatarThumbFilename(source_filename: string): string {
   return `${basenameWithoutExtension(source_filename)}.avif`
 }
 

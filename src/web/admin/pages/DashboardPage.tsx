@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { getInstanceConfig, updateInstanceConfig } from '../api/config'
-import { cleanUnusedImages, getAvailablePhotos, refreshAvatar, refreshThumb } from '../api/image'
+import { getAvailablePhotos, refreshAvatar, refreshThumb } from '../api/image'
 import { listMembers } from '../api/member'
 import { getStatistic } from '../api/statistic'
 import type { InstanceConfig, Statistic } from '../api/types'
@@ -42,7 +42,8 @@ type ConfigForm = {
   avatar_thumb_size: string
   image_thumb_size: string
   image_thumb_quality: string
-  image_thumb_effort: string
+  avif_source_quality: string
+  image_processing_effort: string
   max_image_dimension: string
   max_upload_mb: string
 }
@@ -53,7 +54,8 @@ const EMPTY_CONFIG_FORM: ConfigForm = {
   avatar_thumb_size: '',
   image_thumb_size: '',
   image_thumb_quality: '',
-  image_thumb_effort: '',
+  avif_source_quality: '',
+  image_processing_effort: '',
   max_image_dimension: '',
   max_upload_mb: '',
 }
@@ -63,7 +65,8 @@ function configFormFrom(config: InstanceConfig): ConfigForm {
     avatar_thumb_size: String(config.avatar_thumb_size),
     image_thumb_size: String(config.image_thumb_size),
     image_thumb_quality: String(config.image_thumb_quality),
-    image_thumb_effort: String(config.image_thumb_effort),
+    avif_source_quality: String(config.avif_source_quality),
+    image_processing_effort: String(config.image_processing_effort),
     max_image_dimension: String(config.max_image_dimension),
     max_upload_mb: String(Math.round(config.max_upload_bytes / (1024 * 1024))),
   }
@@ -93,7 +96,6 @@ export default function DashboardPage() {
   const [statistic, setStatistic] = useState<Statistic | null>(null)
   const [statsLoading, setStatsLoading] = useState(true)
   const [statsError, setStatsError] = useState('')
-  const [cleanBusy, setCleanBusy] = useState(false)
   const [preparingThumbs, setPreparingThumbs] = useState(false)
   const [progress, setProgress] = useState<ThumbProgress>(emptyProgress)
   const [config, setConfig] = useState<InstanceConfig | null>(null)
@@ -177,14 +179,16 @@ export default function DashboardPage() {
     const avatar = parseIntegerField(configForm.avatar_thumb_size, 16, 2048, '头像缩略图尺寸')
     const image = parseIntegerField(configForm.image_thumb_size, 32, 4096, '相片缩略图尺寸')
     const quality = parseIntegerField(configForm.image_thumb_quality, 1, 100, '缩略图质量')
-    const effort = parseIntegerField(configForm.image_thumb_effort, 0, 9, '缩略图 effort')
+    const source_quality = parseIntegerField(configForm.avif_source_quality, 1, 100, '全尺寸 AVIF 质量')
+    const effort = parseIntegerField(configForm.image_processing_effort, 0, 9, '图像转换的计算投入')
     const dimension = parseIntegerField(configForm.max_image_dimension, 256, 16384, '最大图片尺寸')
     const upload_mb = parseIntegerField(configForm.max_upload_mb, 1, 1024, '最大上传大小')
 
     if (avatar.error) errors.avatar_thumb_size = avatar.error
     if (image.error) errors.image_thumb_size = image.error
     if (quality.error) errors.image_thumb_quality = quality.error
-    if (effort.error) errors.image_thumb_effort = effort.error
+    if (source_quality.error) errors.avif_source_quality = source_quality.error
+    if (effort.error) errors.image_processing_effort = effort.error
     if (dimension.error) errors.max_image_dimension = dimension.error
     if (upload_mb.error) errors.max_upload_mb = upload_mb.error
 
@@ -198,7 +202,8 @@ export default function DashboardPage() {
         avatar_thumb_size: avatar.value as number,
         image_thumb_size: image.value as number,
         image_thumb_quality: quality.value as number,
-        image_thumb_effort: effort.value as number,
+        avif_source_quality: source_quality.value as number,
+        image_processing_effort: effort.value as number,
         max_image_dimension: dimension.value as number,
         max_upload_bytes: (upload_mb.value as number) * 1024 * 1024,
       },
@@ -340,8 +345,8 @@ export default function DashboardPage() {
     }
 
     const confirmed = await confirm({
-      title: '重新生成缩略图',
-      message: '这将重新生成所有相片和成员头像的缩略图，可能需要较长时间。处理过程中请不要关闭页面。',
+      title: '重新生成图片',
+      message: '这会重新生成所有相片的 optimized 大图与缩略图，以及成员头像缩略图，可能需要较长时间。处理过程中请不要关闭页面。',
       confirmText: '开始处理',
     })
     if (!confirmed) {
@@ -366,40 +371,6 @@ export default function DashboardPage() {
       return
     }
     await runThumbTasks(progress.failures.map(item => item.task))
-  }
-
-  const handleCleanImages = async () => {
-    if (cleanBusy) {
-      return
-    }
-
-    const confirmed = await confirm({
-      title: '清理无引用图片',
-      message: '这会删除图片库中没有被相片或成员头像引用的文件。如果还有未保存的上传，请先完成保存。',
-      confirmText: '开始清理',
-      danger: true,
-    })
-    if (!confirmed) {
-      return
-    }
-
-    setCleanBusy(true)
-    try {
-      const removed = await cleanUnusedImages()
-      const count = Array.isArray(removed) ? removed.length : 0
-      if (count > 0) {
-        toast.success(`已清理 ${count} 个无引用文件`)
-      } else {
-        toast.info('没有发现无引用图片')
-      }
-      await loadStats()
-    } catch (err) {
-      toast.error(getApiErrorMessage(err, '清理图片失败'))
-    } finally {
-      if (mountedRef.current) {
-        setCleanBusy(false)
-      }
-    }
   }
 
   const total = progress.total
@@ -530,15 +501,26 @@ export default function DashboardPage() {
                   onChange={event => setConfigField('image_thumb_quality', event.target.value)}
                 />
               </Field>
-              <Field label="缩略图 effort" htmlFor="config-effort" error={configErrors.image_thumb_effort} hint="0–9">
+              <Field label="全尺寸 AVIF 质量" htmlFor="config-source-quality" error={configErrors.avif_source_quality} hint="1–100">
+                <input
+                  id="config-source-quality"
+                  className="adm-input"
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={configForm.avif_source_quality}
+                  onChange={event => setConfigField('avif_source_quality', event.target.value)}
+                />
+              </Field>
+              <Field label="图像转换的计算投入（CPU effort）" htmlFor="config-effort" error={configErrors.image_processing_effort} hint="0–9">
                 <input
                   id="config-effort"
                   className="adm-input"
                   type="number"
                   min={0}
                   max={9}
-                  value={configForm.image_thumb_effort}
-                  onChange={event => setConfigField('image_thumb_effort', event.target.value)}
+                  value={configForm.image_processing_effort}
+                  onChange={event => setConfigField('image_processing_effort', event.target.value)}
                 />
               </Field>
               <Field label="最大图片尺寸" htmlFor="config-dimension" error={configErrors.max_image_dimension} hint="256–16384 px">
@@ -578,15 +560,15 @@ export default function DashboardPage() {
         <div className="adm-card__header">
           <div>
             <h2>缩略图重建</h2>
-            <p>重新生成相片缩略图和成员头像缩略图。处理会按顺序逐张进行。</p>
+            <p>重新生成相片的 optimized 大图与缩略图，以及成员头像缩略图。处理会按顺序逐张进行。</p>
           </div>
           <button
             type="button"
             className="adm-button adm-button--primary"
-            disabled={running || cleanBusy}
+            disabled={running}
             onClick={() => void handleRefreshThumbs()}
           >
-            {running ? <><Spinner size={16} /> 处理中…</> : <><Icon name="refresh" size={16} /> 重新生成缩略图</>}
+            {running ? <><Spinner size={16} /> 处理中…</> : <><Icon name="refresh" size={16} /> 重新生成图片</>}
           </button>
         </div>
 
@@ -637,22 +619,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <div className="adm-card">
-        <div className="adm-card__header">
-          <div>
-            <h2>图片存储清理</h2>
-            <p>删除图片库中没有被任何相片或成员头像引用的文件，释放磁盘空间。</p>
-          </div>
-          <button
-            type="button"
-            className="adm-button adm-button--danger"
-            disabled={cleanBusy || running}
-            onClick={() => void handleCleanImages()}
-          >
-            {cleanBusy ? <><Spinner size={16} /> 清理中…</> : <><Icon name="trash" size={16} /> 清理无引用图片</>}
-          </button>
-        </div>
-      </div>
 
     </div>
   )

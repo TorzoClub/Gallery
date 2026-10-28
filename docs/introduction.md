@@ -61,7 +61,7 @@ Node HTTP Server
   │     ├── POST /query/*, /mutate/*
   │     ├── POST /admin/query/*, /admin/mutate/*
   │     ├── POST /auth/login, /upload-image
-  │     ├── GET /images/source|thumb/*
+  │     ├── GET /images/source|optimized|thumb/*
   │     └── GET /healthz
   │           ▼
   │        Hono API listener
@@ -107,8 +107,9 @@ Node HTTP Server
 ## 关键决策
 
 - 单体同源：前端与 API 在同一个 HTTP 服务下，避免 CORS 和跨服务部署。
-- 前端 bundle 使用 hash 文件名并强缓存；HTML 使用 `no-cache` 弱缓存；图片使用实体 ID + 内容 CRC32 文件名并强缓存；上传临时文件使用 UUIDv7。
+- 前端 bundle 使用 hash 文件名并强缓存；HTML 使用 `no-cache` 弱缓存；source 保存原始上传字节，optimized/thumb 使用实体 ID + 内容 CRC32 文件名并强缓存；上传临时文件使用 UUIDv7。
 - 公开页和后台共用前端入口，后台整体异步加载。
+- 图片分三类：`source` 原图、`optimized` 全尺寸 SDR AVIF、`thumb` SDR AVIF 缩略图；相片 optimized 固定为 `-sdr.avif`，thumb 为无后缀 `.avif`；头像 thumb 为 `.avif`。当前 Phase 0 只生成 SDR；HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
 - 后台保持轻依赖和工具化，不套用公开页视觉风格。
 - 后端通过 dispatch action 执行业务，admin action 只能从 admin 路由调用。
 - storage 是单实例 JSON + 图片池；同一 storage 只允许一个进程写。

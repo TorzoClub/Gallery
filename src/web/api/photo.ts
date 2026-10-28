@@ -161,12 +161,6 @@ export function cancelMySubmission(p: { qq_num: number | string; photo_id: numbe
   })
 }
 
-// The new API serves an AVIF thumbnail directly. Keep this helper for callers
-// that used to swap source extensions for next-generation variants.
-export function toOptimizedImageType(picture_url: string): string {
-  return picture_url
-}
-
 export function canUseCacheWorker(): boolean {
   const cacheWorkerURL = import.meta.env.VITE_CACHE_WORKER_URL
   if (import.meta.env.DEV) {

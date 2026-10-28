@@ -78,6 +78,10 @@ describe('member actions', () => {
   })
 })
 
+function thumbFilename(url: string): string {
+  return decodeURIComponent(new URL(url).pathname.split('/').pop() as string)
+}
+
 describe('photo actions', () => {
   it('creates, updates and deletes a photo and its files', async () => {
     const member = await ctx.createMember({ qq_num: 31001 })
@@ -90,7 +94,7 @@ describe('photo actions', () => {
     })
 
     const source_path = ctx.storage.imagePath('source', photo.src as string)
-    const thumb_path = ctx.storage.imagePath('thumb', photo.thumb as string)
+    const thumb_path = ctx.storage.imagePath('thumb', thumbFilename(photo.thumb as string))
     await expect(fs.access(source_path)).resolves.toBeUndefined()
     await expect(fs.access(thumb_path)).resolves.toBeUndefined()
 

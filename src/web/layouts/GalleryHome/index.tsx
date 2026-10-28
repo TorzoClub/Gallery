@@ -15,7 +15,6 @@ import {
   fetchList,
   vote,
   canUseCacheWorker,
-  toOptimizedImageType,
   transformCacheWorkerURL
 } from 'api/photo'
 
@@ -62,7 +61,10 @@ function usePhotoLoadingPriority(
 
   const id_src_map = useMemo(() => {
     const m = new Map<number, string>()
-    photo_list.forEach(p => m.set(p.id, p.thumb_url))
+    photo_list.forEach(p => m.set(
+      p.id,
+      p.thumb,
+    ))
     return m
   }, [photo_list])
 
@@ -237,23 +239,26 @@ export default () => {
   useEffect(() => {
     let mounted = true
     if (loaded === true) { return }
-    fetchList().then(({ active, galleries: list }) => {
-      if (mounted === false) { return }
-      setLoaded(true)
+    timeout(4000)
+      .then(() => fetchList())
+      .then(({ active, galleries: list }) => {
+        if (mounted === false) { return }
+        setLoaded(true)
 
-      if (active !== null) {
-        setActive({
-          ...active,
-          photos: shuffleArray(active.photos)
-        })
-        setShowNormalList(false)
-        setList(list)
-      } else {
-        setActive(null)
-        setShowNormalList(true)
-        setList(list)
-      }
-    }).catch(err => signal_critical_error.trigger(`获取相册列表失败: ${err}`))
+        if (active !== null) {
+          setActive({
+            ...active,
+            photos: shuffleArray(active.photos)
+          })
+          setShowNormalList(false)
+          setList(list)
+        } else {
+          setActive(null)
+          setShowNormalList(true)
+          setList(list)
+        }
+      })
+      .catch(err => signal_critical_error.trigger(`获取相册列表失败: ${err}`))
     return () => { mounted = false }
   }, [loaded, setActive])
 
@@ -411,16 +416,20 @@ export default () => {
   ), [handleClickAnyWhere, showConfirmVoteLayout])
 
   const getSrcUrl = useCallback((url: string) => {
-    const new_type_url = toOptimizedImageType(url)
     if (canUseCacheWorker()) {
-      return `${transformCacheWorkerURL(new_type_url)}&redirect=1`
+      return `${transformCacheWorkerURL(url)}&redirect=1`
     } else {
-      return new_type_url
+      return url
     }
   }, [])
 
   const HandleClickCover = useCallback((gallerycommon: GalleryCommon & {
-    photos: Array<{ id: number; src_url: string; width: number; height: number }>
+    photos: Array<{
+      id: number
+      src_optimized: string
+      width: number
+      height: number
+    }>
   }) => {
     const handler: WaterfallLayoutClickCoverHandler = ({ from, thumbBlobUrl }, photo_id) => {
       const idx = findListByProperty(gallerycommon.photos, 'id', photo_id)
@@ -429,7 +438,7 @@ export default () => {
         setImageDetail({
           from: from,
           thumb: thumbBlobUrl,
-          src: getSrcUrl(photo.src_url),
+          src: getSrcUrl(photo.src_optimized),
           height: photo.height,
           width: photo.width
         })
@@ -441,7 +450,7 @@ export default () => {
   const [show_normal_list, setShowNormalList] = useState(false)
 
   const show_normal_list_btn_node = useMemo(() => {
-    if (active && !show_normal_list) {
+    if (active && !show_normal_list && (list.length >= 1)) {
       return (
         <SkeuomorphismButton onClick={() => setShowNormalList(true)}>
           查看过往相册

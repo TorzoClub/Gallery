@@ -70,6 +70,7 @@ ls dist/client/assets
 curl -I http://127.0.0.1:7001/
 curl -I http://127.0.0.1:7001/assets/<hash>.js
 curl -I http://127.0.0.1:7001/images/source/<file>
+curl -I http://127.0.0.1:7001/images/optimized/<file>
 ```
 
 预期：
@@ -100,11 +101,20 @@ HTML 是 `no-cache`，正常情况下刷新会重新验证。若浏览器或 CDN
 
 QQ number 是成员身份的一部分，创建后不可修改。`adminUpdateMember` 不接受 `qq_num`；如果需要新 QQ，必须创建新成员。
 
+## 大图 404 / optimized 不存在
+
+- 前端请求的是 `/images/optimized/` 下的 `-sdr.avif` 和无后缀 thumb。
+- 旧相片或缺失衍生图会直接 404，不回退原图。
+- 在后台执行“重新生成图片”，会重建相片的 SDR optimized/thumb 和成员头像 thumb；旧命名文件及旧的 HDR AVIF 会被清理。
+- 旧 storage 中可能残留 `.jpg`/无变体文件；执行一次重建即可转换为 `.avif` 命名。
+- 当前 Phase 0 不生成 HDR optimized；HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
+- 修改 instance 配置后，派生图 URL 的 `?v` 会变化；如果仍看到旧图，刷新页面获取新 API 响应。
+
 ## instance 配置修改后没有生效
 
-- 配置只影响**后续**上传和缩略图生成，不会自动重做已有图片。
+- 配置只影响**后续**上传和 optimized/缩略图生成，不会自动重做已有图片。
 - 保存成功后刷新页面确认值。
-- 需要重建已有图片时，在后台使用缩略图重建/刷新操作。
+- 需要重建已有图片时，在后台使用“重新生成图片”操作。
 - `max_upload_bytes` 不能超过 `HTTP_BODY_HARD_LIMIT_BYTES`，否则服务端返回 400。
 
 ## storage lock 冲突

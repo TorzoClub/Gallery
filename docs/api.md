@@ -38,7 +38,8 @@
 | `POST` | `/admin/mutate/:name` | admin mutation，需要 Bearer token |
 | `POST` | `/upload-image` | 上传图片到临时目录 |
 | `GET` | `/images/source/:file` | 原图 |
-| `GET` | `/images/thumb/:file` | 缩略图 |
+| `GET` | `/images/optimized/:file` | 全尺寸 SDR AVIF；始终返回 image/avif |
+| `GET` | `/images/thumb/:file` | SDR 缩略图；始终返回 image/avif |
 | `GET` | `/healthz` | 健康检查 |
 
 `/admin/*` 的 query/mutation 需要 `Authorization: Bearer <token>`。公开路由调用 admin action 返回 `403`。
@@ -97,9 +98,8 @@
 | `adminUpdatePhoto` | `{ photo_id, gallery_id?, member_id?, desc?, index?, temp_id? }` | 更新相片 |
 | `adminRemovePhoto` | `{ photo_id }` | 删除相片 |
 | `adminSortPhotosByVoteCount` | `{ gallery_id }` | 按票数排序 |
-| `adminRefreshThumb` | `{ photo_id }` | 重建相片缩略图 |
+| `adminRefreshThumb` | `{ photo_id }` | 重建 SDR optimized 和缩略图 |
 | `adminRefreshAvatar` | `{ member_id }` | 重建头像缩略图 |
-| `adminCleanUnusedImages` | `{}` | 清理无引用图片，返回 `{ removed: string[] }` |
 
 日期字段使用 ISO 8601，例如 `2026-10-01T00:00:00.000Z`。
 
@@ -123,7 +123,7 @@
 }
 ```
 
-上传只写入 `stored-images/temp/<uuidv7>.<format>`。`temp_id` 本身是 UUIDv7，不带扩展名；扩展名只允许 `[0-9A-Za-z]`，归一化后的格式还必须和实际图片内容一致。创建/更新相片或成员时把 `temp_id` / `avatar_temp_id` 传给 mutation，服务端才会归一化原图、生成 AVIF 缩略图并写入正式目录。临时文件默认 24 小时过期。
+上传只写入 `stored-images/temp/<uuidv7>.<format>`。`temp_id` 本身是 UUIDv7，不带扩展名；扩展名只允许 `[0-9A-Za-z]`，归一化后的格式还必须和实际图片内容一致。创建/更新相片或成员时把 `temp_id` / `avatar_temp_id` 传给 mutation：source 保存原图，相片生成 SDR optimized/thumb。临时文件默认 24 小时过期。
 
 限制：
 
@@ -134,8 +134,9 @@
 ## 图片读取
 
 ```text
-GET /images/source/:file
-GET /images/thumb/:file
+GET /images/source/:file       # 原图原始字节
+GET /images/optimized/:file    # SDR AVIF 全尺寸图
+GET /images/thumb/:file        # SDR AVIF 缩略图
 ```
 
 响应带强缓存：
@@ -144,7 +145,42 @@ GET /images/thumb/:file
 Cache-Control: public, max-age=31536000, immutable
 ```
 
-地址形如 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`，例如 `photo-2-3-4a9b66db.png`；头像形如 `avatar-<qq_num>-<crc32>.<format>`。CRC32 是上传文件内容的 8 位小写十六进制值，缩略图使用相同 basename 的 `.avif`。不同内容会得到不同文件名，因此可以长期强缓存。
+source 地址形如 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`，例如 `photo-2-3-4a9b66db.jpg`。当前 Phase 0 全部派生图只生成 SDR：
+
+```text
+source/photo-2-3-4a9b66db.jpg
+optimized/photo-2-3-4a9b66db-sdr.avif
+thumb/photo-2-3-4a9b66db.avif
+```
+
+头像：
+
+```text
+source/avatar-<qq_num>-<crc32>.<format>
+thumb/avatar-<qq_num>-<crc32>.avif
+```
+
+头像 thumb 内容为 SDR AVIF。
+
+`PhotoDTO` 的 `src` / `src_url` 指向 source 原图；`src_optimized` 和 `thumb` 是带版本参数的 SDR 派生图 URL：
+
+```json
+{
+  "src_url": "http://localhost:7001/images/source/photo-2-3-4a9b66db.jpg",
+  "src_optimized": "http://localhost:7001/images/optimized/photo-2-3-4a9b66db-sdr.avif?v=5a493005",
+  "src_optimized_hdr": null,
+  "thumb": "http://localhost:7001/images/thumb/photo-2-3-4a9b66db.avif?v=5a493005",
+  "thumb_url": "http://localhost:7001/images/thumb/photo-2-3-4a9b66db.avif?v=5a493005",
+  "has_hdr_optimized": false
+}
+```
+
+- `thumb_url` 是 `thumb` 的同值兼容别名。
+- `?v=` 来自 `Instance.getInstanceHash()`，即当前 `instance_config` 的 CRC32；配置变化后 URL 变化，避免浏览器继续使用旧的 immutable 缓存。
+- 头像 `avatar_thumb_url` 同样带 `?v=`。
+- Phase 0 不生成 HDR optimized；`has_hdr_optimized` 固定为 `false`，`src_optimized_hdr` 固定为 `null`。
+- HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
+- 旧的 `-hdr.avif` 文件会在重建时清理。
 
 ## 健康检查
 

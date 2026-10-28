@@ -31,13 +31,19 @@ export type TestContext = {
   query(name: string, payload?: unknown): Promise<ApiResponse>
   mutate(name: string, payload?: unknown): Promise<ApiResponse>
   uploadImage(buffer?: Buffer, filename?: string): Promise<{ temp_id: string; width: number; height: number; format: string; size: number; crc32: number }>
-  createMember(input?: { qq_num?: number; name?: string; avatar?: Buffer }): Promise<Record<string, unknown>>
+  createMember(input?: {
+    qq_num?: number
+    name?: string
+    avatar?: Buffer
+    avatar_filename?: string
+  }): Promise<Record<string, unknown>>
   createGallery(input?: Partial<GalleryInput>): Promise<Record<string, unknown>>
   createPhoto(input: {
     gallery_id: number
     member_id: number
     desc?: string
     image?: Buffer
+    image_filename?: string
   }): Promise<Record<string, unknown>>
   submitPhoto(input: {
     gallery_id: number
@@ -197,8 +203,9 @@ export async function createTestContext(options: {
     qq_num?: number
     name?: string
     avatar?: Buffer
+    avatar_filename?: string
   } = {}): Promise<Record<string, unknown>> {
-    const avatar = await uploadImage(input.avatar)
+    const avatar = await uploadImage(input.avatar, input.avatar_filename)
     const response = await adminMutate('adminCreateMember', {
       qq_num: input.qq_num ?? 123456,
       name: input.name ?? 'Member',
@@ -234,8 +241,9 @@ export async function createTestContext(options: {
     member_id: number
     desc?: string
     image?: Buffer
+    image_filename?: string
   }): Promise<Record<string, unknown>> {
-    const image = await uploadImage(input.image)
+    const image = await uploadImage(input.image, input.image_filename)
     const response = await adminMutate('adminCreatePhoto', {
       gallery_id: input.gallery_id,
       member_id: input.member_id,

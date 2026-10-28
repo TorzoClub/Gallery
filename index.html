@@ -2,7 +2,10 @@
 <html lang="zh-cn">
   <head>
     <meta charset="utf-8" />
-    <link rel="shortcut icon" href="%BASE_URL%favicon.ico" />
+    <link rel="icon" href="%BASE_URL%favicon.ico?v=4.0.0-preview" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="%BASE_URL%favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="%BASE_URL%favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="%BASE_URL%apple-touch-icon.png" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, shrink-to-fit=no"
@@ -12,7 +15,7 @@
       manifest.json provides metadata used when your web app is installed on a
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
     -->
-    <link rel="manifest" href="%BASE_URL%manifest.json" />
+    <link rel="manifest" href="%BASE_URL%manifest.json?v=4.0.0-preview" />
     <!--
       Notice the use of %BASE_URL% in the tags above.
       It will be replaced with the URL of the `public` folder during the build.
@@ -40,6 +43,7 @@
         .noscript {
           width: 100vw;
           height: 100vh;
+          height: 100dvh;
           display: flex;
           justify-content: center;
           align-items: center;
@@ -106,6 +110,7 @@
           top: 0;
           width: 100vw;
           height: 100vh;
+          height: 100dvh;
           display: flex;
           justify-content: center;
           align-items: center;
@@ -120,16 +125,34 @@
     </div>
     <style>
       :root {
-        --skeu-pinstripe-bg: #e8e8e8;
+        /* --skeu-pinstripe-bg: #e8e8e8; */
+        --skeu-pinstripe-bg:hsl(217deg 20% 80% / 50%);
         --skeu-pinstripe-light: rgba(255, 255, 255, 0.7);
         --skeu-pinstripe-dark: rgba(220, 220, 220, 0.4);
+        --app-default-font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif,
+          "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+        font-family: var(--app-default-font);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      body, html {
+        margin: 0;
+        padding: 0;
       }
       body {
         min-height: 100vh;
+        min-height: 100dvh;
         min-width: 100vw;
         background-repeat: repeat;
         background-color: var(--skeu-pinstripe-bg);
         background-image: repeating-linear-gradient(90deg, var(--skeu-pinstripe-light), var(--skeu-pinstripe-light) 1px, var(--skeu-pinstripe-dark) 1px, var(--skeu-pinstripe-dark) 2px);
+      }
+      /* iOS / iPadOS：去掉纹理，只留纯色 */
+      @supports (-webkit-touch-callout: none) {
+        body {
+          background-image: none;
+        }
       }
     </style>
     <!--

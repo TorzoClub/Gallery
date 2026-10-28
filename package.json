@@ -1,6 +1,7 @@
 {
   "name": "torzo-gallery",
-  "version": "3.0.0",
+  "title": "Torzo Gallery",
+  "version": "4.0.0-preview",
   "private": true,
   "type": "module",
   "description": "Torzo Gallery monolithic SPA + dispatch API",
@@ -13,6 +14,7 @@
     "start": "pnpm build && APP_ENV=production node --env-file-if-exists=.env.production dist/server/index.js",
     "start:prod": "APP_ENV=production node --env-file-if-exists=.env.production dist/server/index.js",
     "storage:init": "tsx src/server/cli/init-storage.ts",
+    "migration:legacy": "tsx src/server/cli/migration-legacy.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "lint": "oxlint src test",
     "test": "vitest run",

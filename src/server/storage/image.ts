@@ -7,10 +7,16 @@ import {
 
 sharp.cache({ memory: 50, files: 0, items: 100 })
 
+type SharpImage = ReturnType<typeof sharp>
+type SharpMetadata = Awaited<ReturnType<SharpImage['metadata']>>
+
 export type ImageInfo = {
   format: ImageFormat
   width: number
   height: number
+  bits_per_sample: number
+  has_gain_map: boolean
+  is_hdr: boolean
 }
 
 type ImageMetadataLike = {
@@ -50,6 +56,21 @@ export function normalizedSize(metadata: ImageMetadataLike): { width: number; he
   return { width, height }
 }
 
+function bitsPerSample(metadata: SharpMetadata): number {
+  return metadata.bitsPerSample ?? (metadata.depth === 'ushort' ? 16 : 8)
+}
+
+function hasGainMap(metadata: SharpMetadata): boolean {
+  return metadata.gainMap !== undefined
+}
+
+function isHdr(metadata: SharpMetadata): boolean {
+  return hasGainMap(metadata)
+    || bitsPerSample(metadata) > 8
+    || metadata.depth === 'ushort'
+    || metadata.depth === 'float'
+}
+
 export async function readImageInfo(file_path: string): Promise<ImageInfo> {
   try {
     const metadata = await sharp(file_path).metadata()
@@ -58,6 +79,9 @@ export async function readImageInfo(file_path: string): Promise<ImageInfo> {
       format: normalizeFormat(metadata.format),
       width,
       height,
+      bits_per_sample: bitsPerSample(metadata),
+      has_gain_map: hasGainMap(metadata),
+      is_hdr: isHdr(metadata),
     }
   } catch (error) {
     if (isApiError(error)) {
@@ -71,20 +95,16 @@ export function imageExtension(format: ImageFormat): string {
   return format
 }
 
-export async function writeSourceImage(options: {
+export async function writeOptimizedImage(options: {
   input_path: string
   output_path: string
   max_dimension: number
-}): Promise<ImageInfo> {
-  const metadata = await sharp(options.input_path).metadata()
-  const format = normalizeFormat(metadata.format)
-  const { width, height } = normalizedSize(metadata)
-  const ratio = Math.min(1, options.max_dimension / Math.max(width, height))
-  const output_width = Math.max(1, Math.round(width * ratio))
-  const output_height = Math.max(1, Math.round(height * ratio))
-
+  quality: number
+  effort: number
+}): Promise<void> {
   await sharp(options.input_path)
     .rotate()
+    .toColourspace('srgb')
     .flatten({ background: '#FFFFFF' })
     .resize({
       width: options.max_dimension,
@@ -92,13 +112,12 @@ export async function writeSourceImage(options: {
       fit: 'inside',
       withoutEnlargement: true,
     })
+    .avif({
+      quality: options.quality,
+      effort: options.effort,
+      bitdepth: 8,
+    })
     .toFile(options.output_path)
-
-  return {
-    format,
-    width: output_width,
-    height: output_height,
-  }
 }
 
 export async function writeThumbImage(options: {
@@ -110,6 +129,7 @@ export async function writeThumbImage(options: {
 }): Promise<void> {
   await sharp(options.input_path)
     .rotate()
+    .toColourspace('srgb')
     .flatten({ background: '#FFFFFF' })
     .resize({
       width: options.size,
@@ -118,6 +138,7 @@ export async function writeThumbImage(options: {
     .avif({
       quality: options.quality,
       effort: options.effort,
+      bitdepth: 8,
     })
     .toFile(options.output_path)
 }

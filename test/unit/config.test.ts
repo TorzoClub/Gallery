@@ -76,6 +76,8 @@ describe('instance config', () => {
   it('fills defaults and validates ranges', () => {
     const config = parseInstanceConfig({})
     expect(config).toEqual(DEFAULT_INSTANCE_CONFIG)
+    expect(config.avif_source_quality).toBe(75)
+    expect(config.image_processing_effort).toBe(8)
 
     expect(() => parseInstanceConfig({
       ...DEFAULT_INSTANCE_CONFIG,

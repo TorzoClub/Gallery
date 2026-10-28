@@ -16,6 +16,7 @@ export type Photo = {
   format: Format
   width: number
   height: number
+  has_hdr_optimized: boolean
   member_id: MemberID
   created_at: Date
   updated_at: Date
@@ -28,6 +29,7 @@ export type PhotoDraft = {
   src: string
   width: number
   height: number
+  has_hdr_optimized: boolean
   member_id: MemberID
 }
 
@@ -65,6 +67,9 @@ export function checkPhoto(photo: Photo): Photo {
   if (!Number.isSafeInteger(photo.member_id) || photo.member_id <= 0) {
     throw badRequest('相片 member_id 必须是正整数')
   }
+  if (typeof photo.has_hdr_optimized !== 'boolean') {
+    throw badRequest('相片 has_hdr_optimized 必须是 boolean')
+  }
 
   checkDate('created_at', photo.created_at)
   checkDate('updated_at', photo.updated_at)
@@ -86,6 +91,7 @@ export function createPhoto(draft: PhotoDraft, now: Date): Photo {
     format,
     width: draft.width,
     height: draft.height,
+    has_hdr_optimized: draft.has_hdr_optimized,
     member_id: draft.member_id,
     created_at: now,
     updated_at: now,

@@ -1,6 +1,6 @@
 {
-  "short_name": "TorzoGallery",
-  "name": "TorzoGallery: Torzo club phoho match",
+  "short_name": "tzgal",
+  "name": "Torzo Gallery",
   "icons": [
     {
       "src": "icon-192.png",
@@ -18,5 +18,5 @@
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#3a3a45",
-  "background_color": "#ffffff"
+  "background_color": "#dce0e7"
 }

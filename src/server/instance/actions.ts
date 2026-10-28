@@ -39,7 +39,8 @@ import {
   findMemberById,
   findMemberByQQ,
   findPhoto,
-  poolAddPhoto,
+  allocateId,
+  poolAddPhotoReserved,
   poolAllPhotos,
   poolClearMemberGalleryVotes,
   poolCreateGallery,
@@ -50,7 +51,7 @@ import {
   poolMembersSorted,
   poolRemoveGallery,
   poolRemovePhoto,
-  poolSubmitPhoto,
+  poolSubmitPhotoReserved,
   poolSubmitVotes,
   poolUpdateGallery,
   poolUpdateMember,
@@ -86,12 +87,15 @@ export type QueryContext = {
   now: Date
 }
 
-export type MutationContext = QueryContext & {
+export type PreparationContext = QueryContext & {
   preparePhoto: ImagePipeline['preparePhoto']
   prepareAvatar: ImagePipeline['prepareAvatar']
   refreshThumb: ImagePipeline['refreshThumb']
   refreshAvatar: ImagePipeline['refreshAvatar']
+  innerMutate: (name: string, payload: unknown) => Promise<unknown>
 }
+
+export type MutationContext = QueryContext
 
 export type QueryDef<I, O> = {
   schema: z.ZodType<I>
@@ -105,17 +109,20 @@ export type MutationOutcome<O> = {
   instance_config?: InstanceConfig
 }
 
-export type MutationDef<I, O> = {
+export type MutationDef<I, O, P = undefined> = {
   schema: z.ZodType<I>
   admin: boolean
-  run: (ctx: MutationContext, payload: I) => Promise<MutationOutcome<O>>
+  prepare?: (ctx: PreparationContext, payload: I) => Promise<P>
+  commit: (ctx: MutationContext, payload: I, prepared: P) => MutationOutcome<O>
 }
 
 function defineQuery<I, O>(definition: QueryDef<I, O>): QueryDef<I, O> {
   return definition
 }
 
-function defineMutation<I, O>(definition: MutationDef<I, O>): MutationDef<I, O> {
+function defineMutation<I, O, P = undefined>(
+  definition: MutationDef<I, O, P>,
+): MutationDef<I, O, P> {
   return definition
 }
 
@@ -197,6 +204,20 @@ const SubmissionLookupSchema = z.object({
 })
 const MemberLookupSchema = z.object({ qq_num: qqSchema })
 const EmptySchema = z.object({})
+
+export const inner_mutations = {
+  allocateId: defineMutation<Record<string, never>, number>({
+    schema: EmptySchema,
+    admin: false,
+    commit: (ctx) => {
+      const allocated = allocateId(ctx.pool)
+      return {
+        pool: allocated.pool,
+        result: allocated.id,
+      }
+    },
+  }),
+}
 
 const MemberGalleryPayloadSchema = z.object({
   member_id: idSchema,
@@ -416,7 +437,7 @@ export const mutations = {
   submitPhoto: defineMutation({
     schema: SubmissionCreateSchema,
     admin: false,
-    run: async (ctx, payload) => {
+    prepare: async (ctx, payload) => {
       const member = findMemberByQQ(ctx.pool, asQQNumber(payload.qq_num))
       const gallery = findGallery(ctx.pool, toGalleryID(payload.gallery_id))
 
@@ -427,30 +448,46 @@ export const mutations = {
         throw conflict('该成员已经在这个相册投过稿了')
       }
 
-      const photo_id = toPhotoID(Number(ctx.pool.next_id))
-      const prepared = await ctx.preparePhoto({
-        photo_id,
-        temp_id: payload.temp_id,
-        desc: payload.desc,
-        index: 0,
-        member_id: member.id,
-        gallery_id: gallery.id,
-      })
+      const allocated = await ctx.innerMutate('allocateId', {})
+      if (typeof allocated !== 'number') {
+        throw new Error('allocateId 返回了非法 ID')
+      } else {
+        return ctx.preparePhoto({
+          photo_id: toPhotoID(allocated),
+          temp_id: payload.temp_id,
+          desc: payload.desc,
+          index: 0,
+          member_id: member.id,
+          gallery_id: gallery.id,
+        })
+      }
+    },
+    commit: (ctx, payload, prepared) => {
+      const member = findMemberByQQ(ctx.pool, asQQNumber(payload.qq_num))
+      const gallery = findGallery(ctx.pool, toGalleryID(payload.gallery_id))
 
-      try {
-        const next = poolSubmitPhoto(ctx.pool, ctx.now, gallery.id, member.id, prepared)
-        return {
+      if (!galleryCanSubmission(ctx.now, gallery)) {
+        throw forbidden('当前不在投稿期间，不能投稿')
+      }
+      if (memberHasSubmitted(gallery, member.id)) {
+        throw conflict('该成员已经在这个相册投过稿了')
+      }
+
+      const next = poolSubmitPhotoReserved(
+        ctx.pool,
+        ctx.now,
+        gallery.id,
+        member.id,
+        prepared,
+      )
+      return {
+        pool: next.pool,
+        result: photoDto({
           pool: next.pool,
-          result: photoDto({
-            pool: next.pool,
-            gallery: next.gallery,
-            photo: next.photo,
-            env: ctx.env, instance_hash: ctx.instance_hash,
-          }),
-        }
-      } catch (error) {
-        await prepared.discard()
-        throw error
+          gallery: next.gallery,
+          photo: next.photo,
+          env: ctx.env, instance_hash: ctx.instance_hash,
+        }),
       }
     },
   }),
@@ -458,7 +495,11 @@ export const mutations = {
   updateSubmission: defineMutation({
     schema: SubmissionUpdateSchema,
     admin: false,
-    run: async (ctx, payload) => {
+    prepare: async (ctx, payload) => {
+      if (payload.temp_id === undefined) {
+        return undefined
+      }
+
       const member = findMemberByQQ(ctx.pool, asQQNumber(payload.qq_num))
       const found = findPhoto(ctx.pool, toPhotoID(payload.photo_id))
       ensurePhotoAuthor(found.photo, Number(member.id))
@@ -466,42 +507,21 @@ export const mutations = {
         throw forbidden('当前不在投稿期间，不能编辑投稿')
       }
 
-      if (payload.temp_id !== undefined) {
-        const prepared = await ctx.preparePhoto({
-          photo_id: found.photo.id,
-          temp_id: payload.temp_id,
-          desc: payload.desc ?? found.photo.desc,
-          index: found.photo.index,
-          member_id: found.photo.member_id,
-          gallery_id: found.gallery.id,
-        })
-        try {
-          const next = poolUpdatePhoto(
-            ctx.pool,
-            ctx.now,
-            found.gallery.id,
-            found.photo.id,
-            {
-              desc: payload.desc,
-              src: prepared.src,
-              width: prepared.width,
-              height: prepared.height,
-              has_hdr_optimized: prepared.has_hdr_optimized,
-            },
-          )
-          return {
-            pool: next.pool,
-            result: photoDto({
-              pool: next.pool,
-              gallery: next.gallery,
-              photo: next.photo,
-              env: ctx.env, instance_hash: ctx.instance_hash,
-            }),
-          }
-        } catch (error) {
-          await prepared.discard()
-          throw error
-        }
+      return ctx.preparePhoto({
+        photo_id: found.photo.id,
+        temp_id: payload.temp_id,
+        desc: payload.desc ?? found.photo.desc,
+        index: found.photo.index,
+        member_id: found.photo.member_id,
+        gallery_id: found.gallery.id,
+      })
+    },
+    commit: (ctx, payload, prepared) => {
+      const member = findMemberByQQ(ctx.pool, asQQNumber(payload.qq_num))
+      const found = findPhoto(ctx.pool, toPhotoID(payload.photo_id))
+      ensurePhotoAuthor(found.photo, Number(member.id))
+      if (!galleryCanSubmission(ctx.now, found.gallery)) {
+        throw forbidden('当前不在投稿期间，不能编辑投稿')
       }
 
       const next = poolUpdatePhoto(
@@ -509,7 +529,15 @@ export const mutations = {
         ctx.now,
         found.gallery.id,
         found.photo.id,
-        { desc: payload.desc },
+        prepared === undefined
+          ? { desc: payload.desc }
+          : {
+              desc: payload.desc,
+              src: prepared.src,
+              width: prepared.width,
+              height: prepared.height,
+              has_hdr_optimized: prepared.has_hdr_optimized,
+            },
       )
       return {
         pool: next.pool,
@@ -526,7 +554,7 @@ export const mutations = {
   cancelSubmission: defineMutation({
     schema: SubmissionCancelSchema,
     admin: false,
-    run: async (ctx, payload) => {
+    commit: (ctx, payload) => {
       const member = findMemberByQQ(ctx.pool, asQQNumber(payload.qq_num))
       const found = findPhoto(ctx.pool, toPhotoID(payload.photo_id))
       ensurePhotoAuthor(found.photo, Number(member.id))
@@ -554,7 +582,7 @@ export const mutations = {
   vote: defineMutation({
     schema: VoteSchema,
     admin: false,
-    run: async (ctx, payload) => {
+    commit: (ctx, payload) => {
       const member = findMemberByQQ(ctx.pool, asQQNumber(payload.qq_num))
       const next = poolSubmitVotes(
         ctx.pool,
@@ -573,7 +601,7 @@ export const mutations = {
   adminUpdateInstanceConfig: defineMutation({
     schema: InstanceConfigUpdatePayloadSchema,
     admin: true,
-    run: async (ctx, payload) => {
+    commit: (ctx, payload) => {
       const next_config = mergeInstanceConfig(ctx.config, payload)
       assertInstanceConfigWithinHardLimit(
         next_config,
@@ -590,7 +618,7 @@ export const mutations = {
   adminCreateGallery: defineMutation({
     schema: GalleryCreateSchema,
     admin: true,
-    run: async (ctx, payload) => {
+    commit: (ctx, payload) => {
       const next = poolCreateGallery(ctx.pool, ctx.now, {
         name: payload.name,
         index: payload.index,
@@ -614,7 +642,7 @@ export const mutations = {
   adminUpdateGallery: defineMutation({
     schema: GalleryUpdateSchema.extend({ gallery_id: idSchema }).strict(),
     admin: true,
-    run: async (ctx, payload) => {
+    commit: (ctx, payload) => {
       const { gallery_id, ...rest } = payload
       const next = poolUpdateGallery(ctx.pool, ctx.now, toGalleryID(gallery_id), {
         ...(rest.name === undefined ? {} : { name: rest.name }),
@@ -641,7 +669,7 @@ export const mutations = {
   adminRemoveGallery: defineMutation({
     schema: GalleryIDPayloadSchema,
     admin: true,
-    run: async (ctx, payload) => {
+    commit: (ctx, payload) => {
       const gallery = findGallery(ctx.pool, toGalleryID(payload.gallery_id))
       const result = galleryDto({
         pool: ctx.pool,
@@ -659,24 +687,25 @@ export const mutations = {
   adminCreateMember: defineMutation({
     schema: MemberCreateSchema,
     admin: true,
-    run: async (ctx, payload) => {
-      const avatar = await ctx.prepareAvatar({
+    prepare: async (ctx, payload) => {
+      const qq_num = asQQNumber(payload.qq_num)
+      if (ctx.pool.members.has(qq_num)) {
+        throw conflict(`成员(QQ=${payload.qq_num})已存在`)
+      }
+      return ctx.prepareAvatar({
         qq_num: payload.qq_num,
         temp_id: payload.avatar_temp_id,
       })
-      try {
-        const next = poolCreateMember(ctx.pool, ctx.now, {
-          qq_num: payload.qq_num,
-          name: payload.name,
-          avatar_src: avatar.avatar_src,
-        })
-        return {
-          pool: next.pool,
-          result: memberDto(next.member, ctx.env, ctx.instance_hash),
-        }
-      } catch (error) {
-        await avatar.discard()
-        throw error
+    },
+    commit: (ctx, payload, avatar) => {
+      const next = poolCreateMember(ctx.pool, ctx.now, {
+        qq_num: payload.qq_num,
+        name: payload.name,
+        avatar_src: avatar.avatar_src,
+      })
+      return {
+        pool: next.pool,
+        result: memberDto(next.member, ctx.env, ctx.instance_hash),
       }
     },
   }),
@@ -684,34 +713,25 @@ export const mutations = {
   adminUpdateMember: defineMutation({
     schema: MemberUpdateSchema.extend({ member_id: idSchema }).strict(),
     admin: true,
-    run: async (ctx, payload) => {
-      const member = findMemberById(ctx.pool, asMemberID(payload.member_id))
-      let avatar_src: string | undefined
-      let avatar_discard: (() => Promise<void>) | undefined
-
-      if (payload.avatar_temp_id !== undefined) {
-        const avatar = await ctx.prepareAvatar({
-          qq_num: member.qq_num,
-          temp_id: payload.avatar_temp_id,
-        })
-        avatar_src = avatar.avatar_src
-        avatar_discard = avatar.discard
+    prepare: async (ctx, payload) => {
+      if (payload.avatar_temp_id === undefined) {
+        return undefined
       }
-
-      try {
-        const next = poolUpdateMember(ctx.pool, ctx.now, member.id, {
-          ...(payload.name === undefined ? {} : { name: payload.name }),
-          ...(avatar_src === undefined ? {} : { avatar_src }),
-        })
-        return {
-          pool: next.pool,
-          result: memberDto(next.member, ctx.env, ctx.instance_hash),
-        }
-      } catch (error) {
-        if (avatar_discard !== undefined) {
-          await avatar_discard()
-        }
-        throw error
+      const member = findMemberById(ctx.pool, asMemberID(payload.member_id))
+      return ctx.prepareAvatar({
+        qq_num: member.qq_num,
+        temp_id: payload.avatar_temp_id,
+      })
+    },
+    commit: (ctx, payload, avatar) => {
+      const member = findMemberById(ctx.pool, asMemberID(payload.member_id))
+      const next = poolUpdateMember(ctx.pool, ctx.now, member.id, {
+        ...(payload.name === undefined ? {} : { name: payload.name }),
+        ...(avatar === undefined ? {} : { avatar_src: avatar.avatar_src }),
+      })
+      return {
+        pool: next.pool,
+        result: memberDto(next.member, ctx.env, ctx.instance_hash),
       }
     },
   }),
@@ -719,7 +739,7 @@ export const mutations = {
   adminRemoveMember: defineMutation({
     schema: MemberIDPayloadSchema,
     admin: true,
-    run: async (ctx, payload) => {
+    commit: (ctx, payload) => {
       const member = findMemberById(ctx.pool, asMemberID(payload.member_id))
       const result = memberDto(member, ctx.env, ctx.instance_hash)
       const next = poolDeleteMember(ctx.pool, member.id)
@@ -730,7 +750,7 @@ export const mutations = {
   adminClearMemberGalleryVotes: defineMutation({
     schema: MemberGalleryPayloadSchema,
     admin: true,
-    run: async (ctx, payload) => {
+    commit: (ctx, payload) => {
       const next = poolClearMemberGalleryVotes(
         ctx.pool,
         ctx.now,
@@ -747,37 +767,44 @@ export const mutations = {
   adminCreatePhoto: defineMutation({
     schema: PhotoCreateSchema,
     admin: true,
-    run: async (ctx, payload) => {
+    prepare: async (ctx, payload) => {
+      const member_id = asMemberID(payload.member_id)
       const gallery = findGallery(ctx.pool, toGalleryID(payload.gallery_id))
-      findMemberById(ctx.pool, asMemberID(payload.member_id))
-      if (memberHasSubmitted(gallery, asMemberID(payload.member_id))) {
+      findMemberById(ctx.pool, member_id)
+      if (memberHasSubmitted(gallery, member_id)) {
         throw conflict('该成员在这个相册已经有投稿了')
       }
 
-      const photo_id = toPhotoID(Number(ctx.pool.next_id))
-      const prepared = await ctx.preparePhoto({
-        photo_id,
+      const allocated = await ctx.innerMutate('allocateId', {})
+      if (typeof allocated !== 'number') {
+        throw new Error('allocateId 返回了非法 ID')
+      }
+      return ctx.preparePhoto({
+        photo_id: toPhotoID(allocated),
         temp_id: payload.temp_id,
         desc: payload.desc,
         index: payload.index,
-        member_id: asMemberID(payload.member_id),
+        member_id,
         gallery_id: gallery.id,
       })
+    },
+    commit: (ctx, payload, prepared) => {
+      const member_id = asMemberID(payload.member_id)
+      const gallery = findGallery(ctx.pool, toGalleryID(payload.gallery_id))
+      findMemberById(ctx.pool, member_id)
+      if (memberHasSubmitted(gallery, member_id)) {
+        throw conflict('该成员在这个相册已经有投稿了')
+      }
 
-      try {
-        const next = poolAddPhoto(ctx.pool, ctx.now, gallery.id, prepared)
-        return {
+      const next = poolAddPhotoReserved(ctx.pool, ctx.now, gallery.id, prepared)
+      return {
+        pool: next.pool,
+        result: photoDto({
           pool: next.pool,
-          result: photoDto({
-            pool: next.pool,
-            gallery: next.gallery,
-            photo: next.photo,
-            env: ctx.env, instance_hash: ctx.instance_hash,
-          }),
-        }
-      } catch (error) {
-        await prepared.discard()
-        throw error
+          gallery: next.gallery,
+          photo: next.photo,
+          env: ctx.env, instance_hash: ctx.instance_hash,
+        }),
       }
     },
   }),
@@ -787,26 +814,38 @@ export const mutations = {
       photo_id: idSchema,
     }).strict(),
     admin: true,
-    run: async (ctx, payload) => {
+    prepare: async (ctx, payload) => {
+      if (payload.temp_id === undefined) {
+        return undefined
+      }
       const found = findPhoto(ctx.pool, toPhotoID(payload.photo_id))
-      if (payload.temp_id !== undefined) {
-        const prepared = await ctx.preparePhoto({
-          photo_id: found.photo.id,
-          temp_id: payload.temp_id,
-          desc: payload.desc ?? found.photo.desc,
-          index: payload.index ?? found.photo.index,
-          member_id: payload.member_id === undefined
-            ? found.photo.member_id
-            : asMemberID(payload.member_id),
-          gallery_id: found.gallery.id,
-        })
-        try {
-          const next = poolUpdatePhoto(
-            ctx.pool,
-            ctx.now,
-            found.gallery.id,
-            found.photo.id,
-            {
+      return ctx.preparePhoto({
+        photo_id: found.photo.id,
+        temp_id: payload.temp_id,
+        desc: payload.desc ?? found.photo.desc,
+        index: payload.index ?? found.photo.index,
+        member_id: payload.member_id === undefined
+          ? found.photo.member_id
+          : asMemberID(payload.member_id),
+        gallery_id: found.gallery.id,
+      })
+    },
+    commit: (ctx, payload, prepared) => {
+      const found = findPhoto(ctx.pool, toPhotoID(payload.photo_id))
+      const next = poolUpdatePhoto(
+        ctx.pool,
+        ctx.now,
+        found.gallery.id,
+        found.photo.id,
+        prepared === undefined
+          ? {
+              desc: payload.desc,
+              index: payload.index,
+              member_id: payload.member_id === undefined
+                ? undefined
+                : asMemberID(payload.member_id),
+            }
+          : {
               desc: payload.desc,
               index: payload.index,
               member_id: payload.member_id === undefined
@@ -817,34 +856,6 @@ export const mutations = {
               height: prepared.height,
               has_hdr_optimized: prepared.has_hdr_optimized,
             },
-          )
-          return {
-            pool: next.pool,
-            result: photoDto({
-              pool: next.pool,
-              gallery: next.gallery,
-              photo: next.photo,
-              env: ctx.env, instance_hash: ctx.instance_hash,
-            }),
-          }
-        } catch (error) {
-          await prepared.discard()
-          throw error
-        }
-      }
-
-      const next = poolUpdatePhoto(
-        ctx.pool,
-        ctx.now,
-        found.gallery.id,
-        found.photo.id,
-        {
-          desc: payload.desc,
-          index: payload.index,
-          member_id: payload.member_id === undefined
-            ? undefined
-            : asMemberID(payload.member_id),
-        },
       )
       return {
         pool: next.pool,
@@ -861,7 +872,7 @@ export const mutations = {
   adminRemovePhoto: defineMutation({
     schema: z.object({ photo_id: idSchema }),
     admin: true,
-    run: async (ctx, payload) => {
+    commit: (ctx, payload) => {
       const found = findPhoto(ctx.pool, toPhotoID(payload.photo_id))
       const result = photoDto({
         pool: ctx.pool,
@@ -882,7 +893,7 @@ export const mutations = {
   adminSortPhotosByVoteCount: defineMutation({
     schema: GalleryIDPayloadSchema,
     admin: true,
-    run: async (ctx, payload) => {
+    commit: (ctx, payload) => {
       const next = poolSortPhotosByVoteCount(
         ctx.pool,
         ctx.now,
@@ -903,9 +914,12 @@ export const mutations = {
   adminRefreshThumb: defineMutation({
     schema: PhotoIDPayloadSchema,
     admin: true,
-    run: async (ctx, payload) => {
+    prepare: async (ctx, payload) => {
       const found = findPhoto(ctx.pool, toPhotoID(payload.photo_id))
       await ctx.refreshThumb(found.photo.src)
+    },
+    commit: (ctx, payload) => {
+      const found = findPhoto(ctx.pool, toPhotoID(payload.photo_id))
       return {
         pool: ctx.pool,
         result: {
@@ -919,9 +933,12 @@ export const mutations = {
   adminRefreshAvatar: defineMutation({
     schema: MemberIDPayloadSchema,
     admin: true,
-    run: async (ctx, payload) => {
+    prepare: async (ctx, payload) => {
       const member = findMemberById(ctx.pool, asMemberID(payload.member_id))
       await ctx.refreshAvatar(member.avatar_src)
+    },
+    commit: (ctx, payload) => {
+      const member = findMemberById(ctx.pool, asMemberID(payload.member_id))
       return {
         pool: ctx.pool,
         result: {
@@ -955,8 +972,8 @@ export const __admin_list = Object.freeze(admin_names)
 
 export type QueryName = keyof typeof queries
 export type MutationName = keyof typeof mutations
-export type MutationResult<K extends MutationName> = Awaited<
-  ReturnType<(typeof mutations)[K]['run']>
+export type MutationResult<K extends MutationName> = ReturnType<
+  (typeof mutations)[K]['commit']
 >['result']
 
 // Keep these imports referenced for external type users.

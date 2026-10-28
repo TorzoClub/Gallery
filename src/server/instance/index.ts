@@ -19,10 +19,12 @@ import {
 } from '../storage'
 import {
   __admin_list,
+  inner_mutations,
   mutations,
   queries,
   type MutationContext,
   type MutationDef,
+  type PreparationContext,
   type QueryContext,
   type QueryDef,
 } from './actions'
@@ -71,8 +73,19 @@ function validationError(error: z.ZodError): never {
   })))
 }
 
-function unknownAction(kind: 'query' | 'mutation', name: string): never {
+function unknownAction(kind: 'query' | 'mutation' | 'inner mutation', name: string): never {
   throw apiError(404, 'UNKNOWN_ACTION', `未知的 ${kind}: ${name}`)
+}
+
+async function discardPrepared(value: unknown): Promise<void> {
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    'discard' in value &&
+    typeof value.discard === 'function'
+  ) {
+    await value.discard()
+  }
 }
 
 export async function createInstance(options: CreateInstanceOptions): Promise<Instance> {
@@ -84,9 +97,12 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
 
   assertInstanceConfigWithinHardLimit(instance_config, env.http_body_hard_limit_bytes)
 
-  const sequence = Sequence()
+  // 磁盘写入是唯一的串行区；prepare/commit 不进入这里。
+  const persistQueue = Sequence()
   let closing = false
   let closed = false
+  let active_operations = 0
+  const drain_waiters = new Set<() => void>()
 
   const images: ImagePipeline = createImagePipeline({
     storage,
@@ -99,7 +115,41 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
     }
   }
 
+  function beginOperation(): void {
+    ensureOpen()
+    active_operations += 1
+  }
+
+  function endOperation(): void {
+    active_operations -= 1
+    if (active_operations === 0) {
+      for (const resolve of drain_waiters) {
+        resolve()
+      }
+      drain_waiters.clear()
+    }
+  }
+
+  async function waitForOperations(): Promise<void> {
+    if (active_operations === 0) {
+      return
+    }
+    await new Promise<void>((resolve) => {
+      drain_waiters.add(resolve)
+    })
+  }
+
   function mutationContext(now: Date): MutationContext {
+    return {
+      pool,
+      env,
+      config: instance_config,
+      instance_hash,
+      now,
+    }
+  }
+
+  function preparationContext(now: Date): PreparationContext {
     return {
       pool,
       env,
@@ -110,17 +160,121 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
       prepareAvatar: images.prepareAvatar,
       refreshThumb: images.refreshThumb,
       refreshAvatar: images.refreshAvatar,
+      innerMutate: (name, payload) => dispatchInnerMutation(name, payload, now),
     }
   }
 
   function queryContext(now: Date): QueryContext {
-    return {
-      pool,
-      env,
-      config: instance_config,
-      instance_hash,
-      now,
+    return mutationContext(now)
+  }
+
+  function logMutationFailure(name: string, error: unknown, stage: string): never {
+    if (isApiError(error)) {
+      throw error
     }
+    logger.error(`${stage} failed`, { name, error: String(error) })
+    throw apiError(500, 'INTERNAL', '服务器内部错误')
+  }
+
+  async function executeMutation<I, O, P>(
+    name: string,
+    definition: MutationDef<I, O, P>,
+    payload: I,
+    now: Date,
+  ): Promise<O> {
+    let prepared: P | undefined
+
+    if (definition.prepare !== undefined) {
+      try {
+        prepared = await definition.prepare(preparationContext(now), payload)
+      } catch (error) {
+        logMutationFailure(name, error, 'mutation preparation')
+      }
+    }
+
+    try {
+      ensureOpen()
+    } catch (error) {
+      await discardPrepared(prepared)
+      throw error
+    }
+
+    const prev_pool = pool
+    const prev_config = instance_config
+    let outcome
+
+    try {
+      outcome = definition.commit(mutationContext(now), payload, prepared as P)
+      if (outcome.instance_config !== undefined) {
+        assertInstanceConfigWithinHardLimit(
+          outcome.instance_config,
+          env.http_body_hard_limit_bytes,
+        )
+      }
+    } catch (error) {
+      await discardPrepared(prepared)
+      logMutationFailure(name, error, 'mutation commit')
+    }
+
+    const next_pool = outcome.pool
+    const next_config = outcome.instance_config
+    const pool_changed = next_pool !== prev_pool
+    const config_changed = next_config !== undefined && next_config !== prev_config
+
+    // 内存状态同步更新。这里是纯 JS 单线程原子区，之后才进入持久化。
+    if (pool_changed) {
+      pool = next_pool
+    }
+    if (config_changed) {
+      instance_config = next_config
+      instance_hash = calcInstanceConfigCRC32(instance_config)
+    }
+
+    if (pool_changed || config_changed) {
+      try {
+        await persistQueue(async () => {
+          if (config_changed) {
+            await storage.storeInstanceConfig(next_config)
+          }
+          if (pool_changed) {
+            await storage.storeByDiff(next_pool, prev_pool)
+          }
+          if (pool_changed) {
+            try {
+              await images.collectGarbage(prev_pool, next_pool)
+            } catch (error) {
+              logger.error('image garbage collection failed', {
+                error: String(error),
+              })
+            }
+          }
+        })
+      } catch (error) {
+        logger.error('mutation persistence failed', { error: String(error) })
+        throw apiError(500, 'INTERNAL', '保存数据失败')
+      }
+    }
+
+    return outcome.result
+  }
+
+  async function dispatchInnerMutation(
+    name: string,
+    payload: unknown,
+    now: Date,
+  ): Promise<unknown> {
+    ensureOpen()
+    if (!Object.prototype.hasOwnProperty.call(inner_mutations, name)) {
+      return unknownAction('inner mutation', name)
+    }
+
+    const definition = inner_mutations[name as keyof typeof inner_mutations] as MutationDef<unknown, unknown, unknown>
+    const parsed = definition.schema.safeParse(payload ?? {})
+    if (!parsed.success) {
+      validationError(parsed.error)
+    }
+
+    return executeMutation(name, definition, parsed.data, now)
   }
 
   async function dispatchQuery(
@@ -164,7 +318,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
       return unknownAction('mutation', name)
     }
 
-    const definition = mutations[name as keyof typeof mutations] as MutationDef<unknown, unknown>
+    const definition = mutations[name as keyof typeof mutations] as MutationDef<unknown, unknown, unknown>
     if (!dispatch_options.admin && definition.admin) {
       throw apiError(403, 'ADMIN_ONLY', '该 mutation 只能通过 /admin/mutate 调用')
     }
@@ -174,59 +328,12 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
       validationError(parsed.error)
     }
 
-    return sequence(async () => {
-      ensureOpen()
-
-      const prev_pool = pool
-      const ctx = mutationContext(dispatch_options.now)
-
-      let outcome
-      try {
-        outcome = await definition.run(ctx, parsed.data)
-      } catch (error) {
-        if (isApiError(error)) {
-          throw error
-        }
-        logger.error('mutation failed', { name, error: String(error) })
-        throw apiError(500, 'INTERNAL', '服务器内部错误')
-      }
-
-      try {
-        if (outcome.instance_config !== undefined) {
-          assertInstanceConfigWithinHardLimit(
-            outcome.instance_config,
-            env.http_body_hard_limit_bytes,
-          )
-          await storage.storeInstanceConfig(outcome.instance_config)
-        }
-
-        if (outcome.pool !== prev_pool) {
-          await storage.storeByDiff(outcome.pool, prev_pool)
-        }
-      } catch (error) {
-        logger.error('mutation persistence failed', { name, error: String(error) })
-        throw apiError(500, 'INTERNAL', '保存数据失败')
-      }
-
-      if (outcome.instance_config !== undefined) {
-        instance_config = outcome.instance_config
-        instance_hash = calcInstanceConfigCRC32(instance_config)
-      }
-      if (outcome.pool !== prev_pool) {
-        pool = outcome.pool
-      }
-
-      try {
-        await images.collectGarbage(prev_pool, outcome.pool)
-      } catch (error) {
-        logger.error('image garbage collection failed', {
-          name,
-          error: String(error),
-        })
-      }
-
-      return outcome.result
-    })
+    beginOperation()
+    try {
+      return await executeMutation(name, definition, parsed.data, dispatch_options.now)
+    } finally {
+      endOperation()
+    }
   }
 
   async function storeTempImage(input: {
@@ -244,7 +351,8 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
       return
     }
     closing = true
-    await sequence(async () => undefined)
+    await waitForOperations()
+    await persistQueue(async () => {})
     try {
       await images.close()
     } finally {

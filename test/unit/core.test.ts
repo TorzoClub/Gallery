@@ -14,11 +14,13 @@ import {
   createPool,
   findMemberById,
   poolAddPhoto,
+  poolAddPhotoReserved,
   poolCreateGallery,
   poolCreateMember,
   poolDeleteMember,
   poolGalleriesSorted,
   poolSubmitPhoto,
+  poolSubmitPhotoReserved,
   poolSubmitVotes,
   poolUpdateMember,
   type Pool,
@@ -114,6 +116,75 @@ describe('ids', () => {
     const photo = addPreparedPhoto(gallery.pool, gallery.gallery_id, member.member_id, 'p')
     expect(photo.photo_id).toBe(4)
     expect(photo.pool.next_id).toBe(5)
+  })
+
+  it('inserts photos with reserved ids without consuming next_id twice', () => {
+    const member = addMember(makePool(), 10001, 'A')
+    const gallery = addGallery(member.pool)
+
+    const allocated = allocateId(gallery.pool)
+    expect(allocated.id).toBe(Number(gallery.pool.next_id))
+    expect(allocated.pool.next_id).toBe(Number(gallery.pool.next_id) + 1)
+
+    const photo_id = asPhotoID(allocated.id)
+    const added = poolAddPhotoReserved(allocated.pool, now, asGalleryID(gallery.gallery_id), {
+      id: photo_id,
+      index: 0,
+      desc: 'reserved',
+      src: `${allocated.id}.png`,
+      width: 100,
+      height: 100,
+      has_hdr_optimized: false,
+      member_id: asMemberID(member.member_id),
+    })
+
+    expect(Number(added.photo.id)).toBe(allocated.id)
+    expect(added.pool.next_id).toBe(allocated.pool.next_id)
+
+    const second_member = addMember(added.pool, 10002, 'B')
+    const second_allocated = allocateId(second_member.pool)
+    const submitted = poolSubmitPhotoReserved(
+      second_allocated.pool,
+      now,
+      asGalleryID(gallery.gallery_id),
+      asMemberID(second_member.member_id),
+      {
+        id: asPhotoID(second_allocated.id),
+        index: 0,
+        desc: 'reserved submission',
+        src: `${second_allocated.id}.png`,
+        width: 100,
+        height: 100,
+        has_hdr_optimized: false,
+        member_id: asMemberID(second_member.member_id),
+      },
+    )
+
+    expect(Number(submitted.photo.id)).toBe(second_allocated.id)
+    expect(submitted.pool.next_id).toBe(second_allocated.pool.next_id)
+  })
+
+  it('rejects a reserved photo id that is already occupied', () => {
+    const author = addMember(makePool(), 10001, 'A')
+    const other = addMember(author.pool, 10002, 'B')
+    const gallery = addGallery(other.pool)
+    const photo = addPreparedPhoto(gallery.pool, gallery.gallery_id, author.member_id, 'existing')
+    const allocated = allocateId(photo.pool)
+    expect(() => poolAddPhotoReserved(
+      allocated.pool,
+      now,
+      asGalleryID(gallery.gallery_id),
+      {
+        id: asPhotoID(photo.photo_id),
+        index: 0,
+        desc: 'duplicate',
+        src: `${photo.photo_id}.png`,
+        width: 100,
+        height: 100,
+        has_hdr_optimized: false,
+        member_id: asMemberID(other.member_id),
+      },
+    )).toThrowError(/已经存在/)
   })
 
   it('updates a member without changing the QQ map key', () => {

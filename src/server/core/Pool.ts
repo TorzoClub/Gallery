@@ -480,6 +480,71 @@ export function poolSubmitPhoto(
   }
 }
 
+function assertReservedPhotoId(pool: Pool, gallery: Gallery, photo: Photo): void {
+  if (gallery.photos.has(photo.id)) {
+    throw conflict(`相片(id=${photo.id})已经存在`)
+  }
+  if (Number(photo.id) >= Number(pool.next_id)) {
+    throw new Error('预留的相片 id 必须小于 next_id')
+  }
+}
+
+export function poolAddPhotoReserved(
+  pool: Pool,
+  now: Date,
+  gallery_id: GalleryID,
+  photo_input: PhotoDraft,
+): { pool: Pool; gallery: Gallery; photo: Photo } {
+  const gallery = findGallery(pool, gallery_id)
+  findMemberById(pool, photo_input.member_id)
+
+  if (memberHasSubmitted(gallery, photo_input.member_id)) {
+    throw conflict('该成员在这个相册已经有投稿了')
+  }
+
+  const photo = createPhoto(photo_input, now)
+  assertReservedPhotoId(pool, gallery, photo)
+
+  const next_gallery = checkGallery({
+    ...gallery,
+    photos: gallery.photos.set(photo.id, photo),
+    updated_at: now,
+  })
+
+  return {
+    pool: updatePool(pool, {
+      next_id: asNextID(Math.max(Number(pool.next_id), Number(photo.id) + 1)),
+      galleries: pool.galleries.set(gallery_id, next_gallery),
+    }),
+    gallery: next_gallery,
+    photo,
+  }
+}
+
+export function poolSubmitPhotoReserved(
+  pool: Pool,
+  now: Date,
+  gallery_id: GalleryID,
+  member_id: MemberID,
+  photo_input: PhotoDraft,
+): { pool: Pool; gallery: Gallery; photo: Photo } {
+  const gallery = findGallery(pool, gallery_id)
+  findMemberById(pool, member_id)
+
+  const photo = createPhoto(photo_input, now)
+  assertReservedPhotoId(pool, gallery, photo)
+  const next_gallery = gallerySetSubmission(now, gallery, member_id, photo)
+
+  return {
+    pool: updatePool(pool, {
+      next_id: asNextID(Math.max(Number(pool.next_id), Number(photo.id) + 1)),
+      galleries: pool.galleries.set(gallery_id, next_gallery),
+    }),
+    gallery: next_gallery,
+    photo,
+  }
+}
+
 export type PhotoUpdateInput = {
   index?: number
   desc?: string

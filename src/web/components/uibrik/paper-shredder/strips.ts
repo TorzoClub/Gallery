@@ -66,7 +66,7 @@ type Batch = {
   geometry: THREE.BufferGeometry;
   front: THREE.Mesh;
   back: THREE.Mesh;
-  texture: THREE.CanvasTexture;
+  texture: THREE.Texture;
   released: boolean;
   topFrom: number;
   topTo: number;
@@ -111,7 +111,7 @@ export class ShredScene {
    * can be any height: each batch sizes its own cloth to it. A batch that
    * never went through (the sheet slid back out) is dropped first.
    */
-  begin(id: number, paper: HTMLCanvasElement | Promise<HTMLCanvasElement>, paperColor: string, top: number, sheet: SheetBox) {
+  begin(id: number, paper: HTMLCanvasElement | HTMLImageElement | Promise<HTMLCanvasElement>, paperColor: string, top: number, sheet: SheetBox) {
     for (const x of this.batches.filter((x) => !x.released)) this.remove(x);
     const L = this.layout;
     const S = L.strips;
@@ -198,18 +198,34 @@ export class ShredScene {
     geometry.setAttribute("color", new THREE.BufferAttribute(shade, 3).setUsage(THREE.DynamicDrawUsage));
     geometry.setIndex(index);
 
-    const texture = new THREE.CanvasTexture(document.createElement("canvas"));
+    // Safari can fail to replace a zero-sized texture after the first upload.
+    // Start with a valid 1×1 paper-coloured canvas and resize it in place.
+    const placeholder = document.createElement("canvas");
+    placeholder.width = 1;
+    placeholder.height = 1;
+    const placeholder_ctx = placeholder.getContext("2d");
+    if (placeholder_ctx) {
+      placeholder_ctx.fillStyle = "#ffffff";
+      placeholder_ctx.fillRect(0, 0, 1, 1);
+    }
+
+    // Use the already-decoded image as the WebGL texture source when
+    // possible. Safari's canvas upload path can produce blank AVIF textures,
+    // while an HTMLImageElement is handled by the native image decoder.
+    const texture = paper instanceof HTMLCanvasElement
+      ? new THREE.CanvasTexture(paper)
+      : paper instanceof HTMLImageElement
+        ? new THREE.Texture(paper)
+        : new THREE.CanvasTexture(placeholder);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 4;
-    // three.js sizes a texture's storage on first upload, so the
-    // placeholder is released before the real paint (a new size) goes in.
-    const fill = (img: HTMLCanvasElement) => {
-      texture.dispose();
-      texture.image = img;
-      texture.needsUpdate = true;
-    };
-    if (paper instanceof HTMLCanvasElement) fill(paper);
-    else paper.then(fill);
+    texture.needsUpdate = true;
+    if (paper instanceof Promise) {
+      paper.then((img) => {
+        texture.image = img;
+        texture.needsUpdate = true;
+      });
+    }
 
     // Printed on the front only; the back is plain paper. Shading is baked
     // into vertex colours each frame, so the paper keeps its exact colour

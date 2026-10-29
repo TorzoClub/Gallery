@@ -1,5 +1,5 @@
 "use client";
-
+import './index.css'
 import {
   useEffect,
   useLayoutEffect,
@@ -121,8 +121,6 @@ function createMotor() {
 
 // ─── The paper's texture ────────────────────────────────────────────────────
 
-const PIXEL = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-
 /** Any CSS colour (oklch included) as sRGB, via a canvas. Transparent comes back as white paper. */
 function paperColor(node: HTMLElement): string {
   const el = node.firstElementChild ?? node;
@@ -141,17 +139,76 @@ function paperColor(node: HTMLElement): string {
  * size it will have on screen. If the browser can't (a tainted image, say),
  * the strips are plain paper instead of the shred failing.
  */
+function rasterRatio(w: number, h: number, targetWidth: number): number {
+  return Math.max(0.5, Math.min((3 * targetWidth) / w, 4096 / Math.max(w, h)));
+}
+
+function drawImage(node: HTMLElement, img: HTMLImageElement, w: number, h: number, ratio: number): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(w * ratio));
+  canvas.height = Math.max(1, Math.round(h * ratio));
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    // Paper is white behind transparent pixels, and Safari's canvas upload
+    // is much more reliable when the source is a plain 2D canvas.
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  }
+  return canvas;
+}
+
+function singleImage(node: HTMLElement): HTMLImageElement | null {
+  const images = Array.from(node.querySelectorAll<HTMLImageElement>("img"));
+  return images.length === 1 && images[0].parentElement === node && node.children.length === 1
+    ? images[0]
+    : null;
+}
+
 async function rasterize(node: HTMLElement, targetWidth: number): Promise<HTMLCanvasElement> {
+  const images = Array.from(node.querySelectorAll<HTMLImageElement>("img"));
+  const onlyImage = images.length === 1 && images[0].parentElement === node && node.children.length === 1
+    ? images[0]
+    : null;
   const w = node.offsetWidth || 1;
   const h = node.offsetHeight || 1;
-  const ratio = Math.max(0.5, Math.min((3 * targetWidth) / w, 4096 / Math.max(w, h)));
+  const ratio = rasterRatio(w, h, targetWidth);
+
+  if (onlyImage) {
+    try {
+      if (!onlyImage.complete) {
+        await new Promise<void>((resolve) => {
+          onlyImage.addEventListener("load", () => resolve(), { once: true });
+          onlyImage.addEventListener("error", () => resolve(), { once: true });
+        });
+      }
+      await onlyImage.decode?.().catch(() => undefined);
+      if (onlyImage.naturalWidth > 0 && onlyImage.naturalHeight > 0) {
+        return drawImage(node, onlyImage, w, h, ratio);
+      }
+    } catch {
+      // Fall through to the generic rasterizer.
+    }
+  }
+
   try {
     await document.fonts?.ready;
-    return await toCanvas(node, { pixelRatio: ratio, imagePlaceholder: PIXEL });
+    // Do not pass a transparent imagePlaceholder: Safari can keep the
+    // placeholder long enough that the strips come out blank.
+    await Promise.all(images.map(async (img) => {
+      if (!img.complete) {
+        await new Promise<void>((resolve) => {
+          img.addEventListener("load", () => resolve(), { once: true });
+          img.addEventListener("error", () => resolve(), { once: true });
+        });
+      }
+      await img.decode?.().catch(() => undefined);
+    }));
+    return await toCanvas(node, { pixelRatio: ratio });
   } catch {
     const canvas = document.createElement("canvas");
-    canvas.width = Math.round(w * ratio);
-    canvas.height = Math.round(h * ratio);
+    canvas.width = Math.max(1, Math.round(w * ratio));
+    canvas.height = Math.max(1, Math.round(h * ratio));
     const ctx = canvas.getContext("2d");
     if (ctx) {
       ctx.fillStyle = paperColor(node);
@@ -172,14 +229,14 @@ const GRAIN = `url("data:image/svg+xml;utf8,${encodeURIComponent(
 function Lcd({ text, cursor }: { text: string; cursor: boolean }) {
   return (
     <div
-      className="relative rounded-[6px] p-[2.5px]"
+      className="relative rounded-[3px] p-[5px]"
       style={{
         background: "linear-gradient(180deg, #3f3f46, #27272a)",
         boxShadow: "0 1px 0 rgb(255 255 255 / 0.55), 0 0 0 0.5px rgb(0 0 0 / 0.35), inset 0 1px 1px rgb(0 0 0 / 0.5)",
       }}
     >
       <div
-        className="relative overflow-hidden rounded-[3.5px] px-2 py-[3px]"
+        className="relative overflow-hidden rounded-[1.5px] px-2"
         style={{
           background: "#9eac9a",
           boxShadow: "inset 0 1.5px 3px rgb(0 0 0 / 0.4), inset 0 0 0 1px rgb(0 0 0 / 0.1)",
@@ -196,11 +253,12 @@ function Lcd({ text, cursor }: { text: string; cursor: boolean }) {
           }}
         />
         <span
-          className="relative inline-flex items-center whitespace-nowrap font-mono text-[11px] leading-4 tracking-[0.14em]"
+          className="relative inline-flex items-center whitespace-nowrap font-mono text-[14px] leading-4 tracking-[0.14em]"
           style={{
-            color: "#0c110b",
+            color: "#191e17",
             textShadow: "0.75px 0.75px 0 rgb(12 17 11 / 0.22)",
-            minWidth: "calc(14ch + 14 * 0.14em)",
+            fontFamily: '"guanzhi 8x8 base"',
+            width: '130px',
           }}
         >
           {text}
@@ -528,16 +586,37 @@ export function PaperShredder({
 
   // A fresh set of strips for the sheet about to go in, textured from it.
   // (A set that never went through is dropped by the scene.)
-  const ensureBatch = () => {
+  const ensureBatch = async () => {
     const s = sim.current;
     const el = paperRef.current;
     if (reduce || !scene.current || !el) return;
-    warm();
-    const paint = warmed.current as Promise<HTMLCanvasElement>;
-    warmed.current = null;
+    const image = singleImage(el);
+    let paint: HTMLCanvasElement | HTMLImageElement;
+    if (image) {
+      if (!image.complete) {
+        await new Promise<void>((resolve) => {
+          image.addEventListener("load", () => resolve(), { once: true });
+          image.addEventListener("error", () => resolve(), { once: true });
+        });
+      }
+      await image.decode?.().catch(() => undefined);
+      if (!scene.current) return;
+      // A decoded HTMLImageElement is a reliable WebGL texture source in
+      // Safari. Drawing AVIF thumbnails through a 2D canvas can produce a
+      // valid-looking but blank texture.
+      paint = image;
+    } else {
+      warm();
+      const pending = warmed.current;
+      warmed.current = null;
+      if (!pending) return;
+      paint = await pending;
+      if (!scene.current) return;
+    }
+    const color = paperColor(el);
     s.batch += 1;
     s.pending = true;
-    scene.current.begin(s.batch, paint, paperColor(el), s.y - PAPER_GAP - paper_h, { x: card_x, w: paper_w, h: paper_h });
+    scene.current.begin(s.batch, paint, color, s.y - PAPER_GAP - paper_h, { x: card_x, w: paper_w, h: paper_h });
   };
 
   useEffect(() => {
@@ -678,7 +757,7 @@ export function PaperShredder({
         <div
           ref={bodyRef}
           aria-hidden
-          className="edge-outer absolute rounded-[22px] bg-muted"
+          className="edge-outer absolute bg-muted"
           style={{ left: BODY_INSET, right: BODY_INSET, top: 0, height: BODY_H }}
         >
           {/* Plastic: a gloss from the top, bevelled edges, a moulded grain. Over the
@@ -704,12 +783,13 @@ export function PaperShredder({
 
           {/* The slot is as wide as the bin below it. */}
           <div
-            className="absolute h-[6px] rounded-full bg-zinc-900 dark:bg-black"
+            className="absolute h-[6px] rounded-full bg-zinc-900"
             style={{
               left: BIN_INSET - BODY_INSET,
               right: BIN_INSET - BODY_INSET,
               top: SLOT_Y - 3,
-              boxShadow: "inset 0 1px 3px rgb(0 0 0 / 0.85), 0 1px 0 rgb(255 255 255 / 0.55), 0 -0.5px 0 rgb(0 0 0 / 0.2)",
+              boxShadow: "rgba(0, 0, 0, 0.61) 0px 3px 3px inset, rgba(255, 255, 255, 0.55) 0px 1px 0px, rgba(0, 0, 0, 0.2) 0px -0.5px 0px",
+              background: '#b1b1b1'
             }}
           />
           <div className="absolute inset-x-0 bottom-3 flex items-center justify-between px-4">

@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "APP_ENV=development tsx watch --exclude 'node_modules/**' --exclude './storage/**' --exclude './storage-dev/**' --exclude 'dist/**' --exclude 'legacy/**' --exclude '.git/**' --env-file=.env.development src/server/index.ts",
     "build": "pnpm build:client && pnpm build:server",
-    "build:client": "vite build",
+    "build:client": "vite build && tsx src/server/cli/precompress.ts",
     "build:server": "tsup",
     "analyze": "ANALYZE=true vite build",
     "start": "pnpm build && APP_ENV=production node --env-file-if-exists=.env.production dist/server/index.js",

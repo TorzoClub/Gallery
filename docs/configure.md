@@ -141,6 +141,30 @@ adminUpdateInstanceConfig
 
 前端全局样式由 `src/web/index.css` 引入 Tailwind CSS v4，Vite 使用 `@tailwindcss/vite` 处理。
 
+### gzip / Brotli 预压缩
+
+`pnpm build` 的前端构建完成后会对 `dist/client` 中的文件生成：
+
+```text
+<file>.gz
+<file>.br
+```
+
+- gzip 使用 level 9。
+- Brotli 使用 quality 11，扩展名是标准的 `.br`。
+- 已存在的 `.gz` / `.br` / `.zst` 文件不会再次压缩。
+- `pnpm start` 通过 `pnpm build` 自动生成这些副本；`pnpm start:prod` 使用已经构建好的产物。
+
+生产服务使用 Hono 的 `serveStatic({ precompressed: true })`，按客户端 `Accept-Encoding` 选择：
+
+```text
+br -> gzip -> 原文件
+```
+
+压缩响应会设置 `Content-Encoding`、`Content-Length` 和 `Vary: Accept-Encoding`。没有压缩副本时自动回退到原文件。SPA fallback 的 `index.html` 也会优先使用 `.br` / `.gz` 副本。
+
+`pnpm analyze` 只生成包分析报告，不额外生成压缩副本。
+
 构建时会注入 `build_date` 和 `git_hash`，并随 ClientPool 暴露给 Behind 页面；development 下两者都是 `N/A`。`git_hash` 取 `git rev-parse --short HEAD`，没有 git 元数据时回退 `N/A`。
 
 ## Storage 初始化

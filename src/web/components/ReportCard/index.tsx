@@ -39,8 +39,8 @@ export type ReportCardBuild = {
 
 export const DEFAULT_REPORT_CARD_CONFIG: ReportCardConfig = {
   stamp: {
-    x: 18,
-    y: 34,
+    x: 176,
+    y: 23,
     angle: -9,
   },
   paper: {
@@ -145,9 +145,10 @@ function applyConfig(element: HTMLDivElement, config: ReportCardConfig): void {
 function rowParts(row: ReportCardRow): [string, string] {
   if (Array.isArray(row)) {
     return [row[0], row[1]]
+  } else {
+    const named = row as { name: string, value: string }
+    return [named.name, named.value]
   }
-  const named = row as { name: string, value: string }
-  return [named.name, named.value]
 }
 
 export default function ReportCard({
@@ -175,9 +176,9 @@ export default function ReportCard({
   return (
     <div ref={rootRef} className={rootClassName}>
       <div className={styles.sheet}>
-        <section className={styles.card} aria-label='App Environment Reports'>
+        <section className={styles.card} aria-label='System Reports'>
           <div className={styles.ink}>
-            <h1 className={styles.title}>App Environment<br />Reports</h1>
+            <h1 className={styles.title}>System<br />Reports</h1>
             <div className={`${styles.row} ${styles.cols}`}>
               <div>NAME</div>
               <div>VALUE</div>

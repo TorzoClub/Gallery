@@ -14,7 +14,8 @@
 .behind-app__actions {
   width: min(100% - 32px, 360px);
   margin: 0 auto;
-  padding: 0 0 calc(env(safe-area-inset-bottom) + 56px);
+  margin-top: 34px;
+  /* padding: 0 0 16px; */
   transition: opacity 1s, transform 1s;
   opacity: 1;
   transform: translate(0, 0px);
@@ -38,7 +39,7 @@
 .behind-app__brand {
   width: min(100%, 360px);
   margin: 0 auto;
-  padding: 22px 0px;
+  padding: 0px;
   text-align: center;
 }
 

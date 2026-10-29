@@ -10,6 +10,7 @@ import __logo_src from './about-image.jpg'
 import { useEffect, useRef, useState } from 'react'
 import { useClientPool } from './pool/store'
 import { formatUptime } from '@shared/uptime'
+import Navigator from './components/Navigator'
 
 const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'N/A'
 const BASE_PATH = import.meta.env.VITE_BASE_PATH ?? 'N/A'
@@ -80,14 +81,13 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
 
   useEffect(() => {
     if (pool === null) {
-      setUptime('—')
-      return
+      setUptime('N/A')
+    } else {
+      const update = () => setUptime(formatUptime(pool.app_startup_time))
+      update()
+      const timer = window.setInterval(update, 60_000)
+      return () => window.clearInterval(timer)
     }
-
-    const update = () => setUptime(formatUptime(pool.app_startup_time))
-    update()
-    const timer = window.setInterval(update, 60_000)
-    return () => window.clearInterval(timer)
   }, [pool])
 
   const report: readonly ReportCardRow[] = [
@@ -125,17 +125,16 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
   return (
     <section className='behind-app' aria-label='关于同装相册'>
       <div className='behind-app__inner'>
+        <Navigator showTitle={false} onClickPushButton={() => {
+          navigate('/explore', { replace: true })
+          setShowCard(false)
+        }} />
         <div className='behind-app__brand'>
           <img className='behind-app__logo' src={__logo_src} alt='Torzo Gallery' />
           <h1 className='behind-app__title'>{pkg.title}</h1>
           <AppYearLabel year={2026} />
         </div>
         <div className='behind-app__actions'>
-          <SkeuomorphismButton onClick={() => {
-            navigate('/explore', { replace: true })
-            setShowCard(false)
-          }}>回到相册</SkeuomorphismButton>
-          <div style={{ height: '22px' }} />
           <SkeuomorphismButton onClick={() => {
             navigate('/admin', { replace: true })
             setShowCard(false)
@@ -150,9 +149,6 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
             />
           </div>
         )}
-        {/* {show_card && (
-
-        )} */}
       </div>
     </section>
   )

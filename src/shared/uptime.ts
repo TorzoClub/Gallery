@@ -26,10 +26,10 @@ export function formatUptime(startupTime: number, now = Date.now()): string {
     const months = Math.floor(remaining_days / MONTH_DAYS)
     const days = remaining_days % MONTH_DAYS
     return `${years}y ${months}m ${days}d`
+  } else {
+    const months = Math.floor(total_days / MONTH_DAYS)
+    const days = total_days % MONTH_DAYS
+    const hours = total_hours % DAY_HOURS
+    return `${months}m ${days}d ${hours}h`
   }
-
-  const months = Math.floor(total_days / MONTH_DAYS)
-  const days = total_days % MONTH_DAYS
-  const hours = total_hours % DAY_HOURS
-  return `${months}m ${days}d ${hours}h`
 }

@@ -1,6 +1,5 @@
 import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import ImageUploadingImport, { type ImageType, type ImageListType } from 'react-images-uploading'
-import heicConvert from 'heic-convert/browser'
 
 import { useSubmissionStore } from '.'
 import { fetchMemberView, submitPhoto, updateSubmission } from 'api/client-pool'
@@ -116,6 +115,7 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
       } else {
         const is_heic = blob.type.includes('heic') || blob.type.includes('heif')
         if (is_heic) {
+          const { default: heicConvert } = await import('heic-convert/browser')
           const jpg_buf = await heicConvert({
             buffer: new Uint8Array(array_buffer),
             format: 'JPEG',

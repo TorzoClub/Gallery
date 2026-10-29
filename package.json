@@ -25,22 +25,19 @@
     "pnpm": ">=10.24.0"
   },
   "packageManager": "pnpm@10.24.0",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "esbuild",
-      "sharp"
-    ]
-  },
   "dependencies": {
     "@hono/node-server": "^2.1.5",
     "@juggle/resize-observer": "^3.4.0",
+    "@tabler/icons-react": "^3.50.0",
     "axios": "^1.20.0",
     "busboy": "^1.6.0",
+    "clsx": "^2.1.1",
     "heic-convert": "^2.1.0",
     "hono": "^4.13.13",
+    "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "immutable": "^5.1.9",
+    "motion": "^14.7.1",
     "ramda": "^0.29.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -48,21 +45,26 @@
     "react-router-dom": "^7.18.4",
     "sharp": "^0.35.5",
     "swr": "^2.3.8",
+    "tailwind-merge": "^3.7.0",
+    "three": "^0.186.1",
     "uuid": "^14.0.3",
     "vait": "^4.2.1",
     "zod": "^4.6.7",
     "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@types/busboy": "^1.5.5",
     "@types/heic-convert": "^2.1.0",
     "@types/node": "^24.0.0",
     "@types/ramda": "^0.29.9",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.1.2",
     "oxlint": "^1.89.0",
     "sass": "^1.106.1",
+    "tailwindcss": "^4.3.3",
     "tsup": "^9.0.0",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

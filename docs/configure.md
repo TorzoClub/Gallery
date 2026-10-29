@@ -133,6 +133,7 @@ adminUpdateInstanceConfig
 | `pnpm lint` | oxlint |
 | `pnpm test` | Vitest 服务端测试 |
 | `pnpm build` | 构建 `dist/client` + `dist/server` |
+| `pnpm analyze` | 构建前端并生成 `dist/client/stats.html` 包分析 |
 | `pnpm start` | 构建后启动生产服务 |
 | `pnpm start:prod` | 直接启动已构建的生产服务 |
 

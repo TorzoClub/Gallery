@@ -2,6 +2,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { visualizer } from 'rollup-plugin-visualizer'
 import { defineConfig, loadEnv } from 'vite'
 import { getBuildInfo } from './build-info.config'
 
@@ -33,6 +34,7 @@ function normalizeBase(input: string | undefined) {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  const analyze = env.ANALYZE === 'true' || process.env.ANALYZE === 'true'
   const build_info = getBuildInfo()
   const build_defines = mode === 'production'
     ? {
@@ -44,7 +46,20 @@ export default defineConfig(({ mode }) => {
   return {
     base: normalizeBase(env.VITE_BASE_PATH),
     define: build_defines,
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      react(),
+      tailwindcss(),
+      ...(analyze ? [
+        visualizer({
+          filename: 'dist/client/stats.html',
+          template: 'treemap',
+          gzipSize: true,
+          brotliSize: true,
+          open: false,
+          title: 'Torzo Gallery bundle',
+        }),
+      ] : []),
+    ],
     resolve: {
       alias: [
         { find: '@shared', replacement: sharedDir },

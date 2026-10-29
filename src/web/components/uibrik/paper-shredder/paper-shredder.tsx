@@ -64,6 +64,8 @@ export type PaperShredderProps = {
   speed?: number;
   /** Motor and cutter noise while shredding. */
   sound?: boolean;
+  /** Start shredding automatically once the document has been measured. */
+  auto?: boolean;
   /** Called once a document has gone through. */
   onShred?: () => void;
   className?: string;
@@ -284,6 +286,7 @@ export function PaperShredder({
   strips: COUNT = 14,
   speed = 150,
   sound = true,
+  auto = false,
   onShred,
   className,
 }: PaperShredderProps) {
@@ -292,6 +295,7 @@ export function PaperShredder({
   const [announce, setAnnounce] = useState("");
   // The node's natural size, as laid out at its own width.
   const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  const [finished, setFinished] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const paperRef = useRef<HTMLDivElement>(null);
@@ -301,6 +305,8 @@ export function PaperShredder({
   const motor = useRef<ReturnType<typeof createMotor>>(null);
   const loop = useRef<() => void>(() => {});
   const warmed = useRef<Promise<HTMLCanvasElement> | null>(null);
+  const auto_started = useRef(false);
+  const shred_ref = useRef<() => void>(() => {});
 
   // Geometry. Slot, bin and stage all follow `width`; the sheet is scaled
   // uniformly from its natural size to the paper width, so only its height varies.
@@ -315,10 +321,10 @@ export function PaperShredder({
   const root_h = TOP_ROOM + paper_h + PAPER_GAP + MACHINE_H;
 
   // Everything the loop reads, kept current without restarting it.
-  const live = useRef({ speed, sound, reduce, onShred });
+  const live = useRef({ speed, sound, reduce, onShred, auto });
   const geo = useRef({ paper_h, travel });
   useIsoLayoutEffect(() => {
-    live.current = { speed, sound, reduce, onShred };
+    live.current = { speed, sound, reduce, onShred, auto };
     geo.current = { paper_h, travel };
   });
 
@@ -380,6 +386,7 @@ export function PaperShredder({
     s.vel = 0;
     s.pending = false;
     s.motorOn = false;
+    setFinished(false);
     setRunning(false);
     const canvas = canvasRef.current;
     if (canvas) {
@@ -448,6 +455,11 @@ export function PaperShredder({
           motorRef.current(false);
           setAnnounce("Document shredded");
           live.current.onShred?.();
+          if (live.current.auto) {
+            s.phase = "idle";
+            s.opacity = 0;
+            setFinished(true);
+          }
         }
       } else if (s.phase === "gone") {
         if (s.clock - s.goneAt > 0.9) {
@@ -588,6 +600,19 @@ export function PaperShredder({
     loop.current();
   };
 
+  useEffect(() => {
+    shred_ref.current = shred
+  })
+
+  useEffect(() => {
+    if (!auto || !natural || auto_started.current) {
+      return
+    }
+    auto_started.current = true
+    const frame = requestAnimationFrame(() => shred_ref.current())
+    return () => cancelAnimationFrame(frame)
+  }, [auto, natural])
+
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Enter" || e.key === " " || e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault();
@@ -715,7 +740,7 @@ export function PaperShredder({
             height: paper_h,
             transform: `translate3d(0, ${TOP_ROOM}px, 0)`,
             // not shown until measured, so it never flashes at the wrong size
-            visibility: natural ? "visible" : "hidden",
+            visibility: finished || !natural ? "hidden" : "visible",
           }}
         >
           {/* The node at its natural size, scaled from the corner. Pointer events are off

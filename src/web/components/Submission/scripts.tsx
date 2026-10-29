@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { confirmMember, fetchMemberView } from 'api/client-pool'
+import { cancelSubmission, confirmMember, fetchMemberView } from 'api/client-pool'
 
 import s from './scripts.module.scss'
 
 import { componentScript, script, select, Script, Select, Content, useSubmissionStore, jumpScript, _EVENT_, scriptAdvance, TextContentEffect, textContentEffectTotalTime, ScriptPlayerSelects, RenderContent } from './'
 
 import WaitingInputFrame from 'components/ConfirmQQ/WaitingInputFrame'
-import { timeout } from 'vait'
+import { Signal, timeout } from 'vait'
 import { LoadingMask } from 'components/LoadingMask'
 import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
 
@@ -18,6 +18,7 @@ import { dateDiffInDays, isInvalidDate, isNextMonth, isNextWeek, monthDiff, stri
 import { signal_critical_error } from 'signals'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { playTextBlip } from '@/utils/text-audio'
+import Spinner from '../Spinner'
 
 type InitArgs = {
   gallery_photo_count: number
@@ -239,7 +240,7 @@ export function init(init_args : InitArgs) {
 
         const selects = useMemo(() => (
           [
-            select('是，取消掉吧', script('', [])),
+            select('是，取消掉吧', script(RemovingSubmission, [])),
             select('否，不要取消', script('你逗我玩是吧？', [
               select('我真的想参加', jumpScript(submissionCheckingScript, ['要做什么'])),
               select('我只是随便看看', script('呃呃呃......', []))
@@ -255,19 +256,51 @@ export function init(init_args : InitArgs) {
           return () => clearTimeout(handler)
         }, [])
 
-        const handleRemove = useCallback(() => {
-          if (!photo || !qq_num) {
-            return
-          }
-          navigate('/removingSubmission', {
-            replace: true,
-            state: {
-              photo,
-              qq_num: Number(qq_num),
-              return_to: location.pathname,
-            },
-          })
-        }, [location.pathname, navigate, photo, qq_num])
+        function RemovingSubmission() {
+          const [removing, setRemoving] = useState(true)
+
+          useEffect(() => {
+            if (photo && qq_num) {
+              Signal.once(_EVENT_.canceled, () => {
+                setTimeout(() => {
+                  setRemoving(false)
+                }, 2000)
+              })
+              navigate('/removingSubmission', {
+                replace: true,
+                state: {
+                  photo,
+                  qq_num: Number(qq_num),
+                  return_to: location.pathname,
+                },
+              })
+            }
+          }, [])
+
+          const removed_selects = [
+            select('你干得好啊。', script('同装摄影大赛，来去自由！', [])),
+            select_我说说的你怎么就当真了()
+          ]
+
+          return (
+            removing ? <Spinner audioVolume={0} /> : (
+              <>
+                <div>
+                  <TextContentEffect
+                    textContent="投稿已撤回"
+                    showContentWaittime={1000}
+                  />
+                </div>
+                <ScriptPlayerSelects
+                  selects={removed_selects}
+                  waittime={2000}
+                  onClickSelect={(i) => { changeScript(removed_selects[i].next_script) }}
+                  changeScript={changeScript}
+                />
+              </>
+            )
+          )
+        }
 
         const confirm_node = (
           <div style={{ position: 'relative' }}>
@@ -275,11 +308,7 @@ export function init(init_args : InitArgs) {
               selects={selects}
               waittime={timeline.select_waittime}
               onClickSelect={i => {
-                if (i === 0) {
-                  handleRemove()
-                } else {
-                  changeScript(selects[i].next_script)
-                }
+                changeScript(selects[i].next_script)
               }}
               changeScript={changeScript}
             />

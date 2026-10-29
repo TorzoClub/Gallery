@@ -11,3 +11,11 @@ export function isExplorePath(pathname: string): boolean {
   const normalized = normalizePath(pathname)
   return normalized === '/explore' || normalized.startsWith('/explore/')
 }
+
+export function isCancelSubmissionPath(pathname: string): boolean {
+  const normalized = normalizePath(pathname)
+  return normalized === '/cancelSubmission'
+    || normalized.startsWith('/cancelSubmission/')
+    || normalized === '/removingSubmission'
+    || normalized.startsWith('/removingSubmission/')
+}

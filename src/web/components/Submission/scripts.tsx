@@ -1,8 +1,7 @@
-import React, { CSSProperties, ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
-import { cancelSubmission, confirmMember, fetchMemberView } from 'api/client-pool'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { confirmMember, fetchMemberView } from 'api/client-pool'
 
 import s from './scripts.module.scss'
-import { disintegrate } from './thanos-disintegration'
 
 import { componentScript, script, select, Script, Select, Content, useSubmissionStore, jumpScript, _EVENT_, scriptAdvance, TextContentEffect, textContentEffectTotalTime, ScriptPlayerSelects, RenderContent } from './'
 
@@ -15,16 +14,16 @@ import image_同装同装 from '../../assets/同装 同装.png'
 import { getClientPoolState, reloadClientPool } from 'pool/store'
 import { submittedPhotoView, type GalleryView, type PhotoView } from 'pool/view'
 import { thunkify } from 'ramda'
-import { useQueueload } from 'utils/queue-load'
 import { dateDiffInDays, isInvalidDate, isNextMonth, isNextWeek, monthDiff, stringifyWeekDay } from 'utils/date'
 import { signal_critical_error } from 'signals'
-import Spinner from '../Spinner'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { playTextBlip } from '@/utils/text-audio'
 
 type InitArgs = {
   gallery_photo_count: number
   submission_expire: GalleryView['submission_expire']
 }
+
 export function init(init_args : InitArgs) {
   function RequestInputQQNumber(p: { loginSuccess: (qq_num: string) => Promise<void> }) {
     const [ failure, setFailure ] = useState<Error | null>(null)
@@ -87,14 +86,41 @@ export function init(init_args : InitArgs) {
     ])
   }
 
+  const script_碎纸机测试 = (): Script => componentScript([], () => {
+    const { photo, qq_num } = useSubmissionStore.getState()
+    const navigate = useNavigate()
+    const location = useLocation()
+
+    useEffect(() => {
+      if (!photo || !qq_num) {
+        return
+      }
+      navigate('/removingSubmission', {
+        replace: true,
+        state: {
+          photo,
+          qq_num: Number(qq_num),
+          return_to: location.pathname,
+          test: true,
+        },
+      })
+    }, [location.pathname, navigate, photo, qq_num])
+
+    return <div>正在进入碎纸机测试...</div>
+  })
+
   const submissionCheckingScript = (exists_text: string = '你这不是已经投稿了吗？'): Script => {
     const { photo } = useSubmissionStore.getState()
     if (photo) {
       // 已经投稿了
-      return componentScript([
+      const selects = [
         select('哦，我其实想修改的', script_PhotoCreateOrEditWithTitle('当然可以修改！', 'EDIT', true)),
-        select_我其实是想取消投稿
-      ], () => {
+        select_我其实是想取消投稿,
+      ]
+      if (import.meta.env.DEV) {
+        selects.push(select('[DEV] 播放碎纸机测试', script_碎纸机测试()))
+      }
+      return componentScript(selects, () => {
         return (
           <>
             <div style={{ marginBottom: '20px' }}>{exists_text}</div>
@@ -201,6 +227,8 @@ export function init(init_args : InitArgs) {
       selects: [
       ],
       Content: ({ changeScript }) => {
+        const navigate = useNavigate()
+        const location = useLocation()
         const [delete_line, setDeleteLine] = useState(false)
         useEffect(() => {
           const handler = setTimeout(() => {
@@ -220,9 +248,6 @@ export function init(init_args : InitArgs) {
         ), [])
 
         const { photo, qq_num } = useSubmissionStore.getState()
-        const [ , blob_url ] = useQueueload(
-          (photo === null) ? undefined : photo.thumb_url
-        )
 
         const [show_photo, showPhoto] = useState(false)
         useEffect(() => {
@@ -230,102 +255,36 @@ export function init(init_args : InitArgs) {
           return () => clearTimeout(handler)
         }, [])
 
-        const [removing, setRemoving] = useState(false)
-        const [removed, setRemoved] = useState(false)
         const handleRemove = useCallback(() => {
-          setRemoving(true)
-          if (photo) {
-            if (qq_num) {
-              const t = timeout(1500)
-              const canceling = cancelSubmission({
-                qq_num: Number(qq_num),
-                photo_id: photo.id,
-              })
-              Promise.all([t, canceling]).then(() => {
-                canceling.then(() => {
-                  if (unmounted) {
-                    _EVENT_.canceled.trigger(photo.id)
-                  } else {
-                    setRemoving(false)
-                    setRemoved(true)
-                    _EVENT_.canceled.trigger(photo.id)
-                  }
-                })
-              }).catch(err => {
-                if (unmounted) { return }
-                setRemoving(false)
-                alert(`取消投稿操作失败：${err}`)
-              })
-            }
+          if (!photo || !qq_num) {
+            return
           }
-          let unmounted = false
-          return () => { unmounted = true }
-        }, [photo, qq_num])
+          navigate('/removingSubmission', {
+            replace: true,
+            state: {
+              photo,
+              qq_num: Number(qq_num),
+              return_to: location.pathname,
+            },
+          })
+        }, [location.pathname, navigate, photo, qq_num])
 
-        const confirm_node = useMemo(() => {
-          let removing_node: ReactNode = null
-          const removing_node_style: CSSProperties = {
-            marginTop: '40px',
-          }
-          if (removed) {
-            removing_node = <div style={removing_node_style}>
-              <TextContentEffect
-                textContent="你的投稿已撤回"
-                showContentWaittime={0}
-              />
-            </div>
-          } else if (removing) {
-            removing_node = <div style={removing_node_style}><Spinner audioVolume={.8} /></div>
-          }
-          return (
-            <div style={{ position: 'relative' }}>
-              {removing_node ? removing_node : (
-                <ScriptPlayerSelects
-                  selects={selects}
-                  waittime={timeline.select_waittime}
-                  onClickSelect={i => {
-                    if (i === 0) {
-                      handleRemove()
-                    } else {
-                      changeScript(selects[i].next_script)
-                    }
-                  }}
-                  changeScript={changeScript}
-                />
-              )}
-            </div>
-          )
-        }, [changeScript, handleRemove, removed, removing, selects])
-
-        const [remove_effect_played, setPlayed] = useState(false)
-        useEffect(() => {
-          if (photo && removed) {
-            const targets = document.querySelectorAll('.disintegration-target')
-            for (let i = 0; i < targets.length; ++i) {
-              const $elm = targets[i] as any
-              if ($elm.disintegrated) { return }
-              $elm.disintegrated = true
-              timeout(
-                500 +
-                textContentEffectTotalTime(0, '你的投稿已撤回')
-              ).then(() => {
-                disintegrate($elm).catch(err => {
-                  console.warn('disintegrate', err)
-                  signal_critical_error.trigger(`disintegrate error: ${err}`)
-                }).finally(() => {
-                  setTimeout(() => {
-                    setPlayed(true)
-                  }, 500)
-                })
-              })
-            }
-          }
-        }, [photo, removed])
-
-        const removed_selects = useMemo(() => [
-          select('你干得好啊。', script('同装摄影大赛，来去自由！', [])),
-          select_我说说的你怎么就当真了()
-        ], [])
+        const confirm_node = (
+          <div style={{ position: 'relative' }}>
+            <ScriptPlayerSelects
+              selects={selects}
+              waittime={timeline.select_waittime}
+              onClickSelect={i => {
+                if (i === 0) {
+                  handleRemove()
+                } else {
+                  changeScript(selects[i].next_script)
+                }
+              }}
+              changeScript={changeScript}
+            />
+          </div>
+        )
 
         return (
           <>
@@ -362,11 +321,10 @@ export function init(init_args : InitArgs) {
             }}>
               {
                 photo && (
-                  <div className="disintegration-target">
+                  <div data-cancel-photo>
                     <PreviewBox
                       canClick={false}
                       previewURL={photo.thumb_url}
-                      imageAppendClassName={ removed ? s.PhotoRemoving : '' }
                       height={320 / (photo.width / photo.height)}
                       isDragging={false}
                     />
@@ -376,17 +334,6 @@ export function init(init_args : InitArgs) {
             </div>
 
             {confirm_node}
-
-            {
-              remove_effect_played && (
-                <ScriptPlayerSelects
-                  selects={removed_selects}
-                  onClickSelect={(i) => { changeScript(removed_selects[i].next_script) }}
-                  changeScript={changeScript}
-                  waittime={1000}
-                />
-              )
-            }
 
             <style>{`
 

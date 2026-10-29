@@ -19,6 +19,7 @@ import { activeGallery, normalGalleries } from 'pool/selectors'
 import { toGalleryViews, type GalleryView } from 'pool/view'
 import { canUseCacheWorker, transformCacheWorkerURL } from 'pool/media'
 import { useSubmissionEvent } from 'components/Submission'
+import { PaperShredder } from '@/components/uibrik/paper-shredder/paper-shredder'
 
 const watterfall_refreshed = Signal()
 

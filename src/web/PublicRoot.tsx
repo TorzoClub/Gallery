@@ -6,7 +6,8 @@ import ChannelAfterglow from './components/ChannelAfterglow'
 import ChannelOsd, { type ChannelOsdName } from './components/ChannelOsd'
 import ChannelSwitch from './components/ChannelSwitch'
 import HomeApp from './HomeApp'
-import { isBehindPath, isExplorePath } from './routes'
+import CancelSubmissionApp from './layouts/CancelSubmission'
+import { isBehindPath, isCancelSubmissionPath, isExplorePath } from './routes'
 import styles from './PublicRoot.module.scss'
 import { playChannelSwitchSound, primeChannelAudio } from './utils/crt-audio'
 import { primeTextAudio } from './utils/text-audio'
@@ -18,9 +19,17 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
+type Channel = 'explore' | 'behind' | 'cancel'
+
 type SwitchState = {
   id: number
-  target: 'behind' | 'explore'
+  target: Channel
+}
+
+const CHANNEL_OSD: Record<Channel, ChannelOsdName> = {
+  explore: 'CH. Explore',
+  behind: 'CH. Behind',
+  cancel: 'CH. cancelSubmission',
 }
 
 type OsdState = {
@@ -49,12 +58,21 @@ export default function PublicRoot() {
   const location = useLocation()
   const behind = isBehindPath(location.pathname)
   const explore = isExplorePath(location.pathname)
-  const previousBehind = useRef(behind)
+  const cancel = isCancelSubmissionPath(location.pathname)
+  const routeChannel: Channel | null = cancel
+    ? 'cancel'
+    : behind
+      ? 'behind'
+      : explore
+        ? 'explore'
+        : null
+  const previousChannel = useRef<Channel>(routeChannel ?? 'explore')
   const nextSwitchId = useRef(0)
   const nextOsdId = useRef(0)
   const homeStageRef = useRef<HTMLDivElement>(null)
   const behindStageRef = useRef<HTMLDivElement>(null)
-  const [behindVisible, setBehindVisible] = useState(behind)
+  const cancelStageRef = useRef<HTMLDivElement>(null)
+  const [activeChannel, setActiveChannel] = useState<Channel>(routeChannel ?? 'explore')
   const [switchState, setSwitchState] = useState<SwitchState | null>(null)
   const [osd, setOsd] = useState<OsdState | null>(null)
   const [afterglow, setAfterglow] = useState<AfterglowState | null>(null)
@@ -73,37 +91,32 @@ export default function PublicRoot() {
   }, [])
 
   useLayoutEffect(() => {
-    if (previousBehind.current === behind) {
+    if (routeChannel === null || previousChannel.current === routeChannel) {
       return
     }
 
-    previousBehind.current = behind
+    previousChannel.current = routeChannel
     setAfterglow(null)
     setOsd({
       id: ++nextOsdId.current,
-      name: behind ? 'CH. Behind' : 'CH. Explore',
+      name: CHANNEL_OSD[routeChannel],
     })
 
     if (prefersReducedMotion()) {
-      setBehindVisible(behind)
+      setActiveChannel(routeChannel)
       return
-    }
-
-    if (behind) {
-      // 换台完成前只让 Explore 抖动，不提前露出 Behind。
-      setBehindVisible(false)
     }
 
     playChannelSwitchSound()
     nextSwitchId.current += 1
     setSwitchState({
       id: nextSwitchId.current,
-      target: behind ? 'behind' : 'explore',
+      target: routeChannel,
     })
-  }, [behind])
+  }, [routeChannel])
 
   const finishSwitch = useCallback((state: SwitchState) => {
-    setBehindVisible(state.target === 'behind')
+    setActiveChannel(state.target)
     setSwitchState(current => (current?.id === state.id ? null : current))
 
     setAfterglow({
@@ -141,7 +154,7 @@ export default function PublicRoot() {
   }, [afterglow])
 
   useEffect(() => {
-    const targets = [homeStageRef.current, behindStageRef.current]
+    const targets = [homeStageRef.current, behindStageRef.current, cancelStageRef.current]
       .filter((target): target is HTMLDivElement => target !== null)
 
     if (targets.length === 0 || switchState === null) {
@@ -181,7 +194,7 @@ export default function PublicRoot() {
 
   useEffect(() => {
     window.scrollTo(0, 0)
-  }, [behindVisible])
+  }, [activeChannel])
 
   const lockScroll = switchState !== null
   useEffect(() => {
@@ -196,7 +209,7 @@ export default function PublicRoot() {
     }
   }, [lockScroll])
 
-  if (!behind && !explore) {
+  if (!behind && !explore && !cancel) {
     return <Navigate to='/explore' replace />
   }
 
@@ -205,20 +218,29 @@ export default function PublicRoot() {
       <div
         ref={behindStageRef}
         className={styles.pageStage}
-        style={behindVisible ? activeStageStyle : hiddenStageStyle}
-        aria-hidden={!behindVisible}
-        inert={!behindVisible}
+        style={activeChannel === 'behind' ? activeStageStyle : hiddenStageStyle}
+        aria-hidden={activeChannel !== 'behind'}
+        inert={activeChannel !== 'behind'}
       >
-        <BehindApp thisIsDisplay={behindVisible} />
+        <BehindApp thisIsDisplay={activeChannel === 'behind'} />
       </div>
       <div
         ref={homeStageRef}
         className={styles.pageStage}
-        style={behindVisible ? hiddenStageStyle : activeStageStyle}
-        aria-hidden={behindVisible}
-        inert={behindVisible}
+        style={activeChannel === 'explore' ? activeStageStyle : hiddenStageStyle}
+        aria-hidden={activeChannel !== 'explore'}
+        inert={activeChannel !== 'explore'}
       >
         <HomeApp />
+      </div>
+      <div
+        ref={cancelStageRef}
+        className={styles.pageStage}
+        style={activeChannel === 'cancel' ? activeStageStyle : hiddenStageStyle}
+        aria-hidden={activeChannel !== 'cancel'}
+        inert={activeChannel !== 'cancel'}
+      >
+        <CancelSubmissionApp thisIsDisplay={activeChannel === 'cancel'} />
       </div>
       {afterglow && (
         <ChannelAfterglow

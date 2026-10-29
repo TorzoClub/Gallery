@@ -120,6 +120,7 @@ Node HTTP Server
 - 前端 bundle 使用 hash 文件名并强缓存；HTML 使用 `no-cache` 弱缓存；source 保存原始上传字节，optimized/thumb 使用实体 ID + 内容 CRC32 文件名并强缓存；上传临时文件使用 UUIDv7。
 - 公开页和后台共用前端入口，后台整体异步加载；公开页入口是 `/explore`，`/` 重定向到它。
 - `/explore` 与 `/behind` 是同级页面；页面切换用隐藏 stage，而不是 fixed 覆盖。
+- `/cancelSubmission` 与别名 `/removingSubmission` 是取消投稿的碎纸机频道，频道名为 `CH. cancelSubmission`。
 - 图片分三类：`source` 原图、`optimized` 全尺寸 SDR AVIF、`thumb` SDR AVIF 缩略图；相片 optimized 固定为 `-sdr.avif`，thumb 为无后缀 `.avif`；头像 thumb 为 `.avif`。当前 Phase 0 只生成 SDR；HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
 - 后台保持轻依赖和工具化，不套用公开页视觉风格。
 - 后端通过 dispatch action 执行业务，admin action 只能从 admin 路由调用。

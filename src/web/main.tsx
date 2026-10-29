@@ -1,11 +1,12 @@
 import React, { ReactNode, Suspense, lazy, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
+import './index.css'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { OutterPromise } from 'vait'
 
 import { appInitInfomation } from './HomeApp'
 import PublicRoot from './PublicRoot'
-import { isBehindPath } from './routes'
+import { isBehindPath, isCancelSubmissionPath } from './routes'
 import { FailureLayoutContainer, useFailureLayout } from './components/FailureLayout'
 
 const AdminApp = lazy(() => import('./admin/AdminApp'))
@@ -46,6 +47,8 @@ function TitleSync() {
   useEffect(() => {
     if (isBehindPath(location.pathname)) {
       document.title = '同装摄影集 · About'
+    } else if (isCancelSubmissionPath(location.pathname)) {
+      document.title = '同装摄影集 · cancelSubmission'
     } else if (location.pathname.startsWith('/explore')) {
       document.title = '同装摄影集'
     } else if (!location.pathname.startsWith('/admin')) {

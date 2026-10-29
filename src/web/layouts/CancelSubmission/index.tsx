@@ -86,7 +86,7 @@ export default function CancelSubmissionApp({ thisIsDisplay }: { thisIsDisplay: 
       <div className={styles.label}>cancelSubmission</div>
 
       <div className={styles.shredderLayer}>
-        <PaperShredder auto={auto} speed={25} sound strips={5} onShred={finish}>
+        <PaperShredder auto={auto} speed={35} sound strips={30} onShred={finish}>
           {photo && <img src={photo.thumb_url} alt="" />}
         </PaperShredder>
       </div>

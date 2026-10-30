@@ -107,7 +107,7 @@ export default function MemberListPage() {
             <Icon name="trash" size={14} />
             删除
           </button>
-          <Link className="adm-button adm-button--small" to={`/admin/member/${member.id}`}>
+          <Link className="adm-button adm-button--small" to={`/admin-legacy/member/${member.id}`}>
             <Icon name="edit" size={14} />
             查看
           </Link>
@@ -127,7 +127,7 @@ export default function MemberListPage() {
               <Icon name="refresh" size={16} />
               刷新
             </button>
-            <Link className="adm-button adm-button--primary" to="/admin/member/new">
+            <Link className="adm-button adm-button--primary" to="/admin-legacy/member/new">
               <Icon name="plus" size={16} />
               创建成员
             </Link>

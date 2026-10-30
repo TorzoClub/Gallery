@@ -1,0 +1,124 @@
+.page {
+  min-height: 100dvh;
+  background-color: #f4f0e8;
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgb(255 255 255 / .62),
+    rgb(255 255 255 / .62) 1px,
+    rgb(197 183 151 / .32) 1px,
+    rgb(197 183 151 / .32) 2px
+  );
+  background-repeat: repeat;
+  background-attachment: fixed;
+  color: #27231d;
+  padding: 0 0 72px;
+  box-sizing: border-box;
+}
+
+.page > .gallery-home {
+  padding-top: 24px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 1400px;
+  margin: 0 auto 36px;
+}
+
+.kicker {
+  color: #8d8172;
+  font-size: 11px;
+  letter-spacing: .18em;
+}
+
+.title {
+  margin: 6px 0 0;
+  font-family: Didot, "Bodoni 72", "Hoefler Text", Georgia, serif;
+  font-size: 34px;
+  font-weight: 700;
+}
+
+.header_actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+
+  a, button {
+    color: #4f463b;
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+.gallery {
+  max-width: 1400px;
+  margin: 0 auto 54px;
+}
+
+.gallery__title {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+
+.loading, .empty {
+  max-width: 1400px;
+  margin: 20vh auto 0;
+  color: #8d8172;
+  text-align: center;
+  font-size: 14px;
+}
+
+.error {
+  max-width: 520px;
+  margin: 16px auto;
+  color: #8c2828;
+}
+
+.login {
+  width: min(100% - 32px, 360px);
+  margin: 18vh auto 0;
+  padding: 28px;
+  background: #fffdf8;
+  border: 1px solid #ded5c6;
+  box-shadow: 0 16px 40px -24px rgba(50, 40, 25, .4);
+
+  h1 { margin: 0; font-family: Didot, Georgia, serif; font-size: 28px; }
+  p { margin: 8px 0 20px; color: #8d8172; font-size: 13px; }
+  form { display: flex; flex-direction: column; gap: 10px; }
+
+  input, button {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid #bdb2a2;
+    background: #fff;
+    color: #27231d;
+    font: inherit;
+    font-size: 14px;
+  }
+
+  button {
+    background: #306785;
+    color: #fff;
+    cursor: pointer;
+    &:disabled { opacity: .6; cursor: default; }
+  }
+
+  a { display: inline-block; margin-top: 16px; color: #4f463b; font-size: 13px; }
+}
+
+@media (max-width: 640px) {
+  .header { align-items: flex-start; flex-direction: column; gap: 14px; margin-bottom: 24px; }
+  .title { font-size: 27px; }
+}

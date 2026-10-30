@@ -33,7 +33,7 @@ function AdminRoutes() {
 
       <Route element={<RequireAuth />}>
         <Route element={<AdminLayout />}>
-          <Route index element={<Navigate to="/admin/dashboard" replace />} />
+          <Route index element={<Navigate to="/admin-legacy/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="gallery" element={<GalleryListPage />} />
           <Route path="gallery/:gallery_id/photo/list" element={<PhotoListPage />} />

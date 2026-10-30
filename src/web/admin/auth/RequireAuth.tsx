@@ -11,7 +11,7 @@ export default function RequireAuth() {
     const current = `${location.pathname}${location.search}`
     return (
       <Navigate
-        to={`/admin/login?redirect=${encodeURIComponent(current)}`}
+        to={`/admin-legacy/login?redirect=${encodeURIComponent(current)}`}
         replace
       />
     )

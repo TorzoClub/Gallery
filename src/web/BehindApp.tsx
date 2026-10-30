@@ -4,13 +4,15 @@ import { useNavigate } from 'react-router-dom'
 import './BehindApp.css'
 
 import ReportCard, { type ReportCardBuild, type ReportCardRow } from './components/ReportCard'
-import SkeuomorphismButton from './components/SkeuomorphismButton'
 
 import __logo_src from './about-image.jpg'
-import { useEffect, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { useClientPool } from './pool/store'
 import { formatUptime } from '@shared/uptime'
 import Navigator from './components/Navigator'
+import { login as adminLogin } from './admin/api/auth'
+import { setToken } from './admin/auth/token'
+import { getApiErrorMessage } from './admin/utils/errors'
 
 const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'N/A'
 const BASE_PATH = import.meta.env.VITE_BASE_PATH ?? 'N/A'
@@ -78,6 +80,9 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
   const pool = pool_state.status === 'ready' ? pool_state.pool : null
   const [show_card, setShowCard] = useState(false)
   const [uptime, setUptime] = useState('—')
+  const [admin_password, setAdminPassword] = useState('')
+  const [admin_error, setAdminError] = useState('')
+  const [admin_submitting, setAdminSubmitting] = useState(false)
 
   useEffect(() => {
     if (pool === null) {
@@ -122,10 +127,34 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
     return () => window.clearTimeout(h)
   }, [thisIsDisplay])
 
+  const handleAdminLogin = async (event: FormEvent) => {
+    event.preventDefault()
+    if (admin_submitting) {
+      return
+    }
+    if (admin_password.length === 0) {
+      setAdminError('请输入后台密码')
+      return
+    }
+
+    setAdminSubmitting(true)
+    setAdminError('')
+    try {
+      const result = await adminLogin(admin_password)
+      setToken(result.token)
+      setShowCard(false)
+      navigate('/admin', { replace: true })
+    } catch (error) {
+      setAdminError(getApiErrorMessage(error, '登录失败'))
+    } finally {
+      setAdminSubmitting(false)
+    }
+  }
+
   return (
     <section className='behind-app' aria-label='关于同装相册'>
       <div className='behind-app__inner'>
-        <Navigator showTitle={false} onClickPushButton={() => {
+        <Navigator showTitle={false} isAdminTitle={false} onClickPushButton={() => {
           navigate('/explore', { replace: true })
           setShowCard(false)
         }} />
@@ -134,12 +163,30 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
           <h1 className='behind-app__title'>{pkg.title}</h1>
           <AppYearLabel year={2026} />
         </div>
-        <div className='behind-app__actions'>
-          <SkeuomorphismButton onClick={() => {
-            navigate('/admin', { replace: true })
-            setShowCard(false)
-          }}>进入后台管理</SkeuomorphismButton>
-        </div>
+        <form className='behind-app__admin-entry' onSubmit={handleAdminLogin}>
+          <label htmlFor='behind-admin-password'>进入后台管理</label>
+          <div className='behind-app__admin-row'>
+            <input
+              id='behind-admin-password'
+              type='password'
+              value={admin_password}
+              autoComplete='current-password'
+              placeholder='管理员密码'
+              disabled={admin_submitting}
+              aria-invalid={admin_error !== ''}
+              onChange={event => {
+                setAdminPassword(event.target.value)
+                if (admin_error !== '') {
+                  setAdminError('')
+                }
+              }}
+            />
+            <button type='submit' disabled={admin_submitting}>
+              {admin_submitting ? '验证中…' : '进入'}
+            </button>
+          </div>
+          {admin_error !== '' && <div className='behind-app__admin-error' role='alert'>{admin_error}</div>}
+        </form>
         {show_card && (
           <div className='behind-app__card-wrapper'>
             <ReportCard

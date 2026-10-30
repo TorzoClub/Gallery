@@ -12,9 +12,9 @@
 }
 
 .behind-app__actions {
-  width: min(100% - 32px, 360px);
-  margin: 0 auto;
-  margin-top: 34px;
+  width: calc(100% - 32px);
+  max-width: 360px;
+  margin: 34px auto 0;
   transition: opacity 1s, transform 1s;
   opacity: 1;
 }
@@ -91,4 +91,59 @@
   to {
     background-position: -200% center;
   }
+}
+
+.behind-app__admin-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: calc(100% - 32px);
+  max-width: 360px;
+  margin: 34px auto 0;
+  color: rgb(48 103 133 / .8);
+  font-size: 12px;
+}
+
+.behind-app__admin-row {
+  display: flex;
+  gap: 8px;
+
+  input {
+    min-width: 0;
+    flex: 1;
+    padding: 8px 10px;
+    border: 1px solid #b8c7d0;
+    border-radius: 3px;
+    background: rgb(255 255 255 / .7);
+    color: #2d3d47;
+    font: inherit;
+    font-size: 14px;
+    outline: none;
+
+    &:focus {
+      border-color: #306785;
+      box-shadow: 0 0 0 2px rgb(48 103 133 / .15);
+    }
+  }
+
+  button {
+    padding: 8px 14px;
+    border: 1px solid #306785;
+    border-radius: 3px;
+    background: #306785;
+    color: #fff;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: .6;
+      cursor: default;
+    }
+  }
+}
+
+.behind-app__admin-error {
+  color: #8c2828;
+  font-size: 12px;
 }

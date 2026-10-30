@@ -52,14 +52,15 @@ curl http://127.0.0.1:7001/healthz
 
 生产模式由 Hono 做 SPA fallback。如果使用额外反向代理，直接转发到 Hono 即可，不要自己加 `try_files` 到不存在的静态目录。
 
-Vite middleware 和 production 的 Hono SPA fallback 都应在同一个端口处理 `/admin/dashboard`。如果出现 API 404，检查请求是否错误地进入了 API 路由；`/admin/login`、`/admin/dashboard` 不是 API 路径。
+Vite middleware 和 production 的 Hono SPA fallback 都应在同一个端口处理 `/admin`、`/behind` 和 `/admin-legacy/dashboard`。如果出现 API 404，检查请求是否错误地进入了 API 路由；这些 SPA 路径不是 API。
 
 ## 登录页打不开或登录 404
 
-- 后台登录页：`GET /admin/login`（SPA）。
+- 新后台入口：`GET /behind`，输入管理员密码后进入 `/admin`（SPA）。
+- 旧后台登录页：`GET /admin-legacy/login`（SPA）。
 - 登录接口：`POST /auth/login`（API）。
 
-不要把两者混成 `/admin/login` 的 POST。`/auth/login` 是 API，`/admin/login` 是 SPA 页面。
+不要把页面和接口混成同一个 POST 路径。`/auth/login` 是 API；后台页面由 SPA fallback 提供。
 
 ## 静态资源缓存不对
 
@@ -75,7 +76,7 @@ curl -I http://127.0.0.1:7001/images/optimized/<file>
 
 预期：
 
-- `/` 和 `/admin/dashboard`：`no-cache`
+- `/` 和 `/admin-legacy/dashboard`：`no-cache`
 - `/assets/*`：`public, max-age=31536000, immutable`
 - `/images/*`：`public, max-age=31536000, immutable`
 

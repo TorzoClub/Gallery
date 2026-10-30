@@ -125,7 +125,7 @@ export default function MemberEditPage() {
         await updateMember(numericID, update_payload)
         toast.success(`【${update_payload.name}】已更新`)
       }
-      navigate('/admin/member', { replace: true })
+      navigate('/admin-legacy/member', { replace: true })
     } catch (err) {
       toast.error(getApiErrorMessage(err, isNew ? '创建成员失败' : '更新成员失败'))
     } finally {
@@ -140,7 +140,7 @@ export default function MemberEditPage() {
   if (loadError) {
     return (
       <div className="adm-page">
-        <PageHeader title={isNew ? '创建成员' : '编辑成员'} backTo="/admin/member" backLabel="返回成员列表" />
+        <PageHeader title={isNew ? '创建成员' : '编辑成员'} backTo="/admin-legacy/member" backLabel="返回成员列表" />
         <div className="adm-inline-error" role="alert">
           <span>{loadError}</span>
           <button type="button" className="adm-button adm-button--small" onClick={() => void load()}>
@@ -156,7 +156,7 @@ export default function MemberEditPage() {
       <PageHeader
         title={isNew ? '创建成员' : '编辑成员'}
         subtitle={isNew ? '新增投稿作者资料' : `成员 ID：${numericID}`}
-        backTo="/admin/member"
+        backTo="/admin-legacy/member"
         backLabel="返回成员列表"
       />
 
@@ -202,7 +202,7 @@ export default function MemberEditPage() {
           </Field>
 
           <div className="adm-form-actions">
-            <Link className="adm-button" to="/admin/member">取消</Link>
+            <Link className="adm-button" to="/admin-legacy/member">取消</Link>
             <button type="submit" className="adm-button adm-button--primary" disabled={submitting || avatarUploading}>
               {submitting
                 ? <><Spinner size={16} /> 保存中…</>

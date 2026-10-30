@@ -7,10 +7,10 @@ import { Spinner } from '../components/Feedback'
 import { getApiErrorMessage } from '../utils/errors'
 
 function safeRedirect(value: string | null): string {
-  if (value && value.startsWith('/admin') && !value.startsWith('/admin/login')) {
+  if (value && value.startsWith('/admin-legacy') && !value.startsWith('/admin-legacy/login')) {
     return value
   }
-  return '/admin/dashboard'
+  return '/admin-legacy/dashboard'
 }
 
 export default function LoginPage() {
@@ -29,7 +29,7 @@ export default function LoginPage() {
   }, [])
 
   if (isAuthenticated) {
-    return <Navigate to="/admin/dashboard" replace />
+    return <Navigate to="/admin-legacy/dashboard" replace />
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {

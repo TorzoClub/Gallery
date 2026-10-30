@@ -11,7 +11,7 @@
 | 投稿 | Submission | 成员向某个相册提交相片的行为或结果。 |
 | 投票 | Vote | 成员对相片表达喜欢并计入票数的操作。 |
 | 公开页 | Public page | 普通访问者看到的相册页面，入口是 `/explore`；`/` 重定向到它。 |
-| 后台 | Admin | 管理相册、相片、成员、投票和配置的页面，入口是 `/admin`。 |
+| 后台 | Admin | 新后台入口是 `/admin`；旧后台入口是 `/admin-legacy`。 |
 | dispatch | Dispatch API | 通过 action 名称分发 query/mutation，而不是每个业务一个 REST 路径。 |
 | query | Query | 只读 action，走 `/query/:name` 或 `/admin/query/:name`。 |
 | mutation | Mutation | 写 action，走 `/mutate/:name` 或 `/admin/mutate/:name`。 |

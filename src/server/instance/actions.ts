@@ -69,6 +69,7 @@ import type { ClientMemberView, ClientPool } from '../../shared/client-pool'
 import { BUILD_DATE, GIT_HASH } from '../../shared/build-info'
 
 import {
+  adminPoolDto,
   galleryDto,
   memberDto,
   memberHomeDto,
@@ -78,6 +79,7 @@ import {
   publicPhotoDto,
   statisticDto,
   voteDto,
+  type AdminPoolDTO,
   type GalleryDTO,
   type MemberDTO,
   type MemberVoteDTO,
@@ -381,6 +383,21 @@ export const queries = {
     schema: EmptySchema,
     admin: true,
     run: (ctx): InstanceConfig => ctx.config,
+  }),
+
+  adminFetchPool: defineQuery({
+    schema: EmptySchema,
+    admin: true,
+    run: (ctx): AdminPoolDTO => adminPoolDto({
+      pool: ctx.pool,
+      env: ctx.env,
+      instance_hash: ctx.instance_hash,
+      app_startup_time: ctx.app_startup_time,
+      version_time: Date.now(),
+      build_date: BUILD_DATE,
+      git_hash: GIT_HASH,
+      now: ctx.now,
+    }),
   }),
 
   adminStatistic: defineQuery({

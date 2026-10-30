@@ -12,7 +12,7 @@ export default function NotFoundPage() {
         <div className="adm-empty__code">404</div>
         <h3 className="adm-empty__title">没有找到这个页面</h3>
         <p className="adm-empty__description">检查一下地址，或者回到概览页继续操作。</p>
-        <Link className="adm-button adm-button--primary" to="/admin/dashboard">
+        <Link className="adm-button adm-button--primary" to="/admin-legacy/dashboard">
           <Icon name="home" size={16} />
           回到概览
         </Link>

@@ -131,7 +131,7 @@ export default function GalleryListPage() {
             <Icon name="edit" size={14} />
             编辑
           </button>
-          <Link className="adm-button adm-button--small adm-button--primary" to={`/admin/gallery/${gallery.id}/photo/list`}>
+          <Link className="adm-button adm-button--small adm-button--primary" to={`/admin-legacy/gallery/${gallery.id}/photo/list`}>
             <Icon name="gallery" size={14} />
             相片
           </Link>

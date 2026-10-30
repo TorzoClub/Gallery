@@ -136,7 +136,50 @@ payload: { "qq_num": 123456 }
 - `/` 重定向到 `/explore`。
 - `/explore` 是公开相册页。
 - `/behind` 是同级 About 页面，不再作为 `/` 的 fixed 子页面。
-- `/admin/*` 保持后台入口。
+- `/admin` 是新所见即所得后台；`/admin-legacy/*` 是旧后台。
+
+## AdminPool
+
+新 `/admin` 页面只使用：
+
+```http
+POST /admin/query/adminFetchPool
+Authorization: Bearer <token>
+payload: {}
+```
+
+返回完整 Pool：
+
+```json
+{
+  "schema_version": 2,
+  "next_id": 42,
+  "instance_hash": "5a493005",
+  "app_startup_time": 1790000000000,
+  "version_time": 1790000000123,
+  "build_date": "2026-10-28",
+  "git_hash": "5d25b84",
+  "galleries": [],
+  "members": []
+}
+```
+
+- `galleries` 是完整的 `AdminGalleryDTO`，包含相片和 `vote_records`。
+- `members` 是完整 `MemberDTO`，Admin 可以看到真实 QQ。
+- 新后台不再调用 `adminListGalleries`、`adminListMembers`、`adminGetPhoto` 等读取接口。
+- 旧 `/admin-legacy` 仍使用原有 admin 查询。
+
+### Public legacy queries
+
+以下公开查询保留兼容，但已 deprecate，新代码和新的公开页不再使用：
+
+- `listGalleries`
+- `getGallery`
+- `getPhoto`
+- `getSubmission`
+- `getMemberPhotos`
+
+公开页统一使用 `fetchClientPool`；当前成员的私有状态使用 `fetchMemberView`。
 
 ## Admin queries
 
@@ -159,6 +202,7 @@ payload: { "qq_num": 123456 }
 | action | payload | 说明 |
 |---|---|---|
 | `adminUpdateInstanceConfig` | 任意 instance 配置字段 | 返回完整配置 |
+| `adminFetchPool` | `{}` | 完整 AdminPool；新后台唯一的读取接口 |
 | `adminCreateGallery` | `{ name, index, vote_limit, event_start, submission_expire, event_end }` | 创建相册；活动期间与其他相册重合时返回 `409 CONFLICT` |
 | `adminUpdateGallery` | `{ gallery_id, ...可选字段 }` | 更新相册；活动期间与其他相册重合时返回 `409 CONFLICT` |
 | `adminRemoveGallery` | `{ gallery_id }` | 删除空相册；仍有相片时返回 `409 CONFLICT` |

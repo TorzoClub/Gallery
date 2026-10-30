@@ -119,7 +119,7 @@ export default function PhotoMemberVotePage() {
       title: '名称',
       width: 160,
       render: member => (
-        <Link className="adm-text-link" to={`/admin/member/${member.id}`}>
+        <Link className="adm-text-link" to={`/admin-legacy/member/${member.id}`}>
           {member.name}
         </Link>
       ),
@@ -152,7 +152,7 @@ export default function PhotoMemberVotePage() {
                   key={vote.id}
                   src={photo.thumb_url}
                   alt={`相片 ${photo.id}`}
-                  onClick={() => navigate(`/admin/gallery/${galleryID}/photo/${photo.id}`)}
+                  onClick={() => navigate(`/admin-legacy/gallery/${galleryID}/photo/${photo.id}`)}
                 />
               )
             })}
@@ -184,7 +184,7 @@ export default function PhotoMemberVotePage() {
       <PageHeader
         title="成员投票情况"
         subtitle={`相册 ID：${Number.isInteger(galleryID) ? galleryID : '—'}`}
-        backTo={`/admin/gallery/${galleryID}/photo/list`}
+        backTo={`/admin-legacy/gallery/${galleryID}/photo/list`}
         backLabel="返回相片列表"
         actions={(
           <button type="button" className="adm-button" disabled={loading} onClick={() => void load()}>

@@ -134,7 +134,7 @@ function Bootstrap() {
             <Routes>
               <Route path="/" element={<Navigate to="/explore" replace />} />
               <Route
-                path="/admin/*"
+                path="/admin-legacy/*"
                 element={(
                   <Suspense fallback={<LoadingLayout />}>
                     <AdminApp />

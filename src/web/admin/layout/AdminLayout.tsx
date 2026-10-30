@@ -13,19 +13,19 @@ type NavItem = {
 }
 
 const navItems: NavItem[] = [
-  { to: '/admin/dashboard', label: '概览', icon: 'dashboard', end: true },
-  { to: '/admin/gallery', label: '相册', icon: 'gallery' },
-  { to: '/admin/member', label: '成员', icon: 'users' },
+  { to: '/admin-legacy/dashboard', label: '概览', icon: 'dashboard', end: true },
+  { to: '/admin-legacy/gallery', label: '相册', icon: 'gallery' },
+  { to: '/admin-legacy/member', label: '成员', icon: 'users' },
 ]
 
 function sectionTitle(pathname: string) {
-  if (pathname.startsWith('/admin/dashboard')) {
+  if (pathname.startsWith('/admin-legacy/dashboard')) {
     return '概览'
   }
-  if (pathname.startsWith('/admin/gallery')) {
+  if (pathname.startsWith('/admin-legacy/gallery')) {
     return '相册'
   }
-  if (pathname.startsWith('/admin/member')) {
+  if (pathname.startsWith('/admin-legacy/member')) {
     return '成员'
   }
   return '管理后台'
@@ -72,7 +72,7 @@ export default function AdminLayout() {
 
   const handleLogout = () => {
     logout()
-    navigate('/admin/login', { replace: true })
+    navigate('/admin-legacy/login', { replace: true })
   }
 
   return (
@@ -87,7 +87,7 @@ export default function AdminLayout() {
 
       <aside className={sidebarOpen ? 'adm-sidebar adm-sidebar--open' : 'adm-sidebar'}>
         <div className="adm-sidebar__brand">
-          <NavLink to="/admin/dashboard" className="adm-brand">
+          <NavLink to="/admin-legacy/dashboard" className="adm-brand">
             <span className="adm-brand__mark">同</span>
             <span className="adm-brand__text">
               <strong>同装相册</strong>

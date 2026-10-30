@@ -151,7 +151,7 @@ export default function PhotoEditPage() {
         toast.success('相片已更新')
       }
 
-      navigate(`/admin/gallery/${galleryID}/photo/list`, { replace: true })
+      navigate(`/admin-legacy/gallery/${galleryID}/photo/list`, { replace: true })
     } catch (err) {
       toast.error(getApiErrorMessage(err, isNew ? '创建相片失败' : '更新相片失败'))
     } finally {
@@ -174,7 +174,7 @@ export default function PhotoEditPage() {
       <PageHeader
         title={isNew ? '创建相片' : '编辑相片'}
         subtitle={isNew ? `相册 ID：${galleryID}` : `相片 ID：${photoID}`}
-        backTo={`/admin/gallery/${galleryID}/photo/list`}
+        backTo={`/admin-legacy/gallery/${galleryID}/photo/list`}
         backLabel="返回相片列表"
         actions={!isNew ? (
           <button
@@ -204,7 +204,7 @@ export default function PhotoEditPage() {
               {members.length === 0 ? (
                 <div className="adm-empty-inline">
                   还没有成员，请先
-                  <Link to="/admin/member/new">创建成员</Link>
+                  <Link to="/admin-legacy/member/new">创建成员</Link>
                   再回来投稿。
                 </div>
               ) : (
@@ -244,7 +244,7 @@ export default function PhotoEditPage() {
             </Field>
 
             <div className="adm-form-actions">
-              <Link className="adm-button" to={`/admin/gallery/${galleryID}/photo/list`}>取消</Link>
+              <Link className="adm-button" to={`/admin-legacy/gallery/${galleryID}/photo/list`}>取消</Link>
               <button type="submit" className="adm-button adm-button--primary" disabled={submitting || imageUploading}>
                 {submitting
                   ? <><Spinner size={16} /> 保存中…</>

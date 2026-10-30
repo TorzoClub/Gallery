@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React, { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 
 import BehindApp from './BehindApp'
@@ -7,10 +7,12 @@ import ChannelOsd, { type ChannelOsdName } from './components/ChannelOsd'
 import ChannelSwitch from './components/ChannelSwitch'
 import HomeApp from './HomeApp'
 import CancelSubmissionApp from './layouts/CancelSubmission'
-import { isBehindPath, isCancelSubmissionPath, isExplorePath } from './routes'
+import { isAdminPath, isBehindPath, isCancelSubmissionPath, isExplorePath } from './routes'
 import styles from './PublicRoot.module.scss'
 import { playChannelSwitchSound, primeChannelAudio } from './utils/crt-audio'
 import { primeTextAudio } from './utils/text-audio'
+
+const AdminHome = lazy(() => import('./layouts/AdminHome'))
 
 function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -19,7 +21,7 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-type Channel = 'explore' | 'behind' | 'cancel'
+type Channel = 'explore' | 'behind' | 'cancel' | 'admin'
 
 type SwitchState = {
   id: number
@@ -30,6 +32,7 @@ const CHANNEL_OSD: Record<Channel, ChannelOsdName> = {
   explore: 'CH. Explore',
   behind: 'CH. Behind',
   cancel: 'CH. cancelSubmission',
+  admin: 'CH. Admin',
 }
 
 type OsdState = {
@@ -59,19 +62,23 @@ export default function PublicRoot() {
   const behind = isBehindPath(location.pathname)
   const explore = isExplorePath(location.pathname)
   const cancel = isCancelSubmissionPath(location.pathname)
-  const routeChannel: Channel | null = cancel
-    ? 'cancel'
-    : behind
-      ? 'behind'
-      : explore
-        ? 'explore'
-        : null
+  const admin = isAdminPath(location.pathname)
+  const routeChannel: Channel | null = admin
+    ? 'admin'
+    : cancel
+      ? 'cancel'
+      : behind
+        ? 'behind'
+        : explore
+          ? 'explore'
+          : null
   const previousChannel = useRef<Channel>(routeChannel ?? 'explore')
   const nextSwitchId = useRef(0)
   const nextOsdId = useRef(0)
   const homeStageRef = useRef<HTMLDivElement>(null)
   const behindStageRef = useRef<HTMLDivElement>(null)
   const cancelStageRef = useRef<HTMLDivElement>(null)
+  const adminStageRef = useRef<HTMLDivElement>(null)
   const [activeChannel, setActiveChannel] = useState<Channel>(routeChannel ?? 'explore')
   const [switchState, setSwitchState] = useState<SwitchState | null>(null)
   const [osd, setOsd] = useState<OsdState | null>(null)
@@ -154,7 +161,7 @@ export default function PublicRoot() {
   }, [afterglow])
 
   useEffect(() => {
-    const targets = [homeStageRef.current, behindStageRef.current, cancelStageRef.current]
+    const targets = [homeStageRef.current, behindStageRef.current, cancelStageRef.current, adminStageRef.current]
       .filter((target): target is HTMLDivElement => target !== null)
 
     if (targets.length === 0 || switchState === null) {
@@ -209,7 +216,7 @@ export default function PublicRoot() {
     }
   }, [lockScroll])
 
-  if (!behind && !explore && !cancel) {
+  if (!behind && !explore && !cancel && !admin) {
     return <Navigate to='/explore' replace />
   }
 
@@ -241,6 +248,19 @@ export default function PublicRoot() {
         inert={activeChannel !== 'cancel'}
       >
         <CancelSubmissionApp thisIsDisplay={activeChannel === 'cancel'} />
+      </div>
+      <div
+        ref={adminStageRef}
+        className={styles.pageStage}
+        style={activeChannel === 'admin' ? activeStageStyle : hiddenStageStyle}
+        aria-hidden={activeChannel !== 'admin'}
+        inert={activeChannel !== 'admin'}
+      >
+        {activeChannel === 'admin' && (
+          <Suspense fallback={null}>
+            <AdminHome thisIsDisplay={activeChannel === 'admin'} />
+          </Suspense>
+        )}
       </div>
       {afterglow && (
         <ChannelAfterglow

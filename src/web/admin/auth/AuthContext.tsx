@@ -61,11 +61,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       toast.info('登录已过期，请重新登录')
 
       const current = `${locationRef.current.pathname}${locationRef.current.search}`
-      const redirect = current.startsWith('/admin') && !current.startsWith('/admin/login')
+      const redirect = current.startsWith('/admin-legacy') && !current.startsWith('/admin-legacy/login')
         ? current
-        : '/admin/dashboard'
+        : '/admin-legacy/dashboard'
 
-      navigate(`/admin/login?redirect=${encodeURIComponent(redirect)}`, { replace: true })
+      navigate(`/admin-legacy/login?redirect=${encodeURIComponent(redirect)}`, { replace: true })
     }
 
     window.addEventListener(UNAUTHORIZED_EVENT, handleUnauthorized)

@@ -3,13 +3,17 @@ import React, { useEffect, useMemo, useState } from 'react'
 import './index.scss'
 
 import Title from 'components/Title'
-import Waterfall, { WaterfallLayoutConfigure, Props as WaterfallLayoutProps } from 'components/Waterfall'
+import Waterfall, { WaterfallLayout } from 'components/Waterfall'
 import type { GalleryView } from 'pool/view'
-import { CoverClickEvent, Props as PhotoBoxProps } from 'components/PhotoBox'
+import PhotoBox, { CoverClickEvent, Props as PhotoBoxProps } from 'components/PhotoBox'
 import Submission from 'components/Submission'
 import useSafeState from 'hooks/useSafeState'
 import { dateDiffInDays } from 'utils/date'
 import TextPlaceholder from './TextPlaceholder'
+
+export type GalleryLayout = WaterfallLayout & {
+  box_type: PhotoBoxProps['type']
+}
 
 function getViewportWidth() {
   const { innerWidth } = window
@@ -19,7 +23,7 @@ function getViewportWidth() {
 const normalLayout = ({
   column_count,
   gallery_width,
-}: Pick<WaterfallLayoutConfigure, 'column_count' | 'gallery_width'>): WaterfallLayoutConfigure => {
+}: Pick<GalleryLayout, 'column_count' | 'gallery_width'>): GalleryLayout => {
   const column_gutter = 54
   const vertial_gutter = column_gutter / 2
   return {
@@ -27,19 +31,19 @@ const normalLayout = ({
     column_count,
     gallery_width,
     column_gutter,
-    vertial_gutter,
+    vertical_gutter: vertial_gutter,
   }
 }
 
-const compactLayout = (g: GalleryView, {
+const compactLayout = (g: Pick<GalleryView, 'in_event' | 'can_submission'>, {
   column_count,
   column_gutter,
   vote_event_vertial_gutter,
   gallery_width = getViewportWidth() - (column_gutter * column_count)
-}: Pick<WaterfallLayoutConfigure, 'column_count' | 'column_gutter'> & {
+}: Pick<GalleryLayout, 'column_count' | 'column_gutter'> & {
   vote_event_vertial_gutter: number
   gallery_width?: number
-}): WaterfallLayoutConfigure => {
+}): GalleryLayout => {
   const is_vote_date = g.in_event && !g.can_submission
   const vertial_gutter = is_vote_date ? vote_event_vertial_gutter : column_gutter
 
@@ -48,7 +52,7 @@ const compactLayout = (g: GalleryView, {
     column_count: column_count,
     gallery_width,
     column_gutter: column_gutter,
-    vertial_gutter,
+    vertical_gutter: vertial_gutter,
   }
 }
 
@@ -87,7 +91,7 @@ function computeGalleryWidthWithAutoColumnCount(
   } as const
 }
 
-const getLayoutConfigure = (gallery: GalleryView): WaterfallLayoutConfigure => {
+const getLayoutConfigure = (gallery: Pick<GalleryView, 'in_event' | 'can_submission'>): GalleryLayout => {
   const viewport_width = getViewportWidth()
   if (viewport_width > 1900) {
     const box_width = 232
@@ -133,11 +137,17 @@ const getLayoutConfigure = (gallery: GalleryView): WaterfallLayoutConfigure => {
   }
 }
 
+export function getGalleryLayout(
+  gallery: Pick<GalleryView, 'in_event' | 'can_submission'>,
+): GalleryLayout {
+  return getLayoutConfigure(gallery)
+}
+
 export type Props = {
   cannot_add_vote?: boolean
   show_vote_button: boolean
   gallery: GalleryView
-  selected_id_list: WaterfallLayoutProps['selected_id_list']
+  selected_id_list: number[]
   onClickVote?: (photo_id: number) => void
   onClickCover: (clickInfo: CoverClickEvent, photo_id: number) => void
   onWatterfallRefreshed(): void
@@ -157,17 +167,45 @@ export default ({
 
   const waterfall_layout_node = useMemo(() => {
     const day_diff = dateDiffInDays(new Date(gallery.event_start), new Date)
+    const items = gallery.photos.map(photo => ({
+      id: String(photo.id),
+      node: (
+        <PhotoBox
+          id={photo.id}
+          type={layout.box_type}
+          box_width={(layout.gallery_width - layout.column_gutter * (layout.column_count - 1)) / layout.column_count}
+          onClickCover={(click_info) => onClickCover(click_info, photo.id)}
+          {...{
+            hideMember: !photo.member,
+            show_vote_button: show_vote_button,
+            vote_button_status: (
+              selected_id_list.indexOf(photo.id) !== -1
+                ? 'selected'
+                : (cannot_add_vote ? 'cannot-add' : 'un-selected')
+            ),
+            handleClickVote: () => onClickVote?.(photo.id),
+            name: photo.member ? photo.member.name : null,
+            desc: photo.desc,
+            photo: {
+              width: photo.width,
+              height: photo.height,
+              src: photo.src_url,
+              thumb: photo.thumb,
+            },
+            avatar: photo.member ? {
+              width: 0,
+              height: 0,
+              thumb: photo.member.avatar_thumb_url,
+              src: photo.member.avatar_thumb_url,
+            } : null,
+          }}
+        />
+      ),
+    }))
     const waterfall = () => (
       <Waterfall
-        layout_configure={layout}
-        cannot_add_vote={cannot_add_vote}
-        photos={gallery.photos}
-        selected_id_list={selected_id_list}
-        show_vote_button={show_vote_button}
-        onClickCover={onClickCover}
-        onClickVote={(photoId) => {
-          onClickVote && onClickVote(photoId)
-        }}
+        layout={layout}
+        items={items}
         onWatterfallRefreshed={onWatterfallRefreshed}
       />
     )

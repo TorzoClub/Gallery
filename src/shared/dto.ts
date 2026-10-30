@@ -68,6 +68,22 @@ export type PublicHomeDTO = {
   galleries: PublicGalleryDTO[]
 }
 
+export type AdminGalleryDTO = GalleryDTO & {
+  vote_records: VoteDTO[]
+}
+
+export type AdminPoolDTO = {
+  schema_version: number
+  next_id: number
+  instance_hash: string
+  app_startup_time: number
+  version_time: number
+  build_date: string
+  git_hash: string
+  galleries: AdminGalleryDTO[]
+  members: MemberDTO[]
+}
+
 export type VoteDTO = {
   id: ID
   gallery_id: ID

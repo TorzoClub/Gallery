@@ -132,7 +132,7 @@ export default function PhotoListPage() {
         <ImageThumb
           src={photo.thumb_url}
           alt={`相片 ${photo.id}`}
-          onClick={() => navigate(`/admin/gallery/${galleryID}/photo/${photo.id}`)}
+          onClick={() => navigate(`/admin-legacy/gallery/${galleryID}/photo/${photo.id}`)}
         />
       ),
     },
@@ -173,7 +173,7 @@ export default function PhotoListPage() {
             <Icon name="trash" size={14} />
             删除
           </button>
-          <Link className="adm-button adm-button--small" to={`/admin/gallery/${galleryID}/photo/${photo.id}`}>
+          <Link className="adm-button adm-button--small" to={`/admin-legacy/gallery/${galleryID}/photo/${photo.id}`}>
             <Icon name="edit" size={14} />
             查看
           </Link>
@@ -187,7 +187,7 @@ export default function PhotoListPage() {
       <PageHeader
         title="相片列表"
         subtitle={`相册 ID：${Number.isInteger(galleryID) ? galleryID : '—'} · 共 ${photos.length} 张投稿`}
-        backTo="/admin/gallery"
+        backTo="/admin-legacy/gallery"
         backLabel="返回相册列表"
         actions={(
           <>
@@ -195,7 +195,7 @@ export default function PhotoListPage() {
               <Icon name="refresh" size={16} />
               刷新
             </button>
-            <Link className="adm-button" to={`/admin/gallery/${galleryID}/photo/member`}>
+            <Link className="adm-button" to={`/admin-legacy/gallery/${galleryID}/photo/member`}>
               <Icon name="users" size={16} />
               成员投票
             </Link>
@@ -206,7 +206,7 @@ export default function PhotoListPage() {
               <Icon name="edit" size={16} />
               编辑相册
             </button>
-            <Link className="adm-button adm-button--primary" to={`/admin/gallery/${galleryID}/photo/new`}>
+            <Link className="adm-button adm-button--primary" to={`/admin-legacy/gallery/${galleryID}/photo/new`}>
               <Icon name="plus" size={16} />
               创建相片
             </Link>

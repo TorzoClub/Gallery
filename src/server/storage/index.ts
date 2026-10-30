@@ -16,6 +16,7 @@ import { type Member } from '../core/Member'
 import { type Photo } from '../core/Photo'
 import {
   createPool,
+  CURRENT_SCHEMA_VERSION,
   diffGalleriesMap,
   maxEntityId,
   type Pool,
@@ -87,7 +88,7 @@ export type CreateStorageOptions = {
   logger?: Logger
 }
 
-function makePaths(storage_path: string): StoragePaths {
+export function makePaths(storage_path: string): StoragePaths {
   const root = path.resolve(storage_path)
   const images = path.join(root, 'stored-images')
   return {
@@ -253,6 +254,16 @@ export async function createStorage(options: CreateStorageOptions): Promise<Stor
 
     const pool_file = parsePoolFile(await readJsonFile(paths.pool_file))
     const pool_base = fromPoolFile(pool_file)
+    if (pool_base.schema_version < CURRENT_SCHEMA_VERSION) {
+      throw new Error(
+        `storage schema_version=${pool_base.schema_version} 过低，请先运行 pnpm update-storage`,
+      )
+    }
+    if (pool_base.schema_version > CURRENT_SCHEMA_VERSION) {
+      throw new Error(
+        `storage schema_version=${pool_base.schema_version} 高于当前程序支持的版本 ${CURRENT_SCHEMA_VERSION}`,
+      )
+    }
     const loaded = await loadPoolFromDisk(paths)
 
     const max_id = maxEntityId(loaded)

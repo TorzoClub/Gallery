@@ -103,7 +103,7 @@ function addPreparedPhoto(
 describe('ids', () => {
   it('allocates every entity id from the global next_id cursor', () => {
     let pool = makePool()
-    expect(pool.schema_version).toBe(1)
+    expect(pool.schema_version).toBe(2)
     expect(pool.next_id).toBe(1)
 
     const allocated = allocateId(pool)

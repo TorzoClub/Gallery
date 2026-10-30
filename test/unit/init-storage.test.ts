@@ -30,7 +30,7 @@ describe('storage:init', () => {
     expect(first.storage_path).toBe(path.resolve(dir))
 
     const pool = JSON.parse(await fs.readFile(path.join(dir, 'pool.json'), 'utf8'))
-    expect(pool.schema_version).toBe(1)
+    expect(pool.schema_version).toBe(2)
     expect(pool.next_id).toBe(1)
 
     expect(await fileExists(path.join(dir, 'members.json'))).toBe(true)

@@ -117,6 +117,7 @@ describe('toClientPool', () => {
     expect(client_pool.build_date).toBe('2026-06-01')
     expect(client_pool.git_hash).toBe('deadbeef')
     expect(client_pool.members).toHaveLength(2)
+    expect(client_pool.members.every(member => member.qq_num === null)).toBe(true)
 
     const active_client = client_pool.galleries.find(gallery => gallery.in_event)
     expect(active_client).toBeDefined()

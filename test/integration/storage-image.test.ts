@@ -109,7 +109,7 @@ describe('storage persistence', () => {
       expect(config.body.data.image_thumb_size).toBe(222)
 
       const pool = JSON.parse(await fs.readFile(path.join(dir, 'pool.json'), 'utf8'))
-      expect(pool.schema_version).toBe(1)
+      expect(pool.schema_version).toBe(2)
       expect(pool.next_id).toBeGreaterThan(photo.id as number)
     } finally {
       await second.close()
@@ -460,8 +460,8 @@ describe('image flow', () => {
     const member = await ctx.createMember({ qq_num: 51007, avatar })
     const avatar_src = member.avatar_src as string
     const avatar_thumb = member.avatar_thumb as string
-    expect(avatar_src).toMatch(/^avatar-51007-[0-9a-f]{8}\.png$/)
-    expect(avatar_thumb).toMatch(/^avatar-51007-[0-9a-f]{8}\.avif$/)
+    expect(avatar_src).toMatch(new RegExp(`^avatar-${member.id}-[0-9a-f]{8}\\.png$`))
+    expect(avatar_thumb).toMatch(new RegExp(`^avatar-${member.id}-[0-9a-f]{8}\\.avif$`))
     expect(avatar_src).not.toBe(avatar_thumb)
 
     const source_response = await ctx.app.request(`/images/source/${avatar_src}`)

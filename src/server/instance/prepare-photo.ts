@@ -60,6 +60,7 @@ export type PreparedPhoto = PhotoDraft & {
 }
 
 export type PreparedAvatar = {
+  member_id: MemberID
   avatar_src: string
   discard(): Promise<void>
 }
@@ -80,7 +81,7 @@ export type ImagePipeline = {
     member_id: MemberID
   }): Promise<PreparedPhoto>
   prepareAvatar(input: {
-    qq_num: number
+    member_id: MemberID
     temp_id: string
   }): Promise<PreparedAvatar>
   refreshThumb(source_filename: string): Promise<void>
@@ -394,7 +395,7 @@ export function createImagePipeline(options: {
   }
 
   async function prepareAvatar(input: {
-    qq_num: number
+    member_id: MemberID
     temp_id: string
   }): Promise<PreparedAvatar> {
     const { meta, temp_filename } = await loadTemp(input.temp_id)
@@ -403,11 +404,12 @@ export function createImagePipeline(options: {
         temp_filename,
         format: meta.format,
         crc32: meta.crc32,
-        prefix: `avatar-${input.qq_num}`,
+        prefix: `avatar-${Number(input.member_id)}`,
         thumb_size: getConfig().avatar_thumb_size,
         kind: 'avatar',
       })
       return {
+        member_id: input.member_id,
         avatar_src: prepared.src,
         discard: prepared.discard,
       }

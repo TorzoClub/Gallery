@@ -7,6 +7,7 @@ export default defineConfig({
   entry: {
     index: 'src/server/index.ts',
     'cli/init-storage': 'src/server/cli/init-storage.ts',
+    'cli/update-storage': 'src/server/cli/update-storage.ts',
     'cli/migration-legacy': 'src/server/cli/migration-legacy.ts',
   },
   outDir: 'dist/server',

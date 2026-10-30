@@ -45,7 +45,7 @@ import {
   type PhotoDraft,
 } from './Photo'
 
-export const CURRENT_SCHEMA_VERSION: SchemaVersion = asSchemaVersion(1)
+export const CURRENT_SCHEMA_VERSION: SchemaVersion = asSchemaVersion(2)
 
 export type Pool = {
   schema_version: SchemaVersion
@@ -354,6 +354,7 @@ export function poolRemoveGallery(pool: Pool, gallery_id: GalleryID): { pool: Po
 }
 
 export type MemberCreateInput = {
+  id?: MemberID
   qq_num: number
   name: string
   avatar_src: string
@@ -369,7 +370,14 @@ export function poolCreateMember(
     throw conflict(`成员(QQ=${input.qq_num})已存在`)
   }
 
-  const allocated = allocateId(pool)
+  const allocated = input.id === undefined
+    ? allocateId(pool)
+    : (() => {
+        if (Number(input.id) >= Number(pool.next_id)) {
+          throw new Error('预留的成员 id 必须小于 next_id')
+        }
+        return { id: input.id, pool }
+      })()
   const member = createMember({
     id: asMemberID(allocated.id),
     qq_num: input.qq_num,
@@ -383,6 +391,18 @@ export function poolCreateMember(
     }),
     member,
   }
+}
+
+export type MemberCreateReservedInput = Omit<MemberCreateInput, 'id'> & {
+  id: MemberID
+}
+
+export function poolCreateMemberReserved(
+  pool: Pool,
+  now: Date,
+  input: MemberCreateReservedInput,
+): { pool: Pool; member: Member } {
+  return poolCreateMember(pool, now, input)
 }
 
 export function poolUpdateMember(

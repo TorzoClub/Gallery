@@ -15,6 +15,7 @@
     "start": "pnpm build && APP_ENV=production node --env-file-if-exists=.env.production dist/server/index.js",
     "start:prod": "APP_ENV=production node --env-file-if-exists=.env.production dist/server/index.js",
     "storage:init": "tsx src/server/cli/init-storage.ts",
+    "update-storage": "tsx src/server/cli/update-storage.ts",
     "migration:legacy": "tsx src/server/cli/migration-legacy.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "lint": "oxlint src test",

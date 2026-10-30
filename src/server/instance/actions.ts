@@ -46,6 +46,7 @@ import {
   poolClearMemberGalleryVotes,
   poolCreateGallery,
   poolCreateMember,
+  poolCreateMemberReserved,
   poolCreateEmpty,
   poolDeleteMember,
   poolGalleriesSorted,
@@ -72,14 +73,18 @@ import {
   memberDto,
   memberHomeDto,
   photoDto,
+  publicGalleryDto,
   publicHomeDto,
+  publicPhotoDto,
   statisticDto,
   voteDto,
   type GalleryDTO,
   type MemberDTO,
   type MemberVoteDTO,
   type PhotoDTO,
+  type PublicGalleryDTO,
   type PublicHomeDTO,
+  type PublicPhotoDTO,
   type StatisticDTO,
   type VoteDTO,
 } from './serializers'
@@ -268,9 +273,9 @@ export const queries = {
   getGallery: defineQuery({
     schema: GalleryIDPayloadSchema,
     admin: false,
-    run: (ctx, payload): GalleryDTO => {
+    run: (ctx, payload): PublicGalleryDTO => {
       const gallery = findGallery(ctx.pool, toGalleryID(payload.gallery_id))
-      return galleryDto({
+      return publicGalleryDto({
         pool: ctx.pool,
         gallery,
         env: ctx.env, instance_hash: ctx.instance_hash,
@@ -283,9 +288,9 @@ export const queries = {
   getPhoto: defineQuery({
     schema: PhotoIDPayloadSchema,
     admin: false,
-    run: (ctx, payload): PhotoDTO => {
+    run: (ctx, payload): PublicPhotoDTO => {
       const found = findPhoto(ctx.pool, toPhotoID(payload.photo_id))
-      return photoDto({
+      return publicPhotoDto({
         pool: ctx.pool,
         gallery: found.gallery,
         photo: found.photo,
@@ -298,13 +303,13 @@ export const queries = {
   getSubmission: defineQuery({
     schema: SubmissionLookupSchema,
     admin: false,
-    run: (ctx, payload): PhotoDTO | null => {
+    run: (ctx, payload): PublicPhotoDTO | null => {
       const member = findMemberByQQ(ctx.pool, asQQNumber(payload.qq_num))
       const gallery = findGallery(ctx.pool, toGalleryID(payload.gallery_id))
       const photo = findSubmissionPhoto(gallery, Number(member.id))
       return photo === undefined
         ? null
-        : photoDto({ pool: ctx.pool, gallery, photo, env: ctx.env, instance_hash: ctx.instance_hash })
+        : publicPhotoDto({ pool: ctx.pool, gallery, photo, env: ctx.env, instance_hash: ctx.instance_hash })
     },
   }),
 
@@ -739,13 +744,18 @@ export const mutations = {
       if (ctx.pool.members.has(qq_num)) {
         throw conflict(`成员(QQ=${payload.qq_num})已存在`)
       }
+      const allocated = await ctx.innerMutate('allocateId', {})
+      if (typeof allocated !== 'number') {
+        throw new Error('allocateId 返回了非法 ID')
+      }
       return ctx.prepareAvatar({
-        qq_num: payload.qq_num,
+        member_id: asMemberID(allocated),
         temp_id: payload.avatar_temp_id,
       })
     },
     commit: (ctx, payload, avatar) => {
-      const next = poolCreateMember(ctx.pool, ctx.now, {
+      const next = poolCreateMemberReserved(ctx.pool, ctx.now, {
+        id: avatar.member_id,
         qq_num: payload.qq_num,
         name: payload.name,
         avatar_src: avatar.avatar_src,
@@ -766,7 +776,7 @@ export const mutations = {
       }
       const member = findMemberById(ctx.pool, asMemberID(payload.member_id))
       return ctx.prepareAvatar({
-        qq_num: member.qq_num,
+        member_id: member.id,
         temp_id: payload.avatar_temp_id,
       })
     },

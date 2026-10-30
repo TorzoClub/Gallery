@@ -74,7 +74,7 @@
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "next_id": 42,
   "instance_hash": "5a493005",
   "app_startup_time": 1790000000000,
@@ -91,11 +91,22 @@
 - `galleries` 中的元素是 `Gallery | GalleryInEvent`，用 `in_event` 区分。
 - `GalleryInEvent` 不包含 `vote_records`，其中 `photos[].member_id` 为 `null`。
 - 普通 `Gallery` 保留 `member_id` 和 `vote_records`。
-- `members` 保留完整成员列表。
+- `members` 保留完整成员列表，但每个 `ClientMember.qq_num` 固定为 `null`。
 - `submissions` 统计全部相片；`votes` 统计非活动 Gallery 的投票数。
 - `app_startup_time` 是服务端程序启动时间（epoch ms）。
 - `version_time` 是本次 ClientPool 生成时间（epoch ms），用于 SSE/异步响应防旧数据覆盖。
 - `build_date` / `git_hash` 在 dev 下为 `N/A`，`pnpm build` / `pnpm start` 构建时注入。
+- ClientPool 不返回成员 QQ；头像文件名使用 member id，不包含 QQ。
+
+### 公开 DTO 与 QQ
+
+`listGalleries`、`getGallery`、`getPhoto`、`getSubmission`、`getMemberPhotos` 是 public query。它们返回的成员信息使用 `PublicMemberDTO`，其中：
+
+```text
+qq_num === null
+```
+
+Admin query（例如 `adminGetGallery`、`adminGetPhoto`、`adminListMembers`）仍使用 `MemberDTO`，保留真实 QQ。
 
 ### fetchMemberView
 
@@ -254,8 +265,8 @@ thumb/photo-2-3-4a9b66db.avif
 头像：
 
 ```text
-source/avatar-<qq_num>-<crc32>.<format>
-thumb/avatar-<qq_num>-<crc32>.avif
+source/avatar-<member-id>-<crc32>.<format>
+thumb/avatar-<member-id>-<crc32>.avif
 ```
 
 头像 thumb 内容为 SDR AVIF。

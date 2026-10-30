@@ -12,6 +12,10 @@ export type MemberDTO = {
   updated_at: DateTimeString
 }
 
+export type PublicMemberDTO = Omit<MemberDTO, 'qq_num'> & {
+  qq_num: null
+}
+
 export type PhotoDTO = {
   id: ID
   gallery_id: ID
@@ -35,6 +39,10 @@ export type PhotoDTO = {
   updated_at: DateTimeString
 }
 
+export type PublicPhotoDTO = Omit<PhotoDTO, 'member'> & {
+  member: PublicMemberDTO | null
+}
+
 export type GalleryDTO = {
   id: ID
   index: number
@@ -51,9 +59,13 @@ export type GalleryDTO = {
   updated_at: DateTimeString
 }
 
+export type PublicGalleryDTO = Omit<GalleryDTO, 'photos'> & {
+  photos: PublicPhotoDTO[]
+}
+
 export type PublicHomeDTO = {
-  active: GalleryDTO | null
-  galleries: GalleryDTO[]
+  active: PublicGalleryDTO | null
+  galleries: PublicGalleryDTO[]
 }
 
 export type VoteDTO = {

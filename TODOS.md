@@ -9,7 +9,7 @@
 - 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。
 - 前端由 Vite 构建到 `dist/client`，服务端由 tsup 构建到 `dist/server`。
 - 静态缓存：HTML 弱缓存，hash assets 强缓存，API/图片强缓存。
-- 服务端测试 101 个用例通过；不包含浏览器 UI 交互测试。
+- 服务端测试 106 个用例通过；不包含浏览器 UI 交互测试。
 - 旧 `server/`、`web/`、脚本和 CI 已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支。
 - storage 仍为单实例 JSON + 图片池；没有 MySQL 运行时依赖。
 
@@ -25,6 +25,7 @@
 - [x] 服务端静态/缓存、登录、storage、业务逻辑测试。
 - [x] 服务端图片测试覆盖 EXIF Orientation、流式上传、UUIDv7 temp、CRC32 文件名和清理定时器。
 - [x] 删除当前分支的旧实现目录，归档到 `legacy-v3` 分支。
+- [x] storage schema v2：头像改用 member id，加入 `pnpm update-storage`。
 
 ## 后续待办
 

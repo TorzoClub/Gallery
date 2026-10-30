@@ -20,6 +20,8 @@ pnpm dev
 
 首次启动 storage、环境变量和代理配置见 [docs/configure.md](docs/configure.md)。
 
+已有 v1 storage 时，先备份 storage，再运行 `pnpm update-storage`；v1 不能直接启动。头像文件名在 v2 中使用 member id，不再包含 QQ。
+
 ## 生产运行
 
 ```bash

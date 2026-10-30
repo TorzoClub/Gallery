@@ -31,7 +31,7 @@ export type ClientVote = {
 
 export type ClientMember = {
   id: number
-  qq_num: number
+  qq_num: null
   name: string
   avatar_src: string
   created_at: DateTimeString

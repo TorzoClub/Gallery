@@ -69,7 +69,7 @@ export const GalleryJsonSchema = z.strictObject({
 })
 
 export const PoolFileSchema = z.strictObject({
-  schema_version: z.literal(1),
+  schema_version: z.number().int().positive(),
   next_id: idNumber,
 })
 
@@ -205,7 +205,7 @@ export function fromGalleryJson(json: GalleryJson): Gallery {
 
 export function toPoolFile(pool: Pool): PoolFile {
   return {
-    schema_version: 1,
+    schema_version: Number(pool.schema_version),
     next_id: Number(pool.next_id),
   }
 }

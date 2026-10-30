@@ -15,19 +15,8 @@
   width: min(100% - 32px, 360px);
   margin: 0 auto;
   margin-top: 34px;
-  /* padding: 0 0 16px; */
   transition: opacity 1s, transform 1s;
   opacity: 1;
-  transform: translate(0, 0px);
-  transition-behavior:  allow-discrete;
-  transition-delay: 1500ms;
-}
-
-@starting-style {
-  .behind-app__actions {
-    opacity: 0;
-    transform: translate(0, -10px);
-  }
 }
 
 @media (prefers-color-scheme: dark) {

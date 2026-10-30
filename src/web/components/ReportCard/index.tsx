@@ -39,9 +39,9 @@ export type ReportCardBuild = {
 
 export const DEFAULT_REPORT_CARD_CONFIG: ReportCardConfig = {
   stamp: {
-    x: 176,
-    y: 23,
-    angle: -9,
+    x: 128,
+    y: 335,
+    angle: -4,
   },
   paper: {
     color: '#f2d663',
@@ -176,9 +176,9 @@ export default function ReportCard({
   return (
     <div ref={rootRef} className={rootClassName}>
       <div className={styles.sheet}>
-        <section className={styles.card} aria-label='System Reports'>
+        <section className={styles.card} aria-label='SYSTEM REPORTS'>
           <div className={styles.ink}>
-            <h1 className={styles.title}>System<br />Reports</h1>
+            <h1 className={styles.title}>SYSTEM<br />REPORTS</h1>
             <div className={`${styles.row} ${styles.cols}`}>
               <div>NAME</div>
               <div>VALUE</div>

@@ -19,13 +19,13 @@
 - 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。
 - 服务端测试在 `test/`；当前没有浏览器 UI 交互测试。
 - 前端 bundle 由 Vite 生成 hash 文件；HTML 弱缓存，assets/images 强缓存。
-- `legacy/server/`、`legacy/web/` 已冻结，不参与构建、测试、lint、CI 或部署。
+- 旧 `server/`、`web/`、脚本和 CI 已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支，不参与当前分支的构建、测试、lint、CI 或部署。
 - storage 是单实例 JSON + 图片池；同一 storage 同时只允许一个进程写。
 - 当前没有 MySQL 运行时依赖。
 
 ## 硬边界
 
-- 未明确要求时，不修改 `legacy/`。
+- 未明确要求时，不从 `legacy-v3` 分支恢复旧实现。
 - 不新增运行时依赖、UI 框架、动画库、日期库，除非先向用户确认。
 - 不提交 `.npmrc`、`.env`、`.env.*`、密码、token 或 storage 数据。
 - 文档与代码冲突时，以代码和实际配置为准，并修正文档。
@@ -109,7 +109,7 @@ pnpm dev
 
 ## 完成标准
 
-- 变更范围明确，没有波及 `legacy/` 或本地 storage。
+- 变更范围明确，没有恢复 `legacy-v3` 的旧实现，也没有修改本地 storage。
 - 类型检查、lint、服务端测试、构建通过。
 - 没有引入未经确认的依赖。
 - 相关文档已同步。

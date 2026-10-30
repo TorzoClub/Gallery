@@ -30,6 +30,6 @@
 | GalleryInEvent | GalleryInEvent | 活动期相册，含 `in_event: true`，不含 `vote_records`，照片不带成员 ID。 |
 | version_time | Version time | ClientPool 生成时间戳，用于拒绝旧快照覆盖新数据。 |
 | image_processing_effort | Image processing effort | 所有图片处理的 CPU effort 配置，默认 8。 |
-| legacy | Legacy | `legacy/` 下冻结的旧 server/web/脚本/CI，只作历史参考。 |
+| legacy | Legacy | 旧 server/web/脚本/CI，已从当前分支移除，归档在 `legacy-v3` 分支，只作历史参考。 |
 
 更完整的项目说明见 [introduction.md](introduction.md)。

@@ -1,6 +1,6 @@
 # 常见问题
 
-本文覆盖根目录单体应用的排查。旧 `server/`、`web/` 已归档到 `legacy/`，不在本文维护。
+本文覆盖根目录单体应用的排查。旧 `server/`、`web/` 已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支，不在本文维护。
 
 ## Node 版本不对
 

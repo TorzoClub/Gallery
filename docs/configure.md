@@ -1,6 +1,6 @@
 # 配置
 
-本文记录根目录单体应用的安装、运行配置、instance 配置、构建、缓存和部署。旧的 `server/`、`web/` 配置已归档到 `legacy/`，不再维护。
+本文记录根目录单体应用的安装、运行配置、instance 配置、构建、缓存和部署。旧的 `server/`、`web/` 配置已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支，不再维护。
 
 ## 环境要求
 

@@ -111,9 +111,9 @@ adminUpdateInstanceConfig
 
 ```text
 <STORAGE_PATH>/stored-images/
-├── source/       # 原图原始字节：photo-...-<crc>.<format> / avatar-...-<crc>.<format>
+├── source/       # 原图原始字节：photo-...-<crc>.<format> / avatar-<member-id>-<crc>.<format>
 ├── optimized/    # photo-...-<crc>-sdr.avif
-├── thumb/        # photo-...-<crc>.avif；头像 avatar-...-<crc>.avif，SDR AVIF
+├── thumb/        # photo-...-<crc>.avif；头像 avatar-<member-id>-<crc>.avif，SDR AVIF
 └── temp/         # <uuidv7>.<format>
 ```
 
@@ -129,6 +129,7 @@ adminUpdateInstanceConfig
 |---|---|
 | `pnpm dev` | 单进程、单端口的后端优先开发模式（Vite middleware） |
 | `pnpm storage:init` | 初始化 storage 目录和空数据 |
+| `pnpm update-storage` | 将旧 storage schema 升级到当前版本 |
 | `pnpm typecheck` | client + server TypeScript 检查 |
 | `pnpm lint` | oxlint |
 | `pnpm test` | Vitest 服务端测试 |
@@ -183,6 +184,34 @@ Docker 内：
 docker compose run --rm api node dist/server/cli/init-storage.js --storage-path /data
 ```
 
+### Storage schema 更新
+
+当前 storage schema 为 v2。新初始化的 storage 直接使用 v2。
+
+从旧 storage 升级前先备份整个 storage 目录，然后在服务停止、storage lock 未被占用时执行：
+
+```bash
+pnpm update-storage
+pnpm update-storage --storage-path ./storage
+pnpm update-storage --json
+```
+
+v1 -> v2 会把成员头像文件从：
+
+```text
+avatar-<qq_num>-<crc32>.<format>
+```
+
+重命名为：
+
+```text
+avatar-<member-id>-<crc32>.<format>
+```
+
+并同步更新 `members.json` 的 `avatar_src` 和 `pool.json` 的 `schema_version`。
+
+v1 storage 不能直接启动；服务会提示运行 `pnpm update-storage`。v3 或更高版本也会被拒绝。updater 是可重复执行的；如果中途失败，不会推进版本，已完成的文件重命名会尽量回滚。
+
 ## 构建与缓存
 
 构建产物：
@@ -194,7 +223,8 @@ dist/
 │   └── assets/<name>-<hash>.js|css|png...
 └── server/
     ├── index.js
-    └── cli/init-storage.js
+    ├── cli/init-storage.js
+    └── cli/update-storage.js
 ```
 
 缓存策略：
@@ -207,7 +237,7 @@ dist/
 | `public` 下的图片 | `public, max-age=31536000, immutable` |
 | 其他静态文件（如 manifest） | `public, max-age=3600` |
 
-前端 bundle 由 Vite 生成 hash 文件名。HTML 不 hash，所以使用 `no-cache`，确保每次先重新验证 HTML，再加载新的 hash bundle。source 文件名为 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`；photo optimized 固定为 `-sdr.avif`，photo thumb 为无后缀 `.avif`。头像 source 为 `avatar-<qq_num>-<crc32>.<format>`，thumb 为 `avatar-<qq_num>-<crc32>.avif`。
+前端 bundle 由 Vite 生成 hash 文件名。HTML 不 hash，所以使用 `no-cache`，确保每次先重新验证 HTML，再加载新的 hash bundle。source 文件名为 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`；photo optimized 固定为 `-sdr.avif`，photo thumb 为无后缀 `.avif`。头像 source 为 `avatar-<member-id>-<crc32>.<format>`，thumb 为 `avatar-<member-id>-<crc32>.avif`。
 
 当前 Phase 0 所有输入都只生成 8-bit SDR optimized/thumb；HDR optimized 暂不生成。后续 HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
 

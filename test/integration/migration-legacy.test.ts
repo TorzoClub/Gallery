@@ -321,7 +321,7 @@ describe('legacy migration', () => {
       const first_member = members.find(member => member.name === 'A')
       expect(first_member?.qq_num).toBe(10001)
       expect(first_member?.created_at.toISOString()).toBe('2023-01-01T00:00:00.000Z')
-      expect(first_member?.avatar_src).toMatch(/^avatar-10001-[0-9a-f]{8}\.png$/)
+      expect(first_member?.avatar_src).toMatch(new RegExp(`^avatar-${first_member?.id}-[0-9a-f]{8}\\.png$`))
 
       await expect(fs.readFile(storage.imagePath('source', first_photo!.src)))
         .resolves.toEqual(photo_a)

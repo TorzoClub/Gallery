@@ -293,6 +293,7 @@ async function prepareAvatar(
   pipeline: ImagePipeline,
   client: LegacyApiClient,
   legacy_member: LegacyMember,
+  member_id: MemberID,
 ): Promise<string> {
   let buffer: Buffer
   try {
@@ -307,7 +308,7 @@ async function prepareAvatar(
   const temp_id = await storeTempImage(pipeline, buffer, format)
   try {
     const prepared = await pipeline.prepareAvatar({
-      qq_num: asQQNumber(legacy_member.qq_num),
+      member_id,
       temp_id,
     })
     return prepared.avatar_src
@@ -410,7 +411,12 @@ async function buildMembers(input: {
     8,
     async (legacy_member) => ({
       legacy_member,
-      avatar_src: await prepareAvatar(input.pipeline, input.client, legacy_member),
+      avatar_src: await prepareAvatar(
+        input.pipeline,
+        input.client,
+        legacy_member,
+        requireMap(input.maps.member, legacy_member.id, `member 映射(${legacy_member.id})`),
+      ),
     }),
   )
   const members: Member[] = []

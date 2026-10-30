@@ -20,7 +20,8 @@
 - 服务端测试在 `test/`；当前没有浏览器 UI 交互测试。
 - 前端 bundle 由 Vite 生成 hash 文件；HTML 弱缓存，assets/images 强缓存。
 - 旧 `server/`、`web/`、脚本和 CI 已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支，不参与当前分支的构建、测试、lint、CI 或部署。
-- storage 是单实例 JSON + 图片池；同一 storage 同时只允许一个进程写。
+- storage 是单实例 JSON + 图片池；当前 schema v2，同一 storage 同时只允许一个进程写。
+- v1 storage 不能直接启动，必须先运行 `pnpm update-storage`；头像文件名使用 member id，不使用 QQ。
 - 当前没有 MySQL 运行时依赖。
 
 ## 硬边界

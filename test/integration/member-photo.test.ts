@@ -21,7 +21,7 @@ describe('member actions', () => {
     const member = await ctx.createMember({ qq_num: 30001, name: 'Alice' })
     expect(member.qq_num).toBe(30001)
     expect(member.id).toBeGreaterThan(0)
-    expect(String(member.avatar_src)).toMatch(/^avatar-30001-[0-9a-f]{8}\.png$/)
+    expect(String(member.avatar_src)).toMatch(new RegExp(`^avatar-${member.id}-[0-9a-f]{8}\\.png$`))
 
     const list = await ctx.adminQuery('adminListMembers')
     expect(list.status).toBe(200)
@@ -72,7 +72,7 @@ describe('member actions', () => {
       avatar_temp_id: new_avatar.temp_id,
     })
     expect(updated.status).toBe(200)
-    expect(updated.body.data.avatar_src).toMatch(/^avatar-30004-[0-9a-f]{8}\.png$/)
+    expect(updated.body.data.avatar_src).toMatch(new RegExp(`^avatar-${member.id}-[0-9a-f]{8}\\.png$`))
     expect(updated.body.data.avatar_src).not.toBe(old_source)
     await expect(fs.access(old_path)).rejects.toMatchObject({ code: 'ENOENT' })
   })

@@ -24,8 +24,8 @@ optimized/photo-<gallery>-<photo>-<crc32>-hdr.avif
 头像保留 CRC：
 
 ```text
-source/avatar-<qq>-<crc32>.<format>
-thumb/avatar-<qq>-<crc32>.avif
+source/avatar-<member-id>-<crc32>.<format>
+thumb/avatar-<member-id>-<crc32>.avif
 ```
 
 头像 thumb 内容为 SDR AVIF；source 保留原始字节和格式。

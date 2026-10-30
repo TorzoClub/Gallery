@@ -62,7 +62,7 @@ function clientPhotoInEvent(photo: Photo): ClientPhotoInEvent {
 function clientMember(member: Member): ClientMember {
   return {
     id: Number(member.id),
-    qq_num: Number(member.qq_num),
+    qq_num: null,
     name: member.name,
     avatar_src: member.avatar_src,
     created_at: member.created_at.toISOString(),

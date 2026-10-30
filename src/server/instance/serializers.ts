@@ -18,6 +18,9 @@ export type {
   PhotoDTO,
   GalleryDTO,
   VoteDTO,
+  PublicMemberDTO,
+  PublicPhotoDTO,
+  PublicGalleryDTO,
   PublicHomeDTO,
   MemberVoteDTO,
   StatisticDTO,
@@ -28,6 +31,9 @@ import type {
   PhotoDTO,
   GalleryDTO,
   VoteDTO,
+  PublicMemberDTO,
+  PublicPhotoDTO,
+  PublicGalleryDTO,
   PublicHomeDTO,
   StatisticDTO,
 } from '../../shared/dto'
@@ -58,6 +64,54 @@ export function memberDto(
     avatar_thumb_url: imageUrl(env, 'thumb', avatar_thumb, instance_hash),
     created_at: member.created_at.toISOString(),
     updated_at: member.updated_at.toISOString(),
+  }
+}
+
+export function publicMemberDto(
+  member: Member,
+  env: EnvConfig,
+  instance_hash: string,
+): PublicMemberDTO {
+  return {
+    ...memberDto(member, env, instance_hash),
+    qq_num: null,
+  }
+}
+
+function publicPhotoDtoFromDto(photo: PhotoDTO): PublicPhotoDTO {
+  return {
+    ...photo,
+    member: photo.member === null
+      ? null
+      : { ...photo.member, qq_num: null },
+  }
+}
+
+export function publicPhotoDto(options: {
+  pool: Pool
+  gallery: Gallery
+  photo: Photo
+  env: EnvConfig
+  instance_hash: string
+  voted?: boolean
+  hide_member?: boolean
+}): PublicPhotoDTO {
+  return publicPhotoDtoFromDto(photoDto(options))
+}
+
+export function publicGalleryDto(options: {
+  pool: Pool
+  gallery: Gallery
+  env: EnvConfig
+  instance_hash: string
+  now: Date
+  member?: Member
+  hide_member?: boolean
+}): PublicGalleryDTO {
+  const gallery = galleryDto(options)
+  return {
+    ...gallery,
+    photos: gallery.photos.map(publicPhotoDtoFromDto),
   }
 }
 
@@ -166,7 +220,7 @@ export function publicHomeDto(options: {
   const active_gallery = galleries.find((gallery) => galleryInEvent(now, gallery))
   const active = active_gallery === undefined
     ? null
-    : galleryDto({
+    : publicGalleryDto({
         pool,
         gallery: active_gallery,
         env,
@@ -179,7 +233,7 @@ export function publicHomeDto(options: {
     active,
     galleries: galleries
       .filter((gallery) => !galleryInEvent(now, gallery))
-      .map((gallery) => galleryDto({ pool, gallery, env, instance_hash, now })),
+      .map((gallery) => publicGalleryDto({ pool, gallery, env, instance_hash, now })),
   }
 }
 
@@ -202,7 +256,7 @@ export function memberHomeDto(options: {
   const active_gallery = galleries.find((gallery) => galleryInEvent(now, gallery))
   const active = active_gallery === undefined
     ? null
-    : galleryDto({
+    : publicGalleryDto({
         pool,
         gallery: active_gallery,
         env,
@@ -216,7 +270,7 @@ export function memberHomeDto(options: {
     active,
     galleries: galleries
       .filter((gallery) => !galleryInEvent(now, gallery))
-      .map((gallery) => galleryDto({ pool, gallery, env, instance_hash, now, member })),
+      .map((gallery) => publicGalleryDto({ pool, gallery, env, instance_hash, now, member })),
   }
 }
 

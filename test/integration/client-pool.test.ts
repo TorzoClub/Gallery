@@ -37,6 +37,8 @@ describe('fetchClientPool', () => {
     expect(pool.submissions).toBe(1)
     expect(pool.votes).toBe(0)
     expect(pool.members).toHaveLength(1)
+    expect(pool.members[0].qq_num).toBeNull()
+    expect(JSON.stringify(pool)).not.toContain('60001')
 
     const active = pool.galleries.find((item: any) => item.in_event)
     expect(active).toBeDefined()

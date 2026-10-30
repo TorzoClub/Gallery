@@ -44,7 +44,7 @@ export default (props: Props) => {
 
       <div style={{ position: 'relative' }}>
         { wifNode }
-        { props.isLoading && <LoadingMask backgroundOpacity={1} /> }
+        { props.isLoading && <LoadingMask /> }
       </div>
     </DialogLayout>
   )

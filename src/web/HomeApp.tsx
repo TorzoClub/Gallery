@@ -1,12 +1,13 @@
 import React from 'react'
 import { Memo } from 'vait'
 
-import GalleryHome from './layouts/GalleryHome'
+import ExplorePage from './layouts/Explore'
 // import CoverScroller from './layouts/CoverScroller'
 // import BgImageUrl from 'assets/bg.png'
 
 import './HomeApp.css'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import Navigator from './components/Navigator'
 
 
 export const appInitInfomation = Memo({
@@ -14,16 +15,19 @@ export const appInitInfomation = Memo({
 })
 
 export default function AppHome() {
+  const navigate = useNavigate()
+
   return (
     <div className="app">
-      <Link
-        className='home-app__about'
-        aria-label='关于同装相册'
-        style={{ position: 'absolute', top: 0, right: '24px' }}
-        to='/behind'
-      >About</Link>
-
-      <GalleryHome />
+      <Navigator
+        showTitle
+        onClickPushButton={() => {
+          navigate('/behind', {
+            replace: true,
+          })
+        }}
+      />
+      <ExplorePage />
     </div>
   )
 }

@@ -47,7 +47,6 @@
 ├── test/                服务端单元与集成测试
 ├── public/              favicon、背景、manifest 等静态资源
 ├── docs/                架构、API、配置、设计、排障文档
-├── legacy/              冻结的旧实现，不参与构建
 ├── dist/                Vite / tsup 产物
 ├── Dockerfile           生产镜像
 ├── compose.yaml         生产 compose
@@ -57,7 +56,7 @@
 
 规模快照：
 
-- 源码文件：约 144 个（不含 `legacy/`）
+- 源码文件：约 144 个（当前分支）
 - 服务端 TypeScript：约 28 个
 - 前端 TS/TSX：约 78 个
 - 测试：12 个测试文件、70 个用例

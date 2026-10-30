@@ -1,11 +1,12 @@
-import React, { FunctionComponent, ReactNode, useEffect, useMemo, useState } from 'react'
+import React, { FunctionComponent, ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import s from './index.module.scss'
 import { nth, partialRight, pipe, prop, thunkify } from 'ramda'
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
-import { Gallery, PhotoInActive } from 'api/photo'
+import type { GalleryView, PhotoView } from 'pool/view'
 import { init as initScript } from './scripts'
 import { Memo, Signal } from 'vait'
+import { playTextBlip } from '../../utils/text-audio'
 
 const [ getScriptID, setScriptID ] = Memo(0)
 const generateScriptID = () => {
@@ -13,10 +14,11 @@ const generateScriptID = () => {
   return getScriptID()
 }
 
-export function script(Content: Content, selects: Select[]): Script {
+export function script(Content: Content, selects: Select[], instant = false): Script {
   return {
     id: generateScriptID(),
     Content,
+    instant,
     show_select_timeout: 1000,
     selects,
   }
@@ -28,10 +30,11 @@ export function scriptAdvance(opts: Omit<Script, 'id'>): Script {
     ...opts
   }
 }
-export function select(Content: Content, next_script: Script): Select {
+export function select(Content: Content, next_script: Script, instant?: boolean): Select {
   return {
     Content,
-    next_script
+    next_script,
+    ...(instant === undefined ? {} : { instant }),
   }
 }
 
@@ -62,6 +65,7 @@ export type Content = string | FunctionComponent<{ changeScript: ChangeScript }>
 export type Select = {
   Content: Content
   next_script: Script
+  instant?: boolean
 }
 
 export type Script = {
@@ -70,6 +74,7 @@ export type Script = {
   show_content_waittime?: number
   show_select_timeout: number
   selects: Select[]
+  instant?: boolean
 }
 
 type QQNum = string | null
@@ -79,7 +84,7 @@ type State = {
   gallery_id: GalleryID
   // submission_expire: GalleryCommon['submission_expire'] | null
   // gallery_photo_count: number
-  photo: PhotoInActive | null
+  photo: PhotoView | null
   setQQNum(v: QQNum): void
   // setGalleryId(v: GalleryID): void
   // setPhoto(v: PhotoInActive): void
@@ -102,9 +107,9 @@ export const useSubmissionStore = create<State>()(
 )
 
 export const _EVENT_ = {
-  created: Signal<PhotoInActive>(),
-  updated: Signal<PhotoInActive>(),
-  canceled: Signal<PhotoInActive['id']>()
+  created: Signal<PhotoView>(),
+  updated: Signal<PhotoView>(),
+  canceled: Signal<PhotoView['id']>()
 } as const
 
 if (import.meta.env.DEV) {
@@ -142,9 +147,9 @@ export function useSubmissionEvent({
   updated,
   canceled,
 }: {
-  created(p: PhotoInActive): void
-  updated(p: PhotoInActive): void
-  canceled(id: PhotoInActive['id']): void
+  created(p: PhotoView): void
+  updated(p: PhotoView): void
+  canceled(id: PhotoView['id']): void
 }) {
   useEffect(() => {
     _EVENT_.created.receive(created)
@@ -173,13 +178,13 @@ const INTERVAL_TIME = 42
 export function textContentEffectTotalTime(
   init_time: number,
   Content: Content,
-  interval = INTERVAL_TIME
+  interval = INTERVAL_TIME,
+  instant = false,
 ): number {
-  if (typeof Content === 'string') {
-    return init_time + (Content.length * interval)
-  } else {
-    return 0
+  if (instant || typeof Content !== 'string') {
+    return init_time
   }
+  return init_time + (Content.length * interval)
 }
 type TextContentEffectProps = {
   textContent: string
@@ -188,6 +193,7 @@ type TextContentEffectProps = {
   onPlaying?(): void
   hideClassName?: string;
   showClassName?: string
+  instant?: boolean
 }
 export function TextContentEffect({
   textContent,
@@ -196,16 +202,28 @@ export function TextContentEffect({
   interval = INTERVAL_TIME,
   hideClassName = s.TextContentEffectCharHide,
   showClassName = s.TextContentEffectCharShow,
+  instant = false,
  }: TextContentEffectProps) {
-  const [cursor, setShowingCursor] = useState(0)
+  const [cursor, setShowingCursor] = useState(() => instant ? textContent.length : 0)
   const [ is_playing, setPlaying ] = useState(false)
-  const [ is_played, setPlayed ] = useState(false)
+  const [ is_played, setPlayed ] = useState(instant)
+  const previous_cursor = useRef(instant ? textContent.length : 0)
 
   useEffect(() => {
     if (is_playing) {
       onPlaying && onPlaying()
     }
   }, [is_playing, onPlaying])
+
+  useEffect(() => {
+    const previous = previous_cursor.current
+    if (cursor > previous) {
+      for (let index = previous; index < cursor; index += 1) {
+        playTextBlip(textContent[index] ?? '')
+      }
+    }
+    previous_cursor.current = cursor
+  }, [cursor, textContent])
 
   useEffect(() => {
     if (is_played) { return }
@@ -268,15 +286,21 @@ export function RenderContent({
   Content,
   changeScript,
   showContentWaittime,
-}: { Content: Content; changeScript(s: Script): void; showContentWaittime: number }) {
+  instant = false,
+}: {
+  Content: Content
+  changeScript(s: Script): void
+  showContentWaittime: number
+  instant?: boolean
+}) {
   const is_component = typeof Content === 'function'
   return useMemo(() => {
     if (is_component) {
       return <Content changeScript={changeScript} />
     } else {
-      return <TextContentEffect textContent={ Content } showContentWaittime={showContentWaittime} />
+      return <TextContentEffect textContent={ Content } showContentWaittime={showContentWaittime} instant={instant} />
     }
-  }, [Content, changeScript, is_component, showContentWaittime])
+  }, [Content, changeScript, instant, is_component, showContentWaittime])
 }
 
 function Select({
@@ -284,9 +308,16 @@ function Select({
   show_wait,
   changeScript,
   onPress,
-}: { Content: Content; changeScript(s: Script): void; show_wait: number; onPress(): void }) {
+  instant,
+}: {
+  Content: Content
+  changeScript(s: Script): void
+  show_wait: number
+  onPress(): void
+  instant: boolean
+}) {
   const [show_list_item_icon, setShow] = useState(
-    typeof Content === 'function'
+    instant || typeof Content === 'function'
   )
   const is_component = typeof Content === 'function'
   const inner = useMemo(() => {
@@ -297,9 +328,10 @@ function Select({
         textContent={ Content }
         showContentWaittime={show_wait}
         onPlaying={() => setShow(true)}
+        instant={instant}
       />
     }
-  }, [Content, changeScript, is_component, show_wait])
+  }, [Content, changeScript, instant, is_component, show_wait])
   return (
     <li
       className={s.ScriptPlayerSelect}
@@ -330,17 +362,19 @@ export function ScriptPlayerSelects({
   onClickSelect,
   changeScript,
   waittime,
+  instant = false,
 }: {
   selects: Select[];
   onClickSelect: (i: number) => void;
   changeScript: (s: Script) => void
   waittime: number
+  instant?: boolean
 }) {
   if (!selects.length) {
     return <></>
   } else {
     const select_play_time_list = selects.map(
-      s => textContentEffectTotalTime(0, s.Content)
+      s => textContentEffectTotalTime(0, s.Content, INTERVAL_TIME, instant || Boolean(s.instant))
     )
     const add = (a: number, b: number) => a + b
     const sum = (nums: number[]) => nums.reduce(add, 0)
@@ -359,6 +393,7 @@ export function ScriptPlayerSelects({
                 sum(select_play_time_list.slice(0, idx)) +
                 (INTERVAL_TIME * 10) * idx
               }
+              instant={instant || Boolean(s.instant)}
             />
           ))
         }
@@ -368,30 +403,38 @@ export function ScriptPlayerSelects({
 }
 
 function ScriptPlayer({ script, changeScript }: { script: Script; changeScript: (s: Script) => void }) {
-  const { show_content_waittime = 0 } = script
+  const { show_content_waittime = 0, instant = false } = script
   const { show_select_timeout } = script
 
   const show_selects_waittime = useMemo(() => {
     const t = textContentEffectTotalTime(
       Number(show_content_waittime),
-      script.Content
+      script.Content,
+      INTERVAL_TIME,
+      instant,
     )
     if (t === 0) {
       return 0 + show_select_timeout
     } else {
       return t + show_select_timeout
     }
-  }, [script.Content, show_content_waittime, show_select_timeout])
+  }, [instant, script.Content, show_content_waittime, show_select_timeout])
 
   return (
     <div className={s.ScriptPlayer}>
       <div className="script-player-text">
-        <RenderContent showContentWaittime={show_content_waittime} Content={ script.Content } changeScript={changeScript} />
+        <RenderContent
+          showContentWaittime={show_content_waittime}
+          Content={script.Content}
+          changeScript={changeScript}
+          instant={instant}
+        />
       </div>
       <ScriptPlayerSelects
         selects={script.selects}
         changeScript={changeScript}
         waittime={show_selects_waittime}
+        instant={instant}
         onClickSelect={
           pipe(
             partialRight(nth, [script.selects]),
@@ -404,7 +447,7 @@ function ScriptPlayer({ script, changeScript }: { script: Script; changeScript: 
   )
 }
 
-export default function Submission({ gallery }: { gallery: Gallery }) {
+export default function Submission({ gallery }: { gallery: GalleryView }) {
   useEffect(() => {
     useSubmissionStore.setState({
       gallery_id: gallery.id,

@@ -1,13 +1,12 @@
 import React, { ReactNode, Suspense, lazy, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
+import './index.css'
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { OutterPromise } from 'vait'
 
 import { appInitInfomation } from './HomeApp'
-import PublicRoot, { isBehindPath } from './PublicRoot'
+import { isBehindPath, isCancelSubmissionPath } from './routes'
 import { FailureLayoutContainer, useFailureLayout } from './components/FailureLayout'
-
-const AdminApp = lazy(() => import('./admin/AdminApp'))
 
 const rawBase = import.meta.env.BASE_URL
 const basename = rawBase === '/' ? '/' : rawBase.replace(/\/$/, '')
@@ -45,6 +44,10 @@ function TitleSync() {
   useEffect(() => {
     if (isBehindPath(location.pathname)) {
       document.title = '同装摄影集 · About'
+    } else if (isCancelSubmissionPath(location.pathname)) {
+      document.title = '同装摄影集 · cancelSubmission'
+    } else if (location.pathname.startsWith('/explore')) {
+      document.title = '同装摄影集'
     } else if (!location.pathname.startsWith('/admin')) {
       document.title = '同装摄影集'
     }
@@ -69,7 +72,59 @@ export default function CriticalFailureLayout({ children }: { children: ReactNod
 
 const build_description = import.meta.env.VITE_BUILD_DESCRIPTION
 
+function PictureTypeSupported(base64sample: string) {
+  return () => {
+    const [res, rej, promise] = OutterPromise<boolean>()
+
+    const image = new Image()
+    image.onerror = () => rej(false)
+    image.onload = () => res(true)
+    image.src = base64sample
+
+    return promise
+  }
+}
+
+export async function initPictureSupportInfomation() {
+  const [avif, webp] = await Promise.all([
+    PictureTypeSupported('data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUIAAADybWV0YQAAAAAAAAAoaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAGxpYmF2aWYAAAAADnBpdG0AAAAAAAEAAAAeaWxvYwAAAABEAAABAAEAAAABAAABGgAAAB0AAAAoaWluZgAAAAAAAQAAABppbmZlAgAAAAABAABhdjAxQ29sb3IAAAAAamlwcnAAAABLaXBjbwAAABRpc3BlAAAAAAAAAAIAAAACAAAAEHBpeGkAAAAAAwgICAAAAAxhdjFDgQ0MAAAAABNjb2xybmNseAACAAIAAYAAAAAXaXBtYQAAAAAAAAABAAEEAQKDBAAAACVtZGF0EgAKCBgANogQEAwgMg8f8D///8WfhwB8+ErK42A=')(),
+    PictureTypeSupported('data:image/webp;base64,UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoCAAEAAQAcJaQAA3AA/v3AgAA=')(),
+  ])
+  return { avif, webp } as const
+}
+
+const [
+  homeAppData,
+  publicRoot,
+  adminApp,
+] = await Promise.all([
+  import('./HomeApp'),
+  import('./PublicRoot'),
+  import('./admin/AdminApp')
+])
+
+initPictureSupportInfomation()
+  .then(picutre_support => {
+    const [ getAppInitInfo, setAppInitInfo ] = appInitInfomation
+    setAppInitInfo({
+      ...getAppInitInfo(),
+      picutre_support,
+    })
+
+    const mount_el = document.getElementById('root')
+    if (mount_el === null) {
+      alert('没有找到#root元素！')
+    } else {
+      ReactDOM.createRoot(mount_el).render(<Bootstrap />)
+    }
+  })
+  .catch(err => {
+    alert(`页面初始化错误：${err?.message}`)
+  })
+
 function Bootstrap() {
+  const AdminApp = adminApp.default
+  const PublicRoot = publicRoot.default
   return (
     <div className='bootstrap'>
       <CriticalFailureLayout>
@@ -77,6 +132,7 @@ function Bootstrap() {
           <BrowserRouter basename={basename}>
             <TitleSync />
             <Routes>
+              <Route path="/" element={<Navigate to="/explore" replace />} />
               <Route
                 path="/admin/*"
                 element={(
@@ -120,43 +176,3 @@ function Bootstrap() {
     </div>
   )
 }
-
-function PictureTypeSupported(base64sample: string) {
-  return () => {
-    const [res, rej, promise] = OutterPromise<boolean>()
-
-    const image = new Image()
-    image.onerror = () => rej(false)
-    image.onload = () => res(true)
-    image.src = base64sample
-
-    return promise
-  }
-}
-
-export async function initPictureSupportInfomation() {
-  const [avif, webp] = await Promise.all([
-    PictureTypeSupported('data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUIAAADybWV0YQAAAAAAAAAoaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAGxpYmF2aWYAAAAADnBpdG0AAAAAAAEAAAAeaWxvYwAAAABEAAABAAEAAAABAAABGgAAAB0AAAAoaWluZgAAAAAAAQAAABppbmZlAgAAAAABAABhdjAxQ29sb3IAAAAAamlwcnAAAABLaXBjbwAAABRpc3BlAAAAAAAAAAIAAAACAAAAEHBpeGkAAAAAAwgICAAAAAxhdjFDgQ0MAAAAABNjb2xybmNseAACAAIAAYAAAAAXaXBtYQAAAAAAAAABAAEEAQKDBAAAACVtZGF0EgAKCBgANogQEAwgMg8f8D///8WfhwB8+ErK42A=')(),
-    PictureTypeSupported('data:image/webp;base64,UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoCAAEAAQAcJaQAA3AA/v3AgAA=')(),
-  ])
-  return { avif, webp } as const
-}
-
-initPictureSupportInfomation()
-  .then(picutre_support => {
-    const [ getAppInitInfo, setAppInitInfo ] = appInitInfomation
-    setAppInitInfo({
-      ...getAppInitInfo(),
-      picutre_support,
-    })
-
-    const mount_el = document.getElementById('root')
-    if (mount_el === null) {
-      alert('没有找到#root元素！')
-    } else {
-      ReactDOM.createRoot(mount_el).render(<Bootstrap />)
-    }
-  })
-  .catch(err => {
-    alert(`页面初始化错误：${err?.message}`)
-  })

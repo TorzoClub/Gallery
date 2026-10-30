@@ -54,6 +54,8 @@
 | `getSubmission` | `{ gallery_id, qq_num }` | Photo 或 `null` |
 | `confirmMember` | `{ qq_num }` | `{ value: boolean }` |
 | `getMemberPhotos` | `{ qq_num }` | `{ active, galleries }` |
+| `fetchClientPool` | `{}` | ClientPool；活动期 GalleryInEvent |
+| `fetchMemberView` | `{ qq_num }` | 当前成员自己的投票/投稿状态 |
 
 ## 公开 mutations
 
@@ -65,6 +67,65 @@
 | `vote` | `{ gallery_id, qq_num, photo_ids }` | Vote 结果 |
 
 `temp_id` 来自 `/upload-image`。投稿和投票受相册时间窗口、每人一次投稿、`vote_limit` 等规则限制。
+
+### ClientPool
+
+公开页使用 `fetchClientPool` 获取统一快照：
+
+```json
+{
+  "schema_version": 1,
+  "next_id": 42,
+  "instance_hash": "5a493005",
+  "app_startup_time": 1790000000000,
+  "submissions": 12,
+  "votes": 31,
+  "version_time": 1790000000123,
+  "build_date": "2026-10-28",
+  "git_hash": "5d25b84",
+  "galleries": [],
+  "members": []
+}
+```
+
+- `galleries` 中的元素是 `Gallery | GalleryInEvent`，用 `in_event` 区分。
+- `GalleryInEvent` 不包含 `vote_records`，其中 `photos[].member_id` 为 `null`。
+- 普通 `Gallery` 保留 `member_id` 和 `vote_records`。
+- `members` 保留完整成员列表。
+- `submissions` 统计全部相片；`votes` 统计非活动 Gallery 的投票数。
+- `app_startup_time` 是服务端程序启动时间（epoch ms）。
+- `version_time` 是本次 ClientPool 生成时间（epoch ms），用于 SSE/异步响应防旧数据覆盖。
+- `build_date` / `git_hash` 在 dev 下为 `N/A`，`pnpm build` / `pnpm start` 构建时注入。
+
+### fetchMemberView
+
+活动期 ClientPool 不返回投票记录，因此单独提供：
+
+```text
+POST /query/fetchMemberView
+payload: { "qq_num": 123456 }
+```
+
+返回当前成员自己的：
+
+```json
+{
+  "member_id": 1,
+  "active_gallery_id": 2,
+  "vote_submitted": false,
+  "voted_photo_ids": [],
+  "submitted_photo": null
+}
+```
+
+不返回其他成员的投票记录。
+
+### 前端页面
+
+- `/` 重定向到 `/explore`。
+- `/explore` 是公开相册页。
+- `/behind` 是同级 About 页面，不再作为 `/` 的 fixed 子页面。
+- `/admin/*` 保持后台入口。
 
 ## Admin queries
 
@@ -87,9 +148,9 @@
 | action | payload | 说明 |
 |---|---|---|
 | `adminUpdateInstanceConfig` | 任意 instance 配置字段 | 返回完整配置 |
-| `adminCreateGallery` | `{ name, index, vote_limit, event_start, submission_expire, event_end }` | 创建相册 |
-| `adminUpdateGallery` | `{ gallery_id, ...可选字段 }` | 更新相册 |
-| `adminRemoveGallery` | `{ gallery_id }` | 删除相册 |
+| `adminCreateGallery` | `{ name, index, vote_limit, event_start, submission_expire, event_end }` | 创建相册；活动期间与其他相册重合时返回 `409 CONFLICT` |
+| `adminUpdateGallery` | `{ gallery_id, ...可选字段 }` | 更新相册；活动期间与其他相册重合时返回 `409 CONFLICT` |
+| `adminRemoveGallery` | `{ gallery_id }` | 删除空相册；仍有相片时返回 `409 CONFLICT` |
 | `adminCreateMember` | `{ qq_num, name, avatar_temp_id }` | 创建成员，必须上传头像 |
 | `adminUpdateMember` | `{ member_id, name?, avatar_temp_id? }` | 更新成员；QQ 不可修改 |
 | `adminRemoveMember` | `{ member_id }` | 删除成员 |
@@ -102,6 +163,43 @@
 | `adminRefreshAvatar` | `{ member_id }` | 重建头像缩略图 |
 
 日期字段使用 ISO 8601，例如 `2026-10-01T00:00:00.000Z`。
+
+### 相册活动窗口与重合限制
+
+`in_event` 的判断使用服务端当前时间：
+
+```text
+event_start <= now <= event_end
+```
+
+边界包含在内，因此 `now === event_start` 和 `now === event_end` 都算活动期。
+
+任意两个 Gallery 的活动区间不能重合。判断使用闭区间：
+
+```text
+left.event_start <= right.event_end
+right.event_start <= left.event_end
+```
+
+两个区间即使只在 `event_end === other.event_start` 的边界相接，也算重合。
+
+校验顺序：
+
+1. mutation 的 `commit` 生成候选 Pool。
+2. 写入内存 Pool 之前，检查候选 Pool。
+3. 如果任意两个 Gallery 的活动区间重合，返回 `409 CONFLICT`：
+
+```text
+相册的活动期间不能有重合
+```
+
+4. 校验通过后才更新内存 Pool 并持久化。
+
+因此：
+
+- 当前有活动相册时，仍可创建活动区间不重合的未来相册。
+- `adminCreateGallery` 和 `adminUpdateGallery` 都受此限制。
+- 被拒绝的 mutation 不会改变现有 Gallery 或持久化数据。
 
 ## 图片上传
 

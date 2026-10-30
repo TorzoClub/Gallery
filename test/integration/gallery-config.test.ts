@@ -68,6 +68,110 @@ describe('gallery actions', () => {
     expect(Array.isArray(response.body.details)).toBe(true)
   })
 
+  it('rejects creating a gallery whose event period overlaps another gallery', async () => {
+    const active = await ctx.createGallery({ name: 'Active' })
+    const rejected = await ctx.adminMutate('adminCreateGallery', {
+      name: 'Overlapping',
+      index: 1,
+      vote_limit: 3,
+      event_start: new Date(ctx.now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+      submission_expire: new Date(ctx.now.getTime() + 48 * 60 * 60 * 1000).toISOString(),
+      event_end: new Date(ctx.now.getTime() + 72 * 60 * 60 * 1000).toISOString(),
+    })
+    expect(rejected.status).toBe(409)
+    expect(rejected.body.code).toBe('CONFLICT')
+    expect(rejected.body.message).toBe('相册的活动期间不能有重合')
+
+    ctx.setNow(new Date(ctx.now.getTime() + 3 * 24 * 60 * 60 * 1000))
+    const next = await ctx.createGallery({ name: 'Next' })
+    expect(next.name).toBe('Next')
+    expect(next.id).not.toBe(active.id)
+  })
+
+  it('rejects creating a second gallery that is active at the same time', async () => {
+    await ctx.createGallery({ name: 'Active' })
+    const rejected = await ctx.adminMutate('adminCreateGallery', {
+      name: 'Also active',
+      index: 1,
+      vote_limit: 3,
+      event_start: new Date(ctx.now.getTime() - 60 * 60 * 1000).toISOString(),
+      submission_expire: new Date(ctx.now.getTime() + 60 * 60 * 1000).toISOString(),
+      event_end: new Date(ctx.now.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+    })
+    expect(rejected.status).toBe(409)
+    expect(rejected.body.code).toBe('CONFLICT')
+    expect(rejected.body.message).toBe('相册的活动期间不能有重合')
+  })
+
+  it('allows a non-overlapping future gallery while the current gallery is active', async () => {
+    await ctx.createGallery({ name: 'Active' })
+    const next = await ctx.adminMutate('adminCreateGallery', {
+      name: 'Future',
+      index: 1,
+      vote_limit: 3,
+      event_start: new Date(ctx.now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      submission_expire: new Date(ctx.now.getTime() + 4 * 24 * 60 * 60 * 1000).toISOString(),
+      event_end: new Date(ctx.now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    })
+    expect(next.status).toBe(200)
+    expect(next.body.data.name).toBe('Future')
+  })
+
+  it('rejects updating a gallery into the event period of another gallery', async () => {
+    await ctx.createGallery({ name: 'Active' })
+    const future = await ctx.adminMutate('adminCreateGallery', {
+      name: 'Future',
+      index: 1,
+      vote_limit: 3,
+      event_start: new Date(ctx.now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      submission_expire: new Date(ctx.now.getTime() + 4 * 24 * 60 * 60 * 1000).toISOString(),
+      event_end: new Date(ctx.now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    })
+    expect(future.status).toBe(200)
+
+    const rejected = await ctx.adminMutate('adminUpdateGallery', {
+      gallery_id: future.body.data.id,
+      event_start: new Date(ctx.now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+      submission_expire: new Date(ctx.now.getTime() + 48 * 60 * 60 * 1000).toISOString(),
+      event_end: new Date(ctx.now.getTime() + 72 * 60 * 60 * 1000).toISOString(),
+    })
+    expect(rejected.status).toBe(409)
+    expect(rejected.body.code).toBe('CONFLICT')
+    expect(rejected.body.message).toBe('相册的活动期间不能有重合')
+
+    const unchanged = await ctx.adminQuery('adminGetGallery', { gallery_id: future.body.data.id })
+    expect(unchanged.status).toBe(200)
+    expect(unchanged.body.data.event_start).toBe(future.body.data.event_start)
+  })
+
+  it('rejects removing a gallery that still has photos, then removes it after the last photo', async () => {
+    const member = await ctx.createMember({ qq_num: 30010 })
+    const gallery = await ctx.createGallery({ name: 'Do not delete' })
+    const photo = await ctx.createPhoto({
+      gallery_id: gallery.id as number,
+      member_id: member.id as number,
+    })
+
+    const blocked = await ctx.adminMutate('adminRemoveGallery', { gallery_id: gallery.id })
+    expect(blocked.status).toBe(409)
+    expect(blocked.body.code).toBe('CONFLICT')
+    expect(blocked.body.message).toContain('还有 1 张相片')
+
+    const gallery_after = await ctx.adminQuery('adminGetGallery', { gallery_id: gallery.id })
+    expect(gallery_after.status).toBe(200)
+    const photo_after = await ctx.adminQuery('adminGetPhoto', { photo_id: photo.id })
+    expect(photo_after.status).toBe(200)
+
+    const photo_removed = await ctx.adminMutate('adminRemovePhoto', { photo_id: photo.id })
+    expect(photo_removed.status).toBe(200)
+
+    const removed = await ctx.adminMutate('adminRemoveGallery', { gallery_id: gallery.id })
+    expect(removed.status).toBe(200)
+
+    const gone = await ctx.adminQuery('adminGetGallery', { gallery_id: gallery.id })
+    expect(gone.status).toBe(404)
+  })
+
   it('rejects removing a gallery id that does not exist', async () => {
     const response = await ctx.adminMutate('adminRemoveGallery', { gallery_id: 999 })
     expect(response.status).toBe(404)

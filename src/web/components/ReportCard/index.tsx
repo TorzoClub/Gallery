@@ -39,9 +39,9 @@ export type ReportCardBuild = {
 
 export const DEFAULT_REPORT_CARD_CONFIG: ReportCardConfig = {
   stamp: {
-    x: 18,
-    y: 34,
-    angle: -9,
+    x: 128,
+    y: 335,
+    angle: -4,
   },
   paper: {
     color: '#f2d663',
@@ -57,7 +57,7 @@ export const DEFAULT_REPORT_CARD_CONFIG: ReportCardConfig = {
 
 export const DEFAULT_REPORT_CARD_ROWS: readonly ReportCardRow[] = [
   ['Version', 'v4.0.0-preview'],
-  ['Uptime', '4y 2m 1d'],
+  ['Uptime', '4y2m1d'],
   ['Submissions', '245'],
   ['Votes', '2189'],
   ['API prefix', '/'],
@@ -66,7 +66,7 @@ export const DEFAULT_REPORT_CARD_ROWS: readonly ReportCardRow[] = [
 
 export const DEFAULT_REPORT_CARD_BUILD: ReportCardBuild = {
   date: '2026-10-27',
-  hash: '2ja24f9',
+  hash: '2fa24f9',
 }
 
 function clamp(value: number, min = 0, max = 1): number {
@@ -145,9 +145,10 @@ function applyConfig(element: HTMLDivElement, config: ReportCardConfig): void {
 function rowParts(row: ReportCardRow): [string, string] {
   if (Array.isArray(row)) {
     return [row[0], row[1]]
+  } else {
+    const named = row as { name: string, value: string }
+    return [named.name, named.value]
   }
-  const named = row as { name: string, value: string }
-  return [named.name, named.value]
 }
 
 export default function ReportCard({
@@ -175,9 +176,9 @@ export default function ReportCard({
   return (
     <div ref={rootRef} className={rootClassName}>
       <div className={styles.sheet}>
-        <section className={styles.card} aria-label='App Environment Reports'>
+        <section className={styles.card} aria-label='SYSTEM REPORTS'>
           <div className={styles.ink}>
-            <h1 className={styles.title}>App Environment<br />Reports</h1>
+            <h1 className={styles.title}>SYSTEM<br />REPORTS</h1>
             <div className={`${styles.row} ${styles.cols}`}>
               <div>NAME</div>
               <div>VALUE</div>

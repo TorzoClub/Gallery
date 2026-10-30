@@ -7,7 +7,7 @@
 - 根目录是单体 SPA + dispatch API：一个 Hono HTTP 服务同时提供前端、API、图片和健康检查。
 - 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。
 - 测试在 `test/`，当前覆盖服务端业务逻辑、storage、图片、登录、静态服务和缓存。
-- `legacy/` 归档旧 `server/`、`web/`、脚本和 CI，不参与构建、测试、lint、部署。
+- 旧 `server/`、`web/`、脚本和 CI 已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支，不参与当前分支的构建、测试、lint、部署。
 - 后台页面和样式按路由异步加载，公开页首屏不会加载后台代码。
 
 更细的状态和待办见 [TODOS.md](../TODOS.md)。
@@ -24,7 +24,6 @@
 ├── public/                  favicon、bg、manifest
 ├── index.html               Vite SPA 入口
 ├── docs/                    项目文档
-├── legacy/                  冻结的旧实现
 ├── dist/
 │   ├── client/              Vite 产物（hash assets）
 │   └── server/              tsup 产物
@@ -118,12 +117,14 @@ Node HTTP Server
 
 - 单体同源：前端与 API 在同一个 HTTP 服务下，避免 CORS 和跨服务部署。
 - 前端 bundle 使用 hash 文件名并强缓存；HTML 使用 `no-cache` 弱缓存；source 保存原始上传字节，optimized/thumb 使用实体 ID + 内容 CRC32 文件名并强缓存；上传临时文件使用 UUIDv7。
-- 公开页和后台共用前端入口，后台整体异步加载。
+- 公开页和后台共用前端入口，后台整体异步加载；公开页入口是 `/explore`，`/` 重定向到它。
+- `/explore` 与 `/behind` 是同级页面；页面切换用隐藏 stage，而不是 fixed 覆盖。
+- `/cancelSubmission` 与别名 `/removingSubmission` 是取消投稿的碎纸机频道，频道名为 `CH. cancelSubmission`。
 - 图片分三类：`source` 原图、`optimized` 全尺寸 SDR AVIF、`thumb` SDR AVIF 缩略图；相片 optimized 固定为 `-sdr.avif`，thumb 为无后缀 `.avif`；头像 thumb 为 `.avif`。当前 Phase 0 只生成 SDR；HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
 - 后台保持轻依赖和工具化，不套用公开页视觉风格。
 - 后端通过 dispatch action 执行业务，admin action 只能从 admin 路由调用。
 - storage 是单实例 JSON + 图片池；同一 storage 只允许一个进程写。
-- 旧 `server/`、`web/` 冻结在 `legacy/`，不再继续开发。
+- 旧 `server/`、`web/` 已从当前分支移除，归档在 `legacy-v3` 分支，不再继续开发。
 
 公开页的视觉风格和设计原则见 [designs.md](designs.md)。
 
@@ -145,4 +146,3 @@ Node HTTP Server
 | [docs/glossary.md](glossary.md) | 领域术语简表 |
 | [TODOS.md](../TODOS.md) | 当前状态、范围、后续待办 |
 | [AGENTS.md](../AGENTS.md) | AI agent 工作边界和验证要求 |
-| [legacy/README.md](../legacy/README.md) | 冻结的旧实现说明 |

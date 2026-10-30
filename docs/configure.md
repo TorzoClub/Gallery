@@ -1,6 +1,6 @@
 # 配置
 
-本文记录根目录单体应用的安装、运行配置、instance 配置、构建、缓存和部署。旧的 `server/`、`web/` 配置已归档到 `legacy/`，不再维护。
+本文记录根目录单体应用的安装、运行配置、instance 配置、构建、缓存和部署。旧的 `server/`、`web/` 配置已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支，不再维护。
 
 ## 环境要求
 
@@ -24,7 +24,7 @@ pnpm dev
 - 只有一个端口：`HTTP_PORT`（默认 `7001`）。
 - Hono 在 Node HTTP Server 最前面处理 API。
 - development 下非 API 请求进入同进程的 Vite middleware；production 下进入 Hono 的 `dist/client` 静态服务。
-- 公开页 `/`，后台 `/admin`。
+- 公开页 `/explore`（`/` 重定向），About 页 `/behind`，取消投稿频道 `/cancelSubmission`（别名 `/removingSubmission`），后台 `/admin`。
 - 单体 SPA 服务要求 `API_BASE_PATH=/`；`VITE_BASE_PATH` 也按根路径部署。
 - 不再有独立的 Vite 3000 端口或 proxy。
 
@@ -133,10 +133,39 @@ adminUpdateInstanceConfig
 | `pnpm lint` | oxlint |
 | `pnpm test` | Vitest 服务端测试 |
 | `pnpm build` | 构建 `dist/client` + `dist/server` |
+| `pnpm analyze` | 构建前端并生成 `dist/client/stats.html` 包分析 |
 | `pnpm start` | 构建后启动生产服务 |
 | `pnpm start:prod` | 直接启动已构建的生产服务 |
 
 `pnpm start` 先执行前端和服务端构建，然后由 Hono 提供 `dist/client`。
+
+前端全局样式由 `src/web/index.css` 引入 Tailwind CSS v4，Vite 使用 `@tailwindcss/vite` 处理。
+
+### gzip / Brotli 预压缩
+
+`pnpm build` 的前端构建完成后会对 `dist/client` 中的文件生成：
+
+```text
+<file>.gz
+<file>.br
+```
+
+- gzip 使用 level 9。
+- Brotli 使用 quality 11，扩展名是标准的 `.br`。
+- 已存在的 `.gz` / `.br` / `.zst` 文件不会再次压缩。
+- `pnpm start` 通过 `pnpm build` 自动生成这些副本；`pnpm start:prod` 使用已经构建好的产物。
+
+生产服务使用 Hono 的 `serveStatic({ precompressed: true })`，按客户端 `Accept-Encoding` 选择：
+
+```text
+br -> gzip -> 原文件
+```
+
+压缩响应会设置 `Content-Encoding`、`Content-Length` 和 `Vary: Accept-Encoding`。没有压缩副本时自动回退到原文件。SPA fallback 的 `index.html` 也会优先使用 `.br` / `.gz` 副本。
+
+`pnpm analyze` 只生成包分析报告，不额外生成压缩副本。
+
+构建时会注入 `build_date` 和 `git_hash`，并随 ClientPool 暴露给 Behind 页面；development 下两者都是 `N/A`。`git_hash` 取 `git rev-parse --short HEAD`，没有 git 元数据时回退 `N/A`。
 
 ## Storage 初始化
 

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { GalleryInActive, Photo } from 'api/photo'
+import type { GalleryView } from 'pool/view'
 import { ConfirmQQState } from 'components/ConfirmQQ'
 
 import Gallery, { Props as GalleryProps } from 'components/Gallery'
@@ -10,7 +10,7 @@ import Spinner from '@/components/Spinner'
 
 type ActivityLayoutProps = {
   show_submit_button_area: boolean
-  active: GalleryInActive
+  active: GalleryView
   submiting: boolean
   showArrow: boolean,
   confirmState: ConfirmQQState
@@ -54,7 +54,7 @@ export default function ActivityLayout({
     return Boolean(!can_add_vote || active.vote_submitted || submit_request_was_sent)
   }, [active.vote_submitted, can_add_vote, submit_request_was_sent])
 
-  const handleClickVote = (photo_id: Photo['id']) => {
+  const handleClickVote = (photo_id: number) => {
     if (!show_submit_button_area) {
       return
     } else if (submit_request_was_sent) {

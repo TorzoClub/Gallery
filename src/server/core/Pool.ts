@@ -341,6 +341,10 @@ export function poolUpdateGallery(
 
 export function poolRemoveGallery(pool: Pool, gallery_id: GalleryID): { pool: Pool; gallery: Gallery } {
   const gallery = findGallery(pool, gallery_id)
+  if (gallery.photos.size > 0) {
+    throw conflict(`相册「${gallery.name}」还有 ${gallery.photos.size} 张相片，不能删除`)
+  }
+
   return {
     pool: updatePool(pool, {
       galleries: pool.galleries.remove(gallery_id),

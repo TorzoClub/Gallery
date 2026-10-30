@@ -11,6 +11,7 @@ import {
 import { type EnvConfig } from '../config'
 import { crc32Hex } from '../common/crc32'
 import { type Pool } from '../core/Pool'
+import { checkPool } from '../core/Pool-Check'
 import type { Logger } from '../logger'
 import type { Readable } from 'node:stream'
 import {
@@ -90,6 +91,7 @@ async function discardPrepared(value: unknown): Promise<void> {
 
 export async function createInstance(options: CreateInstanceOptions): Promise<Instance> {
   const { env, storage, logger } = options
+  const app_startup_time = Date.now()
   const loaded = await storage.load()
   let pool: Pool = loaded.pool
   let instance_config: InstanceConfig = loaded.instance_config
@@ -145,6 +147,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
       env,
       config: instance_config,
       instance_hash,
+      app_startup_time,
       now,
     }
   }
@@ -155,6 +158,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
       env,
       config: instance_config,
       instance_hash,
+      app_startup_time,
       now,
       preparePhoto: images.preparePhoto,
       prepareAvatar: images.prepareAvatar,
@@ -211,6 +215,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
           env.http_body_hard_limit_bytes,
         )
       }
+      checkPool(outcome.pool)
     } catch (error) {
       await discardPrepared(prepared)
       logMutationFailure(name, error, 'mutation commit')

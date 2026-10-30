@@ -9,8 +9,8 @@
 - 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。
 - 前端由 Vite 构建到 `dist/client`，服务端由 tsup 构建到 `dist/server`。
 - 静态缓存：HTML 弱缓存，hash assets 强缓存，API/图片强缓存。
-- 服务端测试 70 个用例通过；不包含浏览器 UI 交互测试。
-- `legacy/server/`、`legacy/web/` 已冻结，旧 CI 归档到 `legacy/.github/workflows/`。
+- 服务端测试 101 个用例通过；不包含浏览器 UI 交互测试。
+- 旧 `server/`、`web/`、脚本和 CI 已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支。
 - storage 仍为单实例 JSON + 图片池；没有 MySQL 运行时依赖。
 
 ## 已完成
@@ -24,6 +24,7 @@
 - [x] 根单包、TypeScript 7、统一 oxlint、根 CI。
 - [x] 服务端静态/缓存、登录、storage、业务逻辑测试。
 - [x] 服务端图片测试覆盖 EXIF Orientation、流式上传、UUIDv7 temp、CRC32 文件名和清理定时器。
+- [x] 删除当前分支的旧实现目录，归档到 `legacy-v3` 分支。
 
 ## 后续待办
 
@@ -32,6 +33,5 @@
 - [ ] 浏览器 UI 交互测试（公开页投稿/投票、后台编辑、配置表单）。
 - [ ] 真实部署的 CI/CD 和密钥管理。
 - [ ] 如果未来需要多实例，设计跨进程 storage 写锁/共享存储方案。
-- [ ] 视需要清理 `legacy/` 中不再需要的大文件和旧构建产物。
 
 状态变化时同步更新本文、[README.md](README.md)、[AGENTS.md](AGENTS.md) 和相关 docs。

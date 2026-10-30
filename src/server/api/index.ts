@@ -47,6 +47,7 @@ export function isApiLikePath(pathname: string, base_path = '/'): boolean {
 }
 
 function setClientCache(c: Parameters<Handler>[0], pathname: string): void {
+  c.header('Vary', 'Accept-Encoding')
   if (pathname === '/' || pathname.endsWith('.html')) {
     c.header('Cache-Control', 'no-cache')
   } else if (pathname.startsWith('/assets/') || /\.(?:png|jpe?g|gif|webp|avif|svg|ico)$/i.test(pathname)) {
@@ -54,6 +55,45 @@ function setClientCache(c: Parameters<Handler>[0], pathname: string): void {
   } else {
     c.header('Cache-Control', 'public, max-age=3600')
   }
+}
+
+type ContentEncoding = 'br' | 'gzip'
+
+function acceptedEncoding(c: Parameters<Handler>[0]): ContentEncoding | null {
+  const header = c.req.header('Accept-Encoding') ?? ''
+  const accepted = new Set(header.split(',').map(part => part.trim().toLowerCase()))
+  if (accepted.has('br')) {
+    return 'br'
+  }
+  if (accepted.has('gzip')) {
+    return 'gzip'
+  }
+  return null
+}
+
+async function serveIndexHtml(
+  c: Parameters<Handler>[0],
+  index_file: string,
+): Promise<Response> {
+  const encoding = acceptedEncoding(c)
+  if (encoding !== null) {
+    try {
+      const compressed = await readFile(`${index_file}.${encoding === 'br' ? 'br' : 'gz'}`)
+      c.header('Cache-Control', 'no-cache')
+      c.header('Vary', 'Accept-Encoding')
+      c.header('Content-Type', 'text/html; charset=utf-8')
+      c.header('Content-Encoding', encoding)
+      c.header('Content-Length', String(compressed.byteLength))
+      return c.body(new Uint8Array(compressed), 200)
+    } catch {
+      // No precompressed index; fall through to the plain HTML response.
+    }
+  }
+
+  const html = await readFile(index_file, 'utf8')
+  c.header('Cache-Control', 'no-cache')
+  c.header('Vary', 'Accept-Encoding')
+  return c.html(html)
 }
 
 async function readPayload(c: Parameters<Handler>[0]): Promise<unknown> {
@@ -234,6 +274,7 @@ export function constructApi(deps: Deps): Hono {
 
     app.use('*', serveStatic({
       root: client_dir,
+      precompressed: true,
       onFound: (_file_path, c) => {
         setClientCache(c, c.req.path)
       },
@@ -250,9 +291,7 @@ export function constructApi(deps: Deps): Hono {
       }
 
       try {
-        const html = await readFile(index_file, 'utf8')
-        c.header('Cache-Control', 'no-cache')
-        return c.html(html)
+        return await serveIndexHtml(c, index_file)
       } catch {
         return c.json({
           success: false,

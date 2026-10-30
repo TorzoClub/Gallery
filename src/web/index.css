@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  --color-foreground: #18181b;
+  --color-muted: #f4f4f5;
+  --color-muted-foreground: #71717a;
+}
+
+:root {
+  --edge-outer: inset 0 0 0 1px rgb(0 0 0 / 0.06), inset 0 1px 0 rgb(255 255 255 / 0.9), 0 1px 2px rgb(0 0 0 / 0.03);
+  --edge-inner: inset 0 0 0 1px rgb(0 0 0 / 0.06), inset 0 1px 2px rgb(0 0 0 / 0.04);
+  --edge-tile: inset 0 0 0 1px rgb(0 0 0 / 0.04), inset 0 1px 0 rgb(255 255 255 / 0.7);
+}
+
+.dark {
+  --edge-outer: inset 0 0 0 1px rgb(255 255 255 / 0.06), inset 0 1px 0 rgb(255 255 255 / 0.09);
+  --edge-inner: inset 0 0 0 1px rgb(255 255 255 / 0.06), inset 0 1px 2px rgb(0 0 0 / 0.5);
+  --edge-tile: inset 0 0 0 1px rgb(255 255 255 / 0.04), inset 0 1px 0 rgb(255 255 255 / 0.06);
+}
+
+@utility edge-outer {
+  box-shadow: var(--edge-outer);
+}
+@utility edge-inner {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 1;
+    box-shadow: var(--edge-inner);
+  }
+}
+@utility edge-tile {
+  position: relative;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 1;
+    box-shadow: var(--edge-tile);
+  }
+}

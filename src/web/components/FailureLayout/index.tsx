@@ -3,7 +3,7 @@ import s from './index.module.css'
 
 import DEngine from 'utils/download'
 
-type FailureLayoutContextType = string[]
+type FailureLayoutContextType = Array<Error |string>
 export const FailureLayoutContext = createContext<FailureLayoutContextType>([])
 
 export function useFailureLayout(innerContent?: ReactNode) {

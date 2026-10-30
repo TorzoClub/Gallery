@@ -27,6 +27,7 @@
       "components/*": ["./src/web/components/*"],
       "hooks/*": ["./src/web/hooks/*"],
       "layouts/*": ["./src/web/layouts/*"],
+      "pool/*": ["./src/web/pool/*"],
       "state/*": ["./src/web/state/*"],
       "typings/*": ["./src/web/typings/*"],
       "utils/*": ["./src/web/utils/*"]

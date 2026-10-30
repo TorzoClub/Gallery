@@ -13,9 +13,11 @@ export default function Navigator(props: {
       return ''
     } else if (props.isAdminTitle) {
       return <>
-        <span className="navigator-title-word">TORZO</span>
-        <span className="navigator-title-space"> </span>
-        <span className="navigator-title-word">GΛLLERY</span>
+        <span className='navigator-title-normal'>
+          <span className="navigator-title-word">TORZO</span>
+          <span className="navigator-title-space"> </span>
+          <span className="navigator-title-word">GΛLLERY</span>
+        </span>
         <span className="navigator-title-admin">
           <span className="navigator-title-admin-icon">🚧</span>
           <span className="navigator-title-admin-word">Admin</span>

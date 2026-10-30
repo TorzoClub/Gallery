@@ -103,6 +103,8 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
       />
       <div className='gallery-home'>
         <div className='body'>
+          <div style={{ height: '8px' }}></div>
+          hello
           {state.pool.galleries.length === 0
             ? <div className={styles.empty}>还没有相册</div>
             : state.pool.galleries.map(gallery => (

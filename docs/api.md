@@ -148,9 +148,9 @@ payload: { "qq_num": 123456 }
 | action | payload | 说明 |
 |---|---|---|
 | `adminUpdateInstanceConfig` | 任意 instance 配置字段 | 返回完整配置 |
-| `adminCreateGallery` | `{ name, index, vote_limit, event_start, submission_expire, event_end }` | 创建相册 |
-| `adminUpdateGallery` | `{ gallery_id, ...可选字段 }` | 更新相册 |
-| `adminRemoveGallery` | `{ gallery_id }` | 删除相册 |
+| `adminCreateGallery` | `{ name, index, vote_limit, event_start, submission_expire, event_end }` | 创建相册；活动期间与其他相册重合时返回 `409 CONFLICT` |
+| `adminUpdateGallery` | `{ gallery_id, ...可选字段 }` | 更新相册；活动期间与其他相册重合时返回 `409 CONFLICT` |
+| `adminRemoveGallery` | `{ gallery_id }` | 删除空相册；仍有相片时返回 `409 CONFLICT` |
 | `adminCreateMember` | `{ qq_num, name, avatar_temp_id }` | 创建成员，必须上传头像 |
 | `adminUpdateMember` | `{ member_id, name?, avatar_temp_id? }` | 更新成员；QQ 不可修改 |
 | `adminRemoveMember` | `{ member_id }` | 删除成员 |
@@ -163,6 +163,43 @@ payload: { "qq_num": 123456 }
 | `adminRefreshAvatar` | `{ member_id }` | 重建头像缩略图 |
 
 日期字段使用 ISO 8601，例如 `2026-10-01T00:00:00.000Z`。
+
+### 相册活动窗口与重合限制
+
+`in_event` 的判断使用服务端当前时间：
+
+```text
+event_start <= now <= event_end
+```
+
+边界包含在内，因此 `now === event_start` 和 `now === event_end` 都算活动期。
+
+任意两个 Gallery 的活动区间不能重合。判断使用闭区间：
+
+```text
+left.event_start <= right.event_end
+right.event_start <= left.event_end
+```
+
+两个区间即使只在 `event_end === other.event_start` 的边界相接，也算重合。
+
+校验顺序：
+
+1. mutation 的 `commit` 生成候选 Pool。
+2. 写入内存 Pool 之前，检查候选 Pool。
+3. 如果任意两个 Gallery 的活动区间重合，返回 `409 CONFLICT`：
+
+```text
+相册的活动期间不能有重合
+```
+
+4. 校验通过后才更新内存 Pool 并持久化。
+
+因此：
+
+- 当前有活动相册时，仍可创建活动区间不重合的未来相册。
+- `adminCreateGallery` 和 `adminUpdateGallery` 都受此限制。
+- 被拒绝的 mutation 不会改变现有 Gallery 或持久化数据。
 
 ## 图片上传
 

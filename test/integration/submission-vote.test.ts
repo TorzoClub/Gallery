@@ -173,6 +173,9 @@ describe('vote flow', () => {
     })
     expect(over_limit.status).toBe(403)
 
+    // Move past the first gallery's event before creating a second active one.
+    ctx.setNow(new Date(base_now.getTime() + 3 * 24 * 60 * 60 * 1000))
+
     // Before submission_expire the gallery is still in submission mode.
     const submitting_gallery = await ctx.createGallery({
       name: 'Submitting',

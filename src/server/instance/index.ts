@@ -11,6 +11,7 @@ import {
 import { type EnvConfig } from '../config'
 import { crc32Hex } from '../common/crc32'
 import { type Pool } from '../core/Pool'
+import { checkPool } from '../core/Pool-Check'
 import type { Logger } from '../logger'
 import type { Readable } from 'node:stream'
 import {
@@ -214,6 +215,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
           env.http_body_hard_limit_bytes,
         )
       }
+      checkPool(outcome.pool)
     } catch (error) {
       await discardPrepared(prepared)
       logMutationFailure(name, error, 'mutation commit')

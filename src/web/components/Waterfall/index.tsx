@@ -1,13 +1,13 @@
-import { FunctionComponent, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Memo, MemoGetter, MemoSetter, Signal } from 'vait'
-import type { PhotoView } from 'pool/view'
 
 import './index.scss'
 
-import PhotoBox, { Props as PhotoBoxProps, CoverClickEvent, Dimension, DimensionUnknown, postDimesions } from 'components/PhotoBox'
 
 import useSafeState from 'hooks/useSafeState'
 import { excludeByProperty, findListByProperty, removeListItemByIdx, reverseList } from 'utils/common'
+
+export type WaterfallDimension = readonly [number, number]
 
 type Pos = {
   top: string
@@ -15,63 +15,50 @@ type Pos = {
   zIndex: number
   col_count: number
 }
-type PhotoID = number
-type PosMap = Record<PhotoID, Pos>
+export type WaterfallItem = {
+  id: string
+  node: ReactNode
+}
 
-export type WaterfallLayoutConfigure = {
-  box_type: PhotoBoxProps['type']
-  vertial_gutter: PhotoBoxProps['vertial_gutter']
+export type WaterfallLayout = {
   column_count: number
   gallery_width: number
   column_gutter: number
+  vertical_gutter: number
 }
 
-export type WaterfallLayoutClickCoverHandler = (clickInfo: CoverClickEvent, photo: PhotoView['id']) => void
+type PosMap = Record<string, Pos>
 
 function calcTotalBoxWidth({
   column_count,
   column_gutter,
   gallery_width,
-}: WaterfallLayoutConfigure) {
+}: WaterfallLayout) {
   const gutter_total_len = column_gutter * (column_count - 1)
   const box_width = (gallery_width - gutter_total_len) / column_count
   return [ box_width, gutter_total_len ] as const
 }
 
 export type Props = {
-  show_vote_button: boolean
-  layout_configure: WaterfallLayoutConfigure
-  cannot_add_vote: boolean
-
-  photos: PhotoView[]
-  onClickVote(photo_id: PhotoView['id']): void
-  onClickCover: WaterfallLayoutClickCoverHandler
-
-  onWatterfallRefreshed(): void
-
-  selected_id_list: number[]
+  layout: WaterfallLayout
+  items: WaterfallItem[]
+  onWatterfallRefreshed?(): void
 }
 
 export default (props: Props) => {
-  const {
-    show_vote_button,
-    layout_configure,
-    photos,
-    selected_id_list,
-    onWatterfallRefreshed
-  } = props
-  const { box_type, vertial_gutter, gallery_width } = layout_configure
-  const [ box_width ] = calcTotalBoxWidth(layout_configure)
+  const { layout, items, onWatterfallRefreshed } = props
+  const { gallery_width, vertical_gutter } = layout
+  const [ box_width ] = calcTotalBoxWidth(layout)
 
   const { refFn, columns, waterfall_height, pos_map, refresh_signal } = useLayout({
-    photos, box_width, layout_configure
+    items, box_width, layout
   })
 
   useEffect(() => {
-    let handler
+    let handler: ReturnType<typeof setTimeout>
     const cancel = refresh_signal.receive(() => {
       clearTimeout(handler)
-      handler = setTimeout(onWatterfallRefreshed, 0)
+      handler = setTimeout(() => onWatterfallRefreshed?.(), 0)
     })
     return () => {
       clearTimeout(handler)
@@ -79,20 +66,20 @@ export default (props: Props) => {
     }
   }, [onWatterfallRefreshed, refresh_signal])
 
-  const posStyle = useCallback((id: PhotoView['id']) => {
+  const posStyle = useCallback((id: string) => {
     const pos: Pos | undefined = pos_map[id]
     if (pos) {
       return {
         top: `calc(${pos.top})`,
         left: `calc(${pos.left})`,
         zIndex: `calc(${pos.zIndex})`,
-        opacity: pos.col_count >= layout_configure.column_count ? 0 : 1,
+        opacity: pos.col_count >= layout.column_count ? 0 : 1,
         // transition: pos && 'left 382ms, top 382ms'
       }
     } else {
       return { opacity: 0 }
     }
-  }, [layout_configure.column_count, pos_map])
+  }, [layout.column_count, pos_map])
 
   return (
     <div className="waterfall-wrap" style={{
@@ -108,40 +95,14 @@ export default (props: Props) => {
           }}
         >
           {
-            photos.map(photo => (
-              <PhotoBox
-                key={String(photo.id)}
-                style={posStyle(photo.id)}
-                ref={getDim => refFn(getDim, String(photo.id), photo)}
-                handleClickVote={() => props.onClickVote(photo.id)}
-                onClickCover={(click_info) => props.onClickCover(click_info, photo.id)}
-                {...{
-                  id: photo.id,
-                  type: box_type,
-                  vertial_gutter,
-                  box_width,
-                  show_vote_button: show_vote_button,
-                  hideMember: !photo.member,
-                  vote_button_status: (
-                    (selected_id_list && (selected_id_list.indexOf(photo.id) !== -1)) ?
-                    'selected' :
-                    (props.cannot_add_vote ? 'cannot-add' : 'un-selected')
-                  ),
-                  name: photo.member ? photo.member.name : null,
-                  desc: photo.desc,
-                  photo: {
-                    width: photo.width,
-                    height: photo.height,
-                    src: photo.src_url,
-                    thumb: photo.thumb,
-                  },
-                  avatar: photo.member ? {
-                    width: 0,
-                    height: 0,
-                    thumb: photo.member.avatar_thumb_url,
-                    src: photo.member.avatar_thumb_url,
-                  } : null,
-                }}
+            items.map(item => (
+              <WaterfallItemView
+                key={item.id}
+                item={item}
+                box_width={box_width}
+                vertical_gutter={vertical_gutter}
+                style={posStyle(item.id)}
+                register={refFn}
               />
             ))
           }
@@ -150,12 +111,53 @@ export default (props: Props) => {
   )
 }
 
+function WaterfallItemView(props: {
+  item: WaterfallItem
+  box_width: number
+  vertical_gutter: number
+  style: React.CSSProperties
+  register(getDim: () => WaterfallDimension, id: string): void
+}) {
+  const { item, box_width, vertical_gutter, style, register } = props
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (el === null) {
+      return
+    }
+    const getDim = () => {
+      const rect = el.getBoundingClientRect()
+      return [rect.width, rect.height] as const
+    }
+    register(getDim, item.id)
+    const observer = new ResizeObserver(() => register(getDim, item.id))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [item.id, register])
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: 'absolute',
+        width: `${box_width}px`,
+        paddingBottom: `${vertical_gutter}px`,
+        boxSizing: 'border-box',
+        ...style,
+      }}
+    >
+      {item.node}
+    </div>
+  )
+}
+
 type ColumnsHeightList = number[]
 type DimessionInfo = {
-  id: number
+  id: string
   height: number
   width: number
-  photo_idx: number
+  item_idx: number
 }
 
 const whichMinimum = (columns: ColumnsHeightList) =>
@@ -280,7 +282,7 @@ function toDimListSorted(cols: Columns) {
     .sort(
       (a, b) => {
         if (a.height === b.height) {
-          if ((a.dim.photo_idx < b.dim.photo_idx)) {
+          if ((a.dim.item_idx < b.dim.item_idx)) {
             return -1
           } else {
             return 0
@@ -296,7 +298,7 @@ function toDimListSorted(cols: Columns) {
 }
 
 function toIDList(dim_list: DimessionInfo[]) {
-  const exists = new Set<number>()
+  const exists = new Set<string>()
   for (const d of dim_list) { exists.add(d.id) }
   return exists
 }
@@ -482,7 +484,7 @@ function adjustColumns(target_column: number, cols: Columns): Columns {
 function updateColumnsKeepPosition(prev_cols: Columns, latest_cols: Columns): Columns {
   const latest_list = toDimListSorted(latest_cols)
 
-  const exists_list = new Set<number>()
+  const exists_list = new Set<string>()
 
   const keep_pos_cols = prev_cols.reduce<Columns>((left_cols, col) => {
     return addColumn(
@@ -513,35 +515,37 @@ function updateColumnsKeepPosition(prev_cols: Columns, latest_cols: Columns): Co
 }
 
 function computeWaterfallHeight(waterfall_columns: Columns) {
+  if (waterfall_columns.length === 0) {
+    return 0
+  }
   return Math.max(...toHeightList(waterfall_columns))
 }
 
 function useLayout({
-  photos,
+  items,
   box_width,
-  layout_configure: {
+  layout: {
     column_count,
     column_gutter,
-    box_type,
   }
 }: {
-  layout_configure: WaterfallLayoutConfigure
+  layout: WaterfallLayout
   box_width: number
-  photos: PhotoView[]
+  items: WaterfallItem[]
 }) {
   const refresh_signal = useMemo(() => Signal(), [])
-  const [ refFn, dim_map_changed_signal, getDimMap ] = useDimensionMap(
+  const [ refFn, getDimMap ] = useDimensionMap(
     useCallback(() => {
       refresh_signal.trigger()
     }, [refresh_signal])
   )
 
   const generateWaterfallColumns = useCallback((
-    photos: PhotoView[],
+    items: WaterfallItem[],
     column_count: number,
     dim_map: DimensionMap
   ) => {
-    return photos.reduce((columns, photo, photo_idx) => {
+    return items.reduce((columns, item, item_idx) => {
       const height_list = columns.map(col => {
         return computeColumnHeight(col)
       })
@@ -550,10 +554,10 @@ function useLayout({
 
       return columns.map((col, col_count) => {
         if (col_count === min_col) {
-          const dim = dim_map[photo.id]
+          const dim = dim_map[item.id]
           if (dim) {
             const [ width, height ] = dim()
-            return [...col, { id: photo.id, width, height, photo_idx}]
+            return [...col, { id: item.id, width, height, item_idx}]
           } else {
             return col
           }
@@ -592,7 +596,7 @@ function useLayout({
   }, [box_width, column_gutter, columns])
 
   const cacheID = (...vals: Array<number | string>) => vals.join('-')
-  const genCacheID = useCallback(() => cacheID(box_type, box_width, column_count, column_gutter), [box_type, box_width, column_count, column_gutter])
+  const genCacheID = useCallback(() => cacheID(box_width, column_count, column_gutter), [box_width, column_count, column_gutter])
 
   const columns_cache = useRef<Map<string, Columns> | undefined>(undefined)
 
@@ -613,7 +617,7 @@ function useLayout({
         mergeColumns(
           createPlainColumns(0),
           generateWaterfallColumns(
-            photos, column_count, getDimMap()
+            items, column_count, getDimMap()
           )
         )
       )
@@ -637,12 +641,12 @@ function useLayout({
         mergeColumns(
           prev_columns.current.cols,
           generateWaterfallColumns(
-            photos, column_count, getDimMap()
+            items, column_count, getDimMap()
           )
         )
       )
     }
-  }, [applyNewLayout, column_count, generateWaterfallColumns, getDimMap, photos])
+  }, [applyNewLayout, column_count, generateWaterfallColumns, getDimMap, items])
 
   useEffect(() => {
     if (columns_cache.current === undefined) {
@@ -650,11 +654,6 @@ function useLayout({
     }
     refreshLayout()
   }, [box_width, column_count, column_gutter, refreshLayout, refresh_signal])
-
-  if (prev_columns.current?.id !== genCacheID()) {
-    // console.log(cacheID(box_type, box_width, column_count, column_gutter))
-    // refreshLayout()
-  }
 
   return {
     refFn,
@@ -665,9 +664,8 @@ function useLayout({
   } as const
 }
 
-type DimensionMap = Record<string, () => Dimension>
+type DimensionMap = Record<string, () => WaterfallDimension>
 function useDimensionMap(onDimChange: () => void) {
-  const dim_map_changed_signal = useMemo(() => Signal(), [])
   const dim_map_ref = useRef(
     Memo<DimensionMap>({})
   )
@@ -681,17 +679,23 @@ function useDimensionMap(onDimChange: () => void) {
     return _setDimMap(d)
   }, [])
 
-  const refFn = useCallback((getDim: null | (() => Dimension), id: string, photo: { width: number, height: number }) => {
+  const refFn = useCallback((getDim: () => WaterfallDimension, id: string) => {
     const dim_map = getDimMap()
-
-    if (getDim !== null) {
-      setDimMap({
-        ...dim_map,
-        [String(id)]: getDim
-      })
-      onDimChange()
+    const key = String(id)
+    const previous = dim_map[key]
+    if (previous !== undefined) {
+      const [previous_width, previous_height] = previous()
+      const [width, height] = getDim()
+      if (previous_width === width && previous_height === height) {
+        return
+      }
     }
+    setDimMap({
+      ...dim_map,
+      [key]: getDim
+    })
+    onDimChange()
   }, [getDimMap, onDimChange, setDimMap])
 
-  return [ refFn, dim_map_changed_signal, getDimMap ] as const
+  return [ refFn, getDimMap ] as const
 }

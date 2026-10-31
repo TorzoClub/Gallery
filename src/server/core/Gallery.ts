@@ -64,6 +64,9 @@ export function checkGallery(gallery: Gallery): Gallery {
   if (name.length === 0) {
     throw badRequest('相册名称不能为空')
   }
+  if (name.length > 256) {
+    throw badRequest('相册名称不能超过 256 个字符')
+  }
 
   if (!Number.isSafeInteger(gallery.vote_limit) || gallery.vote_limit < 0) {
     throw badRequest('vote_limit 必须是非负整数')

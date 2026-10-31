@@ -10,6 +10,7 @@
 - storage schema 当前为 v2；v1 需要先运行 `pnpm update-storage`。
 - 旧 `server/`、`web/`、脚本和 CI 已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支，不参与当前分支的构建、测试、lint、部署。
 - 后台页面和样式按路由异步加载，公开页首屏不会加载后台代码。
+- 后台是 `/admin`；使用完整 AdminPool 查询，并在 AdminConsole 中管理运行期配置和名单簿成员。
 
 更细的状态和待办见 [TODOS.md](../TODOS.md)。
 

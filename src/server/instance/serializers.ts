@@ -1,5 +1,6 @@
 import { avatarThumbFilename, photoThumbFilename, photoVariantFilename } from '../common/image-name'
 import { type EnvConfig } from '../config'
+import type { InstanceConfig } from '../../shared/config'
 import {
   galleryCanSubmission,
   galleryInEvent,
@@ -11,7 +12,7 @@ import {
 } from '../core/Gallery'
 import { type Member } from '../core/Member'
 import { type Photo } from '../core/Photo'
-import { findMemberByIdOrNull, type Pool } from '../core/Pool'
+import { findMemberByIdOrNull, poolGalleriesSorted, poolMembersSorted, type Pool } from '../core/Pool'
 
 export type {
   MemberDTO,
@@ -22,6 +23,8 @@ export type {
   PublicPhotoDTO,
   PublicGalleryDTO,
   PublicHomeDTO,
+  AdminGalleryDTO,
+  AdminPoolDTO,
   MemberVoteDTO,
   StatisticDTO,
 } from '../../shared/dto'
@@ -35,6 +38,8 @@ import type {
   PublicPhotoDTO,
   PublicGalleryDTO,
   PublicHomeDTO,
+  AdminGalleryDTO,
+  AdminPoolDTO,
   StatisticDTO,
 } from '../../shared/dto'
 
@@ -112,6 +117,54 @@ export function publicGalleryDto(options: {
   return {
     ...gallery,
     photos: gallery.photos.map(publicPhotoDtoFromDto),
+  }
+}
+
+export function adminGalleryDto(options: {
+  pool: Pool
+  gallery: Gallery
+  env: EnvConfig
+  instance_hash: string
+  now: Date
+}): AdminGalleryDTO {
+  return {
+    ...galleryDto(options),
+    vote_records: options.gallery.vote_records.map(vote => voteDto(options.gallery, vote)).toArray(),
+  }
+}
+
+export function adminPoolDto(options: {
+  pool: Pool
+  env: EnvConfig
+  instance_hash: string
+  app_startup_time: number
+  version_time: number
+  build_date: string
+  git_hash: string
+  now: Date
+  instance_config: InstanceConfig
+}): AdminPoolDTO {
+  return {
+    schema_version: Number(options.pool.schema_version),
+    next_id: Number(options.pool.next_id),
+    instance_hash: options.instance_hash,
+    app_startup_time: options.app_startup_time,
+    version_time: options.version_time,
+    build_date: options.build_date,
+    git_hash: options.git_hash,
+    galleries: poolGalleriesSorted(options.pool).map(gallery => adminGalleryDto({
+      pool: options.pool,
+      gallery,
+      env: options.env,
+      instance_hash: options.instance_hash,
+      now: options.now,
+    })),
+    members: poolMembersSorted(options.pool).map(member => memberDto(
+      member,
+      options.env,
+      options.instance_hash,
+    )),
+    instance_config: options.instance_config,
   }
 }
 

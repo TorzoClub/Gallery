@@ -5,6 +5,7 @@ import { ConfirmQQState } from 'components/ConfirmQQ'
 import Gallery, { Props as GalleryProps } from 'components/Gallery'
 import GuideLayout from 'components/GuideLayout'
 import SkeuomorphismButton from 'components/SkeuomorphismButton'
+import SkeuomorphismButtonHighlight from 'components/SkeuomorphismButtonHighlight'
 import { removeListItemByIdx } from 'utils/common'
 import Spinner from '@/components/Spinner'
 
@@ -150,9 +151,9 @@ export const SubmitButton = ({ onClick, buttonState }: {
 }) => (
   <>
     <div className={`grayscale-wrap ${buttonState === 'disabled' && 'enabled'}`}>
-      <div className={`submit-button-wrap ${buttonState}`}>
+      <SkeuomorphismButtonHighlight active={buttonState === 'highlight'}>
         <SkeuomorphismButton onClick={onClick}>提交</SkeuomorphismButton>
-      </div>
+      </SkeuomorphismButtonHighlight>
     </div>
     <style>{`
       .grayscale-wrap {
@@ -162,25 +163,6 @@ export const SubmitButton = ({ onClick, buttonState }: {
         filter: grayscale(1) brightness(1) opacity(0.75);
       }
 
-      .submit-button-wrap {
-        animation: submitbuttonhighlight 3s infinite;
-        animation-timing-function: ease-in-out;
-        animation-direction: normal;
-        animation-fill-mode: forwards;
-        animation-play-state: paused;
-        animation-delay: 500ms;
-      }
-      .submit-button-wrap.disabled {
-
-      }
-      @keyframes submitbuttonhighlight {
-        0% { filter: brightness(1) }
-        50% { filter: brightness(1.2) }
-        100% { filter: brightness(1) }
-      }
-      .submit-button-wrap.highlight {
-        animation-play-state: running;
-      }
     `}</style>
   </>
 )

@@ -1,0 +1,130 @@
+.header {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 4px 2px 12px 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+}
+
+.header:focus-visible {
+  outline: 2px solid #e8571f;
+  outline-offset: 3px;
+}
+
+.icon {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1px rgb(60 45 28 / .25));
+}
+
+.chevron {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: #5d665f;
+
+  svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+.name {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: #3b352b;
+  font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  line-height: 24px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sortHeader {
+  position: relative;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.sortHeader:active {
+  cursor: grabbing;
+}
+
+.sortHeader .name,
+.sortHeader .dragHandle {
+  will-change: transform;
+}
+
+.dragHandle {
+  box-sizing: border-box;
+  border: 1px solid #d2cabb;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 1px 0 #fff, 0 1px 2px rgb(60 45 28 / .16);
+  color: #3f4740;
+  cursor: grab;
+  touch-action: none;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.dragHandle svg {
+  fill: currentColor;
+  stroke: none;
+}
+
+.dragging {
+  z-index: 2;
+  opacity: .55;
+}
+
+.controlSlot {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+}
+
+.control {
+  grid-area: 1 / 1;
+  transform-origin: center;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+.controlShown {
+  transform: scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.controlHidden {
+  transform: scale(0);
+  opacity: 0;
+  pointer-events: none;
+}

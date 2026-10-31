@@ -2,7 +2,7 @@
 
 ## 页面与接口的区别
 
-- 后台登录页是 SPA 路由：`GET /admin/login`。production 由 Hono 的 SPA fallback 返回 `index.html`；development 由同进程 Vite middleware 返回。
+- 后台入口在 Behind 页：`GET /behind`。production 由 Hono 的 SPA fallback 返回 `index.html`；development 由同进程 Vite middleware 返回。
 - 登录接口是 API：`POST /auth/login`。
 
 两者路径不同，避免 API 请求和 SPA 页面路由互相冲突。
@@ -11,7 +11,7 @@
 
 ### 1. 输入密码
 
-后台登录页只接受 `ADMIN_PASSWORD`。密码由服务端环境变量提供，不存数据库，也不下发到浏览器。
+Behind 页的后台密码输入只接受 `ADMIN_PASSWORD`。密码由服务端环境变量提供，不存数据库，也不下发到浏览器。
 
 ```http
 POST /auth/login
@@ -52,7 +52,7 @@ Authorization: Bearer <token>
 ### 3. 访问 admin query/mutation
 
 ```http
-POST /admin/query/adminStatistic
+POST /admin/query/adminFetchPool
 Authorization: Bearer <token>
 Content-Type: application/json
 
@@ -66,7 +66,7 @@ Content-Type: application/json
 - token 是 HS256 JWT，包含 `role: "admin"` 和 `exp`。
 - 默认有效期 12 小时，由 `JWT_EXPIRES_IN_SECONDS` 控制。
 - 过期、签名错误或格式错误返回 `401 UNAUTHORIZED`。
-- 前端收到 401 时清理 token 并跳回 `/admin/login`。
+- 前端收到 401 时清理 token，后台跳回 `/behind`。
 - 登出只清理本地 token，不需要服务端接口。
 - 修改 `JWT_SECRET` 会让所有已有 token 立即失效。
 
@@ -86,7 +86,7 @@ TOKEN=$(curl -sS -X POST http://localhost:7001/auth/login \
   -d '{"password":"your-password"}' \
   | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).data.token))')
 
-curl -X POST http://localhost:7001/admin/query/adminStatistic \
+curl -X POST http://localhost:7001/admin/query/adminFetchPool \
   -H "authorization: Bearer $TOKEN" \
   -H 'content-type: application/json' \
   -d '{"payload":{}}'

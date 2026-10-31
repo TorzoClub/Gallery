@@ -1,4 +1,4 @@
-import { forwardRef, useState, useEffect, useRef, CSSProperties, useCallback, FunctionComponent, useMemo } from 'react'
+import { useState, useEffect, useRef, CSSProperties, useMemo, type ReactNode } from 'react'
 import heartIMG from 'assets/heart.png'
 import heartHighlightIMG from 'assets/heart-highlight.png'
 import './index.scss'
@@ -40,27 +40,28 @@ export type Props = {
   id: string | number
 
   type: 'normal' | 'compact'
-  vertial_gutter: number
   box_width: number
 
   style?: Partial<CSSProperties>
 
   hideMember: boolean
-  show_vote_button: boolean
+  show_vote_button?: boolean
 
-  vote_button_status: BackBottomProps['vote_button_status']
-  handleClickVote: BackBottomProps['handleClickVote']
+  vote_button_status?: BackBottomProps['vote_button_status']
+  handleClickVote?: BackBottomProps['handleClickVote']
 
   name: string | null
   photo: PhotoBoxImage
   avatar: PhotoBoxImage | null
   desc: string
 
-  onClickCover(clickInfo: CoverClickEvent): void
+  onClickCover?(clickInfo: CoverClickEvent): void
+  renderAvatar?(avatar: ReactNode): ReactNode
+  renderName?(name: ReactNode): ReactNode
 }
 
-const PhotoBox = forwardRef<() => Dimension, Props>((props, ref) => {
-  const { type, vertial_gutter, box_width, photo, hideMember,
+const PhotoBox = (props: Props) => {
+  const { type, box_width, photo, hideMember,
          avatar, desc, style, vote_button_status } = props
 
   const [thumb_status, thumb, retryLoadPhotoThumb] = useQueueload(photo.thumb)
@@ -76,52 +77,11 @@ const PhotoBox = forwardRef<() => Dimension, Props>((props, ref) => {
   const show_bottom_block = !hideMember || show_desc
   const none_bottom_block = !show_bottom_block
 
-  const dim_ref = useRef<Dimension | null>(null)
-  const el_ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (el_ref.current) {
-      const el = el_ref.current
-      const getDim = () => {
-        const dim = el.getBoundingClientRect()
-        return [dim.width, dim.height] as const
-      }
-      if (typeof ref === 'function') {
-        dim_ref.current = getDim()
-        ref(getDim)
-      }
-    } else {
-      // console.warn('NONE :(', el_ref.current)
-    }
-  }, [ref])
-
-  if (el_ref.current) {
-    const el = el_ref.current
-    const getDim = () => {
-      const dim = el.getBoundingClientRect()
-      return [dim.width, dim.height] as const
-    }
-    const [ width, height ] = getDim()
-    if (dim_ref.current === null) {
-      dim_ref.current = getDim()
-      if (typeof ref === 'function') { ref(getDim) }
-    } else if (
-      (width !== dim_ref.current[0]) ||
-      (height !== dim_ref.current[1])
-    ) {
-      dim_ref.current = getDim()
-      if (typeof ref === 'function') { ref(getDim) }
-    }
-  } else {
-    // console.warn('NONE :(', el_ref.current)
-  }
-
   return (
     <div
-      ref={el_ref}
       id={`photo-${props.id}`}
       className={`image-box-wrapper ${(type === 'compact') && 'compact'} ${none_bottom_block ? 'none-bottom-block' : 'has-bottom-block'}`}
       style={{
-        '--vertical-gutter': `${vertial_gutter}px`,
         width: `calc(${box_width}px)`,
         ...(style ?? {})
       } as React.CSSProperties}
@@ -139,7 +99,7 @@ const PhotoBox = forwardRef<() => Dimension, Props>((props, ref) => {
                   height, width, top, left
                 } = coverFrameEl.current.getBoundingClientRect()
 
-                props.onClickCover({
+                props.onClickCover?.({
                   from: {
                     height, width, top, left,
                   },
@@ -167,15 +127,32 @@ const PhotoBox = forwardRef<() => Dimension, Props>((props, ref) => {
                 {hideMember || (
                   <div className="member-info">
                     <div className="avatar-wrapper">
-                      <div className="avatar">
-                        <div className="avatar-inner" style={{ transform: avatar_status === 'LOADED' ? 'translateY(0px)' : 'translateY(-100%)', backgroundImage: `url(${avatarThumb})` }}></div>
-                      </div>
+                      {props.renderAvatar === undefined
+                        ? (
+                          <div className="avatar">
+                            <div className="avatar-inner" style={{ transform: avatar_status === 'LOADED' ? 'translateY(0px)' : 'translateY(-100%)', backgroundImage: `url(${avatarThumb})` }}></div>
+                          </div>
+                        )
+                        : props.renderAvatar(
+                          <div className="avatar">
+                            <div className="avatar-inner" style={{ transform: avatar_status === 'LOADED' ? 'translateY(0px)' : 'translateY(-100%)', backgroundImage: `url(${avatarThumb})` }}></div>
+                          </div>,
+                        )}
                     </div>
 
-                    <div className="member-name">
-                      <div className="avatar-float"></div>
-                      <span className="name-label">{props.name}</span>
-                    </div>
+                    {props.renderName === undefined
+                      ? (
+                        <div className="member-name">
+                          <div className="avatar-float"></div>
+                          <span className="name-label">{props.name}</span>
+                        </div>
+                      )
+                      : props.renderName(
+                        <div className="member-name">
+                          <div className="avatar-float"></div>
+                          <span className="name-label">{props.name}</span>
+                        </div>,
+                      )}
                   </div>
                 )}
                 {show_desc && (
@@ -186,15 +163,16 @@ const PhotoBox = forwardRef<() => Dimension, Props>((props, ref) => {
               </div>
             )
           }
-
           {
-            props.show_vote_button && <BackBottom vote_button_status={vote_button_status} handleClickVote={props.handleClickVote} />
+            props.show_vote_button && vote_button_status !== undefined && props.handleClickVote !== undefined && (
+              <BackBottom vote_button_status={vote_button_status} handleClickVote={props.handleClickVote} />
+            )
           }
         </div>
       </div>
     </div>
   )
-})
+}
 export default PhotoBox
 
 type BackBottomProps = {

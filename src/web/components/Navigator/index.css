@@ -4,6 +4,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px 0px;
+  user-select: none;
 }
 
 .navigator-title {
@@ -27,4 +28,21 @@
 .navigator-title-space {
   display: inline-block;
   width: 5px;
+}
+
+.navigator-title-admin {
+
+}
+.navigator-title-admin-icon {
+  margin-left: 4px;
+  margin-right: 4px;
+}
+.navigator-title-admin-word {
+  font-style: italic;
+  /* font-weight: normal; */
+  color: rgb(133 48 106);
+  font-family: Impact, Haettenschweiler, "Arial Narrow", "Liberation Sans Narrow", sans-serif;
+  font-weight: 700;
+  font-stretch: condensed;
+  letter-spacing: 0;
 }

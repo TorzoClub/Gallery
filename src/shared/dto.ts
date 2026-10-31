@@ -1,3 +1,5 @@
+import type { InstanceConfig } from './config'
+
 export type ID = number
 export type DateTimeString = string
 
@@ -66,6 +68,23 @@ export type PublicGalleryDTO = Omit<GalleryDTO, 'photos'> & {
 export type PublicHomeDTO = {
   active: PublicGalleryDTO | null
   galleries: PublicGalleryDTO[]
+}
+
+export type AdminGalleryDTO = GalleryDTO & {
+  vote_records: VoteDTO[]
+}
+
+export type AdminPoolDTO = {
+  schema_version: number
+  next_id: number
+  instance_hash: string
+  app_startup_time: number
+  version_time: number
+  build_date: string
+  git_hash: string
+  galleries: AdminGalleryDTO[]
+  members: MemberDTO[]
+  instance_config: InstanceConfig
 }
 
 export type VoteDTO = {

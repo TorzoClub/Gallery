@@ -69,6 +69,7 @@ import type { ClientMemberView, ClientPool } from '../../shared/client-pool'
 import { BUILD_DATE, GIT_HASH } from '../../shared/build-info'
 
 import {
+  adminPoolDto,
   galleryDto,
   memberDto,
   memberHomeDto,
@@ -78,6 +79,7 @@ import {
   publicPhotoDto,
   statisticDto,
   voteDto,
+  type AdminPoolDTO,
   type GalleryDTO,
   type MemberDTO,
   type MemberVoteDTO,
@@ -144,7 +146,7 @@ const dateSchema = z.iso.datetime()
 const photoIdsSchema = z.array(idSchema).min(1)
 
 const GalleryCreateSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).max(256),
   index: z.number().int().nonnegative(),
   vote_limit: z.number().int().nonnegative(),
   event_start: dateSchema,
@@ -381,6 +383,22 @@ export const queries = {
     schema: EmptySchema,
     admin: true,
     run: (ctx): InstanceConfig => ctx.config,
+  }),
+
+  adminFetchPool: defineQuery({
+    schema: EmptySchema,
+    admin: true,
+    run: (ctx): AdminPoolDTO => adminPoolDto({
+      pool: ctx.pool,
+      env: ctx.env,
+      instance_hash: ctx.instance_hash,
+      app_startup_time: ctx.app_startup_time,
+      version_time: Date.now(),
+      build_date: BUILD_DATE,
+      git_hash: GIT_HASH,
+      now: ctx.now,
+      instance_config: ctx.config,
+    }),
   }),
 
   adminStatistic: defineQuery({

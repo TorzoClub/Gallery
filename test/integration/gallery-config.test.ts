@@ -41,6 +41,19 @@ describe('gallery actions', () => {
     expect(got.body.data.name).toBe('Updated')
   })
 
+  it('rejects gallery names longer than 256 characters', async () => {
+    const response = await ctx.adminMutate('adminCreateGallery', {
+      name: 'x'.repeat(257),
+      index: 0,
+      vote_limit: 0,
+      event_start: new Date(ctx.now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+      submission_expire: new Date(ctx.now.getTime() + 48 * 60 * 60 * 1000).toISOString(),
+      event_end: new Date(ctx.now.getTime() + 72 * 60 * 60 * 1000).toISOString(),
+    })
+    expect(response.status).toBe(400)
+    expect(response.body.code).toBe('INVALID_PAYLOAD')
+  })
+
   it('rejects invalid event date order', async () => {
     const response = await ctx.adminMutate('adminCreateGallery', {
       name: 'Bad',

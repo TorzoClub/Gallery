@@ -1,8 +1,9 @@
 .panel {
   display: grid;
-  grid-template-columns: minmax(0, 1.65fr) minmax(280px, .85fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 22px;
-  max-width: 1120px;
+  width: 100%;
+  max-width: 958px;
   margin: 0 auto 26px;
   padding: 18px;
   box-sizing: border-box;
@@ -22,8 +23,8 @@
 }
 
 .editor {
-  padding-right: 20px;
-  border-right: 1px solid #ddd4bf;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #ddd4bf;
 }
 
 .heading {
@@ -98,7 +99,9 @@
 
 .formActions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding-top: 2px;
 }
 
@@ -169,18 +172,217 @@
 }
 
 @media (max-width: 640px) {
-  .panel {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .editor {
-    padding-right: 0;
-    padding-bottom: 18px;
-    border-right: 0;
-    border-bottom: 1px solid #ddd4bf;
-  }
-
   .dates {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+@media (min-width: 958px) {
+  .panel {
+    grid-template-columns: 540px 360px;
+  }
+
+  .editor {
+    padding-right: 20px;
+    padding-bottom: 0;
+    border-right: 1px solid #ddd4bf;
+    border-bottom: 0;
+  }
+}
+
+.revoteView {
+  min-width: 0;
+}
+
+.revoteHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.backButton {
+  padding: 4px 8px;
+  border: 1px solid #a8aa9e;
+  border-radius: 3px;
+  background: linear-gradient(#fffef7, #e9e5d7);
+  color: #59616b;
+  font: 700 11px 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  cursor: pointer;
+}
+
+.backButton:focus-visible {
+  outline: 2px solid #e8571f;
+  outline-offset: 2px;
+}
+
+.tableScroll {
+  overflow-x: auto;
+  border: 1px solid #d2cabb;
+  border-radius: 3px;
+  background: rgb(255 255 255 / .35);
+}
+
+.revoteTable {
+  width: 100%;
+  min-width: 360px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 12px;
+}
+
+.revoteTable th,
+.revoteTable td {
+  padding: 7px 9px;
+  border-bottom: 1px solid #ddd4bf;
+  vertical-align: middle;
+  text-align: left;
+}
+
+.revoteTable th {
+  color: #776b5c;
+  background: rgb(240 235 220 / .65);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .03em;
+}
+
+.revoteTable th:first-child {
+  width: 34%;
+}
+
+.revoteTable th:last-child {
+  width: 84px;
+  text-align: right;
+}
+
+.revoteTable tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.nameCell {
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.voteThumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.voteThumb {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border: 1px solid #c8c2ae;
+  border-radius: 2px;
+  background: #fffdf6;
+}
+
+.muted {
+  color: #9b917f;
+  font-size: 12px;
+}
+
+.actionCell {
+  text-align: right;
+}
+
+.smallButton {
+  min-height: 27px;
+  padding: 4px 7px;
+  border: 1px solid #b98282;
+  border-radius: 3px;
+  background: linear-gradient(#fff8f4, #f4ddd8);
+  color: #8c2828;
+  font: 700 11px 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  cursor: pointer;
+}
+
+.smallButton:disabled {
+  cursor: default;
+  opacity: .5;
+}
+
+.smallButton:focus-visible {
+  outline: 2px solid #e8571f;
+  outline-offset: 2px;
+}
+
+.sortConfirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 230px;
+  color: #374151;
+  font-size: 12px;
+}
+
+.sortConfirmText {
+  line-height: 1.5;
+}
+
+.sortConfirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+
+.deleteButton {
+  min-height: 31px;
+  padding: 6px 10px;
+  border: 1px solid #b98282;
+  border-radius: 3px;
+  background: linear-gradient(#fff8f4, #f4ddd8);
+  color: #8c2828;
+  font: 700 12px 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  cursor: pointer;
+}
+
+.deleteButton:disabled {
+  cursor: default;
+  opacity: .55;
+}
+
+.deleteButton:focus-visible,
+.dangerButton:focus-visible {
+  outline: 2px solid #e8571f;
+  outline-offset: 2px;
+}
+
+.deleteConfirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 250px;
+  color: #374151;
+  font-size: 12px;
+}
+
+.deleteConfirmText {
+  line-height: 1.5;
+}
+
+.deleteConfirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.dangerButton {
+  min-height: 31px;
+  padding: 6px 10px;
+  border: 1px solid #b98282;
+  border-radius: 3px;
+  background: linear-gradient(#fff8f4, #f4ddd8);
+  color: #8c2828;
+  font: 700 12px 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  cursor: pointer;
+}
+
+.dangerButton:disabled {
+  cursor: default;
+  opacity: .55;
 }

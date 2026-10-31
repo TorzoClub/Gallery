@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react'
 import type { AdminGalleryDTO, MemberDTO } from '@shared/dto'
 import { adminMutate } from '../../../admin/api/client'
+import { removeGallery } from '../../../admin/api/gallery'
+import Popover from '../../../components/Popover'
 import { sortPhotosByVoteCount } from '../../../admin/api/photo'
 import { getApiErrorMessage } from '../../../admin/utils/errors'
 import {
@@ -8,7 +10,6 @@ import {
   fromDateTimeLocalValue,
   toDateTimeLocalValue,
 } from '../../../admin/utils/date'
-import RevotePopover from './RevotePopover'
 import styles from './GalleryManagePanel.module.scss'
 
 type Props = {
@@ -42,17 +43,35 @@ export default function GalleryManagePanel({ gallery, members, onChanged }: Prop
   const [saved_note, setSavedNote] = useState('')
   const [sort_busy, setSortBusy] = useState(false)
   const [sort_error, setSortError] = useState('')
+  const [delete_open, setDeleteOpen] = useState(false)
+  const [delete_busy, setDeleteBusy] = useState(false)
+  const [show_revote, setShowRevote] = useState(false)
+  const [revote_busy_id, setRevoteBusyId] = useState<number | null>(null)
+  const [revote_error, setRevoteError] = useState('')
 
-  const voted_ids = useMemo(
-    () => new Set(gallery.vote_records.map(vote => Number(vote.member_id))),
-    [gallery.vote_records],
+  const photo_map = useMemo(
+    () => new Map(gallery.photos.map(photo => [Number(photo.id), photo])),
+    [gallery.photos],
   )
-  const voted_members = useMemo(
-    () => members.filter(member => voted_ids.has(Number(member.id))),
-    [members, voted_ids],
+  const votes_by_member = useMemo(() => {
+    const map = new Map<number, AdminGalleryDTO['vote_records']>()
+    for (const vote of gallery.vote_records) {
+      const member_id = Number(vote.member_id)
+      const current = map.get(member_id)
+      if (current === undefined) {
+        map.set(member_id, [vote])
+      } else {
+        current.push(vote)
+      }
+    }
+    return map
+  }, [gallery.vote_records])
+
+  const voted = useMemo(
+    () => members.filter(member => (votes_by_member.get(Number(member.id))?.length ?? 0) > 0).length,
+    [members, votes_by_member],
   )
   const total = members.length
-  const voted = voted_members.length
   const not_voted = Math.max(0, total - voted)
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -134,6 +153,60 @@ export default function GalleryManagePanel({ gallery, members, onChanged }: Prop
     }
   }
 
+  const handleDelete = async () => {
+    if (delete_busy) {
+      return
+    }
+    if (gallery.photos.length > 0) {
+      setFormError('只能删除没有相片的空相册')
+      return
+    }
+
+    setDeleteBusy(true)
+    setFormError('')
+    setSavedNote('')
+    try {
+      await removeGallery(gallery.id)
+      await onChanged()
+    } catch (err) {
+      setFormError(getApiErrorMessage(err, '删除相册失败'))
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
+
+  const handleDeleteOpenChange = (next: boolean) => {
+    if (!next) {
+      setDeleteOpen(false)
+      return
+    }
+    if (gallery.photos.length > 0) {
+      setFormError('只能删除没有相片的空相册')
+      return
+    }
+    setFormError('')
+    setDeleteOpen(true)
+  }
+
+  const handleRevote = async (member: MemberDTO) => {
+    if (revote_busy_id !== null) {
+      return
+    }
+    setRevoteBusyId(Number(member.id))
+    setRevoteError('')
+    try {
+      await adminMutate('adminClearMemberGalleryVotes', {
+        gallery_id: gallery.id,
+        member_id: member.id,
+      })
+      await onChanged()
+    } catch (err) {
+      setRevoteError(getApiErrorMessage(err, '设置重投失败'))
+    } finally {
+      setRevoteBusyId(null)
+    }
+  }
+
   return (
     <section className={styles.panel}>
       <div className={styles.editor}>
@@ -195,7 +268,40 @@ export default function GalleryManagePanel({ gallery, members, onChanged }: Prop
           {saved_note !== '' && <div className={styles.success}>{saved_note}</div>}
 
           <div className={styles.formActions}>
-            <button type='submit' className={styles.primaryButton} disabled={form_busy}>
+            <Popover
+              open={delete_open}
+              onOpenChange={handleDeleteOpenChange}
+              label='确认删除相册'
+              trigger={(
+                <button type='button' className={styles.deleteButton} disabled={form_busy || delete_busy}>
+                  删除相册
+                </button>
+              )}
+              content={(close) => (
+                <div className={styles.deleteConfirm}>
+                  <div className={styles.deleteConfirmText}>
+                    确定删除相册「{gallery.name}」吗？此操作不可撤销。
+                  </div>
+                  <div className={styles.deleteConfirmActions}>
+                    <button type='button' className={styles.secondaryButton} disabled={delete_busy} onClick={close}>
+                      取消
+                    </button>
+                    <button
+                      type='button'
+                      className={styles.dangerButton}
+                      disabled={delete_busy}
+                      onClick={() => {
+                        close()
+                        void handleDelete()
+                      }}
+                    >
+                      {delete_busy ? '删除中…' : '确认删除'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            />
+            <button type='submit' className={styles.primaryButton} disabled={form_busy || delete_busy}>
               {form_busy ? '保存中…' : '保存相册'}
             </button>
           </div>
@@ -203,48 +309,141 @@ export default function GalleryManagePanel({ gallery, members, onChanged }: Prop
       </div>
 
       <aside className={styles.votePanel}>
-        <h3 className={styles.heading}>成员投票</h3>
-        <div className={styles.stats}>
-          <div className={styles.stat}>
-            <span>投票总人数</span>
-            <strong>{total}</strong>
-          </div>
-          <div className={styles.stat}>
-            <span>已投</span>
-            <strong>{voted}</strong>
-          </div>
-          <div className={styles.stat}>
-            <span>未投</span>
-            <strong>{not_voted}</strong>
-          </div>
-        </div>
+        {show_revote ? (
+          <div className={styles.revoteView}>
+            <div className={styles.revoteHead}>
+              <h3 className={styles.heading}>成员投票</h3>
+              <button type='button' className={styles.backButton} onClick={() => setShowRevote(false)}>
+                返回统计
+              </button>
+            </div>
 
-        {sort_error !== '' && <div className={styles.error} role='alert'>{sort_error}</div>}
+            {revote_error !== '' && <div className={styles.error} role='alert'>{revote_error}</div>}
 
-        <div className={styles.voteActions}>
-          <button
-            type='button'
-            className={styles.secondaryButton}
-            disabled={sort_busy}
-            onClick={() => void handleSort()}
-          >
-            {sort_busy ? '排序中…' : '按票数排序'}
-          </button>
-          <RevotePopover
-            gallery_id={gallery.id}
-            members={voted_members}
-            onChanged={onChanged}
-            trigger={(
+            <div className={styles.tableScroll}>
+              <table className={styles.revoteTable}>
+                <thead>
+                  <tr>
+                    <th>昵称（QQ号）</th>
+                    <th>投票状况</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {members.map(member => {
+                    const member_votes = votes_by_member.get(Number(member.id)) ?? []
+                    const pending = revote_busy_id === Number(member.id)
+                    return (
+                      <tr key={member.id}>
+                        <td className={styles.nameCell}>
+                          {member.name} ({member.qq_num})
+                        </td>
+                        <td>
+                          {member_votes.length === 0
+                            ? <span className={styles.muted}>未投</span>
+                            : (
+                              <div className={styles.voteThumbs}>
+                                {member_votes.map(vote => {
+                                  const photo = photo_map.get(Number(vote.photo_id))
+                                  if (photo === undefined) {
+                                    return <span key={vote.id} className={styles.muted}>#{vote.photo_id}</span>
+                                  }
+                                  return (
+                                    <img
+                                      key={vote.id}
+                                      className={styles.voteThumb}
+                                      src={photo.thumb_url}
+                                      alt={`相片 ${photo.id}`}
+                                      title={photo.desc}
+                                    />
+                                  )
+                                })}
+                              </div>
+                            )}
+                        </td>
+                        <td className={styles.actionCell}>
+                          <button
+                            type='button'
+                            className={styles.smallButton}
+                            disabled={member_votes.length === 0 || revote_busy_id !== null}
+                            onClick={() => void handleRevote(member)}
+                          >
+                            {pending ? '处理中…' : '设置重投'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h3 className={styles.heading}>成员投票</h3>
+            <div className={styles.stats}>
+              <div className={styles.stat}>
+                <span>投票总人数</span>
+                <strong>{total}</strong>
+              </div>
+              <div className={styles.stat}>
+                <span>已投</span>
+                <strong>{voted}</strong>
+              </div>
+              <div className={styles.stat}>
+                <span>未投</span>
+                <strong>{not_voted}</strong>
+              </div>
+            </div>
+
+            {sort_error !== '' && <div className={styles.error} role='alert'>{sort_error}</div>}
+
+            <div className={styles.voteActions}>
+              <Popover
+                label='确认按票数排序'
+                trigger={(
+                  <button
+                    type='button'
+                    className={styles.secondaryButton}
+                    disabled={sort_busy}
+                  >
+                    {sort_busy ? '排序中…' : '按票数排序'}
+                  </button>
+                )}
+                content={(close) => (
+                  <div className={styles.sortConfirm}>
+                    <div className={styles.sortConfirmText}>确定要按当前票数重新排列相片吗？</div>
+                    <div className={styles.sortConfirmActions}>
+                      <button type='button' className={styles.secondaryButton} onClick={close}>
+                        取消
+                      </button>
+                      <button
+                        type='button'
+                        className={styles.primaryButton}
+                        onClick={() => {
+                          close()
+                          void handleSort()
+                        }}
+                      >
+                        开始排序
+                      </button>
+                    </div>
+                  </div>
+                )}
+              />
               <button
                 type='button'
                 className={styles.secondaryButton}
-                disabled={voted_members.length === 0}
+                onClick={() => {
+                  setRevoteError('')
+                  setShowRevote(true)
+                }}
               >
                 设置重投
               </button>
-            )}
-          />
-        </div>
+            </div>
+          </>
+        )}
       </aside>
     </section>
   )

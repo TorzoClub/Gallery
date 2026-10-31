@@ -57,6 +57,7 @@ export default function AdminGallery({
           name={gallery.name}
           expanded={expanded}
           controls={body_id}
+          empty={gallery.photos.length === 0}
           onToggle={() => setExpanded(value => !value)}
           renderName={(name, className) => (
             <GalleryTitlePopover

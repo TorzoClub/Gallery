@@ -5,12 +5,67 @@ type Props = {
   name: string
   expanded: boolean
   controls?: string
+  empty: boolean
   onToggle(): void
   renderName?(name: string, className: string): ReactNode
 }
 
-function GalleryIcon() {
+function GalleryIcon({ empty }: { empty: boolean }) {
   const gradient_id = `gallery-icon-sky-${useId().replace(/:/g, '')}`
+
+  if (empty) {
+    return (
+      <svg
+        className={styles.icon}
+        viewBox='0 0 40 40'
+        aria-hidden='true'
+        focusable='false'
+      >
+        <g transform='rotate(-18 15 24)'>
+          <rect
+            x='4'
+            y='13'
+            width='18'
+            height='24'
+            rx='1.5'
+            fill='none'
+            stroke='#b9b3a4'
+            strokeWidth='1'
+            strokeDasharray='2.4 2.4'
+            strokeLinecap='round'
+          />
+        </g>
+        <g transform='rotate(16 27 23)'>
+          <rect
+            x='21'
+            y='11'
+            width='17'
+            height='23'
+            rx='1.5'
+            fill='none'
+            stroke='#b9b3a4'
+            strokeWidth='1'
+            strokeDasharray='2.4 2.4'
+            strokeLinecap='round'
+          />
+        </g>
+        <g transform='rotate(-4 22 20)'>
+          <rect
+            x='10'
+            y='5'
+            width='23'
+            height='28'
+            rx='1.5'
+            fill='none'
+            stroke='#a9a292'
+            strokeWidth='1.1'
+            strokeDasharray='2.4 2.4'
+            strokeLinecap='round'
+          />
+        </g>
+      </svg>
+    )
+  }
 
   return (
     <svg
@@ -52,10 +107,10 @@ function GalleryIcon() {
   )
 }
 
-export default function GalleryHeader({ name, expanded, controls, onToggle, renderName }: Props) {
+export default function GalleryHeader({ name, expanded, controls, empty, onToggle, renderName }: Props) {
   return (
     <div className={styles.header}>
-      <GalleryIcon />
+      <GalleryIcon empty={empty} />
       <button
         type='button'
         className={styles.toggle}

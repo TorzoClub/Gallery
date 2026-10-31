@@ -26,7 +26,7 @@
 - [x] 服务端图片测试覆盖 EXIF Orientation、流式上传、UUIDv7 temp、CRC32 文件名和清理定时器。
 - [x] 删除当前分支的旧实现目录，归档到 `legacy-v3` 分支。
 - [x] storage schema v2：头像改用 member id，加入 `pnpm update-storage`。
-- [x] 所见即所得新后台 `/admin`：完整 Pool 查询、通用 Waterfall、照片编辑/删除、成员头像 popover、AdminConsole 数据/设置/重建面板、名单簿成员新增/修改/条件删除、PhotoPopover 相片描述编辑/替换/删除、空相册创建与倒序排列、相册标题折叠、空相册虚线图标、展开后的相册编辑、按票数排序、成员投票统计、重投与未投成员筛选；旧后台保留在 `/admin-legacy`。
+- [x] 所见即所得新后台 `/admin`：完整 Pool 查询、通用 Waterfall、照片编辑/删除、成员头像 popover、AdminConsole 数据/设置/重建面板、名单簿成员新增/修改/条件删除、PhotoPopover 相片描述编辑/替换/删除、空相册创建与倒序排列、相册标题折叠、空相册虚线图标、展开后的相册编辑、按票数排序、成员投票统计、重投、未投票/未投稿成员筛选；旧后台保留在 `/admin-legacy`。
 
 ## 后续待办
 

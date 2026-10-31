@@ -17,7 +17,7 @@ export type MemberHistory = {
   ever_submitted: ReadonlySet<number>
 }
 
-type VoteView = 'summary' | 'revote' | 'non_voters'
+type VoteView = 'summary' | 'revote' | 'non_voters' | 'non_submitters'
 type NonVoterFilter = 'all' | 'ever_voted' | 'ever_submitted'
 
 type Props = {
@@ -45,6 +45,68 @@ function formFromGallery(gallery: AdminGalleryDTO): FormState {
   }
 }
 
+type MemberFilterListProps = {
+  title: string
+  members: MemberDTO[]
+  history: MemberHistory
+  onBack(): void
+}
+
+function MemberFilterList({ title, members, history, onBack }: MemberFilterListProps) {
+  const [filter, setFilter] = useState<NonVoterFilter>('all')
+  const filtered = useMemo(() => {
+    if (filter === 'ever_voted') {
+      return members.filter(member => history.ever_voted.has(Number(member.id)))
+    }
+    if (filter === 'ever_submitted') {
+      return members.filter(member => history.ever_submitted.has(Number(member.id)))
+    }
+    return members
+  }, [filter, history, members])
+
+  return (
+    <div className={styles.nonVoterView}>
+      <div className={styles.revoteHead}>
+        <h3 className={styles.heading}>{title}</h3>
+        <button type='button' className={styles.backButton} onClick={onBack}>
+          返回统计
+        </button>
+      </div>
+
+      <div className={styles.filterRow} role='group' aria-label={`${title}筛选`}>
+        {([
+          ['all', '所有人'],
+          ['ever_voted', '曾经参加过投票'],
+          ['ever_submitted', '曾经投稿过作品'],
+        ] as const).map(([value, label]) => (
+          <button
+            key={value}
+            type='button'
+            className={`${styles.filterButton} ${filter === value ? styles.filterButtonActive : ''}`}
+            onClick={() => setFilter(value)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className={styles.nonVoterList}>
+        {filtered.length === 0
+          ? <div className={styles.nonVoterEmpty}>没有符合条件的成员</div>
+          : filtered.map(member => (
+            <div key={member.id} className={styles.nonVoterRow}>
+              <img className={styles.nonVoterAvatar} src={member.avatar_thumb_url} alt='' loading='lazy' />
+              <div className={styles.nonVoterInfo}>
+                <strong>{member.name}</strong>
+                <span>{member.qq_num}</span>
+              </div>
+            </div>
+          ))}
+      </div>
+    </div>
+  )
+}
+
 export default function GalleryManagePanel({ gallery, members, member_history, onChanged }: Props) {
   const [form, setForm] = useState<FormState>(() => formFromGallery(gallery))
   const [form_busy, setFormBusy] = useState(false)
@@ -55,7 +117,6 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
   const [delete_open, setDeleteOpen] = useState(false)
   const [delete_busy, setDeleteBusy] = useState(false)
   const [vote_view, setVoteView] = useState<VoteView>('summary')
-  const [non_voter_filter, setNonVoterFilter] = useState<NonVoterFilter>('all')
   const [revote_busy_id, setRevoteBusyId] = useState<number | null>(null)
   const [revote_error, setRevoteError] = useState('')
 
@@ -83,19 +144,18 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
   )
   const total = members.length
   const not_voted = Math.max(0, total - voted)
+  const submitted_ids = useMemo(
+    () => new Set(gallery.photos.map(photo => Number(photo.member_id))),
+    [gallery.photos],
+  )
   const non_voters = useMemo(
     () => members.filter(member => !votes_by_member.has(Number(member.id))),
     [members, votes_by_member],
   )
-  const filtered_non_voters = useMemo(() => {
-    if (non_voter_filter === 'ever_voted') {
-      return non_voters.filter(member => member_history.ever_voted.has(Number(member.id)))
-    }
-    if (non_voter_filter === 'ever_submitted') {
-      return non_voters.filter(member => member_history.ever_submitted.has(Number(member.id)))
-    }
-    return non_voters
-  }, [member_history, non_voter_filter, non_voters])
+  const non_submitters = useMemo(
+    () => members.filter(member => !submitted_ids.has(Number(member.id))),
+    [members, submitted_ids],
+  )
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm(current => ({ ...current, [key]: value }))
@@ -396,12 +456,16 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
               <button
                 type='button'
                 className={styles.secondaryButton}
-                onClick={() => {
-                  setNonVoterFilter('all')
-                  setVoteView('non_voters')
-                }}
+                onClick={() => setVoteView('non_voters')}
               >
-                看看谁没投
+                谁没投票
+              </button>
+              <button
+                type='button'
+                className={styles.secondaryButton}
+                onClick={() => setVoteView('non_submitters')}
+              >
+                谁没投稿
               </button>
             </div>
           </>
@@ -478,45 +542,21 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
         )}
 
         {vote_view === 'non_voters' && (
-          <div className={styles.nonVoterView}>
-            <div className={styles.revoteHead}>
-              <h3 className={styles.heading}>谁没投</h3>
-              <button type='button' className={styles.backButton} onClick={() => setVoteView('summary')}>
-                返回统计
-              </button>
-            </div>
+          <MemberFilterList
+            title='谁没投票'
+            members={non_voters}
+            history={member_history}
+            onBack={() => setVoteView('summary')}
+          />
+        )}
 
-            <div className={styles.filterRow} role='group' aria-label='未投成员筛选'>
-              {([
-                ['all', '所有人'],
-                ['ever_voted', '曾经参加过投票'],
-                ['ever_submitted', '曾经投稿过作品'],
-              ] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  type='button'
-                  className={`${styles.filterButton} ${non_voter_filter === value ? styles.filterButtonActive : ''}`}
-                  onClick={() => setNonVoterFilter(value)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <div className={styles.nonVoterList}>
-              {filtered_non_voters.length === 0
-                ? <div className={styles.nonVoterEmpty}>没有符合条件的成员</div>
-                : filtered_non_voters.map(member => (
-                  <div key={member.id} className={styles.nonVoterRow}>
-                    <img className={styles.nonVoterAvatar} src={member.avatar_thumb_url} alt='' loading='lazy' />
-                    <div className={styles.nonVoterInfo}>
-                      <strong>{member.name}</strong>
-                      <span>{member.qq_num}</span>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
+        {vote_view === 'non_submitters' && (
+          <MemberFilterList
+            title='谁没投稿'
+            members={non_submitters}
+            history={member_history}
+            onBack={() => setVoteView('summary')}
+          />
         )}
       </aside>
     </section>

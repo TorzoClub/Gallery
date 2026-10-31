@@ -3,12 +3,14 @@ import PhotoBox from '../../../components/PhotoBox'
 import MemberPopover from './MemberPopover'
 import PhotoPopover from './PhotoPopover'
 import type { AdminGalleryDTO } from '@shared/dto'
+import type { MemberCanDelete } from './AdminConsole'
 
 type Props = {
   gallery: AdminGalleryDTO
   photo: AdminGalleryDTO['photos'][number]
   box_width: number
   box_type: 'normal' | 'compact'
+  memberCanDelete?: MemberCanDelete
   onChanged(): Promise<void>
 }
 
@@ -17,6 +19,7 @@ export default function AdminPhotoBox({
   photo,
   box_width,
   box_type,
+  memberCanDelete,
   onChanged,
 }: Props) {
   const member = photo.member
@@ -29,6 +32,8 @@ export default function AdminPhotoBox({
         avatarUrl: member.avatar_thumb_url,
       }
 
+  const can_delete = member_data !== undefined && memberCanDelete?.(member_data) === true
+
   const with_member_popover = (trigger: ReactNode) => {
     if (member_data === undefined) {
       return trigger
@@ -37,6 +42,7 @@ export default function AdminPhotoBox({
       <MemberPopover
         mode='edit'
         member={member_data}
+        canDelete={can_delete}
         trigger={trigger}
         onSaved={onChanged}
       />

@@ -39,11 +39,14 @@ export interface RebuildReporter {
   error: (message: string) => void;
 }
 
+export type MemberCanDelete = (member: Member) => boolean;
+
 export interface AdminConsoleProps {
   stats: AdminStats;
   settings: AdminSettings;
   onSettingsChange: (next: AdminSettings) => void;
   members: Member[];
+  memberCanDelete?(member: Member): boolean;
   onMembersChanged?(): void | Promise<void>;
   /** 抛出异常会被当作致命错误打印 */
   onRebuild?: (reporter: RebuildReporter) => Promise<void>;
@@ -420,7 +423,7 @@ function RebuildPanel({ onRebuild, note }: { onRebuild?: AdminConsoleProps['onRe
 
 /* ============================== 面板 D：名单簿 ============================== */
 
-function MemberPanel({ members, onMembersChanged }: { members: Member[]; onMembersChanged?: () => void | Promise<void> }) {
+function MemberPanel({ members, onMembersChanged, memberCanDelete }: { members: Member[]; onMembersChanged?: () => void | Promise<void>; memberCanDelete?: MemberCanDelete }) {
   // 仅大屏生效：默认收起，点击标题条展开。小屏由单选按钮切换，这里的状态被 CSS 忽略
   const [open, setOpen] = useState(false);
   return (
@@ -462,6 +465,7 @@ function MemberPanel({ members, onMembersChanged }: { members: Member[]; onMembe
                     key={m.id}
                     mode='edit'
                     member={m}
+                    canDelete={memberCanDelete?.(m) ?? false}
                     trigger={(
                       <button type='button' className={styles.member} aria-label={`修改成员 ${m.nickname}`}>
                         {m.avatarUrl ? (
@@ -512,7 +516,7 @@ function useIsLarge() {
   return large;
 }
 
-export function AdminConsole({ stats, settings, onSettingsChange, members, onMembersChanged, onRebuild, rebuildNote }: AdminConsoleProps) {
+export function AdminConsole({ stats, settings, onSettingsChange, members, memberCanDelete, onMembersChanged, onRebuild, rebuildNote }: AdminConsoleProps) {
   const [tab, setTab] = useState<TabId>('stats');
   const isLarge = useIsLarge(); // 大屏时所有面板都可见
   const keyRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -560,7 +564,7 @@ export function AdminConsole({ stats, settings, onSettingsChange, members, onMem
           <RebuildPanel onRebuild={onRebuild} note={rebuildNote} />
         </div>
         <div id="panel-members" className={cn(styles.panel, styles.pMembers, tab !== 'members' && styles.off)}>
-          <MemberPanel members={members} onMembersChanged={onMembersChanged} />
+          <MemberPanel members={members} memberCanDelete={memberCanDelete} onMembersChanged={onMembersChanged} />
         </div>
         </div>
       </div>

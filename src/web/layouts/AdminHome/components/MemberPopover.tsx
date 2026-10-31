@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import type { Member } from './AdminConsole'
 import Popover from '../../../components/Popover'
-import { createMember, updateMember } from '../../../admin/api/member'
+import { createMember, removeMember, updateMember } from '../../../admin/api/member'
 import { uploadImage } from '../../../api/upload'
 import { getApiErrorMessage } from '../../../admin/utils/errors'
 import styles from './MemberPopover.module.scss'
@@ -10,17 +10,19 @@ type Props = {
   mode: 'create' | 'edit'
   member?: Member
   trigger: React.ReactNode
+  canDelete?: boolean
   onSaved(): void | Promise<void>
 }
 
 type FormProps = {
   mode: 'create' | 'edit'
   member?: Member
+  canDelete: boolean
   onClose(): void
   onSaved(): void | Promise<void>
 }
 
-function MemberForm({ mode, member, onClose, onSaved }: FormProps) {
+function MemberForm({ mode, member, canDelete, onClose, onSaved }: FormProps) {
   const [qq, setQQ] = useState(mode === 'edit' ? member?.qq ?? '' : '')
   const [nickname, setNickname] = useState(member?.nickname ?? '')
   const [avatar_file, setAvatarFile] = useState<File | null>(null)
@@ -45,6 +47,23 @@ function MemberForm({ mode, member, onClose, onSaved }: FormProps) {
     setAvatarFile(file)
     setAvatarPreview(url)
     setError('')
+  }
+
+  const handleDelete = async () => {
+    if (busy || member === undefined) {
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await removeMember(Number(member.id))
+      await onSaved()
+      onClose()
+    } catch (err) {
+      setError(getApiErrorMessage(err, '删除成员失败'))
+    } finally {
+      setBusy(false)
+    }
   }
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -174,18 +193,30 @@ function MemberForm({ mode, member, onClose, onSaved }: FormProps) {
       {error !== '' && <div className={styles.error} role="alert">{error}</div>}
 
       <div className={styles.actions}>
-        <button type="button" className={styles.secondaryButton} disabled={busy} onClick={onClose}>
-          取消
-        </button>
-        <button type="submit" className={styles.primaryButton} disabled={busy}>
-          {busy ? '保存中…' : mode === 'create' ? '创建成员' : '保存修改'}
-        </button>
+        {mode === 'edit' && canDelete && (
+          <button
+            type="button"
+            className={styles.dangerButton}
+            disabled={busy}
+            onClick={() => void handleDelete()}
+          >
+            {busy ? '删除中…' : '删除成员'}
+          </button>
+        )}
+        <div className={styles.actionsRight}>
+          <button type="button" className={styles.secondaryButton} disabled={busy} onClick={onClose}>
+            取消
+          </button>
+          <button type="submit" className={styles.primaryButton} disabled={busy}>
+            {busy ? '保存中…' : mode === 'create' ? '创建成员' : '保存修改'}
+          </button>
+        </div>
       </div>
     </form>
   )
 }
 
-export default function MemberPopover({ mode, member, trigger, onSaved }: Props) {
+export default function MemberPopover({ mode, member, trigger, canDelete = false, onSaved }: Props) {
   return (
     <Popover
       trigger={trigger}
@@ -194,6 +225,7 @@ export default function MemberPopover({ mode, member, trigger, onSaved }: Props)
         <MemberForm
           mode={mode}
           member={member}
+          canDelete={canDelete}
           onClose={close}
           onSaved={onSaved}
         />

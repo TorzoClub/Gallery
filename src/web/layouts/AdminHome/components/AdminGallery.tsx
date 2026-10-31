@@ -4,15 +4,18 @@ import { getGalleryLayout } from '../../../components/Gallery'
 import Waterfall, { type WaterfallItem } from '../../../components/Waterfall'
 import Title from '../../../components/Title'
 import AdminPhotoBox from './AdminPhotoBox'
+import type { MemberCanDelete } from './AdminConsole'
 
 type Props = {
   gallery: AdminGalleryDTO
+  memberCanDelete?: MemberCanDelete
   onChanged(): Promise<void>
   onWatterfallRefreshed(): void
 }
 
 export default function AdminGallery({
   gallery,
+  memberCanDelete,
   onChanged,
   onWatterfallRefreshed,
 }: Props) {
@@ -36,10 +39,11 @@ export default function AdminGallery({
         photo={photo}
         box_width={box_width}
         box_type={layout.box_type}
+        memberCanDelete={memberCanDelete}
         onChanged={onChanged}
       />
     ),
-  })), [box_width, gallery, layout.box_type, onChanged])
+  })), [box_width, gallery, layout.box_type, memberCanDelete, onChanged])
 
   return (
     <div className='gallery-wrapper'>

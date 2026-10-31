@@ -17,6 +17,7 @@ import {
   type AdminSettings,
   type AdminStats,
   type Member as ConsoleMember,
+  type MemberCanDelete,
   type RebuildReporter,
 } from './components/AdminConsole'
 import { instanceConfigFromSettings, settingsFromInstanceConfig } from './admin-settings'
@@ -205,6 +206,21 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     watterfall_refreshed.trigger()
   }, [state, watterfall_refreshed])
 
+  const memberCanDelete = useMemo<MemberCanDelete>(() => {
+    const referenced = new Set<number>()
+    if (state.status === 'ready') {
+      for (const gallery of state.pool.galleries) {
+        for (const photo of gallery.photos) {
+          referenced.add(Number(photo.member_id))
+        }
+        for (const vote of gallery.vote_records) {
+          referenced.add(Number(vote.member_id))
+        }
+      }
+    }
+    return member => !referenced.has(Number(member.id))
+  }, [state])
+
   if (!thisIsDisplay) {
     return null
   }
@@ -241,6 +257,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
         settings={console_settings}
         onSettingsChange={handleSettingsChange}
         members={consoleMembersFromPool(state.pool)}
+        memberCanDelete={memberCanDelete}
         onMembersChanged={handleMembersChanged}
         onRebuild={handleRebuild}
       />
@@ -254,6 +271,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
               <AdminGallery
                 key={gallery.id}
                 gallery={gallery}
+                memberCanDelete={memberCanDelete}
                 onChanged={refresh}
                 onWatterfallRefreshed={watterfall_refreshed.trigger}
               />

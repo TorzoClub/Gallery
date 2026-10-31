@@ -98,13 +98,20 @@
 
 .actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: 7px;
   padding-top: 2px;
 }
 
+.actionsRight {
+  display: flex;
+  gap: 7px;
+  margin-left: auto;
+}
+
 .primaryButton,
-.secondaryButton {
+.secondaryButton,
+.dangerButton {
   min-height: 30px;
   padding: 6px 10px;
   border-radius: 3px;
@@ -136,8 +143,21 @@
   }
 }
 
+.dangerButton {
+  border: 1px solid #b98282;
+  background: linear-gradient(#fff8f4, #f4ddd8);
+  color: #8c2828;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(0 0 0 / .12);
+
+  &:disabled {
+    cursor: default;
+    opacity: .6;
+  }
+}
+
 .primaryButton:focus-visible,
-.secondaryButton:focus-visible {
+.secondaryButton:focus-visible,
+.dangerButton:focus-visible {
   outline: 2px solid #e8571f;
   outline-offset: 2px;
 }

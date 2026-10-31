@@ -4,6 +4,7 @@ import type React from 'react'
 export type FloatTarget = {
   ref: React.RefObject<HTMLElement | SVGGElement | null>
   svg?: boolean
+  linked_refs?: readonly React.RefObject<HTMLElement | SVGGElement | null>[]
 }
 
 type FloatMotion = {
@@ -19,22 +20,27 @@ function createMotion(): FloatMotion {
   return {
     amplitude: 2 + Math.random() * 3,
     angle_phase: Math.random() * Math.PI * 2,
-    angle_speed: 0.12 + Math.random() * 0.18,
+    angle_speed: 0.18 + Math.random() * 0.24,
     angle_wobble_phase: Math.random() * Math.PI * 2,
     radius_phase: Math.random() * Math.PI * 2,
-    radius_speed: 0.22 + Math.random() * 0.28,
+    radius_speed: 0.35 + Math.random() * 0.35,
   }
 }
 
-function clearTarget(target: FloatTarget) {
-  const element = target.ref.current
-  if (element === null) {
-    return
-  }
+function clearElement(target: FloatTarget, element: HTMLElement | SVGGElement) {
   if (target.svg) {
     element.setAttribute('transform', 'translate(0 0)')
   } else {
     (element as HTMLElement).style.transform = ''
+  }
+}
+
+function clearTarget(target: FloatTarget) {
+  for (const ref of [target.ref, ...(target.linked_refs ?? [])]) {
+    const element = ref.current
+    if (element !== null) {
+      clearElement(target, element)
+    }
   }
 }
 
@@ -62,14 +68,16 @@ export default function useGalleryFloat(targets: readonly FloatTarget[], enabled
         )
         const x = Math.cos(angle) * radius
         const y = Math.sin(angle) * radius
-        const element = target.ref.current
-        if (element === null) {
-          continue
-        }
-        if (target.svg) {
-          element.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)})`)
-        } else {
-          (element as HTMLElement).style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`
+        for (const ref of [target.ref, ...(target.linked_refs ?? [])]) {
+          const element = ref.current
+          if (element === null) {
+            continue
+          }
+          if (target.svg) {
+            element.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)})`)
+          } else {
+            (element as HTMLElement).style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`
+          }
         }
       }
       frame = window.requestAnimationFrame(tick)

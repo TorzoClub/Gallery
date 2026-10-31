@@ -15,12 +15,19 @@ type Props = {
   onDragHandlePointerDown?(event: React.PointerEvent<HTMLSpanElement>): void
 }
 
+type EmptyMaskRefs = {
+  middle: React.RefObject<SVGGElement | null>
+  front_in_back: React.RefObject<SVGGElement | null>
+  front_in_middle: React.RefObject<SVGGElement | null>
+}
+
 type GalleryIconProps = {
   empty: boolean
   photo_refs?: readonly React.RefObject<SVGGElement | null>[]
+  empty_mask_refs?: EmptyMaskRefs
 }
 
-function GalleryIcon({ empty, photo_refs }: GalleryIconProps) {
+function GalleryIcon({ empty, photo_refs, empty_mask_refs }: GalleryIconProps) {
   const uid = useId().replace(/:/g, '')
   const gradient_id = `gallery-icon-sky-${uid}`
   const back_mask_id = `gallery-icon-empty-back-${uid}`
@@ -35,30 +42,40 @@ function GalleryIcon({ empty, photo_refs }: GalleryIconProps) {
         focusable='false'
       >
         <defs>
-          <mask id={back_mask_id} maskUnits='userSpaceOnUse' x='0' y='0' width='40' height='40'>
-            <rect x='0' y='0' width='40' height='40' fill='#fff' />
-            <g transform='rotate(16 27 23)'>
-              <rect x='21' y='11' width='17' height='23' rx='1.5' fill='#000' stroke='#000' strokeWidth='2' />
+          <mask id={back_mask_id} maskUnits='userSpaceOnUse' x='-6' y='-6' width='52' height='52'>
+            <rect x='-6' y='-6' width='52' height='52' fill='#fff' />
+            <g ref={empty_mask_refs?.middle}>
+              <g transform='rotate(16 27 23)'>
+                <rect x='21' y='11' width='17' height='23' rx='1.5' fill='#000' stroke='#000' strokeWidth='2' />
+              </g>
             </g>
-            <g transform='rotate(-4 22 20)'>
-              <rect x='10' y='5' width='23' height='28' rx='1.5' fill='#000' stroke='#000' strokeWidth='2' />
+            <g ref={empty_mask_refs?.front_in_back}>
+              <g transform='rotate(-4 22 20)'>
+                <rect x='10' y='5' width='23' height='28' rx='1.5' fill='#000' stroke='#000' strokeWidth='2' />
+              </g>
             </g>
           </mask>
-          <mask id={middle_mask_id} maskUnits='userSpaceOnUse' x='0' y='0' width='40' height='40'>
-            <rect x='0' y='0' width='40' height='40' fill='#fff' />
-            <g transform='rotate(-4 22 20)'>
-              <rect x='10' y='5' width='23' height='28' rx='1.5' fill='#000' stroke='#000' strokeWidth='2' />
+          <mask id={middle_mask_id} maskUnits='userSpaceOnUse' x='-6' y='-6' width='52' height='52'>
+            <rect x='-6' y='-6' width='52' height='52' fill='#fff' />
+            <g ref={empty_mask_refs?.front_in_middle}>
+              <g transform='rotate(-4 22 20)'>
+                <rect x='10' y='5' width='23' height='28' rx='1.5' fill='#000' stroke='#000' strokeWidth='2' />
+              </g>
             </g>
           </mask>
         </defs>
-        <g ref={photo_refs?.[0]}>
-          <g mask={`url(#${back_mask_id})`} transform='rotate(-18 15 24)'>
-            <rect x='4' y='13' width='18' height='24' rx='1.5' fill='none' stroke='#b9b3a4' strokeWidth='1' strokeDasharray='2.4 2.4' strokeLinecap='round' />
+        <g mask={`url(#${back_mask_id})`}>
+          <g ref={photo_refs?.[0]}>
+            <g transform='rotate(-18 15 24)'>
+              <rect x='4' y='13' width='18' height='24' rx='1.5' fill='none' stroke='#b9b3a4' strokeWidth='1' strokeDasharray='2.4 2.4' strokeLinecap='round' />
+            </g>
           </g>
         </g>
-        <g ref={photo_refs?.[1]}>
-          <g mask={`url(#${middle_mask_id})`} transform='rotate(16 27 23)'>
-            <rect x='21' y='11' width='17' height='23' rx='1.5' fill='none' stroke='#b9b3a4' strokeWidth='1' strokeDasharray='2.4 2.4' strokeLinecap='round' />
+        <g mask={`url(#${middle_mask_id})`}>
+          <g ref={photo_refs?.[1]}>
+            <g transform='rotate(16 27 23)'>
+              <rect x='21' y='11' width='17' height='23' rx='1.5' fill='none' stroke='#b9b3a4' strokeWidth='1' strokeDasharray='2.4 2.4' strokeLinecap='round' />
+            </g>
           </g>
         </g>
         <g ref={photo_refs?.[2]}>
@@ -133,22 +150,44 @@ export default function GalleryHeader({
   const photo_back_ref = useRef<SVGGElement>(null)
   const photo_middle_ref = useRef<SVGGElement>(null)
   const photo_front_ref = useRef<SVGGElement>(null)
+  const empty_mask_middle_ref = useRef<SVGGElement>(null)
+  const empty_mask_front_in_back_ref = useRef<SVGGElement>(null)
+  const empty_mask_front_in_middle_ref = useRef<SVGGElement>(null)
 
   const photo_refs = useMemo(
     () => [photo_back_ref, photo_middle_ref, photo_front_ref],
     [],
   )
+  const empty_mask_refs = useMemo<EmptyMaskRefs>(() => ({
+    middle: empty_mask_middle_ref,
+    front_in_back: empty_mask_front_in_back_ref,
+    front_in_middle: empty_mask_front_in_middle_ref,
+  }), [])
   const float_targets = useMemo<FloatTarget[]>(() => [
     { ref: name_ref },
     { ref: handle_ref },
     { ref: photo_back_ref, svg: true },
-    { ref: photo_middle_ref, svg: true },
-    { ref: photo_front_ref, svg: true },
+    {
+      ref: photo_middle_ref,
+      svg: true,
+      linked_refs: [empty_mask_middle_ref],
+    },
+    {
+      ref: photo_front_ref,
+      svg: true,
+      linked_refs: [empty_mask_front_in_back_ref, empty_mask_front_in_middle_ref],
+    },
   ], [])
 
   useGalleryFloat(float_targets, sorting)
 
-  const icon = <GalleryIcon empty={empty} photo_refs={photo_refs} />
+  const icon = (
+    <GalleryIcon
+      empty={empty}
+      photo_refs={photo_refs}
+      empty_mask_refs={empty_mask_refs}
+    />
+  )
   const name_node = <span ref={name_ref} className={styles.name}>{name}</span>
 
   if (sorting) {
@@ -169,9 +208,11 @@ export default function GalleryHeader({
           onPointerDown={event => onDragHandlePointerDown?.(event)}
         >
           <svg viewBox='0 0 16 16' focusable='false'>
-            <rect x='4' y='3' width='8' height='2.4' rx='1.2' />
-            <rect x='4' y='6.8' width='8' height='2.4' rx='1.2' />
-            <rect x='4' y='10.6' width='8' height='2.4' rx='1.2' />
+            <path d='M8 0.8 L12.2 4.6 L3.8 4.6 Z' />
+            <rect x='2' y='6' width='12' height='1.7' rx='0.85' />
+            <rect x='2' y='8.3' width='12' height='1.7' rx='0.85' />
+            <rect x='2' y='10.6' width='12' height='1.7' rx='0.85' />
+            <path d='M3.8 13.1 L12.2 13.1 L8 16 Z' />
           </svg>
         </span>
         {name_node}

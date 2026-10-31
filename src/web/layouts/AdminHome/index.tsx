@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Signal } from 'vait'
-import type { AdminPoolDTO } from '@shared/dto'
+import type { AdminGalleryDTO, AdminPoolDTO } from '@shared/dto'
 import { ApiError } from '../../api/dispatch'
+import { adminMutate } from '../../admin/api/client'
 import { updateInstanceConfig } from '../../admin/api/config'
 import { createGallery } from '../../admin/api/gallery'
 import { refreshAvatar, refreshThumb } from '../../admin/api/image'
@@ -69,6 +70,13 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
   const [settingsSaving, setSettingsSaving] = useState(false)
   const [creatingGallery, setCreatingGallery] = useState(false)
   const [createGalleryError, setCreateGalleryError] = useState('')
+  const [sort_mode, setSortMode] = useState(false)
+  const [draft_galleries, setDraftGalleries] = useState<AdminGalleryDTO[]>([])
+  const [dragging_id, setDraggingId] = useState<number | null>(null)
+  const [drag_over_id, setDragOverId] = useState<number | null>(null)
+  const [drop_after, setDropAfter] = useState(false)
+  const [sort_busy, setSortBusy] = useState(false)
+  const [sort_error, setSortError] = useState('')
   const settingsSaveTimer = useRef<number | null>(null)
   const settingsSaveSequence = useRef(0)
 
@@ -218,6 +226,142 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     }
   }, [creatingGallery, load, state, watterfall_refreshed])
 
+  const sorted_galleries = useMemo(() => {
+    if (state.status !== 'ready') {
+      return []
+    }
+    return [...state.pool.galleries].sort((left, right) => (
+      right.index - left.index || Number(right.id) - Number(left.id)
+    ))
+  }, [state])
+
+  const display_galleries = sort_mode ? draft_galleries : sorted_galleries
+
+  const moveDraftGallery = useCallback((source_id: number, target_id: number, after: boolean) => {
+    setDraftGalleries(current => {
+      const source_index = current.findIndex(gallery => gallery.id === source_id)
+      if (source_index < 0 || source_id === target_id) {
+        return current
+      }
+      const next = [...current]
+      const [moved] = next.splice(source_index, 1)
+      const target_index = next.findIndex(gallery => gallery.id === target_id)
+      if (target_index < 0) {
+        return current
+      }
+      next.splice(after ? target_index + 1 : target_index, 0, moved)
+      return next
+    })
+  }, [])
+
+  const startSortMode = useCallback(() => {
+    if (state.status !== 'ready') {
+      return
+    }
+    setDraftGalleries([...sorted_galleries])
+    setSortMode(true)
+    setSortError('')
+    setDraggingId(null)
+    setDragOverId(null)
+    setDropAfter(false)
+  }, [sorted_galleries, state.status])
+
+  const finishSort = useCallback(async () => {
+    if (sort_busy) {
+      return
+    }
+    setSortBusy(true)
+    setSortError('')
+    const total = draft_galleries.length
+    try {
+      const updates = draft_galleries
+        .map((gallery, position) => ({
+          gallery_id: gallery.id,
+          index: total - 1 - position,
+          current_index: gallery.index,
+        }))
+        .filter(item => item.index !== item.current_index)
+
+      for (const update of updates) {
+        await adminMutate('adminUpdateGallery', {
+          gallery_id: update.gallery_id,
+          index: update.index,
+        })
+      }
+
+      if (updates.length > 0) {
+        await load(false)
+        watterfall_refreshed.trigger()
+      }
+      setSortMode(false)
+      setDraftGalleries([])
+    } catch (error) {
+      setSortError(getApiErrorMessage(error, '保存相册顺序失败'))
+    } finally {
+      setSortBusy(false)
+    }
+  }, [draft_galleries, load, sort_busy, watterfall_refreshed])
+
+  const handleSortButton = useCallback(() => {
+    if (sort_mode) {
+      void finishSort()
+    } else {
+      startSortMode()
+    }
+  }, [finishSort, sort_mode, startSortMode])
+
+  const startGalleryDrag = useCallback((
+    event: React.PointerEvent<HTMLSpanElement>,
+    gallery_id: number,
+  ) => {
+    if (!sort_mode) {
+      return
+    }
+    event.preventDefault()
+    setDraggingId(gallery_id)
+    setDragOverId(gallery_id)
+    setDropAfter(false)
+  }, [sort_mode])
+
+  useEffect(() => {
+    if (!sort_mode || dragging_id === null) {
+      return
+    }
+
+    const handleMove = (event: PointerEvent) => {
+      const element = document.elementFromPoint(event.clientX, event.clientY)
+      const row = element?.closest<HTMLElement>('[data-gallery-sort-id]')
+      if (row === null || row === undefined) {
+        setDragOverId(null)
+        return
+      }
+      setDragOverId(Number(row.dataset.gallerySortId))
+      const rect = row.getBoundingClientRect()
+      setDropAfter(event.clientY > rect.top + rect.height / 2)
+    }
+
+    const finishDrag = (apply: boolean) => {
+      if (apply && drag_over_id !== null && drag_over_id !== dragging_id) {
+        moveDraftGallery(dragging_id, drag_over_id, drop_after)
+      }
+      setDraggingId(null)
+      setDragOverId(null)
+      setDropAfter(false)
+    }
+
+    const handleUp = () => finishDrag(true)
+    const handleCancel = () => finishDrag(false)
+
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp)
+    window.addEventListener('pointercancel', handleCancel)
+    return () => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+      window.removeEventListener('pointercancel', handleCancel)
+    }
+  }, [drag_over_id, dragging_id, drop_after, moveDraftGallery, sort_mode])
+
   const handleRebuild = useCallback(async (reporter: RebuildReporter) => {
     if (state.status !== 'ready') {
       throw new Error('后台数据尚未读取完成')
@@ -284,15 +428,6 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     return { ever_voted, ever_submitted }
   }, [state])
 
-  const sorted_galleries = useMemo(() => {
-    if (state.status !== 'ready') {
-      return []
-    }
-    return [...state.pool.galleries].sort((left, right) => (
-      right.index - left.index || Number(right.id) - Number(left.id)
-    ))
-  }, [state])
-
   if (!thisIsDisplay) {
     return null
   }
@@ -335,19 +470,36 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
       />
       {settingsSaving && <div className={styles.consoleStatus}>正在保存设置…</div>}
       <div className={styles.createGallery}>
-        <SkeuomorphismButton onClick={() => void handleCreateGallery()}>
-          {creatingGallery ? '创建中…' : '+ 创建相册'}
-        </SkeuomorphismButton>
+        <div className={styles.createGalleryActions}>
+          {!sort_mode && (
+            <SkeuomorphismButton onClick={() => void handleCreateGallery()}>
+              {creatingGallery ? '创建中…' : '+ 创建相册'}
+            </SkeuomorphismButton>
+          )}
+          <button
+            type='button'
+            className={styles.sortButton}
+            disabled={sort_mode ? sort_busy : sorted_galleries.length === 0}
+            onClick={handleSortButton}
+          >
+            {sort_mode
+              ? (sort_busy ? '保存中…' : '完成排序')
+              : '调整相册顺序'}
+          </button>
+        </div>
         {createGalleryError !== '' && (
           <div className={styles.createGalleryError} role='alert'>{createGalleryError}</div>
+        )}
+        {sort_error !== '' && (
+          <div className={styles.sortError} role='alert'>{sort_error}</div>
         )}
       </div>
       <div className='gallery-home'>
         <div className='body'>
           <div style={{ height: '8px' }}></div>
-          {sorted_galleries.length === 0
+          {display_galleries.length === 0
             ? <div className={styles.empty}>还没有相册</div>
-            : sorted_galleries.map(gallery => (
+            : display_galleries.map(gallery => (
               <AdminGallery
                 key={gallery.id}
                 gallery={gallery}
@@ -357,6 +509,11 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
                 onGalleryChanged={handleGalleryChanged}
                 onChanged={refresh}
                 onWatterfallRefreshed={watterfall_refreshed.trigger}
+                sorting={sort_mode}
+                dragging={dragging_id === gallery.id}
+                dragOver={drag_over_id === gallery.id}
+                dropAfter={drop_after}
+                onDragHandlePointerDown={event => startGalleryDrag(event, gallery.id)}
               />
             ))}
         </div>

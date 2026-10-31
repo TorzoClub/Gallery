@@ -15,6 +15,11 @@ type Props = {
   onGalleryChanged?: () => void | Promise<void>
   onChanged(): Promise<void>
   onWatterfallRefreshed(): void
+  sorting?: boolean
+  dragging?: boolean
+  dragOver?: boolean
+  dropAfter?: boolean
+  onDragHandlePointerDown?(event: React.PointerEvent<HTMLSpanElement>): void
 }
 
 export default function AdminGallery({
@@ -25,8 +30,19 @@ export default function AdminGallery({
   onGalleryChanged,
   onChanged,
   onWatterfallRefreshed,
+  sorting = false,
+  dragging = false,
+  dragOver = false,
+  dropAfter = false,
+  onDragHandlePointerDown,
 }: Props) {
   const [expanded, setExpanded] = useState(false)
+  useEffect(() => {
+    if (sorting) {
+      setExpanded(false)
+    }
+  }, [sorting])
+  const show_expanded = expanded && !sorting
   const body_id = useId()
   const [viewport_width, setViewportWidth] = useState(() => window.innerWidth)
   useEffect(() => {
@@ -40,7 +56,7 @@ export default function AdminGallery({
   }, [gallery, viewport_width])
   const box_width = (layout.gallery_width - layout.column_gutter * (layout.column_count - 1)) / layout.column_count
 
-  const items: WaterfallItem[] = useMemo(() => expanded ? gallery.photos.map(photo => ({
+  const items: WaterfallItem[] = useMemo(() => show_expanded ? gallery.photos.map(photo => ({
     id: String(photo.id),
     node: (
       <AdminPhotoBox
@@ -52,20 +68,25 @@ export default function AdminGallery({
         onChanged={onChanged}
       />
     ),
-  })) : [], [box_width, expanded, gallery, layout.box_type, memberCanDelete, onChanged])
+  })) : [], [box_width, show_expanded, gallery, layout.box_type, memberCanDelete, onChanged])
 
   return (
-    <div className='gallery-wrapper'>
+    <div className='gallery-wrapper' data-gallery-sort-id={gallery.id}>
       <section className='admin-gallery'>
         <GalleryHeader
           name={gallery.name}
-          expanded={expanded}
+          expanded={show_expanded}
           controls={body_id}
           empty={gallery.photos.length === 0}
           onToggle={() => setExpanded(value => !value)}
+          sorting={sorting}
+          dragging={dragging}
+          dragOver={dragOver}
+          dropAfter={dropAfter}
+          onDragHandlePointerDown={onDragHandlePointerDown}
         />
         <div id={body_id}>
-          {expanded && (
+          {show_expanded && (
             <>
               <GalleryManagePanel
                 gallery={gallery}

@@ -60,3 +60,39 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.sortHeader {
+  position: relative;
+  user-select: none;
+}
+
+.sortHeader .name,
+.sortHeader .dragHandle {
+  will-change: transform;
+}
+
+.dragHandle {
+  cursor: grab;
+  touch-action: none;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.dragHandle svg {
+  fill: currentColor;
+  stroke: none;
+}
+
+.dragging {
+  opacity: .55;
+}
+
+.dragOverBefore {
+  box-shadow: inset 0 2px 0 #e8571f;
+}
+
+.dragOverAfter {
+  box-shadow: inset 0 -2px 0 #e8571f;
+}

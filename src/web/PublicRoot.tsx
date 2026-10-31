@@ -45,14 +45,6 @@ type AfterglowState = {
   startVh: number
 }
 
-const hiddenStageStyle: React.CSSProperties = {
-  position: 'relative',
-  overflow: 'hidden',
-  height: 0,
-  visibility: 'hidden',
-  pointerEvents: 'none',
-}
-
 const activeStageStyle: React.CSSProperties = {
   position: 'relative',
 }
@@ -203,65 +195,50 @@ export default function PublicRoot() {
     window.scrollTo(0, 0)
   }, [activeChannel])
 
-  const lockScroll = switchState !== null
-  useEffect(() => {
-    if (!lockScroll) {
-      return
-    }
-
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previousOverflow
-    }
-  }, [lockScroll])
-
   if (!behind && !explore && !cancel && !admin) {
     return <Navigate to='/explore' replace />
   }
 
   return (
     <>
-      <div
-        ref={behindStageRef}
-        className={styles.pageStage}
-        style={activeChannel === 'behind' ? activeStageStyle : hiddenStageStyle}
-        aria-hidden={activeChannel !== 'behind'}
-        inert={activeChannel !== 'behind'}
-      >
-        <BehindApp thisIsDisplay={activeChannel === 'behind'} />
-      </div>
-      <div
-        ref={homeStageRef}
-        className={styles.pageStage}
-        style={activeChannel === 'explore' ? activeStageStyle : hiddenStageStyle}
-        aria-hidden={activeChannel !== 'explore'}
-        inert={activeChannel !== 'explore'}
-      >
-        <HomeApp />
-      </div>
-      <div
-        ref={cancelStageRef}
-        className={styles.pageStage}
-        style={activeChannel === 'cancel' ? activeStageStyle : hiddenStageStyle}
-        aria-hidden={activeChannel !== 'cancel'}
-        inert={activeChannel !== 'cancel'}
-      >
-        <CancelSubmissionApp thisIsDisplay={activeChannel === 'cancel'} />
-      </div>
-      <div
-        ref={adminStageRef}
-        className={styles.pageStage}
-        style={activeChannel === 'admin' ? activeStageStyle : hiddenStageStyle}
-        aria-hidden={activeChannel !== 'admin'}
-        inert={activeChannel !== 'admin'}
-      >
-        {activeChannel === 'admin' && (
+      {activeChannel === 'behind' && (
+        <div
+          ref={behindStageRef}
+          className={styles.pageStage}
+          style={activeStageStyle}
+        >
+          <BehindApp thisIsDisplay />
+        </div>
+      )}
+      {activeChannel === 'explore' && (
+        <div
+          ref={homeStageRef}
+          className={styles.pageStage}
+          style={activeStageStyle}
+        >
+          <HomeApp />
+        </div>
+      )}
+      {activeChannel === 'cancel' && (
+        <div
+          ref={cancelStageRef}
+          className={styles.pageStage}
+          style={activeStageStyle}
+        >
+          <CancelSubmissionApp thisIsDisplay />
+        </div>
+      )}
+      {activeChannel === 'admin' && (
+        <div
+          ref={adminStageRef}
+          className={styles.pageStage}
+          style={activeStageStyle}
+        >
           <Suspense fallback={null}>
-            <AdminHome thisIsDisplay={activeChannel === 'admin'} />
+            <AdminHome thisIsDisplay />
           </Suspense>
-        )}
-      </div>
+        </div>
+      )}
       {afterglow && (
         <ChannelAfterglow
           key={`afterglow-${afterglow.id}`}

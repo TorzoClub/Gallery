@@ -166,7 +166,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
   }, [saveSettings])
 
   const refresh = useCallback(async () => {
-    await load(true)
+    await load(false)
     watterfall_refreshed.trigger()
   }, [load, watterfall_refreshed])
 

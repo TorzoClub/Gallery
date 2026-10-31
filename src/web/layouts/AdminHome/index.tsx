@@ -4,6 +4,7 @@ import { Signal } from 'vait'
 import type { AdminPoolDTO } from '@shared/dto'
 import { ApiError } from '../../api/dispatch'
 import { updateInstanceConfig } from '../../admin/api/config'
+import { createGallery } from '../../admin/api/gallery'
 import { refreshAvatar, refreshThumb } from '../../admin/api/image'
 import { fetchAdminPool } from '../../admin/api/pool'
 import { getToken, removeToken } from '../../admin/auth/token'
@@ -23,6 +24,7 @@ import {
 import { instanceConfigFromSettings, settingsFromInstanceConfig } from './admin-settings'
 import styles from './index.module.scss'
 import './admin.css'
+import SkeuomorphismButton from '@/components/SkeuomorphismButton'
 
 type LoadState =
   | { status: 'loading' }
@@ -64,6 +66,8 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [settings, setSettings] = useState<AdminSettings | null>(null)
   const [settingsSaving, setSettingsSaving] = useState(false)
+  const [creatingGallery, setCreatingGallery] = useState(false)
+  const [createGalleryError, setCreateGalleryError] = useState('')
   const settingsSaveTimer = useRef<number | null>(null)
   const settingsSaveSequence = useRef(0)
 
@@ -171,6 +175,48 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     watterfall_refreshed.trigger()
   }, [load, watterfall_refreshed])
 
+  const handleGalleryChanged = useCallback(async () => {
+    await load(false)
+    watterfall_refreshed.trigger()
+  }, [load, watterfall_refreshed])
+
+  const handleCreateGallery = useCallback(async () => {
+    if (state.status !== 'ready' || creatingGallery) {
+      return
+    }
+
+    setCreatingGallery(true)
+    setCreateGalleryError('')
+    try {
+      const galleries = state.pool.galleries
+      const max_index = galleries.reduce((max, gallery) => Math.max(max, gallery.index), -1)
+      const now = Date.now()
+      const latest_end = galleries.reduce(
+        (max, gallery) => Math.max(max, new Date(gallery.event_end).getTime()),
+        now,
+      )
+      const day = 24 * 60 * 60 * 1000
+      const event_start = new Date(latest_end + day)
+      const submission_expire = new Date(event_start.getTime() + 7 * day)
+      const event_end = new Date(event_start.getTime() + 14 * day)
+
+      await createGallery({
+        name: 'new Gallery',
+        index: max_index + 1,
+        vote_limit: 0,
+        event_start: event_start.toISOString(),
+        submission_expire: submission_expire.toISOString(),
+        event_end: event_end.toISOString(),
+      })
+      await load(false)
+      watterfall_refreshed.trigger()
+    } catch (error) {
+      setCreateGalleryError(getApiErrorMessage(error, '创建相册失败'))
+    } finally {
+      setCreatingGallery(false)
+    }
+  }, [creatingGallery, load, state, watterfall_refreshed])
+
   const handleRebuild = useCallback(async (reporter: RebuildReporter) => {
     if (state.status !== 'ready') {
       throw new Error('后台数据尚未读取完成')
@@ -221,6 +267,15 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     return member => !referenced.has(Number(member.id))
   }, [state])
 
+  const sorted_galleries = useMemo(() => {
+    if (state.status !== 'ready') {
+      return []
+    }
+    return [...state.pool.galleries].sort((left, right) => (
+      right.index - left.index || Number(right.id) - Number(left.id)
+    ))
+  }, [state])
+
   if (!thisIsDisplay) {
     return null
   }
@@ -262,16 +317,25 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
         onRebuild={handleRebuild}
       />
       {settingsSaving && <div className={styles.consoleStatus}>正在保存设置…</div>}
+      <div className={styles.createGallery}>
+        <SkeuomorphismButton onClick={() => void handleCreateGallery()}>
+          {creatingGallery ? '创建中…' : '+ 创建相册'}
+        </SkeuomorphismButton>
+        {createGalleryError !== '' && (
+          <div className={styles.createGalleryError} role='alert'>{createGalleryError}</div>
+        )}
+      </div>
       <div className='gallery-home'>
         <div className='body'>
           <div style={{ height: '8px' }}></div>
-          {state.pool.galleries.length === 0
+          {sorted_galleries.length === 0
             ? <div className={styles.empty}>还没有相册</div>
-            : state.pool.galleries.map(gallery => (
+            : sorted_galleries.map(gallery => (
               <AdminGallery
                 key={gallery.id}
                 gallery={gallery}
                 memberCanDelete={memberCanDelete}
+                onGalleryChanged={handleGalleryChanged}
                 onChanged={refresh}
                 onWatterfallRefreshed={watterfall_refreshed.trigger}
               />

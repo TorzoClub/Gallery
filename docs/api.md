@@ -207,7 +207,7 @@ payload: {}
 |---|---|---|
 | `adminUpdateInstanceConfig` | 任意 instance 配置字段 | 返回完整配置 |
 | `adminFetchPool` | `{}` | 完整 AdminPool；新后台唯一的读取接口 |
-| `adminCreateGallery` | `{ name, index, vote_limit, event_start, submission_expire, event_end }` | 创建相册；活动期间与其他相册重合时返回 `409 CONFLICT` |
+| `adminCreateGallery` | `{ name, index, vote_limit, event_start, submission_expire, event_end }` | 创建相册；名称长度 1–256；活动期间与其他相册重合时返回 `409 CONFLICT` |
 | `adminUpdateGallery` | `{ gallery_id, ...可选字段 }` | 更新相册；活动期间与其他相册重合时返回 `409 CONFLICT` |
 | `adminRemoveGallery` | `{ gallery_id }` | 删除空相册；仍有相片时返回 `409 CONFLICT` |
 | `adminCreateMember` | `{ qq_num, name, avatar_temp_id }` | 创建成员，必须上传头像 |

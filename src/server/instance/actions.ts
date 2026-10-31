@@ -146,7 +146,7 @@ const dateSchema = z.iso.datetime()
 const photoIdsSchema = z.array(idSchema).min(1)
 
 const GalleryCreateSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).max(256),
   index: z.number().int().nonnegative(),
   vote_limit: z.number().int().nonnegative(),
   event_start: dateSchema,

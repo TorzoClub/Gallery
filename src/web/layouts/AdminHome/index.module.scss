@@ -16,6 +16,10 @@
   box-sizing: border-box;
 }
 
+.createGallery {
+  padding: 40px 0;
+}
+
 .page > .gallery-home {
   padding-top: 24px;
 }
@@ -131,4 +135,13 @@
   color: #776b5c;
   font-size: 12px;
   letter-spacing: .04em;
+}
+
+.createGalleryError {
+  max-width: 360px;
+  margin: 10px auto 0;
+  color: #8c2828;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
 }

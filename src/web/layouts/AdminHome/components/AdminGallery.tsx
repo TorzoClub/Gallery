@@ -1,14 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useId, useMemo, useState } from 'react'
 import type { AdminGalleryDTO } from '@shared/dto'
 import { getGalleryLayout } from '../../../components/Gallery'
 import Waterfall, { type WaterfallItem } from '../../../components/Waterfall'
-import Title from '../../../components/Title'
+import GalleryHeader from './GalleryHeader'
+import GalleryTitlePopover from './GalleryTitlePopover'
 import AdminPhotoBox from './AdminPhotoBox'
 import type { MemberCanDelete } from './AdminConsole'
 
 type Props = {
   gallery: AdminGalleryDTO
   memberCanDelete?: MemberCanDelete
+  onGalleryChanged?: () => void | Promise<void>
   onChanged(): Promise<void>
   onWatterfallRefreshed(): void
 }
@@ -16,9 +18,12 @@ type Props = {
 export default function AdminGallery({
   gallery,
   memberCanDelete,
+  onGalleryChanged,
   onChanged,
   onWatterfallRefreshed,
 }: Props) {
+  const [expanded, setExpanded] = useState(false)
+  const body_id = useId()
   const [viewport_width, setViewportWidth] = useState(() => window.innerWidth)
   useEffect(() => {
     const handleResize = () => setViewportWidth(window.innerWidth)
@@ -31,7 +36,7 @@ export default function AdminGallery({
   }, [gallery, viewport_width])
   const box_width = (layout.gallery_width - layout.column_gutter * (layout.column_count - 1)) / layout.column_count
 
-  const items: WaterfallItem[] = useMemo(() => gallery.photos.map(photo => ({
+  const items: WaterfallItem[] = useMemo(() => expanded ? gallery.photos.map(photo => ({
     id: String(photo.id),
     node: (
       <AdminPhotoBox
@@ -43,17 +48,37 @@ export default function AdminGallery({
         onChanged={onChanged}
       />
     ),
-  })), [box_width, gallery, layout.box_type, memberCanDelete, onChanged])
+  })) : [], [box_width, expanded, gallery, layout.box_type, memberCanDelete, onChanged])
 
   return (
     <div className='gallery-wrapper'>
-      <section className='gallery'>
-        <Title title={gallery.name} keepTransition={false} />
-        <Waterfall
-          layout={layout}
-          items={items}
-          onWatterfallRefreshed={onWatterfallRefreshed}
+      <section className='admin-gallery'>
+        <GalleryHeader
+          name={gallery.name}
+          expanded={expanded}
+          controls={body_id}
+          onToggle={() => setExpanded(value => !value)}
+          renderName={(name, className) => (
+            <GalleryTitlePopover
+              gallery={gallery}
+              trigger={(
+                <button type='button' className={className}>
+                  {name}
+                </button>
+              )}
+              onSaved={onGalleryChanged ?? onChanged}
+            />
+          )}
         />
+        <div id={body_id}>
+          {expanded && (
+            <Waterfall
+              layout={layout}
+              items={items}
+              onWatterfallRefreshed={onWatterfallRefreshed}
+            />
+          )}
+        </div>
       </section>
     </div>
   )

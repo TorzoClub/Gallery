@@ -1,0 +1,100 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-width: 260px;
+  color: #374151;
+  font-size: 13px;
+}
+
+.label {
+  color: #59616b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.field {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid #8d8c87;
+  border-radius: 3px;
+  background: #fafaf8;
+  color: #374151;
+  box-shadow: inset 0 2px 4px rgb(0 0 0 / .25);
+  font: 500 14px/1.4 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  outline: none;
+}
+
+.field:focus-visible {
+  outline: 2px solid #e8571f;
+  outline-offset: 2px;
+}
+
+.field:disabled {
+  opacity: .65;
+}
+
+.error {
+  color: #8c2828;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-top: 2px;
+}
+
+.actionsRight {
+  display: flex;
+  gap: 7px;
+  margin-left: auto;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 3px;
+  font: 700 12px 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 1px solid #9a4a2d;
+  background: linear-gradient(#f17b4d, #d95625);
+  color: #fffdf7;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .35), 0 1px 2px rgb(0 0 0 / .25);
+}
+
+.secondaryButton {
+  border: 1px solid #a8aa9e;
+  background: linear-gradient(#fffef7, #e9e5d7);
+  color: #4b5563;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(0 0 0 / .12);
+}
+
+.dangerButton {
+  border: 1px solid #b98282;
+  background: linear-gradient(#fff8f4, #f4ddd8);
+  color: #8c2828;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(0 0 0 / .12);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled {
+  cursor: default;
+  opacity: .6;
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.dangerButton:focus-visible {
+  outline: 2px solid #e8571f;
+  outline-offset: 2px;
+}

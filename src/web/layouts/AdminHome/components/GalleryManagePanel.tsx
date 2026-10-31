@@ -233,7 +233,6 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
   return (
     <section className={styles.panel}>
       <div className={styles.editor}>
-        <h3 className={styles.heading}>编辑相册</h3>
         <form className={styles.form} onSubmit={handleSubmit} noValidate>
           <label className={styles.field}>
             <span>相册名称</span>
@@ -334,7 +333,6 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
       <aside className={styles.votePanel}>
         {vote_view === 'summary' && (
           <>
-            <h3 className={styles.heading}>成员投票</h3>
             <div className={styles.stats}>
               <div className={styles.stat}>
                 <span>投票总人数</span>
@@ -411,8 +409,7 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
 
         {vote_view === 'revote' && (
           <div className={styles.revoteView}>
-            <div className={styles.revoteHead}>
-              <h3 className={styles.heading}>成员投票</h3>
+            <div className={`${styles.revoteHead} ${styles.revoteHeadEnd}`}>
               <button type='button' className={styles.backButton} onClick={() => setVoteView('summary')}>
                 返回统计
               </button>

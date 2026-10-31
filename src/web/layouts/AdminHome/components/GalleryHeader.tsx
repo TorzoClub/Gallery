@@ -29,6 +29,7 @@ type GalleryIconProps = {
 function GalleryIcon({ empty, photo_refs, empty_mask_refs }: GalleryIconProps) {
   const uid = useId().replace(/:/g, '')
   const gradient_id = `gallery-icon-sky-${uid}`
+  const front_clip_id = `gallery-icon-front-${uid}`
   const back_mask_id = `gallery-icon-empty-back-${uid}`
   const middle_mask_id = `gallery-icon-empty-middle-${uid}`
 
@@ -99,6 +100,9 @@ function GalleryIcon({ empty, photo_refs, empty_mask_refs }: GalleryIconProps) {
           <stop offset='0.62' stopColor='#238de4' />
           <stop offset='1' stopColor='#bdeeff' />
         </linearGradient>
+        <clipPath id={front_clip_id} clipPathUnits='userSpaceOnUse'>
+          <rect x='12' y='7' width='19' height='19' rx='0.5' />
+        </clipPath>
       </defs>
 
       <g ref={photo_refs?.[0]}>
@@ -123,8 +127,10 @@ function GalleryIcon({ empty, photo_refs, empty_mask_refs }: GalleryIconProps) {
         <g transform='rotate(-4 22 20)'>
           <rect x='10' y='5' width='23' height='28' rx='1.5' fill='#fffdf6' stroke='#a9a292' strokeWidth='0.9' />
           <rect x='12' y='7' width='19' height='19' rx='0.5' fill={`url(#${gradient_id})`} />
-          <path d='M14 16c2-2 4-1 5 0 2-2 4-1 5 0 2-2 4-1 5 0 2-2 4-1 5 0v4c-3 1-6 2-10 0-2-1-3-1-5-1z' fill='#fff' opacity='0.82' />
-          <path d='M13 22c4 2 8 1 11 0 3-1 5-1 7 0v3H13z' fill='#fff' opacity='0.5' />
+          <g clipPath={`url(#${front_clip_id})`}>
+            <path d='M14 16c2-2 4-1 5 0 2-2 4-1 5 0 2-2 4-1 5 0 2-2 4-1 5 0v4c-3 1-6 2-10 0-2-1-3-1-5-1z' fill='#fff' opacity='0.82' />
+            <path d='M13 22c4 2 8 1 11 0 3-1 5-1 7 0v3H13z' fill='#fff' opacity='0.5' />
+          </g>
           <rect x='13' y='28' width='17' height='2' rx='0.8' fill='#e4ddcd' />
         </g>
       </g>

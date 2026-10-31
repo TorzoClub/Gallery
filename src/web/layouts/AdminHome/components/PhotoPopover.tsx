@@ -22,6 +22,7 @@ function Actions({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [confirming, setConfirming] = useState(false)
+  const [description, setDescription] = useState(photo.desc)
   const file_ref = useRef<HTMLInputElement>(null)
 
   const handleFile = async (file: File) => {
@@ -43,6 +44,27 @@ function Actions({
       if (file_ref.current !== null) {
         file_ref.current.value = ''
       }
+    }
+  }
+
+  const handleSaveDescription = async () => {
+    if (busy || description === photo.desc) {
+      onClose()
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await adminMutate('adminUpdatePhoto', {
+        photo_id: photo.id,
+        desc: description,
+      })
+      await onChanged()
+      onClose()
+    } catch (err) {
+      setError(getApiErrorMessage(err, '保存描述失败'))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -76,6 +98,29 @@ function Actions({
           }
         }}
       />
+
+      <label className={styles.description}>
+        <span>描述</span>
+        <textarea
+          value={description}
+          rows={4}
+          disabled={busy}
+          data-autofocus
+          onChange={(event) => {
+            setDescription(event.target.value)
+            setError('')
+          }}
+        />
+      </label>
+
+      <button
+        type="button"
+        className={styles.primaryButton}
+        disabled={busy}
+        onClick={() => void handleSaveDescription()}
+      >
+        {busy ? '保存中…' : '保存描述'}
+      </button>
 
       {confirming ? (
         <div className={styles.confirm}>

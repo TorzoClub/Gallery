@@ -276,7 +276,7 @@ function useTitleNode(gallery: GalleryView) {
   }, [gallery.can_submission, open])
 
   const title_node = useMemo(() => (
-    <div onClick={() => {}}>
+    <div onClick={() => {}} style={{ marginBottom: '20px' }}>
       <Title title={gallery.name} open={open} keepTransition={true}>
         <Submission gallery={gallery} />
       </Title>

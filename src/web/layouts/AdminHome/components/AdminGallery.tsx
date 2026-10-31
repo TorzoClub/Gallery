@@ -3,13 +3,14 @@ import type { AdminGalleryDTO, MemberDTO } from '@shared/dto'
 import { getGalleryLayout } from '../../../components/Gallery'
 import Waterfall, { type WaterfallItem } from '../../../components/Waterfall'
 import GalleryHeader from './GalleryHeader'
-import GalleryManagePanel from './GalleryManagePanel'
+import GalleryManagePanel, { type MemberHistory } from './GalleryManagePanel'
 import AdminPhotoBox from './AdminPhotoBox'
 import type { MemberCanDelete } from './AdminConsole'
 
 type Props = {
   gallery: AdminGalleryDTO
   members: MemberDTO[]
+  memberHistory: MemberHistory
   memberCanDelete?: MemberCanDelete
   onGalleryChanged?: () => void | Promise<void>
   onChanged(): Promise<void>
@@ -19,6 +20,7 @@ type Props = {
 export default function AdminGallery({
   gallery,
   members,
+  memberHistory,
   memberCanDelete,
   onGalleryChanged,
   onChanged,
@@ -68,6 +70,7 @@ export default function AdminGallery({
               <GalleryManagePanel
                 gallery={gallery}
                 members={members}
+                member_history={memberHistory}
                 onChanged={onGalleryChanged ?? onChanged}
               />
               {items.length === 0

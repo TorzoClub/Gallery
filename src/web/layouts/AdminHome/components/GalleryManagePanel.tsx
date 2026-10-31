@@ -12,9 +12,18 @@ import {
 } from '../../../admin/utils/date'
 import styles from './GalleryManagePanel.module.scss'
 
+export type MemberHistory = {
+  ever_voted: ReadonlySet<number>
+  ever_submitted: ReadonlySet<number>
+}
+
+type VoteView = 'summary' | 'revote' | 'non_voters'
+type NonVoterFilter = 'all' | 'ever_voted' | 'ever_submitted'
+
 type Props = {
   gallery: AdminGalleryDTO
   members: MemberDTO[]
+  member_history: MemberHistory
   onChanged(): void | Promise<void>
 }
 
@@ -36,7 +45,7 @@ function formFromGallery(gallery: AdminGalleryDTO): FormState {
   }
 }
 
-export default function GalleryManagePanel({ gallery, members, onChanged }: Props) {
+export default function GalleryManagePanel({ gallery, members, member_history, onChanged }: Props) {
   const [form, setForm] = useState<FormState>(() => formFromGallery(gallery))
   const [form_busy, setFormBusy] = useState(false)
   const [form_error, setFormError] = useState('')
@@ -45,7 +54,8 @@ export default function GalleryManagePanel({ gallery, members, onChanged }: Prop
   const [sort_error, setSortError] = useState('')
   const [delete_open, setDeleteOpen] = useState(false)
   const [delete_busy, setDeleteBusy] = useState(false)
-  const [show_revote, setShowRevote] = useState(false)
+  const [vote_view, setVoteView] = useState<VoteView>('summary')
+  const [non_voter_filter, setNonVoterFilter] = useState<NonVoterFilter>('all')
   const [revote_busy_id, setRevoteBusyId] = useState<number | null>(null)
   const [revote_error, setRevoteError] = useState('')
 
@@ -73,6 +83,19 @@ export default function GalleryManagePanel({ gallery, members, onChanged }: Prop
   )
   const total = members.length
   const not_voted = Math.max(0, total - voted)
+  const non_voters = useMemo(
+    () => members.filter(member => !votes_by_member.has(Number(member.id))),
+    [members, votes_by_member],
+  )
+  const filtered_non_voters = useMemo(() => {
+    if (non_voter_filter === 'ever_voted') {
+      return non_voters.filter(member => member_history.ever_voted.has(Number(member.id)))
+    }
+    if (non_voter_filter === 'ever_submitted') {
+      return non_voters.filter(member => member_history.ever_submitted.has(Number(member.id)))
+    }
+    return non_voters
+  }, [member_history, non_voter_filter, non_voters])
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm(current => ({ ...current, [key]: value }))
@@ -309,11 +332,88 @@ export default function GalleryManagePanel({ gallery, members, onChanged }: Prop
       </div>
 
       <aside className={styles.votePanel}>
-        {show_revote ? (
+        {vote_view === 'summary' && (
+          <>
+            <h3 className={styles.heading}>成员投票</h3>
+            <div className={styles.stats}>
+              <div className={styles.stat}>
+                <span>投票总人数</span>
+                <strong>{total}</strong>
+              </div>
+              <div className={styles.stat}>
+                <span>已投</span>
+                <strong>{voted}</strong>
+              </div>
+              <div className={styles.stat}>
+                <span>未投</span>
+                <strong>{not_voted}</strong>
+              </div>
+            </div>
+
+            {sort_error !== '' && <div className={styles.error} role='alert'>{sort_error}</div>}
+
+            <div className={styles.voteActions}>
+              <Popover
+                label='确认按票数排序'
+                trigger={(
+                  <button
+                    type='button'
+                    className={styles.secondaryButton}
+                    disabled={sort_busy}
+                  >
+                    {sort_busy ? '排序中…' : '按票数排序'}
+                  </button>
+                )}
+                content={(close) => (
+                  <div className={styles.sortConfirm}>
+                    <div className={styles.sortConfirmText}>确定要按当前票数重新排列相片吗？</div>
+                    <div className={styles.sortConfirmActions}>
+                      <button type='button' className={styles.secondaryButton} onClick={close}>
+                        取消
+                      </button>
+                      <button
+                        type='button'
+                        className={styles.primaryButton}
+                        onClick={() => {
+                          close()
+                          void handleSort()
+                        }}
+                      >
+                        开始排序
+                      </button>
+                    </div>
+                  </div>
+                )}
+              />
+              <button
+                type='button'
+                className={styles.secondaryButton}
+                onClick={() => {
+                  setRevoteError('')
+                  setVoteView('revote')
+                }}
+              >
+                设置重投
+              </button>
+              <button
+                type='button'
+                className={styles.secondaryButton}
+                onClick={() => {
+                  setNonVoterFilter('all')
+                  setVoteView('non_voters')
+                }}
+              >
+                看看谁没投
+              </button>
+            </div>
+          </>
+        )}
+
+        {vote_view === 'revote' && (
           <div className={styles.revoteView}>
             <div className={styles.revoteHead}>
               <h3 className={styles.heading}>成员投票</h3>
-              <button type='button' className={styles.backButton} onClick={() => setShowRevote(false)}>
+              <button type='button' className={styles.backButton} onClick={() => setVoteView('summary')}>
                 返回统计
               </button>
             </div>
@@ -378,71 +478,48 @@ export default function GalleryManagePanel({ gallery, members, onChanged }: Prop
               </table>
             </div>
           </div>
-        ) : (
-          <>
-            <h3 className={styles.heading}>成员投票</h3>
-            <div className={styles.stats}>
-              <div className={styles.stat}>
-                <span>投票总人数</span>
-                <strong>{total}</strong>
-              </div>
-              <div className={styles.stat}>
-                <span>已投</span>
-                <strong>{voted}</strong>
-              </div>
-              <div className={styles.stat}>
-                <span>未投</span>
-                <strong>{not_voted}</strong>
-              </div>
-            </div>
+        )}
 
-            {sort_error !== '' && <div className={styles.error} role='alert'>{sort_error}</div>}
-
-            <div className={styles.voteActions}>
-              <Popover
-                label='确认按票数排序'
-                trigger={(
-                  <button
-                    type='button'
-                    className={styles.secondaryButton}
-                    disabled={sort_busy}
-                  >
-                    {sort_busy ? '排序中…' : '按票数排序'}
-                  </button>
-                )}
-                content={(close) => (
-                  <div className={styles.sortConfirm}>
-                    <div className={styles.sortConfirmText}>确定要按当前票数重新排列相片吗？</div>
-                    <div className={styles.sortConfirmActions}>
-                      <button type='button' className={styles.secondaryButton} onClick={close}>
-                        取消
-                      </button>
-                      <button
-                        type='button'
-                        className={styles.primaryButton}
-                        onClick={() => {
-                          close()
-                          void handleSort()
-                        }}
-                      >
-                        开始排序
-                      </button>
-                    </div>
-                  </div>
-                )}
-              />
-              <button
-                type='button'
-                className={styles.secondaryButton}
-                onClick={() => {
-                  setRevoteError('')
-                  setShowRevote(true)
-                }}
-              >
-                设置重投
+        {vote_view === 'non_voters' && (
+          <div className={styles.nonVoterView}>
+            <div className={styles.revoteHead}>
+              <h3 className={styles.heading}>谁没投</h3>
+              <button type='button' className={styles.backButton} onClick={() => setVoteView('summary')}>
+                返回统计
               </button>
             </div>
-          </>
+
+            <div className={styles.filterRow} role='group' aria-label='未投成员筛选'>
+              {([
+                ['all', '所有人'],
+                ['ever_voted', '曾经参加过投票'],
+                ['ever_submitted', '曾经投稿过作品'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type='button'
+                  className={`${styles.filterButton} ${non_voter_filter === value ? styles.filterButtonActive : ''}`}
+                  onClick={() => setNonVoterFilter(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className={styles.nonVoterList}>
+              {filtered_non_voters.length === 0
+                ? <div className={styles.nonVoterEmpty}>没有符合条件的成员</div>
+                : filtered_non_voters.map(member => (
+                  <div key={member.id} className={styles.nonVoterRow}>
+                    <img className={styles.nonVoterAvatar} src={member.avatar_thumb_url} alt='' loading='lazy' />
+                    <div className={styles.nonVoterInfo}>
+                      <strong>{member.name}</strong>
+                      <span>{member.qq_num}</span>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
         )}
       </aside>
     </section>

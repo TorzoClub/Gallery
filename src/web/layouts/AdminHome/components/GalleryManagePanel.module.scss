@@ -386,3 +386,107 @@
   cursor: default;
   opacity: .55;
 }
+
+
+.votePanel {
+  display: flex;
+  flex-direction: column;
+}
+
+.voteActions {
+  margin-top: auto;
+  align-self: flex-end;
+  justify-content: flex-end;
+}
+
+.nonVoterView {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 2px 0 10px;
+}
+
+.filterButton {
+  padding: 4px 7px;
+  border: 1px solid #c3bba9;
+  border-radius: 3px;
+  background: rgb(255 253 246 / .7);
+  color: #776b5c;
+  font: 700 11px 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  cursor: pointer;
+}
+
+.filterButtonActive {
+  border-color: #8f887a;
+  background: #e8e1d1;
+  color: #3f4a55;
+}
+
+.filterButton:focus-visible {
+  outline: 2px solid #e8571f;
+  outline-offset: 2px;
+}
+
+.nonVoterList {
+  min-height: 80px;
+  max-height: 340px;
+  overflow-y: auto;
+  border: 1px solid #d2cabb;
+  border-radius: 3px;
+  background: rgb(255 255 255 / .35);
+}
+
+.nonVoterRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-bottom: 1px solid #ddd4bf;
+}
+
+.nonVoterRow:last-child {
+  border-bottom: 0;
+}
+
+.nonVoterAvatar {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: 50%;
+  background: #ddd;
+}
+
+.nonVoterInfo {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+
+  strong {
+    overflow: hidden;
+    color: #3f4a55;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    color: #9b917f;
+    font: 600 11px ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+}
+
+.nonVoterEmpty {
+  padding: 18px 10px;
+  color: #9b917f;
+  font-size: 12px;
+  text-align: center;
+}

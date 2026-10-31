@@ -13,6 +13,7 @@ import { global_queue } from '../../utils/queue-load'
 import Navigator from '@/components/Navigator'
 import { signal_critical_error } from '../../signals'
 import AdminGallery from './components/AdminGallery'
+import type { MemberHistory } from './components/GalleryManagePanel'
 import {
   AdminConsole,
   type AdminSettings,
@@ -267,6 +268,22 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     return member => !referenced.has(Number(member.id))
   }, [state])
 
+  const member_history = useMemo<MemberHistory>(() => {
+    const ever_voted = new Set<number>()
+    const ever_submitted = new Set<number>()
+    if (state.status === 'ready') {
+      for (const gallery of state.pool.galleries) {
+        for (const photo of gallery.photos) {
+          ever_submitted.add(Number(photo.member_id))
+        }
+        for (const vote of gallery.vote_records) {
+          ever_voted.add(Number(vote.member_id))
+        }
+      }
+    }
+    return { ever_voted, ever_submitted }
+  }, [state])
+
   const sorted_galleries = useMemo(() => {
     if (state.status !== 'ready') {
       return []
@@ -335,6 +352,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
                 key={gallery.id}
                 gallery={gallery}
                 members={state.pool.members}
+                memberHistory={member_history}
                 memberCanDelete={memberCanDelete}
                 onGalleryChanged={handleGalleryChanged}
                 onChanged={refresh}

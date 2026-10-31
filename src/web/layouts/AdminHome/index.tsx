@@ -236,6 +236,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
   }, [state])
 
   const display_galleries = sort_mode ? draft_galleries : sorted_galleries
+  const sort_disabled = sort_mode ? sort_busy : sorted_galleries.length === 0
 
   const moveDraftGallery = useCallback((source_id: number, target_id: number, after: boolean) => {
     setDraftGalleries(current => {
@@ -471,21 +472,26 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
       {settingsSaving && <div className={styles.consoleStatus}>正在保存设置…</div>}
       <div className={styles.createGallery}>
         <div className={styles.createGalleryActions}>
-          {!sort_mode && (
-            <SkeuomorphismButton onClick={() => void handleCreateGallery()}>
-              {creatingGallery ? '创建中…' : '+ 创建相册'}
-            </SkeuomorphismButton>
-          )}
-          <button
-            type='button'
-            className={styles.sortButton}
-            disabled={sort_mode ? sort_busy : sorted_galleries.length === 0}
+          <SkeuomorphismButton
+            disabled={sort_mode || creatingGallery}
+            onClick={() => void handleCreateGallery()}
+            inputProps={{
+              className: sort_mode ? styles.createGalleryDisabled : undefined,
+            }}
+          >
+            {creatingGallery ? '创建中…' : '+ 创建相册'}
+          </SkeuomorphismButton>
+          <SkeuomorphismButton
+            disabled={sort_disabled}
             onClick={handleSortButton}
+            inputProps={{
+              className: sort_disabled ? styles.sortButtonDisabled : undefined,
+            }}
           >
             {sort_mode
               ? (sort_busy ? '保存中…' : '完成排序')
               : '调整相册顺序'}
-          </button>
+          </SkeuomorphismButton>
         </div>
         {createGalleryError !== '' && (
           <div className={styles.createGalleryError} role='alert'>{createGalleryError}</div>

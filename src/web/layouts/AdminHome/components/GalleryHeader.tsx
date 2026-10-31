@@ -189,55 +189,64 @@ export default function GalleryHeader({
     />
   )
   const name_node = <span ref={name_ref} className={styles.name}>{name}</span>
+  const header_class = [
+    styles.header,
+    sorting ? styles.sortHeader : '',
+    dragging ? styles.dragging : '',
+    dragOver ? (dropAfter ? styles.dragOverAfter : styles.dragOverBefore) : '',
+  ].filter(Boolean).join(' ')
 
-  if (sorting) {
-    const sort_class = [
-      styles.header,
-      styles.sortHeader,
-      dragging ? styles.dragging : '',
-      dragOver ? (dropAfter ? styles.dragOverAfter : styles.dragOverBefore) : '',
-    ].filter(Boolean).join(' ')
-
-    return (
-      <div className={sort_class}>
-        {icon}
-        <span
-          ref={handle_ref}
-          className={`${styles.chevron} ${styles.dragHandle}`}
-          aria-hidden='true'
-          onPointerDown={event => onDragHandlePointerDown?.(event)}
-        >
-          <svg viewBox='0 0 16 16' focusable='false'>
-            <path d='M8 0.8 L12.2 4.6 L3.8 4.6 Z' />
-            <rect x='2' y='6' width='12' height='1.7' rx='0.85' />
-            <rect x='2' y='8.3' width='12' height='1.7' rx='0.85' />
-            <rect x='2' y='10.6' width='12' height='1.7' rx='0.85' />
-            <path d='M3.8 13.1 L12.2 13.1 L8 16 Z' />
-          </svg>
-        </span>
-        {name_node}
-      </div>
-    )
+  const handle_key_down = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (sorting) {
+      return
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onToggle()
+    }
   }
 
   return (
-    <button
-      type='button'
-      className={styles.header}
-      aria-expanded={expanded}
-      aria-controls={controls}
-      aria-label={expanded ? `收起相册 ${name}` : `展开相册 ${name}`}
-      onClick={onToggle}
+    <div
+      className={header_class}
+      role={sorting ? undefined : 'button'}
+      tabIndex={sorting ? -1 : 0}
+      aria-expanded={sorting ? undefined : expanded}
+      aria-controls={sorting ? undefined : controls}
+      aria-label={sorting ? undefined : (expanded ? `收起相册 ${name}` : `展开相册 ${name}`)}
+      onClick={sorting ? undefined : onToggle}
+      onKeyDown={sorting ? undefined : handle_key_down}
     >
       {icon}
-      <span className={styles.chevron} aria-hidden='true'>
-        <svg viewBox='0 0 16 16' focusable='false'>
-          {expanded
-            ? <path d='M3 6l5 5 5-5' />
-            : <path d='M6 3l5 5-5 5' />}
-        </svg>
+      <span className={styles.controlSlot}>
+        <span
+          className={`${styles.chevron} ${styles.control} ${sorting ? styles.controlHidden : styles.controlShown}`}
+          aria-hidden='true'
+        >
+          <svg viewBox='0 0 16 16' focusable='false'>
+            {expanded
+              ? <path d='M3 6l5 5 5-5' />
+              : <path d='M6 3l5 5-5 5' />}
+          </svg>
+        </span>
+        <span className={`${styles.control} ${sorting ? styles.controlShown : styles.controlHidden}`}>
+          <span
+            ref={handle_ref}
+            className={`${styles.chevron} ${styles.dragHandle}`}
+            aria-hidden='true'
+            onPointerDown={event => onDragHandlePointerDown?.(event)}
+          >
+            <svg viewBox='0 0 16 16' focusable='false'>
+              <path d='M8 0.8 L12.2 4.6 L3.8 4.6 Z' />
+              <rect x='2' y='6' width='12' height='1.7' rx='0.85' />
+              <rect x='2' y='8.3' width='12' height='1.7' rx='0.85' />
+              <rect x='2' y='10.6' width='12' height='1.7' rx='0.85' />
+              <path d='M3.8 13.1 L12.2 13.1 L8 16 Z' />
+            </svg>
+          </span>
+        </span>
       </span>
       {name_node}
-    </button>
+    </div>
   )
 }

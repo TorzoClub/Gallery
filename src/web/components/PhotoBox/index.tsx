@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, CSSProperties, useMemo, type MouseEvent, type ReactNode } from 'react'
+import { useState, useEffect, useRef, CSSProperties, useMemo, type ReactNode } from 'react'
 import heartIMG from 'assets/heart.png'
 import heartHighlightIMG from 'assets/heart-highlight.png'
 import './index.scss'
@@ -56,9 +56,8 @@ export type Props = {
   desc: string
 
   onClickCover?(clickInfo: CoverClickEvent): void
-  onClickAvatar?(event: MouseEvent<HTMLDivElement>): void
-  bottomActions?: ReactNode
-  coverOverlay?: ReactNode
+  renderAvatar?(avatar: ReactNode): ReactNode
+  renderName?(name: ReactNode): ReactNode
 }
 
 const PhotoBox = (props: Props) => {
@@ -117,7 +116,6 @@ const PhotoBox = (props: Props) => {
             style={{ opacity: thumb_status === 'LOADED' ? 100 : 0 }}
           />
           { thumb_status === 'FAILURE' && <LoadFailure onClick={retryLoadPhotoThumb} /> }
-          {props.coverOverlay}
 
           {/* <div className="highlight"></div> */}
         </div>
@@ -128,27 +126,33 @@ const PhotoBox = (props: Props) => {
               <div className="bottom-block">
                 {hideMember || (
                   <div className="member-info">
-                    <div
-                      className={`avatar-wrapper ${props.onClickAvatar !== undefined ? 'avatar-wrapper--clickable' : ''}`}
-                      role={props.onClickAvatar !== undefined ? 'button' : undefined}
-                      tabIndex={props.onClickAvatar !== undefined ? 0 : undefined}
-                      onClick={props.onClickAvatar}
-                      onKeyDown={(event) => {
-                        if (props.onClickAvatar !== undefined && (event.key === 'Enter' || event.key === ' ')) {
-                          event.preventDefault()
-                          event.currentTarget.click()
-                        }
-                      }}
-                    >
-                      <div className="avatar">
-                        <div className="avatar-inner" style={{ transform: avatar_status === 'LOADED' ? 'translateY(0px)' : 'translateY(-100%)', backgroundImage: `url(${avatarThumb})` }}></div>
-                      </div>
+                    <div className="avatar-wrapper">
+                      {props.renderAvatar === undefined
+                        ? (
+                          <div className="avatar">
+                            <div className="avatar-inner" style={{ transform: avatar_status === 'LOADED' ? 'translateY(0px)' : 'translateY(-100%)', backgroundImage: `url(${avatarThumb})` }}></div>
+                          </div>
+                        )
+                        : props.renderAvatar(
+                          <div className="avatar">
+                            <div className="avatar-inner" style={{ transform: avatar_status === 'LOADED' ? 'translateY(0px)' : 'translateY(-100%)', backgroundImage: `url(${avatarThumb})` }}></div>
+                          </div>,
+                        )}
                     </div>
 
-                    <div className="member-name">
-                      <div className="avatar-float"></div>
-                      <span className="name-label">{props.name}</span>
-                    </div>
+                    {props.renderName === undefined
+                      ? (
+                        <div className="member-name">
+                          <div className="avatar-float"></div>
+                          <span className="name-label">{props.name}</span>
+                        </div>
+                      )
+                      : props.renderName(
+                        <div className="member-name">
+                          <div className="avatar-float"></div>
+                          <span className="name-label">{props.name}</span>
+                        </div>,
+                      )}
                   </div>
                 )}
                 {show_desc && (
@@ -159,14 +163,6 @@ const PhotoBox = (props: Props) => {
               </div>
             )
           }
-          {
-            props.bottomActions !== undefined && (
-              <div className="bottom-block bottom-block--admin-actions">
-                {props.bottomActions}
-              </div>
-            )
-          }
-
           {
             props.show_vote_button && vote_button_status !== undefined && props.handleClickVote !== undefined && (
               <BackBottom vote_button_status={vote_button_status} handleClickVote={props.handleClickVote} />

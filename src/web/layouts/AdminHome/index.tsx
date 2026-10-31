@@ -77,11 +77,13 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     }
   }, [thisIsDisplay])
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (show_loading = true) => {
     if (token === '') {
       return
     }
-    setState({ status: 'loading' })
+    if (show_loading) {
+      setState({ status: 'loading' })
+    }
     try {
       const pool = await fetchAdminPool()
       setState({ status: 'ready', pool })
@@ -97,7 +99,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
 
   useEffect(() => {
     if (thisIsDisplay) {
-      void load()
+      void load(true)
     }
   }, [load, thisIsDisplay])
 
@@ -159,7 +161,12 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
   }, [saveSettings])
 
   const refresh = useCallback(async () => {
-    await load()
+    await load(true)
+    watterfall_refreshed.trigger()
+  }, [load, watterfall_refreshed])
+
+  const handleMembersChanged = useCallback(async () => {
+    await load(false)
     watterfall_refreshed.trigger()
   }, [load, watterfall_refreshed])
 
@@ -234,6 +241,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
         settings={console_settings}
         onSettingsChange={handleSettingsChange}
         members={consoleMembersFromPool(state.pool)}
+        onMembersChanged={handleMembersChanged}
         onRebuild={handleRebuild}
       />
       {settingsSaving && <div className={styles.consoleStatus}>正在保存设置…</div>}

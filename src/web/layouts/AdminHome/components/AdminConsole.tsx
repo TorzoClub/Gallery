@@ -3,6 +3,7 @@ import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { cn } from '@/utils/cn'
 import { LedIndicator } from './LedIndicator';
 import SegmentLCDProgress from './SegmentLCDProgress';
+import MemberPopover from './MemberPopover';
 import styles from './AdminConsole.module.css';
 
 /* ============================== 类型 ============================== */
@@ -43,6 +44,7 @@ export interface AdminConsoleProps {
   settings: AdminSettings;
   onSettingsChange: (next: AdminSettings) => void;
   members: Member[];
+  onMembersChanged?(): void | Promise<void>;
   /** 抛出异常会被当作致命错误打印 */
   onRebuild?: (reporter: RebuildReporter) => Promise<void>;
   /** 覆盖发射台右侧便签纸上的默认警告文字（可选） */
@@ -152,7 +154,7 @@ function StatsPanel({ stats, active }: { stats: AdminStats; active: boolean }) {
             <svg viewBox="0 0 24 24" className={styles.icon} aria-hidden>{ICONS[t.icon]}</svg>
             {t.label}
           </div>
-          <LcdNumber value={t.value} digits={6} height="var(--stat-dh)" countUp run={active} />
+          <LcdNumber value={t.value} digits={8} height="var(--stat-dh)" countUp run={active} />
         </section>
       ))}
     </div>
@@ -366,7 +368,7 @@ function RebuildPanel({ onRebuild, note }: { onRebuild?: AdminConsoleProps['onRe
         <LaunchSwitch armed={armed} running={phase === 'running'} onToggleCover={() => setArmed((a) => !a)} onFire={fire} />
         <div className={styles.side}>
           <div className={styles.note}>
-            {['TL', 'TR', 'BL', 'BR'].map((k) => (
+            {['TL', 'BR'].map((k) => (
               <i key={k} className={cn(styles.tape, styles[`tape${k}`])} aria-hidden />
             ))}
             {note ?? (<><b>注意：</b>重建缩略图很慢，而且可能导致程序崩溃。重建期间请不要关闭浏览器窗口。</>)}
@@ -377,7 +379,7 @@ function RebuildPanel({ onRebuild, note }: { onRebuild?: AdminConsoleProps['onRe
                 <svg viewBox="0 0 24 24" className={styles.icon} aria-hidden>{ICONS.queue}</svg>
                 剩余项目
               </div>
-              <LcdNumber value={remaining} digits={6} height="var(--stat-dh)" />
+              <LcdNumber value={remaining} digits={8} height="var(--stat-dh)" />
             </section>
             <div className={styles.leds}>
               <LedIndicator color={phase === 'running' ? 'blue' : null} label="运行" />
@@ -418,7 +420,7 @@ function RebuildPanel({ onRebuild, note }: { onRebuild?: AdminConsoleProps['onRe
 
 /* ============================== 面板 D：名单簿 ============================== */
 
-function MemberPanel({ members }: { members: Member[] }) {
+function MemberPanel({ members, onMembersChanged }: { members: Member[]; onMembersChanged?: () => void | Promise<void> }) {
   // 仅大屏生效：默认收起，点击标题条展开。小屏由单选按钮切换，这里的状态被 CSS 忽略
   const [open, setOpen] = useState(false);
   return (
@@ -437,7 +439,18 @@ function MemberPanel({ members }: { members: Member[] }) {
         <div className={styles.book}>
           <div className={styles.bookHead}>
             <span className={styles.bookTitle}>名单簿</span>
-            <span className={styles.bookCount}>共 {members.length} 人</span>
+            <div className={styles.bookHeadActions}>
+              <span className={styles.bookCount}>共 {members.length} 人</span>
+              <MemberPopover
+                mode='create'
+                trigger={(
+                  <button type='button' className={styles.addMember}>
+                    新增成员
+                  </button>
+                )}
+                onSaved={onMembersChanged ?? (() => {})}
+              />
+            </div>
           </div>
           <div className={styles.bookScroll}>
             {members.length === 0 && <div className={styles.empty}>还没有成员。</div>}
@@ -445,19 +458,27 @@ function MemberPanel({ members }: { members: Member[] }) {
               {members.map((m) => {
                 const hue = Number(m.qq.replace(/\D/g, '')) % 360 || 0; // 没有头像时，用 QQ 号算一个稳定的底色
                 return (
-                  <div key={m.id} className={styles.member}>
-                    {m.avatarUrl ? (
-                      <img className={styles.avatar} src={m.avatarUrl} alt="" loading="lazy" />
-                    ) : (
-                      <span className={styles.avatar} style={{ background: `hsl(${hue} 40% 82%)`, color: `hsl(${hue} 35% 28%)` }}>
-                        {m.nickname.slice(0, 1)}
-                      </span>
+                  <MemberPopover
+                    key={m.id}
+                    mode='edit'
+                    member={m}
+                    trigger={(
+                      <button type='button' className={styles.member} aria-label={`修改成员 ${m.nickname}`}>
+                        {m.avatarUrl ? (
+                          <img className={styles.avatar} src={m.avatarUrl} alt="" loading="lazy" />
+                        ) : (
+                          <span className={styles.avatar} style={{ background: `hsl(${hue} 40% 82%)`, color: `hsl(${hue} 35% 28%)` }}>
+                            {m.nickname.slice(0, 1)}
+                          </span>
+                        )}
+                        <div className={styles.who}>
+                          <span className={styles.nick}>{m.nickname}</span>
+                          <span className={styles.qq}><small>QQ</small>{m.qq}</span>
+                        </div>
+                      </button>
                     )}
-                    <div className={styles.who}>
-                      <span className={styles.nick}>{m.nickname}</span>
-                      <span className={styles.qq}><small>QQ</small>{m.qq}</span>
-                    </div>
-                  </div>
+                    onSaved={onMembersChanged ?? (() => {})}
+                  />
                 );
               })}
             </div>
@@ -491,7 +512,7 @@ function useIsLarge() {
   return large;
 }
 
-export function AdminConsole({ stats, settings, onSettingsChange, members, onRebuild, rebuildNote }: AdminConsoleProps) {
+export function AdminConsole({ stats, settings, onSettingsChange, members, onMembersChanged, onRebuild, rebuildNote }: AdminConsoleProps) {
   const [tab, setTab] = useState<TabId>('stats');
   const isLarge = useIsLarge(); // 大屏时所有面板都可见
   const keyRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -539,7 +560,7 @@ export function AdminConsole({ stats, settings, onSettingsChange, members, onReb
           <RebuildPanel onRebuild={onRebuild} note={rebuildNote} />
         </div>
         <div id="panel-members" className={cn(styles.panel, styles.pMembers, tab !== 'members' && styles.off)}>
-          <MemberPanel members={members} />
+          <MemberPanel members={members} onMembersChanged={onMembersChanged} />
         </div>
         </div>
       </div>

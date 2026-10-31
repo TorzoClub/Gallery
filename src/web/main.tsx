@@ -1,4 +1,4 @@
-import React, { ReactNode, Suspense, lazy, useEffect } from 'react'
+import React, { ReactNode, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 import './index.css'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
@@ -57,7 +57,6 @@ function TitleSync() {
 }
 
 import { signal_critical_error } from './signals'
-import LoadingLayout from './layouts/GalleryHome/components/LoadingLayout'
 
 export default function CriticalFailureLayout({ children }: { children: ReactNode }) {
   const [ showFailure, , failure_layout ] = useFailureLayout(children)
@@ -96,11 +95,9 @@ export async function initPictureSupportInfomation() {
 const [
   homeAppData,
   publicRoot,
-  adminApp,
 ] = await Promise.all([
   import('./HomeApp'),
   import('./PublicRoot'),
-  import('./admin/AdminApp')
 ])
 
 initPictureSupportInfomation()
@@ -123,7 +120,6 @@ initPictureSupportInfomation()
   })
 
 function Bootstrap() {
-  const AdminApp = adminApp.default
   const PublicRoot = publicRoot.default
   return (
     <div className='bootstrap'>
@@ -133,14 +129,6 @@ function Bootstrap() {
             <TitleSync />
             <Routes>
               <Route path="/" element={<Navigate to="/explore" replace />} />
-              <Route
-                path="/admin-legacy/*"
-                element={(
-                  <Suspense fallback={<LoadingLayout />}>
-                    <AdminApp />
-                  </Suspense>
-                )}
-              />
               <Route path="/*" element={<PublicRoot />} />
             </Routes>
           </BrowserRouter>

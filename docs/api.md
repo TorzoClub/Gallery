@@ -136,7 +136,7 @@ payload: { "qq_num": 123456 }
 - `/` 重定向到 `/explore`。
 - `/explore` 是公开相册页。
 - `/behind` 是同级 About 页面，不再作为 `/` 的 fixed 子页面。
-- `/admin` 是新所见即所得后台；`/admin-legacy/*` 是旧后台。
+- `/admin` 是所见即所得后台。
 
 ## AdminPool
 
@@ -171,7 +171,6 @@ payload: {}
 - 修改设置仍走 `adminUpdateInstanceConfig`；新后台不额外调用 `adminGetInstanceConfig`。
 - AdminConsole 保存 `instance_config` 失败时，前端触发现有 CRT critical failure。
 - 新后台不再调用 `adminListGalleries`、`adminListMembers`、`adminGetPhoto` 等读取接口。
-- 旧 `/admin-legacy` 仍使用原有 admin 查询。
 
 ### Public legacy queries
 

@@ -9,7 +9,7 @@
 - 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。
 - 前端由 Vite 构建到 `dist/client`，服务端由 tsup 构建到 `dist/server`。
 - 静态缓存：HTML 弱缓存，hash assets 强缓存，API/图片强缓存。
-- 服务端测试 107 个用例通过；不包含浏览器 UI 交互测试。
+- 服务端测试 108 个用例通过；不包含浏览器 UI 交互测试。
 - 旧 `server/`、`web/`、脚本和 CI 已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支。
 - storage 仍为单实例 JSON + 图片池；没有 MySQL 运行时依赖。
 
@@ -26,7 +26,7 @@
 - [x] 服务端图片测试覆盖 EXIF Orientation、流式上传、UUIDv7 temp、CRC32 文件名和清理定时器。
 - [x] 删除当前分支的旧实现目录，归档到 `legacy-v3` 分支。
 - [x] storage schema v2：头像改用 member id，加入 `pnpm update-storage`。
-- [x] 所见即所得新后台 `/admin`：完整 Pool 查询、通用 Waterfall、照片编辑/删除、成员头像 popover、AdminConsole 数据/设置/重建面板、名单簿成员新增/修改/条件删除、PhotoPopover 相片描述编辑/替换/删除、空相册创建与倒序排列、相册标题折叠、空相册虚线图标、展开后的相册编辑、按票数排序、成员投票统计、重投、未投票/未投稿成员筛选、相册拖拽排序与排序模式悬浮；旧后台保留在 `/admin-legacy`。
+- [x] 所见即所得新后台 `/admin`：完整 Pool 查询、通用 Waterfall、照片编辑/删除、成员头像 popover、AdminConsole 数据/设置/重建面板、名单簿成员新增/修改/条件删除、PhotoPopover 相片描述编辑/替换/删除、空相册创建与倒序排列、相册标题折叠、空相册虚线图标、展开后的相册编辑、按票数排序、成员投票统计、重投、未投票/未投稿成员筛选、相册拖拽排序与排序模式悬浮。
 
 ## 后续待办
 

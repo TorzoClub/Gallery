@@ -397,6 +397,7 @@ export const queries = {
       build_date: BUILD_DATE,
       git_hash: GIT_HASH,
       now: ctx.now,
+      instance_config: ctx.config,
     }),
   }),
 

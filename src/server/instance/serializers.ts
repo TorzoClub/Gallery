@@ -1,5 +1,6 @@
 import { avatarThumbFilename, photoThumbFilename, photoVariantFilename } from '../common/image-name'
 import { type EnvConfig } from '../config'
+import type { InstanceConfig } from '../../shared/config'
 import {
   galleryCanSubmission,
   galleryInEvent,
@@ -141,6 +142,7 @@ export function adminPoolDto(options: {
   build_date: string
   git_hash: string
   now: Date
+  instance_config: InstanceConfig
 }): AdminPoolDTO {
   return {
     schema_version: Number(options.pool.schema_version),
@@ -162,6 +164,7 @@ export function adminPoolDto(options: {
       options.env,
       options.instance_hash,
     )),
+    instance_config: options.instance_config,
   }
 }
 

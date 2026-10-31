@@ -160,12 +160,16 @@ payload: {}
   "build_date": "2026-10-28",
   "git_hash": "5d25b84",
   "galleries": [],
-  "members": []
+  "members": [],
+  "instance_config": {}
 }
 ```
 
 - `galleries` 是完整的 `AdminGalleryDTO`，包含相片和 `vote_records`。
 - `members` 是完整 `MemberDTO`，Admin 可以看到真实 QQ。
+- `instance_config` 是完整 instance 配置，新 AdminConsole 的初始设置直接来自这里。
+- 修改设置仍走 `adminUpdateInstanceConfig`；新后台不额外调用 `adminGetInstanceConfig`。
+- AdminConsole 保存 `instance_config` 失败时，前端触发现有 CRT critical failure。
 - 新后台不再调用 `adminListGalleries`、`adminListMembers`、`adminGetPhoto` 等读取接口。
 - 旧 `/admin-legacy` 仍使用原有 admin 查询。
 

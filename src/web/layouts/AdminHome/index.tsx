@@ -1,28 +1,70 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Signal } from 'vait'
 import type { AdminPoolDTO } from '@shared/dto'
 import { ApiError } from '../../api/dispatch'
+import { updateInstanceConfig } from '../../admin/api/config'
+import { refreshAvatar, refreshThumb } from '../../admin/api/image'
 import { fetchAdminPool } from '../../admin/api/pool'
 import { getToken, removeToken } from '../../admin/auth/token'
 import { getApiErrorMessage } from '../../admin/utils/errors'
 import { global_queue } from '../../utils/queue-load'
+import Navigator from '@/components/Navigator'
+import { signal_critical_error } from '../../signals'
 import AdminGallery from './components/AdminGallery'
+import {
+  AdminConsole,
+  type AdminSettings,
+  type AdminStats,
+  type Member as ConsoleMember,
+  type RebuildReporter,
+} from './components/AdminConsole'
+import { instanceConfigFromSettings, settingsFromInstanceConfig } from './admin-settings'
 import styles from './index.module.scss'
 import './admin.css'
-import Navigator from '@/components/Navigator'
-import { AdminConsoleDemo } from './components/AdminConsole'
 
 type LoadState =
   | { status: 'loading' }
   | { status: 'ready'; pool: AdminPoolDTO }
   | { status: 'error'; message: string }
 
+const SETTINGS_SAVE_DELAY = 350
+
+function statsFromPool(pool: AdminPoolDTO): AdminStats {
+  let photos = 0
+  let votes = 0
+
+  for (const gallery of pool.galleries) {
+    photos += gallery.photos.length
+    votes += gallery.vote_records.length
+  }
+
+  return {
+    photos,
+    albums: pool.galleries.length,
+    votes,
+    members: pool.members.length,
+  }
+}
+
+function consoleMembersFromPool(pool: AdminPoolDTO): ConsoleMember[] {
+  return pool.members.map(member => ({
+    id: member.id,
+    nickname: member.name,
+    qq: String(member.qq_num),
+    avatarUrl: member.avatar_thumb_url,
+  }))
+}
+
 export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean }) {
   const navigate = useNavigate()
   const token = getToken()
   const watterfall_refreshed = useMemo(() => Signal(), [])
   const [state, setState] = useState<LoadState>({ status: 'loading' })
+  const [settings, setSettings] = useState<AdminSettings | null>(null)
+  const [settingsSaving, setSettingsSaving] = useState(false)
+  const settingsSaveTimer = useRef<number | null>(null)
+  const settingsSaveSequence = useRef(0)
 
   useEffect(() => {
     if (!thisIsDisplay) {
@@ -63,15 +105,98 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     if (state.status !== 'ready') {
       return
     }
+    setSettings(current => current ?? settingsFromInstanceConfig(state.pool.instance_config))
     global_queue.startWorking()
     const timer = window.setTimeout(() => global_queue.startWorking(), 0)
     return () => window.clearTimeout(timer)
   }, [state])
 
+  useEffect(() => () => {
+    if (settingsSaveTimer.current !== null) {
+      window.clearTimeout(settingsSaveTimer.current)
+    }
+  }, [])
+
+  const saveSettings = useCallback((next: AdminSettings) => {
+    if (settingsSaveTimer.current !== null) {
+      window.clearTimeout(settingsSaveTimer.current)
+    }
+
+    setSettingsSaving(true)
+    const sequence = ++settingsSaveSequence.current
+
+    settingsSaveTimer.current = window.setTimeout(() => {
+      settingsSaveTimer.current = null
+
+      updateInstanceConfig(instanceConfigFromSettings(next))
+        .then(config => {
+          if (sequence !== settingsSaveSequence.current) {
+            return
+          }
+          setState(current => current.status === 'ready'
+            ? { status: 'ready', pool: { ...current.pool, instance_config: config } }
+            : current)
+        })
+        .catch(error => {
+          if (sequence !== settingsSaveSequence.current) {
+            return
+          }
+          signal_critical_error.trigger(
+            `保存 instance_config 失败：${getApiErrorMessage(error, '未知错误')}`,
+          )
+        })
+        .finally(() => {
+          if (sequence === settingsSaveSequence.current) {
+            setSettingsSaving(false)
+          }
+        })
+    }, SETTINGS_SAVE_DELAY)
+  }, [])
+
+  const handleSettingsChange = useCallback((next: AdminSettings) => {
+    setSettings(next)
+    saveSettings(next)
+  }, [saveSettings])
+
   const refresh = useCallback(async () => {
     await load()
     watterfall_refreshed.trigger()
   }, [load, watterfall_refreshed])
+
+  const handleRebuild = useCallback(async (reporter: RebuildReporter) => {
+    if (state.status !== 'ready') {
+      throw new Error('后台数据尚未读取完成')
+    }
+
+    const photos = state.pool.galleries.flatMap(gallery => gallery.photos)
+    const members = state.pool.members
+    const total = photos.length + members.length
+    let done = 0
+
+    for (const photo of photos) {
+      try {
+        await refreshThumb({ photo_id: photo.id })
+      } catch (error) {
+        reporter.error(`相片 #${photo.id}：${getApiErrorMessage(error, '重建失败')}`)
+      }
+      done += 1
+      reporter.progress(done, total)
+    }
+
+    for (const member of members) {
+      try {
+        await refreshAvatar({ member_id: member.id })
+      } catch (error) {
+        reporter.error(`成员 #${member.id}：${getApiErrorMessage(error, '重建失败')}`)
+      }
+      done += 1
+      reporter.progress(done, total)
+    }
+
+    const pool = await fetchAdminPool()
+    setState({ status: 'ready', pool })
+    watterfall_refreshed.trigger()
+  }, [state, watterfall_refreshed])
 
   if (!thisIsDisplay) {
     return null
@@ -95,6 +220,8 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     )
   }
 
+  const console_settings = settings ?? settingsFromInstanceConfig(state.pool.instance_config)
+
   return (
     <main className={styles.page}>
       <Navigator
@@ -102,11 +229,17 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
         isAdminTitle={true}
         onClickPushButton={() => navigate('/explore', { replace: true })}
       />
-      <AdminConsoleDemo />
+      <AdminConsole
+        stats={statsFromPool(state.pool)}
+        settings={console_settings}
+        onSettingsChange={handleSettingsChange}
+        members={consoleMembersFromPool(state.pool)}
+        onRebuild={handleRebuild}
+      />
+      {settingsSaving && <div className={styles.consoleStatus}>正在保存设置…</div>}
       <div className='gallery-home'>
         <div className='body'>
           <div style={{ height: '8px' }}></div>
-          hello
           {state.pool.galleries.length === 0
             ? <div className={styles.empty}>还没有相册</div>
             : state.pool.galleries.map(gallery => (

@@ -123,3 +123,12 @@
   .header { align-items: flex-start; flex-direction: column; gap: 14px; margin-bottom: 24px; }
   .title { font-size: 27px; }
 }
+
+.consoleStatus {
+  max-width: 1400px;
+  margin: 8px auto 0;
+  padding: 0 24px;
+  color: #776b5c;
+  font-size: 12px;
+  letter-spacing: .04em;
+}

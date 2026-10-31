@@ -1,3 +1,5 @@
+import type { InstanceConfig } from './config'
+
 export type ID = number
 export type DateTimeString = string
 
@@ -82,6 +84,7 @@ export type AdminPoolDTO = {
   git_hash: string
   galleries: AdminGalleryDTO[]
   members: MemberDTO[]
+  instance_config: InstanceConfig
 }
 
 export type VoteDTO = {

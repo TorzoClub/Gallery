@@ -31,6 +31,12 @@ describe('adminFetchPool', () => {
     expect(pool.galleries[0].photos[0].desc).toBe('visible in admin')
     expect(pool.galleries[0].vote_records).toEqual([])
     expect(pool.members[0].qq_num).toBe(81001)
+    expect(pool.instance_config.image_thumb_size).toBe(640)
+    expect(pool.instance_config.max_upload_bytes).toBeGreaterThan(0)
+
+    await ctx.adminMutate('adminUpdateInstanceConfig', { image_thumb_quality: 61 })
+    const refreshed = await ctx.adminQuery('adminFetchPool')
+    expect(refreshed.body.data.instance_config.image_thumb_quality).toBe(61)
 
     const no_auth = await ctx.app.request('/admin/query/adminFetchPool', {
       method: 'POST',

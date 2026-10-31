@@ -1,13 +1,14 @@
 .page {
   min-height: 100dvh;
-  background-color: #f4f0e8;
-  background-image: repeating-linear-gradient(
-    90deg,
-    rgb(255 255 255 / .62),
-    rgb(255 255 255 / .62) 1px,
-    rgb(197 183 151 / .32) 1px,
-    rgb(197 183 151 / .32) 2px
-  );
+  background-color: white;
+  background-image: repeating-linear-gradient(90deg, var(--skeu-pinstripe-light), var(--skeu-pinstripe-light) 1px, var(--skeu-pinstripe-dark) 1px, var(--skeu-pinstripe-dark) 2px);
+  // background-image: repeating-linear-gradient(
+  //   90deg,
+  //   rgb(255 255 255 / .62),
+  //   rgb(255 255 255 / .62) 1px,
+  //   rgb(197 183 151 / .32) 1px,
+  //   rgb(197 183 151 / .32) 2px
+  // );
   background-repeat: repeat;
   background-attachment: fixed;
   color: #27231d;

@@ -11,6 +11,7 @@ import AdminGallery from './components/AdminGallery'
 import styles from './index.module.scss'
 import './admin.css'
 import Navigator from '@/components/Navigator'
+import { AdminConsoleDemo } from './components/AdminConsole'
 
 type LoadState =
   | { status: 'loading' }
@@ -101,6 +102,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
         isAdminTitle={true}
         onClickPushButton={() => navigate('/explore', { replace: true })}
       />
+      <AdminConsoleDemo />
       <div className='gallery-home'>
         <div className='body'>
           <div style={{ height: '8px' }}></div>

@@ -138,10 +138,11 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
     return map
   }, [gallery.vote_records])
 
-  const voted = useMemo(
-    () => members.filter(member => (votes_by_member.get(Number(member.id))?.length ?? 0) > 0).length,
+  const voted_members = useMemo(
+    () => members.filter(member => (votes_by_member.get(Number(member.id))?.length ?? 0) > 0),
     [members, votes_by_member],
   )
+  const voted = voted_members.length
   const total = members.length
   const not_voted = Math.max(0, total - voted)
   const submitted_ids = useMemo(
@@ -451,7 +452,7 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
                   setVoteView('revote')
                 }}
               >
-                设置重投
+                投票/投稿状况
               </button>
               <button
                 type='button'
@@ -491,7 +492,12 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
                   </tr>
                 </thead>
                 <tbody>
-                  {members.map(member => {
+                  {voted_members.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className={styles.tableEmpty}>还没有成员投票</td>
+                    </tr>
+                  )}
+                  {voted_members.map(member => {
                     const member_votes = votes_by_member.get(Number(member.id)) ?? []
                     const pending = revote_busy_id === Number(member.id)
                     return (

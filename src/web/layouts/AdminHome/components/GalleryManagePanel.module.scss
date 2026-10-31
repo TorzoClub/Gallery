@@ -3,7 +3,7 @@
   grid-template-columns: minmax(0, 1fr);
   gap: 22px;
   max-width: 958px;
-  margin: 0 0 26px 76px;
+  margin: 0 0 26px 82px;
   padding: 18px;
   box-sizing: border-box;
   border: 1px solid #c8c2ae;
@@ -186,7 +186,7 @@
   }
 }
 
-@media (min-width: 1034px) {
+@media (min-width: 1040px) {
   .panel {
     grid-template-columns: 540px 360px;
   }
@@ -500,6 +500,13 @@
 
 .nonVoterEmpty {
   padding: 18px 10px;
+  color: #9b917f;
+  font-size: 12px;
+  text-align: center;
+}
+
+.tableEmpty {
+  padding: 20px 10px !important;
   color: #9b917f;
   font-size: 12px;
   text-align: center;

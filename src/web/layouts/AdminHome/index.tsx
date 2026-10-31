@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Signal } from 'vait'
 import type { AdminGalleryDTO, AdminPoolDTO } from '@shared/dto'
@@ -74,8 +74,9 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
   const [sort_mode, setSortMode] = useState(false)
   const [draft_galleries, setDraftGalleries] = useState<AdminGalleryDTO[]>([])
   const [dragging_id, setDraggingId] = useState<number | null>(null)
-  const [drag_over_id, setDragOverId] = useState<number | null>(null)
-  const [drop_after, setDropAfter] = useState(false)
+  const [drag_offset_y, setDragOffsetY] = useState(0)
+  const drag_grab_offset = useRef(0)
+  const drag_pointer_y = useRef(0)
   const [sort_busy, setSortBusy] = useState(false)
   const [sort_error, setSortError] = useState('')
   const settingsSaveTimer = useRef<number | null>(null)
@@ -239,19 +240,18 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
   const display_galleries = sort_mode ? draft_galleries : sorted_galleries
   const sort_disabled = sort_mode ? sort_busy : sorted_galleries.length === 0
 
-  const moveDraftGallery = useCallback((source_id: number, target_id: number, after: boolean) => {
+  const moveDraftGalleryToIndex = useCallback((source_id: number, target_index: number) => {
     setDraftGalleries(current => {
       const source_index = current.findIndex(gallery => gallery.id === source_id)
-      if (source_index < 0 || source_id === target_id) {
+      if (source_index < 0) {
         return current
       }
-      const next = [...current]
-      const [moved] = next.splice(source_index, 1)
-      const target_index = next.findIndex(gallery => gallery.id === target_id)
-      if (target_index < 0) {
+      const next = current.filter(gallery => gallery.id !== source_id)
+      const bounded_index = Math.max(0, Math.min(target_index, next.length))
+      if (bounded_index === source_index) {
         return current
       }
-      next.splice(after ? target_index + 1 : target_index, 0, moved)
+      next.splice(bounded_index, 0, current[source_index])
       return next
     })
   }, [])
@@ -264,8 +264,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     setSortMode(true)
     setSortError('')
     setDraggingId(null)
-    setDragOverId(null)
-    setDropAfter(false)
+    setDragOffsetY(0)
   }, [sorted_galleries, state.status])
 
   const finishSort = useCallback(async () => {
@@ -320,10 +319,31 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
       return
     }
     event.preventDefault()
+    const source_row = document.querySelector<HTMLElement>(
+      `[data-gallery-sort-id="${gallery_id}"]`,
+    )
+    drag_grab_offset.current = source_row === null
+      ? 0
+      : event.clientY - source_row.getBoundingClientRect().top
+    drag_pointer_y.current = event.clientY
+    setDragOffsetY(0)
     setDraggingId(gallery_id)
-    setDragOverId(gallery_id)
-    setDropAfter(false)
   }, [sort_mode])
+
+  useLayoutEffect(() => {
+    if (!sort_mode || dragging_id === null || drag_pointer_y.current === 0) {
+      return
+    }
+    const source_row = document.querySelector<HTMLElement>(
+      `[data-gallery-sort-id="${dragging_id}"]`,
+    )
+    if (source_row === null) {
+      return
+    }
+    const base_top = source_row.getBoundingClientRect().top
+    const next_offset = drag_pointer_y.current - drag_grab_offset.current - base_top
+    setDragOffsetY(next_offset)
+  }, [draft_galleries, dragging_id, sort_mode])
 
   useEffect(() => {
     if (!sort_mode || dragging_id === null) {
@@ -331,28 +351,35 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     }
 
     const handleMove = (event: PointerEvent) => {
-      const element = document.elementFromPoint(event.clientX, event.clientY)
-      const row = element?.closest<HTMLElement>('[data-gallery-sort-id]')
-      if (row === null || row === undefined) {
-        setDragOverId(null)
-        return
+      const source_row = document.querySelector<HTMLElement>(
+        `[data-gallery-sort-id="${dragging_id}"]`,
+      )
+      drag_pointer_y.current = event.clientY
+      if (source_row !== null) {
+        const base_top = source_row.getBoundingClientRect().top
+        setDragOffsetY(event.clientY - drag_grab_offset.current - base_top)
       }
-      setDragOverId(Number(row.dataset.gallerySortId))
-      const rect = row.getBoundingClientRect()
-      setDropAfter(event.clientY > rect.top + rect.height / 2)
+
+      const rows = Array.from(document.querySelectorAll<HTMLElement>('[data-gallery-sort-id]'))
+        .filter(row => Number(row.dataset.gallerySortId) !== dragging_id)
+      const target_index = rows.findIndex(row => {
+        const rect = row.getBoundingClientRect()
+        return event.clientY < rect.top + rect.height / 2
+      })
+      moveDraftGalleryToIndex(
+        dragging_id,
+        target_index === -1 ? rows.length : target_index,
+      )
     }
 
-    const finishDrag = (apply: boolean) => {
-      if (apply && drag_over_id !== null && drag_over_id !== dragging_id) {
-        moveDraftGallery(dragging_id, drag_over_id, drop_after)
-      }
+    const stopDrag = () => {
       setDraggingId(null)
-      setDragOverId(null)
-      setDropAfter(false)
+      setDragOffsetY(0)
+      drag_pointer_y.current = 0
     }
 
-    const handleUp = () => finishDrag(true)
-    const handleCancel = () => finishDrag(false)
+    const handleUp = stopDrag
+    const handleCancel = stopDrag
 
     window.addEventListener('pointermove', handleMove)
     window.addEventListener('pointerup', handleUp)
@@ -362,7 +389,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
       window.removeEventListener('pointerup', handleUp)
       window.removeEventListener('pointercancel', handleCancel)
     }
-  }, [drag_over_id, dragging_id, drop_after, moveDraftGallery, sort_mode])
+  }, [dragging_id, moveDraftGalleryToIndex, sort_mode])
 
   const handleRebuild = useCallback(async (reporter: RebuildReporter) => {
     if (state.status !== 'ready') {
@@ -527,8 +554,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
                 onWatterfallRefreshed={watterfall_refreshed.trigger}
                 sorting={sort_mode}
                 dragging={dragging_id === gallery.id}
-                dragOver={drag_over_id === gallery.id}
-                dropAfter={drop_after}
+                dragOffsetY={dragging_id === gallery.id ? drag_offset_y : 0}
                 onDragPointerDown={event => startGalleryDrag(event, gallery.id)}
               />
             ))}

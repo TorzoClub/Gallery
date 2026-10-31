@@ -17,8 +17,7 @@ type Props = {
   onWatterfallRefreshed(): void
   sorting?: boolean
   dragging?: boolean
-  dragOver?: boolean
-  dropAfter?: boolean
+  dragOffsetY?: number
   onDragPointerDown?(event: React.PointerEvent<HTMLElement>): void
 }
 
@@ -32,8 +31,7 @@ export default function AdminGallery({
   onWatterfallRefreshed,
   sorting = false,
   dragging = false,
-  dragOver = false,
-  dropAfter = false,
+  dragOffsetY = 0,
   onDragPointerDown,
 }: Props) {
   const [expanded, setExpanded] = useState(false)
@@ -81,8 +79,7 @@ export default function AdminGallery({
           onToggle={() => setExpanded(value => !value)}
           sorting={sorting}
           dragging={dragging}
-          dragOver={dragOver}
-          dropAfter={dropAfter}
+          dragOffsetY={dragOffsetY}
           onDragPointerDown={onDragPointerDown}
         />
         <div id={body_id}>

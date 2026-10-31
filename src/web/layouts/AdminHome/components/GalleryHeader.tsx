@@ -10,8 +10,7 @@ type Props = {
   onToggle(): void
   sorting?: boolean
   dragging?: boolean
-  dragOver?: boolean
-  dropAfter?: boolean
+  dragOffsetY?: number
   onDragPointerDown?(event: React.PointerEvent<HTMLElement>): void
 }
 
@@ -141,8 +140,7 @@ export default function GalleryHeader({
   onToggle,
   sorting = false,
   dragging = false,
-  dragOver = false,
-  dropAfter = false,
+  dragOffsetY = 0,
   onDragPointerDown,
 }: Props) {
   const name_ref = useRef<HTMLSpanElement>(null)
@@ -195,7 +193,6 @@ export default function GalleryHeader({
     styles.header,
     sorting ? styles.sortHeader : '',
     dragging ? styles.dragging : '',
-    dragOver ? (dropAfter ? styles.dragOverAfter : styles.dragOverBefore) : '',
   ].filter(Boolean).join(' ')
 
   const handle_key_down = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -211,6 +208,7 @@ export default function GalleryHeader({
   return (
     <div
       className={header_class}
+      style={sorting ? { transform: `translateY(${dragOffsetY}px)` } : undefined}
       role={sorting ? undefined : 'button'}
       tabIndex={sorting ? -1 : 0}
       aria-expanded={sorting ? undefined : expanded}

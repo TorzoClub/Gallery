@@ -12,7 +12,7 @@ type Props = {
   dragging?: boolean
   dragOver?: boolean
   dropAfter?: boolean
-  onDragHandlePointerDown?(event: React.PointerEvent<HTMLSpanElement>): void
+  onDragPointerDown?(event: React.PointerEvent<HTMLElement>): void
 }
 
 type EmptyMaskRefs = {
@@ -143,7 +143,7 @@ export default function GalleryHeader({
   dragging = false,
   dragOver = false,
   dropAfter = false,
-  onDragHandlePointerDown,
+  onDragPointerDown,
 }: Props) {
   const name_ref = useRef<HTMLSpanElement>(null)
   const handle_ref = useRef<HTMLSpanElement>(null)
@@ -216,6 +216,7 @@ export default function GalleryHeader({
       aria-label={sorting ? undefined : (expanded ? `收起相册 ${name}` : `展开相册 ${name}`)}
       onClick={sorting ? undefined : onToggle}
       onKeyDown={sorting ? undefined : handle_key_down}
+      onPointerDown={sorting ? event => onDragPointerDown?.(event) : undefined}
     >
       {icon}
       <span className={styles.controlSlot}>
@@ -234,7 +235,6 @@ export default function GalleryHeader({
             ref={handle_ref}
             className={`${styles.chevron} ${styles.dragHandle}`}
             aria-hidden='true'
-            onPointerDown={event => onDragHandlePointerDown?.(event)}
           >
             <svg viewBox='0 0 16 16' focusable='false'>
               <path d='M8 0.8 L12.2 4.6 L3.8 4.6 Z' />

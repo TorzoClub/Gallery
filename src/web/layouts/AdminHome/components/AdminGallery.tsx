@@ -19,7 +19,7 @@ type Props = {
   dragging?: boolean
   dragOver?: boolean
   dropAfter?: boolean
-  onDragHandlePointerDown?(event: React.PointerEvent<HTMLSpanElement>): void
+  onDragPointerDown?(event: React.PointerEvent<HTMLElement>): void
 }
 
 export default function AdminGallery({
@@ -34,7 +34,7 @@ export default function AdminGallery({
   dragging = false,
   dragOver = false,
   dropAfter = false,
-  onDragHandlePointerDown,
+  onDragPointerDown,
 }: Props) {
   const [expanded, setExpanded] = useState(false)
   useEffect(() => {
@@ -83,7 +83,7 @@ export default function AdminGallery({
           dragging={dragging}
           dragOver={dragOver}
           dropAfter={dropAfter}
-          onDragHandlePointerDown={onDragHandlePointerDown}
+          onDragPointerDown={onDragPointerDown}
         />
         <div id={body_id}>
           {show_expanded && (

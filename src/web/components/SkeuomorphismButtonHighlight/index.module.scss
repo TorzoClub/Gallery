@@ -1,0 +1,17 @@
+.active {
+  animation: skeuomorphismbuttonhighlight 3s infinite ease-in-out 500ms;
+}
+
+@keyframes skeuomorphismbuttonhighlight {
+  0% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.2);
+  }
+
+  100% {
+    filter: brightness(1);
+  }
+}

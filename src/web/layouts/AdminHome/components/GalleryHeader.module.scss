@@ -11,6 +11,7 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+  user-select: none;
 }
 
 .header:focus-visible {
@@ -63,7 +64,13 @@
 
 .sortHeader {
   position: relative;
+  cursor: grab;
+  touch-action: none;
   user-select: none;
+}
+
+.sortHeader:active {
+  cursor: grabbing;
 }
 
 .sortHeader .name,
@@ -127,8 +134,4 @@
   transform: scale(0);
   opacity: 0;
   pointer-events: none;
-}
-
-.sortHeader {
-  cursor: default;
 }

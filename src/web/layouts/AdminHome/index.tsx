@@ -27,6 +27,7 @@ import { instanceConfigFromSettings, settingsFromInstanceConfig } from './admin-
 import styles from './index.module.scss'
 import './admin.css'
 import SkeuomorphismButton from '@/components/SkeuomorphismButton'
+import SkeuomorphismButtonHighlight from '@/components/SkeuomorphismButtonHighlight'
 
 type LoadState =
   | { status: 'loading' }
@@ -312,7 +313,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
   }, [finishSort, sort_mode, startSortMode])
 
   const startGalleryDrag = useCallback((
-    event: React.PointerEvent<HTMLSpanElement>,
+    event: React.PointerEvent<HTMLElement>,
     gallery_id: number,
   ) => {
     if (!sort_mode) {
@@ -481,17 +482,26 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
           >
             {creatingGallery ? '创建中…' : '+ 创建相册'}
           </SkeuomorphismButton>
-          <SkeuomorphismButton
-            disabled={sort_disabled}
-            onClick={handleSortButton}
-            inputProps={{
-              className: sort_disabled ? styles.sortButtonDisabled : undefined,
-            }}
-          >
-            {sort_mode
-              ? (sort_busy ? '保存中…' : '完成排序')
-              : '调整相册顺序'}
-          </SkeuomorphismButton>
+          {sort_mode ? (
+            <SkeuomorphismButtonHighlight active={!sort_busy}>
+              <SkeuomorphismButton
+                disabled={sort_disabled}
+                onClick={handleSortButton}
+                inputProps={{
+                  className: sort_disabled ? styles.sortButtonDisabled : undefined,
+                }}
+              >
+                {sort_busy ? '保存中…' : '完成排序'}
+              </SkeuomorphismButton>
+            </SkeuomorphismButtonHighlight>
+          ) : (
+            <SkeuomorphismButton
+              disabled={sort_disabled}
+              onClick={handleSortButton}
+            >
+              调整相册顺序
+            </SkeuomorphismButton>
+          )}
         </div>
         {createGalleryError !== '' && (
           <div className={styles.createGalleryError} role='alert'>{createGalleryError}</div>
@@ -519,7 +529,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
                 dragging={dragging_id === gallery.id}
                 dragOver={drag_over_id === gallery.id}
                 dropAfter={drop_after}
-                onDragHandlePointerDown={event => startGalleryDrag(event, gallery.id)}
+                onDragPointerDown={event => startGalleryDrag(event, gallery.id)}
               />
             ))}
         </div>

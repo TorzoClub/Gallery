@@ -2,9 +2,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 22px;
-  width: 100%;
   max-width: 958px;
-  margin: 0 auto 26px;
+  margin: 0 0 26px 76px;
   padding: 18px;
   box-sizing: border-box;
   border: 1px solid #c8c2ae;
@@ -171,13 +170,21 @@
   outline-offset: 2px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 1034px) {
+  .panel {
+    max-width: none;
+    margin-left: 0;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+  }
+
   .dates {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
-@media (min-width: 958px) {
+@media (min-width: 1034px) {
   .panel {
     grid-template-columns: 540px 360px;
   }

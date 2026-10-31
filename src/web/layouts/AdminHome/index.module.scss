@@ -17,7 +17,14 @@
 }
 
 .createGallery {
-  padding: 40px 0;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 40px 0 40px 76px;
+  box-sizing: border-box;
+}
+
+.createGallery > div {
+  align-items: flex-start;
 }
 
 .page > .gallery-home {
@@ -139,9 +146,9 @@
 
 .createGalleryError {
   max-width: 360px;
-  margin: 10px auto 0;
+  margin: 10px 0 0;
   color: #8c2828;
   font-size: 12px;
   line-height: 1.4;
-  text-align: center;
+  text-align: left;
 }

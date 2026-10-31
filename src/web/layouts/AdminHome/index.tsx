@@ -334,6 +334,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
               <AdminGallery
                 key={gallery.id}
                 gallery={gallery}
+                members={state.pool.members}
                 memberCanDelete={memberCanDelete}
                 onGalleryChanged={handleGalleryChanged}
                 onChanged={refresh}

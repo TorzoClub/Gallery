@@ -1,14 +1,15 @@
 import React, { useEffect, useId, useMemo, useState } from 'react'
-import type { AdminGalleryDTO } from '@shared/dto'
+import type { AdminGalleryDTO, MemberDTO } from '@shared/dto'
 import { getGalleryLayout } from '../../../components/Gallery'
 import Waterfall, { type WaterfallItem } from '../../../components/Waterfall'
 import GalleryHeader from './GalleryHeader'
-import GalleryTitlePopover from './GalleryTitlePopover'
+import GalleryManagePanel from './GalleryManagePanel'
 import AdminPhotoBox from './AdminPhotoBox'
 import type { MemberCanDelete } from './AdminConsole'
 
 type Props = {
   gallery: AdminGalleryDTO
+  members: MemberDTO[]
   memberCanDelete?: MemberCanDelete
   onGalleryChanged?: () => void | Promise<void>
   onChanged(): Promise<void>
@@ -17,6 +18,7 @@ type Props = {
 
 export default function AdminGallery({
   gallery,
+  members,
   memberCanDelete,
   onGalleryChanged,
   onChanged,
@@ -59,25 +61,25 @@ export default function AdminGallery({
           controls={body_id}
           empty={gallery.photos.length === 0}
           onToggle={() => setExpanded(value => !value)}
-          renderName={(name, className) => (
-            <GalleryTitlePopover
-              gallery={gallery}
-              trigger={(
-                <button type='button' className={className}>
-                  {name}
-                </button>
-              )}
-              onSaved={onGalleryChanged ?? onChanged}
-            />
-          )}
         />
         <div id={body_id}>
           {expanded && (
-            <Waterfall
-              layout={layout}
-              items={items}
-              onWatterfallRefreshed={onWatterfallRefreshed}
-            />
+            <>
+              <GalleryManagePanel
+                gallery={gallery}
+                members={members}
+                onChanged={onGalleryChanged ?? onChanged}
+              />
+              {items.length === 0
+                ? <div style={{ textAlign: 'center', color: 'grey' }} >此相册为空</div>
+                : (
+                  <Waterfall
+                    layout={layout}
+                    items={items}
+                    onWatterfallRefreshed={onWatterfallRefreshed}
+                  />
+                )}
+            </>
           )}
         </div>
       </section>

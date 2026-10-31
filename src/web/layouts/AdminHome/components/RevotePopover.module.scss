@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 9px;
-  min-width: 260px;
+  min-width: 250px;
   color: #374151;
   font-size: 13px;
 }
@@ -13,26 +13,27 @@
   font-weight: 700;
 }
 
-.field {
+.select {
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 10px;
+  padding: 8px 9px;
   border: 1px solid #8d8c87;
   border-radius: 3px;
   background: #fafaf8;
   color: #374151;
   box-shadow: inset 0 2px 4px rgb(0 0 0 / .25);
-  font: 500 14px/1.4 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font: 500 13px/1.4 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   outline: none;
 }
 
-.field:focus-visible {
+.select:focus-visible {
   outline: 2px solid #e8571f;
   outline-offset: 2px;
 }
 
-.field:disabled {
-  opacity: .65;
+.empty {
+  color: #8d8172;
+  font-size: 12px;
 }
 
 .error {
@@ -43,20 +44,13 @@
 
 .actions {
   display: flex;
-  align-items: center;
+  justify-content: flex-end;
   gap: 7px;
   padding-top: 2px;
 }
 
-.actionsRight {
-  display: flex;
-  gap: 7px;
-  margin-left: auto;
-}
-
 .primaryButton,
-.secondaryButton,
-.dangerButton {
+.secondaryButton {
   min-height: 30px;
   padding: 6px 10px;
   border-radius: 3px;
@@ -78,23 +72,14 @@
   box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(0 0 0 / .12);
 }
 
-.dangerButton {
-  border: 1px solid #b98282;
-  background: linear-gradient(#fff8f4, #f4ddd8);
-  color: #8c2828;
-  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(0 0 0 / .12);
-}
-
 .primaryButton:disabled,
-.secondaryButton:disabled,
-.dangerButton:disabled {
+.secondaryButton:disabled {
   cursor: default;
   opacity: .6;
 }
 
 .primaryButton:focus-visible,
-.secondaryButton:focus-visible,
-.dangerButton:focus-visible {
+.secondaryButton:focus-visible {
   outline: 2px solid #e8571f;
   outline-offset: 2px;
 }

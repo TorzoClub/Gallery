@@ -42,8 +42,8 @@ function GalleryIcon({ empty, photo_refs, empty_mask_refs }: GalleryIconProps) {
         focusable='false'
       >
         <defs>
-          <mask id={back_mask_id} maskUnits='userSpaceOnUse' x='-6' y='-6' width='52' height='52'>
-            <rect x='-6' y='-6' width='52' height='52' fill='#fff' />
+          <mask id={back_mask_id} maskUnits='userSpaceOnUse' x='-16' y='-16' width='72' height='72'>
+            <rect x='-16' y='-16' width='72' height='72' fill='#fff' />
             <g ref={empty_mask_refs?.middle}>
               <g transform='rotate(16 27 23)'>
                 <rect x='21' y='11' width='17' height='23' rx='1.5' fill='#000' stroke='#000' strokeWidth='2' />
@@ -55,8 +55,8 @@ function GalleryIcon({ empty, photo_refs, empty_mask_refs }: GalleryIconProps) {
               </g>
             </g>
           </mask>
-          <mask id={middle_mask_id} maskUnits='userSpaceOnUse' x='-6' y='-6' width='52' height='52'>
-            <rect x='-6' y='-6' width='52' height='52' fill='#fff' />
+          <mask id={middle_mask_id} maskUnits='userSpaceOnUse' x='-16' y='-16' width='72' height='72'>
+            <rect x='-16' y='-16' width='72' height='72' fill='#fff' />
             <g ref={empty_mask_refs?.front_in_middle}>
               <g transform='rotate(-4 22 20)'>
                 <rect x='10' y='5' width='23' height='28' rx='1.5' fill='#000' stroke='#000' strokeWidth='2' />
@@ -166,15 +166,17 @@ export default function GalleryHeader({
   const float_targets = useMemo<FloatTarget[]>(() => [
     { ref: name_ref },
     { ref: handle_ref },
-    { ref: photo_back_ref, svg: true },
+    { ref: photo_back_ref, svg: true, rotate_center: { x: 15, y: 24 } },
     {
       ref: photo_middle_ref,
       svg: true,
+      rotate_center: { x: 27, y: 23 },
       linked_refs: [empty_mask_middle_ref],
     },
     {
       ref: photo_front_ref,
       svg: true,
+      rotate_center: { x: 22, y: 20 },
       linked_refs: [empty_mask_front_in_back_ref, empty_mask_front_in_middle_ref],
     },
   ], [])

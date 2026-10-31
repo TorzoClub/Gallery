@@ -5,6 +5,7 @@ export type FloatTarget = {
   ref: React.RefObject<HTMLElement | SVGGElement | null>
   svg?: boolean
   linked_refs?: readonly React.RefObject<HTMLElement | SVGGElement | null>[]
+  rotate_center?: { x: number; y: number }
 }
 
 type FloatMotion = {
@@ -14,11 +15,15 @@ type FloatMotion = {
   angle_wobble_phase: number
   radius_phase: number
   radius_speed: number
+  rotation_amplitude: number
+  rotation_phase: number
+  rotation_speed: number
 }
 
 type Offset = {
   x: number
   y: number
+  rotate: number
 }
 
 const ENTER_DURATION = 420
@@ -32,19 +37,27 @@ function createMotion(): FloatMotion {
     angle_wobble_phase: Math.random() * Math.PI * 2,
     radius_phase: Math.random() * Math.PI * 2,
     radius_speed: 0.35 + Math.random() * 0.35,
+    rotation_amplitude: 2 + Math.random() * 6,
+    rotation_phase: Math.random() * Math.PI * 2,
+    rotation_speed: 0.06 + Math.random() * 0.12,
   }
 }
 
-function applyOffset(target: FloatTarget, x: number, y: number) {
+function applyTransform(target: FloatTarget, x: number, y: number, rotate: number) {
+  const rotation = rotate === 0
+    ? ''
+    : target.rotate_center === undefined
+      ? ` rotate(${rotate.toFixed(2)})`
+      : ` rotate(${rotate.toFixed(2)} ${target.rotate_center.x} ${target.rotate_center.y})`
   for (const ref of [target.ref, ...(target.linked_refs ?? [])]) {
     const element = ref.current
     if (element === null) {
       continue
     }
     if (target.svg) {
-      element.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)})`)
+      element.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)})${rotation}`)
     } else {
-      (element as HTMLElement).style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`
+      (element as HTMLElement).style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) rotate(${rotate.toFixed(2)}deg)`
     }
   }
 }
@@ -72,9 +85,11 @@ export default function useGalleryFloat(targets: readonly FloatTarget[], enabled
     if (!enabled) {
       const starts = active_targets.map(target => ({
         target,
-        from: offsets.current.get(target) ?? { x: 0, y: 0 },
+        from: offsets.current.get(target) ?? { x: 0, y: 0, rotate: 0 },
       }))
-      const has_motion = starts.some(({ from }) => from.x !== 0 || from.y !== 0)
+      const has_motion = starts.some(({ from }) => (
+        from.x !== 0 || from.y !== 0 || from.rotate !== 0
+      ))
 
       if (!has_motion) {
         active_targets.forEach(clearTarget)
@@ -90,8 +105,9 @@ export default function useGalleryFloat(targets: readonly FloatTarget[], enabled
         for (const { target, from } of starts) {
           const x = from.x * (1 - eased)
           const y = from.y * (1 - eased)
-          applyOffset(target, x, y)
-          offsets.current.set(target, { x, y })
+          const rotate = from.rotate * (1 - eased)
+          applyTransform(target, x, y, rotate)
+          offsets.current.set(target, { x, y, rotate })
         }
         if (progress < 1) {
           frame = window.requestAnimationFrame(tick)
@@ -106,8 +122,8 @@ export default function useGalleryFloat(targets: readonly FloatTarget[], enabled
     }
 
     active_targets.forEach(target => {
-      applyOffset(target, 0, 0)
-      offsets.current.set(target, { x: 0, y: 0 })
+      applyTransform(target, 0, 0, 0)
+      offsets.current.set(target, { x: 0, y: 0, rotate: 0 })
     })
 
     const entries = active_targets.map(target => ({ target, motion: createMotion() }))
@@ -127,8 +143,13 @@ export default function useGalleryFloat(targets: readonly FloatTarget[], enabled
         )
         const x = Math.cos(angle) * radius
         const y = Math.sin(angle) * radius
-        applyOffset(target, x, y)
-        offsets.current.set(target, { x, y })
+        const rotate = (
+          motion.rotation_amplitude
+          * Math.sin(time * motion.rotation_speed + motion.rotation_phase)
+          * ramp
+        )
+        applyTransform(target, x, y, rotate)
+        offsets.current.set(target, { x, y, rotate })
       }
       frame = window.requestAnimationFrame(tick)
     }

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type React from 'react'
 
 export type FloatTarget = {
@@ -16,6 +16,14 @@ type FloatMotion = {
   radius_speed: number
 }
 
+type Offset = {
+  x: number
+  y: number
+}
+
+const ENTER_DURATION = 420
+const RETURN_DURATION = 260
+
 function createMotion(): FloatMotion {
   return {
     amplitude: 2 + Math.random() * 3,
@@ -27,40 +35,91 @@ function createMotion(): FloatMotion {
   }
 }
 
-function clearElement(target: FloatTarget, element: HTMLElement | SVGGElement) {
-  if (target.svg) {
-    element.setAttribute('transform', 'translate(0 0)')
-  } else {
-    (element as HTMLElement).style.transform = ''
+function applyOffset(target: FloatTarget, x: number, y: number) {
+  for (const ref of [target.ref, ...(target.linked_refs ?? [])]) {
+    const element = ref.current
+    if (element === null) {
+      continue
+    }
+    if (target.svg) {
+      element.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)})`)
+    } else {
+      (element as HTMLElement).style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`
+    }
   }
 }
 
 function clearTarget(target: FloatTarget) {
   for (const ref of [target.ref, ...(target.linked_refs ?? [])]) {
     const element = ref.current
-    if (element !== null) {
-      clearElement(target, element)
+    if (element === null) {
+      continue
+    }
+    if (target.svg) {
+      element.setAttribute('transform', 'translate(0 0)')
+    } else {
+      (element as HTMLElement).style.transform = ''
     }
   }
 }
 
 export default function useGalleryFloat(targets: readonly FloatTarget[], enabled: boolean) {
+  const offsets = useRef(new Map<FloatTarget, Offset>())
+
   useEffect(() => {
+    const active_targets = targets.filter(target => target.ref.current !== null)
+
     if (!enabled) {
-      targets.forEach(clearTarget)
-      return
+      const starts = active_targets.map(target => ({
+        target,
+        from: offsets.current.get(target) ?? { x: 0, y: 0 },
+      }))
+      const has_motion = starts.some(({ from }) => from.x !== 0 || from.y !== 0)
+
+      if (!has_motion) {
+        active_targets.forEach(clearTarget)
+        offsets.current.clear()
+        return
+      }
+
+      const start = performance.now()
+      let frame = 0
+      const tick = (now: number) => {
+        const progress = Math.min(1, (now - start) / RETURN_DURATION)
+        const eased = 1 - Math.pow(1 - progress, 3)
+        for (const { target, from } of starts) {
+          const x = from.x * (1 - eased)
+          const y = from.y * (1 - eased)
+          applyOffset(target, x, y)
+          offsets.current.set(target, { x, y })
+        }
+        if (progress < 1) {
+          frame = window.requestAnimationFrame(tick)
+        } else {
+          starts.forEach(({ target }) => clearTarget(target))
+          offsets.current.clear()
+        }
+      }
+
+      frame = window.requestAnimationFrame(tick)
+      return () => window.cancelAnimationFrame(frame)
     }
 
-    const entries = targets
-      .map(target => ({ target, motion: createMotion() }))
-      .filter(entry => entry.target.ref.current !== null)
+    active_targets.forEach(target => {
+      applyOffset(target, 0, 0)
+      offsets.current.set(target, { x: 0, y: 0 })
+    })
 
+    const entries = active_targets.map(target => ({ target, motion: createMotion() }))
+    const start = performance.now()
     let frame = 0
     const tick = (now: number) => {
+      const raw_progress = Math.min(1, (now - start) / ENTER_DURATION)
+      const ramp = raw_progress * raw_progress * (3 - 2 * raw_progress)
       const time = now / 1000
       for (const { target, motion } of entries) {
         const breath = 0.5 + 0.5 * Math.sin(time * motion.radius_speed + motion.radius_phase)
-        const radius = motion.amplitude * (0.2 + 0.8 * breath)
+        const radius = motion.amplitude * (0.2 + 0.8 * breath) * ramp
         const angle = (
           motion.angle_phase
           + time * motion.angle_speed
@@ -68,25 +127,13 @@ export default function useGalleryFloat(targets: readonly FloatTarget[], enabled
         )
         const x = Math.cos(angle) * radius
         const y = Math.sin(angle) * radius
-        for (const ref of [target.ref, ...(target.linked_refs ?? [])]) {
-          const element = ref.current
-          if (element === null) {
-            continue
-          }
-          if (target.svg) {
-            element.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)})`)
-          } else {
-            (element as HTMLElement).style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`
-          }
-        }
+        applyOffset(target, x, y)
+        offsets.current.set(target, { x, y })
       }
       frame = window.requestAnimationFrame(tick)
     }
 
     frame = window.requestAnimationFrame(tick)
-    return () => {
-      window.cancelAnimationFrame(frame)
-      entries.forEach(entry => clearTarget(entry.target))
-    }
+    return () => window.cancelAnimationFrame(frame)
   }, [enabled, targets])
 }

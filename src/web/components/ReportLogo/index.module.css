@@ -1,0 +1,7 @@
+.logo {
+  display: inline-block;
+  flex: none;
+  background-color: currentColor;
+  -webkit-mask: url('../../assets/report-logo.png') center / contain no-repeat;
+  mask: url('../../assets/report-logo.png') center / contain no-repeat;
+}

@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useMemo, useRef } from 'react'
 
 import styles from './index.module.scss'
+import ReportLogo from '../ReportLogo'
 
 export type ReportCardConfig = {
   stamp: {
@@ -220,7 +221,7 @@ export default function ReportCard({
         </section>
 
         <div className={styles.stamp} aria-label='build info'>
-          <i className={styles.logo} />
+          <ReportLogo className={styles.logo} />
           <div>
             <div>构建日期: {build.date}</div>
             <div>githash: {build.hash}</div>

@@ -1,4 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react'
+
+import s from './index.module.css'
+import ReportLogo from '../ReportLogo'
 
 interface ZeldaQuestBannerProps {
   isOpen: boolean;
@@ -6,13 +9,7 @@ interface ZeldaQuestBannerProps {
   title?: string;
 }
 
-export const ZeldaQuestBanner: React.FC<ZeldaQuestBannerProps> = ({
-  isOpen,
-  category = "迷你挑战",
-  title = "同装摄影活动",
-}) => {
-  const [showComplete, setShowComplete] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
+function useAudioEffect() {
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   // 初始化浏览器音频上下文
@@ -168,6 +165,19 @@ export const ZeldaQuestBanner: React.FC<ZeldaQuestBannerProps> = ({
     }
   };
 
+  return { playStartSound, playCompleteSound }
+}
+
+export const ZeldaQuestBanner: React.FC<ZeldaQuestBannerProps> = ({
+  isOpen,
+  category = "迷你挑战",
+  title = "同装摄影活动",
+}) => {
+  const [showComplete, setShowComplete] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+
+  const { playStartSound, playCompleteSound } = useAudioEffect()
+
   useEffect(() => {
     if (isOpen) {
       setIsVisible(true);
@@ -194,104 +204,37 @@ export const ZeldaQuestBanner: React.FC<ZeldaQuestBannerProps> = ({
   if (!isVisible && !isOpen) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 50,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.55)',
-        backdropFilter: 'blur(2px)',
-        opacity: isOpen ? 1 : 0,
-        transition: 'opacity 0.3s ease-in-out',
-        pointerEvents: isOpen ? 'auto' : 'none',
-      }}
-    >
+    <div className={`${s.mask} ${isOpen ? s.maskOpen : ''}`}>
       {/* 中间横向全宽光带背景 */}
-      <div
-        style={{
-          width: '100vw',
-          padding: '24px 48px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          transform: isOpen ? 'translateY(0) scale(1)' : 'translateY(16px) scale(0.95)',
-          opacity: isOpen ? 1 : 0,
-          transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
-      >
-        <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%', position: 'relative' }}>
+      <div className={`${s.body} ${isOpen ? s.bodyOpen : ''}`}>
+        <div className={s.frame}>
 
           {/* 顶部：Icon 与 挑战类型 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <svg style={{ width: '20px', height: '20px', color: '#fde047' }} viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2L2 19h20L12 2zm0 4.5l6.5 11.5h-13L12 6.5z" />
-            </svg>
-            <span style={{ color: '#e5e7eb', fontSize: '15px', fontWeight: 500, letterSpacing: '0.15em' }}>
-              {category}
-            </span>
+          <div className={s.iconCategory}>
+            <div
+              className={`${s.headerGlow} ${isOpen ? s.headerGlowOpen : ''}`}
+              aria-hidden='true'
+            />
+            <ReportLogo className={s.icon} />
+            <span className={s.category}>{category}</span>
           </div>
 
           {/* 横向渐变分割线 */}
-          <div style={{ position: 'relative', height: '2px', width: '100%', marginBottom: '12px', overflow: 'hidden' }}>
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                background: 'linear-gradient(90deg, rgba(255,255,255,0.9) 0%, rgba(254,240,138,0.7) 60%, transparent 100%)',
-                transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
-                opacity: isOpen ? 1 : 0,
-                transition: 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
-              }}
-            />
+          <div className={s.divider}>
+            <div className={`${s.dividerLine} ${isOpen ? s.dividerLineOpen : ''}`} />
           </div>
 
           {/* 主标题与 COMPLETE 印章 */}
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'baseline' }}>
-            <h1
-              style={{
-                fontSize: 'clamp(2.5rem, 5vw, 4.5rem)',
-                fontWeight: 900,
-                letterSpacing: '0.08em',
-                color: '#111827',
-                WebkitTextStroke: '1px rgba(255, 255, 255, 0.7)',
-                textShadow: '0 2px 12px rgba(255, 255, 255, 0.4)',
-                margin: 0,
-              }}
-            >
-              {title}
-            </h1>
+          <div className={s.titleRow}>
+            <div
+              className={`${s.titleGlow} ${isOpen ? s.titleGlowOpen : ''}`}
+              aria-hidden='true'
+            />
+            <h1 className={s.title}>{title}</h1>
 
             {/* Complete 印章：盖章降落、弹性回弹与旋转 */}
-            <div
-              style={{
-                position: 'absolute',
-                left: 'calc(50% + 40px)',
-                bottom: '4px',
-                transform: showComplete
-                  ? 'translateY(0) scale(1) rotate(-3deg)'
-                  : 'translateY(-16px) scale(1.4) rotate(8deg)',
-                opacity: showComplete ? 1 : 0,
-                transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: 'Georgia, Cambria, "Times New Roman", serif',
-                  fontStyle: 'italic',
-                  fontWeight: 'bold',
-                  fontSize: 'clamp(2rem, 4vw, 3.8rem)',
-                  letterSpacing: '0.05em',
-                  color: '#fef08a',
-                  textShadow: '0 0 16px rgba(254, 240, 138, 0.7), 2px 2px 6px rgba(0, 0, 0, 0.9)',
-                  userSelect: 'none',
-                  display: 'inline-block',
-                }}
-              >
-                Complete
-              </span>
+            <div className={`${s.stamp} ${showComplete ? s.stampVisible : ''}`}>
+              <span className={s.stampText}>Complete</span>
             </div>
           </div>
 

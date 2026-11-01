@@ -1,0 +1,113 @@
+.wpb-housing {
+  --button-rotate: -0.5deg;
+  position: relative;
+  display: inline-flex;
+  min-width: 80px;
+  max-width: 100%;
+  font-size: 14px;
+  background-color: #0b0d0e;
+  border-radius: 9px;
+  box-sizing: border-box;
+  /* 深邃的黑色凹槽 */
+  box-shadow:
+      inset 0 4px 6px rgba(0, 0, 0, 0.95),
+      inset 0 1px 2px rgba(0, 0, 0, 0.8),
+      inset -2px 0 3px rgba(0, 0, 0, 0.7),
+      inset 2px 0 3px rgba(0, 0, 0, 0.5),
+      inset 0 -1px 2px rgba(255, 255, 255, 0.6),
+      0 1px 2px rgba(255, 255, 255, 0.9);
+}
+
+.wpb-button {
+  min-height: 32px;
+  font-family: sans-serif;
+  width: 100%;
+  height: 100%;
+  border-radius: 9px;
+  border: 1px solid #b3b7bb;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+
+  /* 银色塑料质感底色：左右边缘高光 + 垂直上下渐层 */
+  background:
+      linear-gradient(90deg,
+          rgba(255, 255, 255, 0.8) 0%,
+          rgba(255, 255, 255, 0.3) 3%,
+          rgba(240, 241, 243, 0) 12%,
+          rgba(240, 241, 243, 0) 88%,
+          rgba(255, 255, 255, 0.3) 97%,
+          rgba(255, 255, 255, 0.8) 100%
+      ),
+      linear-gradient(180deg,
+          #ffffff 0%,
+          #f5f6f7 25%,
+          #e1e3e6 70%,
+          #cbcfd4 100%
+      );
+
+  /* 多层次的边缘反光与阴影 */
+  box-shadow:
+      inset 2px 0 1px rgba(255, 255, 255, 0.9),
+      inset -2px 0 1px rgba(255, 255, 255, 0.9),
+      inset 4px 0 5px rgba(0, 0, 0, 0.12),
+      inset -4px 0 5px rgba(0, 0, 0, 0.12),
+      inset 0 2px 1px #ffffff,
+      inset 0 -3px 4px rgba(0, 0, 0, 0.18),
+      0 6px 6px -4px rgba(0, 0, 0, 0.45),
+      0 1px 2px rgba(0, 0, 0, 0.35);
+
+  /* 初始微微向上浮动 */
+  transform: translateY(-0.5px) rotate(var(--button-rotate));
+  /* transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.05s ease; */
+}
+
+/* 顶部椭圆形高光反光层 (仿注塑塑料质感) */
+.wpb-button::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 3px;
+  right: 3px;
+  height: 48%;
+  border-radius: 7px 7px 11px 11px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.25) 60%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+}
+
+/* 外围边缘倒角强化 */
+.wpb-button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  box-shadow: inset 1px 1px 0px rgba(255, 255, 255, 0.8), inset -1px 1px 0px rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+}
+
+/* 按压状态（同时兼容 CSS :active 和 React 的 press 参数） */
+.wpb-button:active, .wpb-button.wpb-pressed {
+  transform: translateY(0px) scale(0.985) rotate(0);
+  background:
+      linear-gradient(90deg,
+          rgba(255, 255, 255, 0.5) 0%,
+          rgba(0, 0, 0, 0.1) 100%
+      ),
+      linear-gradient(180deg, #d8dadc 0%, #c4c7ca 100%);
+  box-shadow:
+      inset 1px 1px 3px rgba(0, 0, 0, 0.4),
+      inset -1px -1px 2px rgba(255, 255, 255, 0.4),
+      0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* 禁用状态 */
+.wpb-housing.wpb-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+  filter: grayscale(0.5);
+}

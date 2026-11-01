@@ -144,7 +144,6 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
   )
   const voted = voted_members.length
   const total = members.length
-  const not_voted = Math.max(0, total - voted)
   const submitted_ids = useMemo(
     () => new Set(gallery.photos.map(photo => Number(photo.member_id))),
     [gallery.photos],
@@ -394,18 +393,18 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
       <aside className={styles.votePanel}>
         {vote_view === 'summary' && (
           <>
-            <div className={styles.stats}>
-              <div className={styles.stat}>
-                <span>投票总人数</span>
-                <strong>{total}</strong>
-              </div>
-              <div className={styles.stat}>
-                <span>已投</span>
-                <strong>{voted}</strong>
-              </div>
-              <div className={styles.stat}>
-                <span>未投</span>
-                <strong>{not_voted}</strong>
+            <div
+              className={styles.voteRatioCard}
+              aria-label={`参与投票的人数比：已投 ${voted} 人，成员总数 ${total} 人`}
+            >
+              <span className={styles.voteRatioTitle}>参与投票的人数比</span>
+              <div className={styles.voteRatioGrid} aria-hidden='true'>
+                <span className={styles.voteRatioValue}>{voted}</span>
+                <span className={styles.voteRatioSlash}>/</span>
+                <span className={styles.voteRatioValue}>{total}</span>
+                <span className={styles.voteRatioLabel}>已投</span>
+                <span />
+                <span className={styles.voteRatioLabel}>成员数量</span>
               </div>
             </div>
 

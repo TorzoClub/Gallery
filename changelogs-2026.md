@@ -1,3 +1,150 @@
+# Torzo Gallery 4.1.0
+
+- 发布日期：2026-11-01
+- 版本：`4.1.0`
+- Git tag：`v4.1.0`
+- 对比基准：`v4.0.0` (`c2b1572`)
+- 对比链接：https://github.com/TorzoClub/Gallery/compare/v4.0.0...v4.1.0
+
+## 概览
+
+4.1.0 聚焦公开页取消投稿流程、后台入口与后台控制台的交互质感，同时把 CRT 换台抽成可复用组件。
+
+本次没有 storage schema、环境变量或图片处理流程变更，不需要执行 storage 迁移。
+
+## 取消投稿与 Explore
+
+- `/cancelSubmission` 改为 `/explore/cancelSubmission` 覆盖层，底层 Explore 不再卸载：
+  - 点击取消投稿后保留 Explore 的列表、筛选、滚动和组件状态
+  - 覆盖层固定为 `top: 0; left: 0; width: 100vw; height: 100vh`
+  - 取消投稿完成后返回 `/explore` 仍是同一个 Explore 实例
+- 旧 `/cancelSubmission`、`/removingSubmission` 继续兼容，会重定向到新地址并保留 route state。
+- 进入和退出取消投稿都复用 CRT 转场：
+  - 进入显示 `CH. cancelSubmission`
+  - 返回显示 `CH. Explore`
+  - 覆盖层在换台完成后再挂载/卸载
+- 新增可复用的 `ChannelTransition`，统一封装：
+  - `ChannelSwitch` 噪点和扫描线
+  - 换台音效
+  - 频道 OSD
+  - 换台余辉
+  - 舞台抖动和过滤器
+  - 换台后的内容切换和清理
+- 普通频道 `/explore`、`/behind`、`/admin` 的换台也改用该组件。
+
+## 后台入口
+
+- 重做 Behind 页的 Admin Login：
+  - `Admin Login` 标题居中，带左右分割线
+  - 管理员密码输入、提交和错误状态重新整理
+- 后台入口按钮改为 SVG 金属拉杆：
+  - 拉杆两端固定座、金属渐变与阴影
+  - 拉杆位于登录面板下方
+  - 点击拉杆切换登录面板
+- 拉杆增加手部抓握动效：
+  - `✋` 从右下方移动到拉杆
+  - 到达后等待 300ms
+  - 变成 `✊` 后才展开登录面板
+  - 手位于拉杆后方，完成后淡出
+- 登录错误不再使用行内错误块，改为指向密码输入框的 Popover：
+  - 输入框作为 Popover trigger
+  - 错误文本使用 `role="alert"`
+  - 输入框通过 `aria-describedby` 关联错误
+  - 支持 Escape、点击外部和点击输入框关闭
+- Popover 新增可选的非模态模式，错误提示不会抢焦点或启用焦点陷阱。
+
+## 后台控制台
+
+- 后台操作按钮全部由 `SkeuomorphismButton` 替换为 `WhitePlasticButton`：
+  - 创建相册
+  - 完成排序
+  - 调整相册顺序
+- 移除后台里的 `SkeuomorphismButtonHighlight` 包裹和高亮依赖。
+- 新增 `WhitePlasticButton`：
+  - 银白塑料材质、边缘高光、倒角和按压凹陷
+  - 使用 Pointer 事件管理完整按压周期
+  - 支持鼠标、触摸、键盘和外部强制按压
+  - 每次点击随机生成很小的倾角，模拟松垮的塑料按键
+- 移动端后台面板切换键改为录音机式金属琴键：
+  - 黑色内凹键槽
+  - 拉丝银灰键帽、顶部高光和金属前唇
+  - 选中键保持下沉，其他键弹起
+  - 按下时立即切换面板
+  - 支持鼠标、触摸、键盘和方向键
+  - 修复原生 `:active` 在选中态提交前释放造成的闪烁
+- 新增机械按键音效：
+  - 按下的低频键体声、金属 click 和噪声
+  - 旧键弹起时的高频回弹声
+  - 使用 Web Audio 合成，无音频文件
+  - AudioContext 不可用时静默降级
+- 后台成员投票参与比例卡片重做。
+- 重投操作增加二次确认。
+- 完善控制台选中态、输入框细节、创建区间距和名单簿分隔线。
+
+## 公开页与组件
+
+- 重构 `Navigator`。
+- 新增 `ZeldaQuestBanner` 活动横幅特效组件，并在 Behind 页提供活动 banner 演示入口。
+- 修复 iOS Safari 下 ConfirmQQ 输入完成后不回弹的问题。
+- 导出 `Title` 的 `Slit` 组件，供后台登录展开使用。
+- 完善 `Popover` 的非模态行为。
+- 新增 `ChannelTransition`、`WhitePlasticButton` 和机械按键音频工具。
+
+## 接口、配置与维护
+
+- 删除未使用的旧 Admin 读取查询：
+  - `adminGetInstanceConfig`
+  - `adminStatistic`
+  - `adminListGalleries`
+  - `adminGetGallery`
+  - `adminListMembers`
+  - `adminGetMember`
+  - `adminListPhotos`
+  - `adminGetPhoto`
+  - `adminListAvailablePhotos`
+  - `adminListMemberVotes`
+  - `adminListPhotoVotes`
+- 后台改用 `adminFetchPool` 获取完整快照。
+- instance 配置默认值改为直接从 `InstanceConfigFileSchema` 推导，避免默认值与 schema 漂移。
+- 补充 `.env.example` 的环境变量说明。
+- 补充 `PUBLIC_BASE_URL` 与本地图片 URL 的排查文档。
+- 移除 Dependabot 配置。
+
+## 破坏性变更与升级
+
+- 取消投稿规范地址改为 `/explore/cancelSubmission`；旧地址仍会重定向并保留 state。
+- 旧 Admin 读取查询已从 dispatch API 移除。公开 API 不受影响；如果存在依赖这些内部 admin query 的外部脚本，需要改用 `adminFetchPool`。
+- storage schema 仍为 v2，不需要迁移。
+- 环境变量要求没有变化。
+- 版本号更新：
+  - `package.json` → `4.1.0`
+  - `index.html` 静态资源 query → `v=4.1.0`
+  - ReportCard 示例和组件默认版本 → `v4.1.0`
+- Git tag：`v4.1.0`
+
+## 验证
+
+本版本发布前验证通过：
+
+```text
+pnpm typecheck  通过
+pnpm lint       0 errors，5 warnings
+pnpm test       19 个测试文件，108 个用例通过
+pnpm build      通过
+```
+
+说明：
+
+- lint 警告为既有组件告警，不阻塞发布。
+- 当前仍没有浏览器 UI 自动化测试；公开页、后台入口、取消投稿覆盖层和后台琴键通过浏览器手工验证。
+- 服务端测试覆盖 dispatch、鉴权、storage、图片处理、投稿/投票、相册约束、静态服务和缓存。
+
+## 已知限制
+
+- storage 仍是单实例 JSON + 图片池，同一 storage 同时只允许一个进程写。
+- 图片管线仍为 SDR-only。
+- 后台和公开页共享单进程，后台代码异步加载但由同一服务提供。
+
 # Torzo Gallery 4.0.0
 
 - 发布日期：2026-11-01

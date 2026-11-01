@@ -44,7 +44,7 @@ docker compose up -d --build
 - [docs/configure.md](docs/configure.md)：环境变量、instance 配置、构建、缓存、部署
 - [docs/api.md](docs/api.md)：HTTP 接口和 dispatch action
 - [docs/auth.md](docs/auth.md)：后台登录、JWT 和权限边界
-- [changelogs-2026.md](changelogs-2026.md)：4.0.0 版本变更记录
+- [changelogs-2026.md](changelogs-2026.md)：4.0.0 / 4.1.0 版本变更记录
 - [docs/troubleshooting.md](docs/troubleshooting.md)：常见问题
 - [AGENTS.md](AGENTS.md)：协作和 agent 工作边界
 - [TODOS.md](TODOS.md)：当前状态和后续待办

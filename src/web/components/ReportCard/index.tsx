@@ -56,7 +56,7 @@ export const DEFAULT_REPORT_CARD_CONFIG: ReportCardConfig = {
 }
 
 export const DEFAULT_REPORT_CARD_ROWS: readonly ReportCardRow[] = [
-  ['Version', 'v4.1.0'],
+  ['Version', 'v4.1.1'],
   ['Uptime', '4y2m1d'],
   ['Submissions', '245'],
   ['Votes', '2189'],

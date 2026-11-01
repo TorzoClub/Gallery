@@ -891,8 +891,8 @@
   .pMembers {
     grid-area: members;
     padding-top: 16px;
-    border-top: 1px solid #b4bbbf;
-    box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.8);
+    border-top: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 -1px 0 #b4bbbf;
   }
 
   /* 名单簿默认收起，点标题条展开（瞬时切换） */

@@ -26,6 +26,7 @@
   height: 100%;
   border-radius: 9px;
   border: 1px solid #b3b7bb;
+  color: hsl(201 30% 23% / 1);
   box-sizing: border-box;
   cursor: pointer;
   display: flex;

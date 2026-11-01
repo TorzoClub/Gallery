@@ -62,7 +62,9 @@
   letter-spacing: 0.04em;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
   touch-action: manipulation;
-  user-select: none;
+  -webkit-touch-callout: none; /* Disables the long-press callout menu on links/images */
+  -webkit-user-select: none;   /* Required for iOS Safari */
+  user-select: none;           /* Standard syntax */
   /* background:
     linear-gradient(90deg,
       rgba(255, 255, 255, 0.7) 0%,
@@ -132,11 +134,13 @@
     linear-gradient(180deg, #a2a8aa 0%, #5b6265 45%, #292f32 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    0 3px 4px rgba(0, 0, 0, 0.55);
+    0 3px 4px rgba(0, 0, 0, 0.55),
+    0 6px 10px rgba(0, 0, 0, 0.55)
+  ;
   pointer-events: none;
 }
 
-/* 按下通过 data-pressed 保持到 click，选中后由 aria-checked 接替，不依赖 :active */
+/* 按下由 data-pressed 驱动，锁定的键由 aria-checked 保持下沉 */
 .key[data-pressed='true'],
 .key[aria-checked='true'] {
   color: #1e2326;
@@ -184,9 +188,7 @@
   height: 4px;
   background:
     linear-gradient(180deg, #62686b 0%, #3b4144 55%, #24292c 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    0 1px 2px rgba(0, 0, 0, 0.55);
+  box-shadow: none;
 }
 
 .key:focus-visible {

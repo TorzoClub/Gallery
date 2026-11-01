@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { cn } from '@/utils/cn'
+import { playMechanicalKeyReleaseSound, playMechanicalKeySound } from '@/utils/mechanical-key-audio'
 import { LedIndicator } from './LedIndicator';
 import SegmentLCDProgress from './SegmentLCDProgress';
 import MemberPopover from './MemberPopover';
@@ -519,47 +520,39 @@ function useIsLarge() {
 export function AdminConsole({ stats, settings, onSettingsChange, members, memberCanDelete, onMembersChanged, onRebuild, rebuildNote }: AdminConsoleProps) {
   const [tab, setTab] = useState<TabId>('stats');
   const [pressed_key, setPressedKey] = useState<TabId | null>(null);
-  const press_timer = useRef<number | null>(null);
+  const tab_ref = useRef<TabId>('stats');
   const isLarge = useIsLarge(); // 大屏时所有面板都可见
   const keyRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  const clearPressTimer = () => {
-    if (press_timer.current !== null) {
-      window.clearTimeout(press_timer.current);
-      press_timer.current = null;
+  // 收音机逻辑：新键按下时立即切换面板，旧键同时弹起并发出回弹声。
+  const switchTab = (id: TabId) => {
+    if (tab_ref.current === id) {
+      return;
     }
+    tab_ref.current = id;
+    setTab(id);
+    playMechanicalKeyReleaseSound();
   };
 
-  const releasePressedKey = () => {
-    clearPressTimer();
+  const pressTab = (id: TabId) => {
+    playMechanicalKeySound();
+    setPressedKey(id);
+    switchTab(id);
+  };
+
+  const releaseTab = () => {
     setPressedKey(null);
   };
 
-  // 等 click 提交新的 aria-checked 后再松开；无 click 时用 180ms 兜底。
-  // 这样 pointerup 和选中态更新之间不会露出一帧抬起状态。
-  const schedulePressRelease = () => {
-    clearPressTimer();
-    press_timer.current = window.setTimeout(() => {
-      press_timer.current = null;
-      setPressedKey(null);
-    }, 180);
-  };
-
-  const selectTab = (id: TabId) => {
-    releasePressedKey();
-    setTab(id);
-  };
-
-  useEffect(() => clearPressTimer, []);
-
   const onKeyDown = (e: KeyboardEvent) => {
-    const i = TABS.findIndex((t) => t.id === tab);
+    const i = TABS.findIndex((t) => t.id === tab_ref.current);
     const step = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
     if (!step) return;
     e.preventDefault();
-    releasePressedKey();
+    releaseTab();
     const next = (i + step + TABS.length) % TABS.length;
-    setTab(TABS[next].id);
+    playMechanicalKeySound();
+    switchTab(TABS[next].id);
     keyRefs.current[next]?.focus();
   };
 
@@ -580,29 +573,31 @@ export function AdminConsole({ stats, settings, onSettingsChange, members, membe
             data-pressed={pressed_key === t.id ? 'true' : undefined}
             onPointerDown={(e) => {
               if (e.button !== 0) return;
-              clearPressTimer();
+              pressTab(t.id);
               e.currentTarget.setPointerCapture?.(e.pointerId);
-              setPressedKey(t.id);
             }}
-            onPointerUp={schedulePressRelease}
-            onPointerCancel={releasePressedKey}
+            onPointerUp={releaseTab}
+            onPointerCancel={releaseTab}
             onBlur={() => {
               if (pressed_key === t.id) {
-                releasePressedKey();
+                releaseTab();
               }
             }}
             onKeyDown={(e) => {
-              if (e.key === ' ' || e.key === 'Enter') {
-                clearPressTimer();
-                setPressedKey(t.id);
-              }
+              if (e.key !== ' ' && e.key !== 'Enter') return;
+              if (e.repeat) return;
+              pressTab(t.id);
             }}
             onKeyUp={(e) => {
               if (e.key === ' ' || e.key === 'Enter') {
-                schedulePressRelease();
+                releaseTab();
               }
             }}
-            onClick={() => selectTab(t.id)}
+            onClick={() => {
+              if (tab_ref.current === t.id) return;
+              playMechanicalKeySound();
+              switchTab(t.id);
+            }}
           >
             {t.label}
           </button>

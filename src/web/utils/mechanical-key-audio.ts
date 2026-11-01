@@ -61,7 +61,7 @@ export function playMechanicalKeySound(): void {
 
       const now = context.currentTime
       const master = context.createGain()
-      master.gain.value = 0.72
+      master.gain.value = 1
       master.connect(context.destination)
 
       const thump = context.createOscillator()
@@ -70,7 +70,7 @@ export function playMechanicalKeySound(): void {
       thump.frequency.setValueAtTime(155, now)
       thump.frequency.exponentialRampToValueAtTime(78, now + 0.075)
       thumpGain.gain.setValueAtTime(0.0001, now)
-      thumpGain.gain.linearRampToValueAtTime(0.24, now + 0.004)
+      thumpGain.gain.linearRampToValueAtTime(0.42, now + 0.004)
       thumpGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.1)
       thump.connect(thumpGain)
       thumpGain.connect(master)
@@ -83,7 +83,7 @@ export function playMechanicalKeySound(): void {
       click.frequency.setValueAtTime(2300, now)
       click.frequency.exponentialRampToValueAtTime(980, now + 0.025)
       clickGain.gain.setValueAtTime(0.0001, now)
-      clickGain.gain.linearRampToValueAtTime(0.035, now + 0.002)
+      clickGain.gain.linearRampToValueAtTime(0.06, now + 0.002)
       clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.032)
       click.connect(clickGain)
       clickGain.connect(master)
@@ -98,7 +98,7 @@ export function playMechanicalKeySound(): void {
       noiseFilter.frequency.setValueAtTime(1250, now)
       noiseFilter.Q.value = 1.1
       noiseGain.gain.setValueAtTime(0.0001, now)
-      noiseGain.gain.linearRampToValueAtTime(0.12, now + 0.003)
+      noiseGain.gain.linearRampToValueAtTime(0.2, now + 0.003)
       noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045)
       noise.connect(noiseFilter)
       noiseFilter.connect(noiseGain)
@@ -136,7 +136,7 @@ export function playMechanicalKeyReleaseSound(): void {
 
       const now = context.currentTime + 0.045
       const master = context.createGain()
-      master.gain.value = 0.58
+      master.gain.value = 0.88
       master.connect(context.destination)
 
       const pop = context.createOscillator()
@@ -145,7 +145,7 @@ export function playMechanicalKeyReleaseSound(): void {
       pop.frequency.setValueAtTime(310, now)
       pop.frequency.exponentialRampToValueAtTime(520, now + 0.045)
       popGain.gain.setValueAtTime(0.0001, now)
-      popGain.gain.linearRampToValueAtTime(0.075, now + 0.003)
+      popGain.gain.linearRampToValueAtTime(0.15, now + 0.003)
       popGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07)
       pop.connect(popGain)
       popGain.connect(master)
@@ -158,7 +158,7 @@ export function playMechanicalKeyReleaseSound(): void {
       click.frequency.setValueAtTime(1650, now)
       click.frequency.exponentialRampToValueAtTime(2700, now + 0.018)
       clickGain.gain.setValueAtTime(0.0001, now)
-      clickGain.gain.linearRampToValueAtTime(0.022, now + 0.0015)
+      clickGain.gain.linearRampToValueAtTime(0.04, now + 0.0015)
       clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.026)
       click.connect(clickGain)
       clickGain.connect(master)
@@ -173,7 +173,7 @@ export function playMechanicalKeyReleaseSound(): void {
       noiseFilter.frequency.setValueAtTime(1800, now)
       noiseFilter.Q.value = 0.8
       noiseGain.gain.setValueAtTime(0.0001, now)
-      noiseGain.gain.linearRampToValueAtTime(0.08, now + 0.002)
+      noiseGain.gain.linearRampToValueAtTime(0.15, now + 0.002)
       noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035)
       noise.connect(noiseFilter)
       noiseFilter.connect(noiseGain)

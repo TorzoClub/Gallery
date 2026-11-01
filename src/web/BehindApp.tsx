@@ -238,10 +238,16 @@ function EnterAdmin(props: { onLoginSuccess(): void }) {
           </form>
         </Slit>
       </div>
-      <AdminPullHandle
-        expanded={open}
-        onClick={() => setOpen(value => !value)}
-      />
+      <div style={{
+        width: '360px',
+        margin: 'auto',
+        borderTop: open ? '' : 'solid 1px grey'
+      }}>
+        <AdminPullHandle
+          expanded={open}
+          onClick={() => setOpen(value => !value)}
+        />
+      </div>
     </>
   )
 }

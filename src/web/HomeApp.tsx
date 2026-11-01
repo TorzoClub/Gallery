@@ -8,6 +8,7 @@ import ExplorePage from './layouts/Explore'
 import './HomeApp.css'
 import { Link, useNavigate } from 'react-router-dom'
 import Navigator from './components/Navigator'
+import { resetPageScroll } from './utils/reset-page-scroll'
 
 
 export const appInitInfomation = Memo({
@@ -22,6 +23,7 @@ export default function AppHome() {
       <Navigator
         scene='explore'
         onClickPushButton={() => {
+          resetPageScroll()
           navigate('/behind', {
             replace: true,
           })

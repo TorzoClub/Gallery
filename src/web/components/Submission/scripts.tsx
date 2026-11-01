@@ -18,6 +18,7 @@ import { dateDiffInDays, isInvalidDate, isNextMonth, isNextWeek, monthDiff, stri
 import { signal_critical_error } from 'signals'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { playTextBlip } from '@/utils/text-audio'
+import { resetPageScroll } from '@/utils/reset-page-scroll'
 import Spinner from '../Spinner'
 
 type InitArgs = {
@@ -99,6 +100,7 @@ export function init(init_args : InitArgs) {
         return
       }
       has_navigated.current = true
+      resetPageScroll()
       navigate('/explore/cancelSubmission', {
         replace: true,
         state: {
@@ -269,6 +271,7 @@ export function init(init_args : InitArgs) {
               return
             }
             has_navigated.current = true
+            resetPageScroll()
             Signal.once(_EVENT_.canceled, () => {
               setTimeout(() => {
                 setRemoving(false)

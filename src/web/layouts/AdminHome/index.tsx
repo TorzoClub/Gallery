@@ -26,8 +26,7 @@ import {
 import { instanceConfigFromSettings, settingsFromInstanceConfig } from './admin-settings'
 import styles from './index.module.scss'
 import './admin.css'
-import SkeuomorphismButton from '@/components/SkeuomorphismButton'
-import SkeuomorphismButtonHighlight from '@/components/SkeuomorphismButtonHighlight'
+import { WhitePlasticButton } from '@/components/WhitePlasticButton'
 
 type LoadState =
   | { status: 'loading' }
@@ -499,34 +498,28 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
       {settingsSaving && <div className={styles.consoleStatus}>正在保存设置…</div>}
       <div className={styles.createGallery}>
         <div className={styles.createGalleryActions}>
-          <SkeuomorphismButton
+          <WhitePlasticButton
             disabled={sort_mode || creatingGallery}
             onClick={() => void handleCreateGallery()}
-            inputProps={{
-              className: sort_mode ? styles.createGalleryDisabled : undefined,
-            }}
           >
-            {creatingGallery ? '创建中…' : '+ 创建相册'}
-          </SkeuomorphismButton>
+            <div style={{ width: '95px' }}>
+              {creatingGallery ? '创建中…' : '+ 创建相册'}
+            </div>
+          </WhitePlasticButton>
           {sort_mode ? (
-            <SkeuomorphismButtonHighlight active={!sort_busy}>
-              <SkeuomorphismButton
-                disabled={sort_disabled}
-                onClick={handleSortButton}
-                inputProps={{
-                  className: sort_disabled ? styles.sortButtonDisabled : undefined,
-                }}
-              >
-                {sort_busy ? '保存中…' : '完成排序'}
-              </SkeuomorphismButton>
-            </SkeuomorphismButtonHighlight>
-          ) : (
-            <SkeuomorphismButton
+            <WhitePlasticButton
               disabled={sort_disabled}
               onClick={handleSortButton}
             >
-              调整相册顺序
-            </SkeuomorphismButton>
+              <div style={{ width: '110px' }}>{sort_busy ? '保存中…' : '完成排序'}</div>
+            </WhitePlasticButton>
+          ) : (
+            <WhitePlasticButton
+              disabled={sort_disabled}
+              onClick={handleSortButton}
+            >
+              <div style={{ width: '110px' }}>调整相册顺序</div>
+            </WhitePlasticButton>
           )}
         </div>
         {createGalleryError !== '' && (

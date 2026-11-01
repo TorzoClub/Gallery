@@ -1,53 +1,112 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react'
+
 import './index.css'
 
 export interface WhitePlasticButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   /**
-   * 控制按键是否处于按压状态（除了鼠标点击外，还可通过代码控制）
+   * 由外部强制按下，适合提交中等需要保持按压态的场景。
    */
-  press?: boolean;
-  retenion_time?: number
+  press?: boolean
 }
 
 export const WhitePlasticButton: React.FC<WhitePlasticButtonProps> = ({
   press = false,
   onClick,
+  onPointerDown,
+  onPointerUp,
+  onPointerCancel,
+  onLostPointerCapture,
+  onKeyDown,
+  onKeyUp,
+  onBlur,
   children,
   className = '',
   disabled,
-  retenion_time = 150,
   ...rest
 }) => {
+  const [is_pressed, setIsPressed] = useState(false)
   const [button_deg, setButtonDeg] = useState(-0.5)
-  const [retention, setRetention] = useState(false)
-  const _press = useMemo(() => {
-    if (retention) {
-      return true
-    } else {
-      return press
+  const is_press = press || is_pressed
+
+  useEffect(() => {
+    if (disabled) {
+      setIsPressed(false)
     }
-  }, [retention, press])
+  }, [disabled])
+
+  const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    onPointerDown?.(event)
+    if (disabled || event.defaultPrevented || event.button !== 0) {
+      return
+    }
+
+    event.currentTarget.setPointerCapture?.(event.pointerId)
+    setIsPressed(true)
+  }
+
+  const handlePointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
+    onPointerUp?.(event)
+    setIsPressed(false)
+  }
+
+  const handlePointerCancel = (event: React.PointerEvent<HTMLButtonElement>) => {
+    onPointerCancel?.(event)
+    setIsPressed(false)
+  }
+
+  const handleLostPointerCapture = (event: React.PointerEvent<HTMLButtonElement>) => {
+    onLostPointerCapture?.(event)
+    setIsPressed(false)
+  }
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    onKeyDown?.(event)
+    if (disabled || event.defaultPrevented || event.repeat) {
+      return
+    }
+    if (event.key === ' ' || event.key === 'Enter') {
+      setIsPressed(true)
+    }
+  }
+
+  const handleKeyUp = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    onKeyUp?.(event)
+    if (event.key === ' ' || event.key === 'Enter') {
+      setIsPressed(false)
+    }
+  }
+
+  const handleBlur = (event: React.FocusEvent<HTMLButtonElement>) => {
+    onBlur?.(event)
+    setIsPressed(false)
+  }
+
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    // 每次点击后换一个很小的倾角，模拟塑料按键的松垮感。
+    setButtonDeg((Math.floor(Math.random() * 11) - 5) / 10)
+    onClick?.(event)
+  }
 
   return (
-    <div className={`wpb-housing ${disabled ? 'wpb-disabled' : ''}`} style={{
-      '--button-rotate': `${button_deg}deg`
-    } as React.CSSProperties}>
+    <div
+      className={`wpb-housing ${disabled ? 'wpb-disabled' : ''}`}
+      style={{
+        '--button-rotate': `${button_deg}deg`,
+      } as React.CSSProperties}
+    >
       <button
-        className={`wpb-button ${_press ? 'wpb-pressed' : ''} ${className}`}
-        onClick={(e) => {
-          setButtonDeg(
-            (Math.floor(Math.random() * 11) - 5) / 10
-          )
-          if (!retention) {
-            setRetention(true)
-            setTimeout(() => {
-              setRetention(false)
-            }, retenion_time)
-          }
-          onClick && onClick(e)
-        }}
-        disabled={disabled}
         {...rest}
+        type={rest.type ?? 'button'}
+        className={`wpb-button ${is_press ? 'wpb-pressed' : ''} ${className}`}
+        disabled={disabled}
+        onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        onLostPointerCapture={handleLostPointerCapture}
+        onKeyDown={handleKeyDown}
+        onKeyUp={handleKeyUp}
+        onBlur={handleBlur}
       >
         {children}
       </button>

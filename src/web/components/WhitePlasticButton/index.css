@@ -1,5 +1,4 @@
 .wpb-housing {
-  --button-rotate: -0.5deg;
   position: relative;
   display: inline-flex;
   min-width: 80px;
@@ -20,6 +19,8 @@
 
 .wpb-button {
   min-height: 32px;
+  touch-action: manipulation;
+  user-select: none;
   font-family: sans-serif;
   width: 100%;
   height: 100%;
@@ -63,7 +64,7 @@
       0 1px 2px rgba(0, 0, 0, 0.35);
 
   /* 初始微微向上浮动 */
-  transform: translateY(-0.5px) rotate(var(--button-rotate));
+  transform: translateY(-0.5px) rotate(var(--button-rotate, -0.5deg));
   /* transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.05s ease; */
 }
 
@@ -90,8 +91,8 @@
   pointer-events: none;
 }
 
-/* 按压状态（同时兼容 CSS :active 和 React 的 press 参数） */
-.wpb-button:active, .wpb-button.wpb-pressed {
+/* 按压状态只由组件状态控制，不依赖原生 :active */
+.wpb-button.wpb-pressed {
   transform: translateY(0px) scale(0.985) rotate(0);
   background:
       linear-gradient(90deg,

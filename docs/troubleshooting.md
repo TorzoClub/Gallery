@@ -61,6 +61,41 @@ Vite middleware 和 production 的 Hono SPA fallback 都应在同一个端口处
 
 不要把页面和接口混成同一个 POST 路径。`/auth/login` 是 API；后台页面由 SPA fallback 提供。
 
+## 图片 URL 指向 localhost 或与当前访问地址不一致
+
+现象：通过局域网 IP、容器地址或域名访问站点，但 API 返回的图片地址是：
+
+```text
+http://localhost:7001/images/thumb/...
+```
+
+原因：服务端使用 `PUBLIC_BASE_URL` 生成绝对图片 URL。它不控制监听地址；如果仍是默认值 `http://localhost:7001`，浏览器就会去访问访问者自己的 localhost。
+
+检查环境配置：
+
+```dotenv
+HTTP_HOSTNAME=0.0.0.0
+HTTP_PORT=7001
+PUBLIC_BASE_URL=http://<浏览器实际访问的地址>:7001
+```
+
+- `PUBLIC_BASE_URL` 必须是**浏览器实际访问的 origin**，包含协议、域名/IP 和端口。
+- 使用反向代理或 HTTPS 时，填外部地址，例如 `https://gallery.example.com`。
+- 它应该是纯 origin，不要带 API 路径或多余路径。
+- `HTTP_HOSTNAME` 只控制监听地址，不能代替 `PUBLIC_BASE_URL`。
+- 环境变量在进程启动时读取，修改后必须重启服务进程；仅刷新页面无效。
+- Docker 部署需要更新 compose 环境并重新创建容器。
+
+验证：
+
+```bash
+curl http://127.0.0.1:7001/healthz
+```
+
+然后检查后台 API 响应中的 `avatar_thumb_url`、`thumb_url`、`optimized_url` 是否使用当前访问 origin。也可以在浏览器 Network 面板确认图片请求不再指向 localhost。
+
+`PUBLIC_BASE_URL` 与实际访问地址不一致时，图片和头像会加载到错误的 origin；这不是前端缓存问题，不要靠清理浏览器缓存解决。相关配置说明见 [configure.md](configure.md#监听地址与公开-url)。
+
 ## 静态资源缓存不对
 
 生产构建后检查：

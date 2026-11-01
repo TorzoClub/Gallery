@@ -1,0 +1,48 @@
+.navigator {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px 0px;
+  user-select: none;
+}
+
+.navigator-title {
+  font-family: "VT323", monospace;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 18px;
+  font-weight: bold;
+  color: rgb(48, 103, 133);
+}
+
+.navigator-button-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navigator-title-word {
+  letter-spacing: 1px;
+}
+
+.navigator-title-space {
+  display: inline-block;
+  width: 5px;
+}
+
+.navigator-title-admin {
+
+}
+.navigator-title-admin-icon {
+  margin-left: 4px;
+  margin-right: 4px;
+}
+.navigator-title-admin-word {
+  font-style: italic;
+  /* font-weight: normal; */
+  color: rgb(133 48 106);
+  font-family: Impact, Haettenschweiler, "Arial Narrow", "Liberation Sans Narrow", sans-serif;
+  font-weight: 700;
+  font-stretch: condensed;
+  letter-spacing: 0;
+}

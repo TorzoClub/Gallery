@@ -1,0 +1,167 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  min-width: 240px;
+  color: #374151;
+  font-size: 13px;
+}
+
+.heading {
+  padding-bottom: 9px;
+  border-bottom: 1px solid #d7d0c1;
+  color: #3f4a55;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.avatarRow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.avatarPreview {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  overflow: hidden;
+  border: 2px solid #fffdf6;
+  border-radius: 50%;
+  background: #d7dde0;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .25), 0 2px 4px rgb(0 0 0 / .2);
+  color: #4b5563;
+  font-size: 20px;
+  font-weight: 800;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.avatarCopy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  color: #776b5c;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #59616b;
+  font-size: 12px;
+  font-weight: 700;
+
+  input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 9px;
+    border: 1px solid #8d8c87;
+    border-radius: 3px;
+    background: #fafaf8;
+    color: #374151;
+    box-shadow: inset 0 2px 4px rgb(0 0 0 / .25);
+    font: 600 14px ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+    outline: none;
+  }
+
+  input[readonly] {
+    color: #6b7280;
+    background: #eeeae0;
+    box-shadow: none;
+  }
+
+  input:focus-visible {
+    outline: 2px solid #e8571f;
+    outline-offset: 2px;
+  }
+}
+
+.error {
+  color: #8c2828;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-top: 2px;
+}
+
+.actionsRight {
+  display: flex;
+  gap: 7px;
+  margin-left: auto;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 3px;
+  font: 700 12px 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 1px solid #9a4a2d;
+  background: linear-gradient(#f17b4d, #d95625);
+  color: #fffdf7;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .35), 0 1px 2px rgb(0 0 0 / .25);
+
+  &:disabled {
+    cursor: default;
+    opacity: .6;
+  }
+}
+
+.secondaryButton {
+  border: 1px solid #a8aa9e;
+  background: linear-gradient(#fffef7, #e9e5d7);
+  color: #4b5563;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(0 0 0 / .12);
+
+  &:disabled {
+    cursor: default;
+    opacity: .6;
+  }
+}
+
+.dangerButton {
+  border: 1px solid #b98282;
+  background: linear-gradient(#fff8f4, #f4ddd8);
+  color: #8c2828;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(0 0 0 / .12);
+
+  &:disabled {
+    cursor: default;
+    opacity: .6;
+  }
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.dangerButton:focus-visible {
+  outline: 2px solid #e8571f;
+  outline-offset: 2px;
+}
+
+.fileInput {
+  display: none;
+}

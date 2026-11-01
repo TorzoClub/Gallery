@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "noImplicitAny": false,
+    "forceConsistentCasingInFileNames": true,
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "types": ["vite/client", "node"],
+    "paths": {
+      "@/*": ["./src/web/*"],
+      "@shared/*": ["./src/shared/*"],
+      "App": ["./src/web/App.tsx"],
+      "signals": ["./src/web/signals.ts"],
+      "api/*": ["./src/web/api/*"],
+      "assets/*": ["./src/web/assets/*"],
+      "components/*": ["./src/web/components/*"],
+      "hooks/*": ["./src/web/hooks/*"],
+      "layouts/*": ["./src/web/layouts/*"],
+      "pool/*": ["./src/web/pool/*"],
+      "state/*": ["./src/web/state/*"],
+      "typings/*": ["./src/web/typings/*"],
+      "utils/*": ["./src/web/utils/*"]
+    }
+  },
+  "include": ["src/web", "src/shared", "vite.config.ts"],
+  "exclude": ["node_modules", "dist", "legacy"]
+}

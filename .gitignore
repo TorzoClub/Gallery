@@ -1,1 +1,17 @@
 .DS_Store
+.pnpm-store/
+.npmrc
+node_modules
+dist
+coverage
+.vitest
+/storage
+/storage-dev
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+temp
+legacy
+storage-migrated

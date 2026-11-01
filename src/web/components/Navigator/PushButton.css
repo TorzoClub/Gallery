@@ -1,0 +1,209 @@
+/*
+ * PushButton —— 纯 CSS 的拟物圆形按钮
+ *
+ * 结构：
+ *   button.pb              尺寸 = diameter（即凹槽的直径）
+ *   ├─ span.pb__socket     凹槽：完全不透明，背景有纹理也不会穿帮
+ *   └─ span.pb__cap        按钮本体：尺寸 = capDiameter，在凹槽内居中
+ *        ::before          米白色按钮面（textured 时叠加塑料颗粒）
+ *
+ * 单位：
+ *   --us = 凹槽直径的 1%，用于凹槽自己的阴影
+ *   --u  = 按钮本体直径的 1%，用于按钮的外圈、投影等
+ * 所以 diameter / capDiameter 改变时整体等比缩放。
+ * （注意：这两个值要能参与 box-shadow 计算，请用 px / rem / calc() 等绝对长度，
+ *  不要传百分比或 auto 之类的关键字。）
+ *
+ * 弹起 ↔ 按下之间只改变 box-shadow、background-color、transform，
+ * 这些属性都能被 transition 插值，所以可以做 150ms 的陷落动画。
+ */
+
+.pb {
+  /* 由组件通过 style 传入；这里的默认值只在脱离组件单独使用时生效 */
+  --pb-d: 120px;
+  --pb-cap-d: calc(var(--pb-d) - 3px);
+
+  --us: calc(var(--pb-d) / 100);
+  --u: calc(var(--pb-cap-d) / 100);
+
+  /* 凹槽：全部为不透明色。想换成别的底色，改这三个变量 */
+  --pb-socket-top: #d2d2d5;
+  --pb-socket-mid: #e1e1e4;
+  --pb-socket-bottom: #ececef;
+
+  /* 按钮本体 */
+  --pb-ring: #66655f;            /* 弹起时：较深的外圈 */
+  --pb-ring-pressed: #8d8c86;    /* 按下时：外圈变浅 */
+  --pb-face-top: #d3cfc6;
+  --pb-face-mid: #e4e1d9;
+  --pb-face-low: #efede7;
+  --pb-face-bottom: #f7f6f2;
+  --pb-duration: 150ms;
+
+  /*
+   * 塑料颗粒：feTurbulence 生成的灰度噪点，内联为 data URI（没有任何外部依赖）。
+   * 灰度范围约 0.44–1.0，用 multiply 叠在按钮面上，相当于随机的细小暗点。
+   * 想让颗粒更明显：把 intercept 调小（如 .36）；想更细腻：把 baseFrequency 调大。
+   */
+  --pb-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='linear' slope='1' intercept='.44'/%3E%3CfeFuncG type='linear' slope='1' intercept='.44'/%3E%3CfeFuncB type='linear' slope='1' intercept='.44'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  position: relative;
+  display: inline-block;
+  box-sizing: border-box;
+  width: var(--pb-d);
+  height: var(--pb-d);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  user-select: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------- 凹槽（不透明） ---------- */
+
+.pb__socket {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  /* 不透明的底：背景图案无论如何都透不过来 */
+  background: linear-gradient(
+    180deg,
+    var(--pb-socket-top) 0%,
+    var(--pb-socket-mid) 55%,
+    var(--pb-socket-bottom) 100%
+  );
+  /*
+   * 只用内阴影，全部画在凹槽自己的不透明底之上，所以结果仍然不透明，
+   * 也不会往凹槽外面漏光。
+   * 弹起：上沿一点点暗，下沿一条细白边。
+   */
+  box-shadow:
+    inset 0 calc(var(--us) * 1) calc(var(--us) * 2) rgba(0, 0, 0, 0.12),
+    inset 0 calc(var(--us) * -0.6) 0 #fff;
+}
+
+/* ---------- 按钮本体 ---------- */
+
+.pb__cap {
+  position: absolute;
+  inset: 0;
+  margin: auto; /* 配合 width/height 在凹槽内居中 */
+  width: var(--pb-cap-d);
+  height: var(--pb-cap-d);
+  border-radius: 50%;
+  background-color: var(--pb-ring);
+  transform: scale(1);
+  /* 弹起：贴底的接触阴影 + 向下偏移、略偏左的大面积柔和投影 */
+  box-shadow:
+    0 calc(var(--u) * 1.5) calc(var(--u) * 2.5) rgba(0, 0, 0, 0.35),
+    calc(var(--u) * -1) calc(var(--u) * 9) calc(var(--u) * 11) calc(var(--u) * -3)
+      rgba(0, 0, 0, 0.5);
+}
+
+/* 光滑款按钮面：竖向渐变 + 底部中央的高光 */
+.pb__cap::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--u) * 2.4);
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      ellipse 42% 26% at 50% 94%,
+      #fff 0%,
+      rgba(255, 255, 255, 0) 100%
+    ),
+    linear-gradient(
+      180deg,
+      var(--pb-face-top) 0%,
+      var(--pb-face-mid) 30%,
+      var(--pb-face-low) 65%,
+      var(--pb-face-bottom) 100%
+    );
+  /* 外圈内侧的一条细白线，上沿更亮 */
+  box-shadow: inset 0 calc(var(--u) * 0.8) calc(var(--u) * 0.8) rgba(255, 255, 255, 0.9);
+}
+
+/* ---------- textured：粗糙的塑料面 ---------- */
+
+.pb--textured .pb__cap::before {
+  /* 最上层是噪点，用 multiply 压在下面的渐变上；高光减弱，磨砂塑料不该有那么亮的反光 */
+  background:
+    var(--pb-noise),
+    radial-gradient(
+      ellipse 46% 28% at 50% 94%,
+      rgba(255, 255, 255, 0.6) 0%,
+      rgba(255, 255, 255, 0) 100%
+    ),
+    linear-gradient(
+      180deg,
+      var(--pb-face-top) 0%,
+      var(--pb-face-mid) 30%,
+      var(--pb-face-low) 65%,
+      var(--pb-face-bottom) 100%
+    );
+  background-size: 160px 160px, auto, auto;
+  background-blend-mode: multiply, normal, normal;
+  /* 细白线也收敛一些，边缘不再是"釉面"的感觉 */
+  box-shadow: inset 0 calc(var(--u) * 0.6) calc(var(--u) * 1) rgba(255, 255, 255, 0.55);
+}
+
+/* ---------- 按下状态（:active 或 pressed 属性） ---------- */
+
+.pb:active:not(:disabled) .pb__cap,
+.pb--pressed .pb__cap {
+  background-color: var(--pb-ring-pressed);
+  transform: scale(0.985);
+  /* 投影收掉（保持与弹起状态相同的阴影数量，才能平滑过渡） */
+  box-shadow:
+    0 0 0 0 rgba(0, 0, 0, 0),
+    0 0 0 0 rgba(0, 0, 0, 0);
+}
+
+.pb:active:not(:disabled) .pb__socket,
+.pb--pressed .pb__socket {
+  /* 凹槽上沿更暗，下沿的白色边缘变宽变柔（仍然只在凹槽内部） */
+  box-shadow:
+    inset 0 calc(var(--us) * 2) calc(var(--us) * 3.5) rgba(0, 0, 0, 0.28),
+    inset 0 calc(var(--us) * -2) calc(var(--us) * 3) #fff;
+}
+
+/* ---------- press-animate：150ms 陷落动画 ---------- */
+
+.pb--animate .pb__cap {
+  transition:
+    box-shadow var(--pb-duration) ease-out,
+    background-color var(--pb-duration) ease-out,
+    transform var(--pb-duration) ease-out;
+}
+
+.pb--animate .pb__socket {
+  transition: box-shadow var(--pb-duration) ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pb--animate .pb__cap,
+  .pb--animate .pb__socket {
+    transition: none;
+  }
+}
+
+/* ---------- 键盘焦点 / 禁用 ---------- */
+
+.pb:focus-visible {
+  outline: 2px solid #4a7bd0;
+  outline-offset: calc(var(--us) * 4);
+}
+
+.pb:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

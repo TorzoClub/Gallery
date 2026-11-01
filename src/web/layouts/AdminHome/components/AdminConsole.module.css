@@ -1,0 +1,1052 @@
+/*
+ * 设计原则：精确、克制。
+ * 除“走纸”“玻璃保护盖开合”两处叙事性动画外，没有任何 transition / animation。
+ * 移动优先：基础样式 = 640px 以内；min-width: 641px 起换成大屏布局。
+ */
+
+.root {
+  --surface: hsl(201 10% 85% / 1);
+  --ink: #374151;
+  --ink-soft: #6b7280;
+  --hair: #c9c6c0;
+  --accent: #e8571f;
+  --lcd-bg: #9eb492;
+  --lcd-on: #182015;
+  --stat-dh: 26px;
+
+  --well-shadow:
+    inset 0 10px 10px -10px rgba(0, 0, 0, 0.4),
+    inset 0 -10px 10px -150px rgba(0, 0, 0, 0.4),
+    inset 0 -1px 1px -1px #777;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --font: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+
+  display: grid;
+  gap: 0px;
+  margin: 0;
+  font-family: var(--font);
+  color: var(--ink);
+}
+
+/* ==================== 单选按钮组：象牙白的一体式药丸 ==================== */
+.bank {
+  display: flex;
+  gap: 0px;
+  margin: 8px auto 0 10px;
+  padding: .5px;
+  background: #d5d9dc;
+  border-radius: 6px;
+  box-shadow: inset 0 0 5px black;
+  width: 320px;
+}
+
+.key {
+  flex: 1;
+  height: 28px;
+  padding: 0 6px;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: #3b3a35;
+  text-shadow: 0 1px 0 #fff;
+  background: linear-gradient(#fffef7, #f1eee0);
+  /* border: solid 1px grey; */
+  /* border-top: solid 1px white; */
+  /* border-left: solid 1px #a7a7a7; */
+  /* border-right: solid 1px #a7a7a7; */
+  border-radius: 6px;
+  box-sizing: content-box;
+  box-shadow:
+    inset 0 -3px 5px rgba(130, 115, 70, 0.22),
+    0 10px 8px -8px rgba(0, 0, 0, 0.618),
+    inset 0 2px 0 -1px #AAA,
+    /* inset 0 -2px 0 -1px grey, */
+    inset 1.5px 0px 0 -1px grey,
+    inset -1.5px 0px 0 -1px grey
+  ;
+  cursor: pointer;
+}
+
+.key:first-child {
+  /* border-radius: 27px 6px 6px 27px; */
+}
+
+.key:last-child {
+  /* border-radius: 6px 27px 27px 6px; */
+}
+
+/* 按下 = 选中：瞬间凹陷，字变橙 */
+.key:active,
+.key[aria-checked='true'] {
+  /* color: #d9480f; */
+  background: linear-gradient(#e4e0cf, #eeebdc);
+  /* box-shadow: inset 0 4px 8px rgba(90, 75, 35, 0.45); */
+  box-shadow: inset 0 6px 6px -6px rgba(90, 75, 35, 0.618);
+  box-shadow:
+    inset 0 2px 0 -1px grey,
+    inset 0 -2px 0 -1px grey,
+    inset 1.5px 0px 0 -1px grey,
+    inset -1.5px 0px 0 -1px grey
+  ;
+  /* border-color: transparent; */
+  border: 0;
+}
+
+.key:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -5px;
+}
+
+.field:focus-visible,
+.range:focus-visible,
+.fire:focus-visible,
+.cover:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ==================== 主面板（小屏：铺满的 #e9e7e3） ==================== */
+.console {
+  position: relative; /* 小屏的打印纸会伸出下沿，所以不能 overflow:hidden */
+  box-sizing: border-box;
+  margin: 0;
+  margin-top: 18px;
+  padding: 16px;
+  background: var(--surface);
+  border-radius: 0;
+  box-shadow: var(--well-shadow);
+}
+
+/* 小屏：未选中的面板整块隐藏。不用 hidden 属性，因为项目里的全局 reset 常带 [hidden]{display:none!important}，会盖掉大屏的展开 */
+.off {
+  display: none;
+}
+
+/* ==================== 面板 A：数据 ==================== */
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px 12px;
+}
+
+.tileHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 18px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ==================== 数码管 ==================== */
+.lcd {
+  display: flex;
+  justify-content: flex-end;
+  padding: 7px 10px;
+  background: var(--lcd-bg);
+  border-radius: 1px;
+  box-shadow:
+    rgba(0, 0, 0, 0.5) 0 3px 6px inset,
+    rgb(149 149 149) 0 0 0 1px inset,
+    0 1px 0 #fff,
+    0 -1px 0 grey;
+}
+
+.digits {
+  display: flex;
+  gap: calc(var(--dh) * 0.12);
+  transform: skewX(-6deg);
+}
+
+.digit {
+  width: calc(var(--dh) * 0.6);
+  height: var(--dh);
+}
+
+.segOff {
+  fill: rgba(0, 0, 0, 0.08);
+}
+
+.segOn {
+  fill: var(--lcd-on);
+}
+
+/* ==================== 面板 B：设置（沿用最初风格） ==================== */
+.settings {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-between; /* 窄的一侧更高时，把多出的空间分到两组之间，让底边对齐 */
+  gap: 28px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 18px; /* 和 .tileHead 同高，保证左右两列第一行视觉对齐 */
+  font-weight: 700;
+}
+
+.fieldWrap {
+  position: relative; /* 单位写在输入框内部右侧，和数字同一条基线 */
+  display: block;
+}
+
+.field {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 40px 8px 10px;
+  font: 600 16px var(--mono);
+  color: #374151;
+  background: #fafaf8;
+  border: 1px solid #8d8c87;
+  border-radius: 3px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+.unit {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  transform: translateY(-50%);
+  pointer-events: none; /* 点到单位等于点到输入框 */
+}
+
+/* 去掉数字框自带的上下箭头，免得盖住单位 */
+.field::-webkit-outer-spin-button,
+.field::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.field {
+  -moz-appearance: textfield;
+}
+
+.sliderRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6px 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sliderRow .range {
+  grid-column: 1 / -1;
+}
+
+/* 推子（Fader） */
+.range {
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.range::-webkit-slider-runnable-track {
+  height: 6px;
+  background: #5b5c5a;
+  border-radius: 3px;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.7), 0 1px 0 #fff;
+}
+
+.range::-moz-range-track {
+  height: 6px;
+  background: #5b5c5a;
+  border-radius: 3px;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.7), 0 1px 0 #fff;
+}
+
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 26px;
+  margin-top: -10px;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 4px, rgba(0, 0, 0, 0.25) 4px 5px) center / 100% 12px no-repeat,
+    linear-gradient(to right, #f4f4f2, #cfcfca);
+  border: 1px solid #7e7e79;
+  border-radius: 3px;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.4), inset 0 1px 0 #fff;
+}
+
+.range::-moz-range-thumb {
+  width: 14px;
+  height: 24px;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 4px, rgba(0, 0, 0, 0.25) 4px 5px) center / 100% 12px no-repeat,
+    linear-gradient(to right, #f4f4f2, #cfcfca);
+  border: 1px solid #7e7e79;
+  border-radius: 3px;
+  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.4), inset 0 1px 0 #fff;
+}
+
+/* ==================== 面板 C：缩略图重建 ==================== */
+.rebuild {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+/* 和数据面板同一套两列网格（列间距都是 12px），所以发射台、说明、数码管能与上面的方块严格对齐 */
+.rebuildTop {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* 说明纸贴顶，数码管和指示灯贴底，底边与发射台底边齐平 */
+  gap: 12px;
+  min-width: 0;
+}
+
+/* 淡黄色便签纸 + 四角透明胶带 */
+.note {
+  position: relative;
+  margin: 6px 6px 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #4a4325;
+  background: #fbf3c4;
+  box-shadow:  0px 0 2px rgba(0, 0, 0, 0.25);
+  transform: rotate(-1deg);
+  font-family: "Hannotate SC", "HanziPen SC", "Wawati SC",
+             "Kaiti SC", "STKaiti", "KaiTi", "楷体", "DFKai-SB",
+             cursive, sans-serif;
+  letter-spacing: 1.5px;
+}
+
+.note b {
+  font-weight: 800;
+  color: #8a3b12;
+}
+
+.tape {
+  position: absolute;
+  width: 160px;
+  height: 20px;
+  background: linear-gradient(rgba(255, 255, 255, 0.55), rgba(225, 236, 243, 0.4));
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35), 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+.tapeTL { top: -3px; left: -10px; transform: rotate(-4deg); }
+.tapeBR { right: -13px; bottom: -6px; width: 185px; transform: rotate(-4deg); }
+
+.readout {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.leds {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.bar {
+  margin: 24px 0;
+}
+
+/* ---- 发射台：警示条、保险灯、金属环、红色按钮、玻璃保护盖 ---- */
+.launch {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.housing {
+  position: relative;
+  padding: 14px 12px 16px;
+  background: linear-gradient(#7b7e84 0%, #55585e 38%, #2a2c31 100%);
+  border-radius: 10px;
+  box-shadow:
+    0 8px 10px -4px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 0 1px #111,
+    0 8px 5px -5px rgba(0,0,0,0.5),
+    inset 0 6px 5px -5px white
+  ;
+}
+
+.screw {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background:
+    linear-gradient(35deg, transparent 44%, rgba(0, 0, 0, 0.6) 44% 56%, transparent 56%),
+    radial-gradient(circle at 35% 30%, #d4d4cf, #6c6c66);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+}
+
+.screw0 { top: 5px; left: 5px; }
+.screw1 { top: 5px; right: 5px; }
+.screw2 { bottom: 5px; left: 5px; }
+.screw3 { right: 5px; bottom: 5px; }
+
+.nameplate {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-align: left;
+  color: #f4f5f6;
+  text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.55);
+}
+
+.hazard {
+  height: 7px;
+  background: repeating-linear-gradient(-45deg, #f2c200 0 6px, #1b1b1b 6px 12px);
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px #000;
+}
+
+.lamps {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 10px;
+  padding: 6px 4px;
+  background: #d9d6cf;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.stage {
+  position: relative;
+  height: 132px;
+  margin-top: 12px;
+  background: linear-gradient(#b8bec4, #878d94);
+  border-radius: 8px;
+  box-shadow:
+    inset 0 10px 5px -5px rgba(0,0,0,0.7),
+    inset 0 2px 5px rgba(0, 0, 0, 0.45)
+  ;
+  perspective: 700px;
+}
+
+.well {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: 116px;
+  height: 116px;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(#ecece8, #8a8a85, #ecece8, #8a8a85, #ecece8);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 5px #3a3c42, inset 0 3px 6px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.armed {
+  box-shadow: inset 0 0 0 5px #3a3c42, inset 0 3px 6px rgba(0, 0, 0, 0.7), 0 0 0 3px rgba(255, 80, 40, 0.6);
+}
+
+.fire {
+  position: relative;
+  width: 86px;
+  height: 86px;
+  padding: 0;
+  background: radial-gradient(circle at 38% 30%, #ff9f78 0, #ea4a22 38%, #b4260c 78%, #8e1c07);
+  border: 0;
+  border-radius: 50%;
+  box-shadow:
+    0 6px 0 #6e1604,
+    0 10px 8px rgba(0, 0, 0, 0.5),
+    inset 0 2px 2px rgba(255, 255, 255, 0.55),
+    inset 0 -4px 6px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+/* 高光 */
+.fire::after {
+  content: '';
+  position: absolute;
+  top: 9px;
+  left: 17px;
+  width: 34px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  transform: rotate(-18deg);
+}
+
+.fire:disabled {
+  cursor: default; /* 盖着玻璃盖时保持原样（凸起），不要显示成按下 */
+}
+
+/* 只有真正按下、或正在重建时才凹下去 */
+.fire:active:not(:disabled),
+.firing {
+  transform: translateY(6px);
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.55);
+}
+
+/* 铰链：固定在台面上，玻璃盖绕它转动 */
+.hingeBar {
+  position: absolute;
+  top: -4px;
+  left: 14px;
+  right: 14px;
+  z-index: 3;
+  height: 9px;
+  background: linear-gradient(#f4f4f0, #8c8c87 55%, #d4d4cf);
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+
+/* 玻璃盖。开合是“叙事时刻”，所以保留一个带回弹的短过渡 */
+.cover {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  padding: 0;
+  background:
+    linear-gradient(125deg, rgba(255, 255, 255, 0.55) 0 14%, transparent 14% 46%, rgba(255, 255, 255, 0.3) 46% 52%, transparent 52%),
+    rgba(190, 225, 235, 0.16);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  border-bottom-color: rgba(170, 215, 230, 0.95);
+  border-radius: 8px;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  transform-origin: 50% 0;
+  transition: transform 0.34s cubic-bezier(0.34, 1.35, 0.5, 1);
+  cursor: pointer;
+}
+
+/* 磨砂指扣 */
+.cover::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  width: 40px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 3px 3px 0 0;
+  transform: translateX(-50%);
+}
+
+.coverOpen {
+  transform: rotateX(-108deg);
+}
+
+.cover:disabled {
+  cursor: default;
+}
+
+.tear {
+  padding: 5px 12px;
+  font-family: var(--font);
+  font-size: 12px;
+  color: #3b3a35;
+  background: linear-gradient(#fffef7, #f1eee0);
+  border: 1px solid #a8a59a;
+  border-radius: 4px;
+  box-shadow: 0 2px 0 #a8a59a;
+  cursor: pointer;
+}
+
+.tear:active {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+/* ---- 小屏：打印槽。只有出错才吐纸，纸可以伸出白色框 ---- */
+.printer {
+  position: relative;
+  z-index: 20;
+  margin-top: 14px; /* 槽口永远贴在面板底部，宽度与整列（进度条、方块）相同 */
+}
+
+.slot {
+  position: relative;
+  z-index: 2;
+  height: 10px;
+  background: #15161a;
+  border-radius: 5px;
+  box-shadow: inset 0 2px 2px #000, 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+/* 热敏纸：每一行是一节纸，下一节嵌套在上一节里并绕自己的上沿再向观察者转几度，
+ * 层层累加成一条自然下垂、末端卷起来的弧线（带透视，越往下越近、越宽）。 */
+.paper {
+  position: absolute;
+  top: 5px;
+  right: 12px;
+  left: 12px;
+  z-index: 22;
+  font: 12px/20px courier, console, sans-serif;
+  color: #1a1a1a;
+  perspective: 700px;
+  perspective-origin: 50% 0;
+}
+
+.seg {
+  transform: rotateX(0deg);
+  transform-origin: 50% 0;
+  transform-style: preserve-3d;
+  background: #fffef9;
+  box-shadow: 0 8px 6px -1px rgba(0, 0, 0, 0.22);
+}
+
+.seg .seg {
+  transform: rotateX(5deg);
+}
+
+.tear {
+  position: absolute;
+  top: -32px;
+  right: 0;
+  z-index: 3;
+}
+
+.line {
+  position: relative;
+  display: grid;
+  margin: 0;
+  padding: 0 10px;
+}
+
+.lineFirst {
+  padding-top: 8px;
+}
+
+.lineLast {
+  padding-bottom: 6px;
+}
+
+/* 撕下的锯齿边，挂在最后一节上，会跟着一起弯 */
+.lineLast::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -8px;
+  left: 0;
+  height: 8px;
+  background:
+    linear-gradient(135deg, #fffef9 4px, transparent 0) 0 0 / 8px 8px,
+    linear-gradient(225deg, #fffef9 4px, transparent 0) 0 0 / 8px 8px;
+}
+
+/* 新的一行从槽口“走纸”出来：阶梯式推进 */
+.feeding {
+  animation: feed 0.24s steps(6) both;
+}
+
+.feedClip {
+  display: flex;
+  align-items: flex-end; /* 先露出文字下半部分，像从槽里被推出来 */
+  min-height: 0;
+  overflow: hidden;
+}
+
+.lineText {
+  overflow-wrap: anywhere;
+}
+
+@keyframes feed {
+  from { grid-template-rows: 0fr; }
+  to { grid-template-rows: 1fr; }
+}
+
+/* ==================== 面板 D：名单簿（沿用最初风格） ==================== */
+.memberToggle {
+  display: none;
+}
+
+.memberBody {
+  display: block;
+}
+
+/* 活页名单簿：整本不动，装订孔固定在左边；只有 .bookScroll 里的名单滚动（小屏、大屏都一样） */
+.book {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(#fffdf6, #fbf7ea);
+  border: 1px solid #c8c2ae;
+  border-radius: 4px 8px 8px 4px;
+  box-shadow: inset 0 1px 0 #fff, 0 2px 4px rgba(0, 0, 0, 0.25);
+}
+
+/* 装订孔：孔里透出底板 */
+.book::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40px;
+  background: radial-gradient(circle at 20px 26px, var(--surface) 0 6px, transparent 7px) 0 0 / 40px 52px repeat-y, #efe9d6;
+  border-right: 1px solid #c8c2ae;
+  border-radius: 4px 0 0 4px;
+  box-shadow: inset -3px 0 4px -3px rgba(0, 0, 0, 0.18);
+}
+
+.bookHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px 10px 56px;
+  border-bottom: 3px double #c0504a; /* 账本式红色双线 */
+}
+
+.bookTitle {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.bookCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.bookHead .bookCount {
+  padding: 2px 10px;
+  font-weight: 700;
+  color: #7a6a3a;
+  background: #f1e9cf;
+  border-radius: 999px;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.14);
+}
+
+.bookScroll {
+  max-height: min(420px, 60vh);
+  padding-left: 56px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cfc6a8 transparent;
+}
+
+.bookScroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.bookScroll::-webkit-scrollbar-thumb {
+  background: #cfc6a8;
+  border-radius: 4px;
+}
+
+.memberList {
+  counter-reset: member;
+}
+
+.member {
+  counter-increment: member;
+  display: grid;
+  grid-template-columns: 22px 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  height: 54px;
+  padding-right: 16px;
+  border-bottom: 1px solid #d3deea;
+}
+
+/* 序号 */
+.member::before {
+  content: counter(member, decimal-leading-zero);
+  font: 600 11px var(--mono);
+  color: #b3aa88;
+}
+
+.member:hover {
+  background: rgba(255, 236, 170, 0.35);
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  font-size: 15px;
+  font-weight: 800;
+  object-fit: cover;
+  background: #ddd;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #fffdf6, 0 0 0 3px rgba(0, 0, 0, 0.2), 0 2px 3px rgba(0, 0, 0, 0.3); /* 像贴上去的小相片 */
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nick {
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qq {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font: 600 13px/16px var(--mono);
+  color: #2b4a7a;
+}
+
+.qq small {
+  font: 700 10px var(--font);
+  letter-spacing: 0.08em;
+  color: #8a93a3;
+}
+
+.empty {
+  padding: 28px 0;
+  color: var(--ink-soft);
+}
+
+/* ==================== 大屏：> 640px，所有面板连成一整块 ====================
+ * .console 是铺满整个宽度的底板（背景和 inset 阴影只有这一份），
+ * .inner 是内容区：最宽 800px 并居中，更宽的屏幕只会把底板拉长，布局不变。 */
+@media (min-width: 641px) {
+  .root {
+    display: block;
+  }
+
+  .console {
+    margin-top: 8px;
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
+
+  .bank {
+    display: none;
+  }
+
+  .inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      'stats settings'
+      'rebuild settings'
+      'members members';
+    gap: 40px;
+    align-items: start;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  /* 面板只是内容分区，不再有自己的底色和阴影 */
+  .panel,
+  .panel.off {
+    display: block;
+  }
+
+  .pStats { grid-area: stats; }
+  .pSettings { grid-area: settings; }
+  .pRebuild { grid-area: rebuild; }
+
+  /* 设置栏和重建栏拉伸到整行高度，这样槽口的底边与设置栏最后一个推子的底边对齐 */
+  .panel.pSettings,
+  .panel.pRebuild {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+  }
+
+  .pMembers {
+    grid-area: members;
+    padding-top: 16px;
+    border-top: 1px solid #b4bbbf;
+    box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.8);
+  }
+
+  /* 名单簿默认收起，点标题条展开（瞬时切换） */
+  .memberToggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 0;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--ink);
+    background: none;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .memberToggle:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+  }
+
+  .memberToggle .bookCount {
+    margin-left: auto;
+  }
+
+  .memberToggle::after {
+    content: '';
+    border-style: solid;
+    border-width: 5px 0 5px 7px;
+    border-color: transparent transparent transparent currentColor;
+  }
+
+  .memberOpen .memberToggle::after {
+    border-width: 7px 5px 0;
+    border-color: currentColor transparent transparent;
+  }
+
+  .memberBody {
+    display: none;
+    margin-top: 12px;
+  }
+
+  .memberOpen .memberBody {
+    display: block;
+  }
+
+  /* 名单内的成员并排：两列 */
+  .memberList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .member:nth-child(even) {
+    padding-left: 16px;
+    border-left: 1px solid #e3dcc4; /* 两列之间的竖分隔线 */
+  }
+}
+
+/* ==================== ≥ 1440px：名单成为右侧的常驻侧栏 ====================
+ *   | 面板（数据 / 重建 | 设置） | 名单 A B / C D |
+ * 左侧两列保持 380px 不变，多出来的宽度全部给名单；名单不再折叠。 */
+@media (min-width: 1440px) {
+  .inner {
+    grid-template-columns: repeat(2, 380px) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      'stats settings members'
+      'rebuild settings members';
+    max-width: 1408px;
+  }
+
+  .pMembers {
+    align-self: stretch; /* 必须拉伸：名单内容是绝对定位的，不拉伸的话这一格高度为 0，名单就“消失”了 */
+    position: relative; /* 名单铺满整行高度；内容多时在名单内部滚动，不撑高整个布局 */
+    padding-top: 0;
+    border-top: 0;
+    box-shadow: none;
+  }
+
+  .memberToggle {
+    display: none;
+  }
+
+  .pMembers .memberBody {
+    position: absolute;
+    inset: 0;
+    display: block;
+    margin: 0;
+  }
+
+  /* 侧栏里名单撑满整行高度，滚动区占据标题以外的全部空间 */
+  .pMembers .book {
+    box-sizing: border-box;
+    height: 100%;
+  }
+
+  .pMembers .bookScroll {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .cover {
+    transition: none;
+  }
+  .feeding {
+    animation: none;
+  }
+}
+
+/* 名单簿：新增成员入口与可点击成员行 */
+.bookHeadActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.addMember {
+  padding: 4px 9px;
+  border: 1px solid #9ba3a7;
+  border-radius: 3px;
+  background: linear-gradient(#fffef7, #e6e2d6);
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0, 0, 0, 0.16);
+  color: #3f4a55;
+  font: 700 11px var(--font);
+  letter-spacing: .04em;
+  cursor: pointer;
+}
+
+.addMember:hover {
+  background: linear-gradient(#fffdf0, #ece7d7);
+}
+
+.addMember:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button.member {
+  width: 100%;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.member:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}

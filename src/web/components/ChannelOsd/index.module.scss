@@ -1,0 +1,25 @@
+.osd {
+  position: fixed;
+  top: max(16vh, env(safe-area-inset-top), 72px);
+  left: max(16vw, env(safe-area-inset-left), 72px);
+  z-index: 13000;
+  pointer-events: none;
+  color: #fff;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", "Heiti SC", sans-serif;
+  font-size: 64px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-shadow:
+    -2px -2px 0 #000,
+    2px -2px 0 #000,
+    -2px 2px 0 #000,
+    2px 2px 0 #000,
+    0 0 3px #000;
+}
+
+@media (max-width: 640px) {
+  .osd {
+    display: none;
+  }
+}

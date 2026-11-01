@@ -528,3 +528,23 @@
   font-size: 12px;
   text-align: center;
 }
+
+
+.revoteConfirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 238px;
+  color: #374151;
+  font-size: 12px;
+}
+
+.revoteConfirmText {
+  line-height: 1.5;
+}
+
+.revoteConfirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}

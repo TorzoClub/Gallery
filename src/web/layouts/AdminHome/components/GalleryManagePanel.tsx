@@ -118,6 +118,7 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
   const [delete_busy, setDeleteBusy] = useState(false)
   const [vote_view, setVoteView] = useState<VoteView>('summary')
   const [revote_busy_id, setRevoteBusyId] = useState<number | null>(null)
+  const [revote_confirm_id, setRevoteConfirmId] = useState<number | null>(null)
   const [revote_error, setRevoteError] = useState('')
 
   const photo_map = useMemo(
@@ -474,7 +475,14 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
         {vote_view === 'revote' && (
           <div className={styles.revoteView}>
             <div className={`${styles.revoteHead} ${styles.revoteHeadEnd}`}>
-              <button type='button' className={styles.backButton} onClick={() => setVoteView('summary')}>
+              <button
+                type='button'
+                className={styles.backButton}
+                onClick={() => {
+                  setRevoteConfirmId(null)
+                  setVoteView('summary')
+                }}
+              >
                 返回统计
               </button>
             </div>
@@ -528,14 +536,45 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
                             )}
                         </td>
                         <td className={styles.actionCell}>
-                          <button
-                            type='button'
-                            className={styles.smallButton}
-                            disabled={member_votes.length === 0 || revote_busy_id !== null}
-                            onClick={() => void handleRevote(member)}
-                          >
-                            {pending ? '处理中…' : '设置重投'}
-                          </button>
+                          <Popover
+                            open={revote_confirm_id === Number(member.id)}
+                            onOpenChange={open => setRevoteConfirmId(
+                              open ? Number(member.id) : null,
+                            )}
+                            label='确认设置重投'
+                            trigger={(
+                              <button
+                                type='button'
+                                className={styles.smallButton}
+                                disabled={member_votes.length === 0 || revote_busy_id !== null}
+                              >
+                                {pending ? '处理中…' : '设置重投'}
+                              </button>
+                            )}
+                            content={(close) => (
+                              <div className={styles.revoteConfirm}>
+                                <div className={styles.revoteConfirmText}>
+                                  确定要让「{member.name}（{member.qq_num}）」重新投票吗？<br />
+                                  该名成员在这个相册的投票记录将会被清除。
+                                </div>
+                                <div className={styles.revoteConfirmActions}>
+                                  <button type='button' className={styles.secondaryButton} onClick={close}>
+                                    取消
+                                  </button>
+                                  <button
+                                    type='button'
+                                    className={styles.primaryButton}
+                                    onClick={() => {
+                                      close()
+                                      void handleRevote(member)
+                                    }}
+                                  >
+                                    确认重投
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          />
                         </td>
                       </tr>
                     )

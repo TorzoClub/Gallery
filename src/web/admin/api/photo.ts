@@ -1,15 +1,5 @@
-import { adminMutate, adminQuery } from './client'
+import { adminMutate } from './client'
 import type { Photo, PhotoPayload } from './types'
-
-export async function listPhotos(galleryId: number | string): Promise<Photo[]> {
-  const photos = await adminQuery<Photo[]>('adminListPhotos')
-  const id = Number(galleryId)
-  return photos.filter(photo => photo.gallery_id === id)
-}
-
-export function getPhoto(id: number | string): Promise<Photo> {
-  return adminQuery<Photo>('adminGetPhoto', { photo_id: Number(id) })
-}
 
 export function createPhoto(data: PhotoPayload & { temp_id: string }): Promise<Photo> {
   return adminMutate<Photo>('adminCreatePhoto', data)

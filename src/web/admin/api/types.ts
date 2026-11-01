@@ -1,13 +1,10 @@
 import type {
   GalleryDTO,
   MemberDTO,
-  MemberVoteDTO,
   PhotoDTO,
-  StatisticDTO,
   AdminGalleryDTO,
   AdminPoolDTO,
   UploadResult,
-  VoteDTO,
   LoginResult,
 } from '@shared/dto'
 import type { InstanceConfig } from '@shared/config'
@@ -15,13 +12,10 @@ import type { InstanceConfig } from '@shared/config'
 export type {
   GalleryDTO,
   MemberDTO,
-  MemberVoteDTO,
   PhotoDTO,
-  StatisticDTO,
   AdminGalleryDTO,
   AdminPoolDTO,
   UploadResult,
-  VoteDTO,
   LoginResult,
   InstanceConfig,
 }
@@ -32,9 +26,6 @@ export type DateTimeString = string
 export type Gallery = GalleryDTO
 export type Member = MemberDTO
 export type Photo = PhotoDTO
-export type Vote = VoteDTO
-export type MemberVote = MemberVoteDTO
-export type Statistic = StatisticDTO
 
 export interface GalleryPayload {
   name: string

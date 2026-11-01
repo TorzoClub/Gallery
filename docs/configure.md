@@ -99,9 +99,11 @@ CORS_ORIGINS=http://10.0.0.5:3000
 通过新后台 `/admin` 的“运行期配置”修改，或调用：
 
 ```text
-adminGetInstanceConfig
+adminFetchPool
 adminUpdateInstanceConfig
 ```
+
+当前配置值从 `adminFetchPool` 返回的 `instance_config` 读取。单独的 `adminGetInstanceConfig` 读取接口已移除。
 
 修改只影响后续上传和 optimized/缩略图生成，不会自动重做已有图片。source 始终保留原图，不受这些图像处理配置影响。已有图片可以在后台用“重新生成图片”处理。
 

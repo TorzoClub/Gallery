@@ -106,7 +106,7 @@
 qq_num === null
 ```
 
-Admin query（例如 `adminGetGallery`、`adminGetPhoto`、`adminListMembers`）仍使用 `MemberDTO`，保留真实 QQ。
+Admin 侧统一通过 `adminFetchPool` 读取，`members` 和 `photos[].member` 使用 `MemberDTO`，保留真实 QQ。
 
 ### fetchMemberView
 
@@ -168,9 +168,9 @@ payload: {}
 - `galleries` 是完整的 `AdminGalleryDTO`，包含相片和 `vote_records`。
 - `members` 是完整 `MemberDTO`，Admin 可以看到真实 QQ。
 - `instance_config` 是完整 instance 配置，新 AdminConsole 的初始设置直接来自这里。
-- 修改设置仍走 `adminUpdateInstanceConfig`；新后台不额外调用 `adminGetInstanceConfig`。
+- 修改设置仍走 `adminUpdateInstanceConfig`；当前配置直接使用 `adminFetchPool` 返回的 `instance_config`。
 - AdminConsole 保存 `instance_config` 失败时，前端触发现有 CRT critical failure。
-- 新后台不再调用 `adminListGalleries`、`adminListMembers`、`adminGetPhoto` 等读取接口。
+- 旧 admin 读取 action（`adminListGalleries`、`adminGetGallery`、`adminListMembers`、`adminGetMember`、`adminListPhotos`、`adminGetPhoto`、`adminListAvailablePhotos`、`adminListMemberVotes`、`adminListPhotoVotes`、`adminStatistic`、`adminGetInstanceConfig`）已移除。
 
 ### Public legacy queries
 
@@ -186,26 +186,19 @@ payload: {}
 
 ## Admin queries
 
+管理员只有 `adminFetchPool` 一个读取入口：
+
 | action | payload | 返回 |
 |---|---|---|
-| `adminGetInstanceConfig` | `{}` | InstanceConfig |
-| `adminStatistic` | `{}` | `{ gallery_count, member_count, photo_count, vote_count }` |
-| `adminListGalleries` | `{}` | Gallery[] |
-| `adminGetGallery` | `{ gallery_id }` | Gallery |
-| `adminListMembers` | `{}` | Member[] |
-| `adminGetMember` | `{ member_id }` | Member |
-| `adminListPhotos` | `{}` | Photo[] |
-| `adminGetPhoto` | `{ photo_id }` | Photo |
-| `adminListAvailablePhotos` | `{}` | Photo[] |
-| `adminListMemberVotes` | `{ gallery_id }` | Member + votes[] |
-| `adminListPhotoVotes` | `{ gallery_id }` | `{ photo, votes }[]` |
+| `adminFetchPool` | `{}` | 完整 AdminPool，包含 galleries、members、instance_config |
+
+被移除的旧 admin 读取 action 调用时返回 `404 UNKNOWN_ACTION`。
 
 ## Admin mutations
 
 | action | payload | 说明 |
 |---|---|---|
 | `adminUpdateInstanceConfig` | 任意 instance 配置字段 | 返回完整配置 |
-| `adminFetchPool` | `{}` | 完整 AdminPool；新后台唯一的读取接口 |
 | `adminCreateGallery` | `{ name, index, vote_limit, event_start, submission_expire, event_end }` | 创建相册；名称长度 1–256；活动期间与其他相册重合时返回 `409 CONFLICT` |
 | `adminUpdateGallery` | `{ gallery_id, ...可选字段 }` | 更新相册；活动期间与其他相册重合时返回 `409 CONFLICT` |
 | `adminRemoveGallery` | `{ gallery_id }` | 删除空相册；仍有相片时返回 `409 CONFLICT` |
@@ -377,7 +370,7 @@ curl -X POST http://localhost:7001/auth/login \
   -H 'content-type: application/json' \
   -d '{"password":"your-password"}'
 
-curl -X POST http://localhost:7001/admin/query/adminStatistic \
+curl -X POST http://localhost:7001/admin/query/adminFetchPool \
   -H 'content-type: application/json' \
   -H "authorization: Bearer $TOKEN" \
   -d '{"payload":{}}'

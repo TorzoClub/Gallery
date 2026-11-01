@@ -1,11 +1,7 @@
 import { uploadImage as uploadTempImage } from '../../api/upload'
 import type { UploadOptions } from '../../api/upload'
-import { adminMutate, adminQuery } from './client'
-import type { Photo, UploadResult } from './types'
-
-export function getAvailablePhotos(): Promise<Photo[]> {
-  return adminQuery<Photo[]>('adminListAvailablePhotos')
-}
+import { adminMutate } from './client'
+import type { UploadResult } from './types'
 
 export function refreshThumb(params: { photo_id: number }): Promise<unknown> {
   return adminMutate('adminRefreshThumb', params)

@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import sharp from 'sharp'
+import type { AdminPoolDTO } from '../../src/shared/dto'
 import type { Hono } from 'hono'
 import {
   loadEnvConfig,
@@ -26,6 +27,7 @@ export type TestContext = {
   now: Date
   setNow(value: Date): void
   login(): Promise<string>
+  adminPool(): Promise<AdminPoolDTO>
   adminQuery(name: string, payload?: unknown): Promise<ApiResponse>
   adminMutate(name: string, payload?: unknown): Promise<ApiResponse>
   query(name: string, payload?: unknown): Promise<ApiResponse>
@@ -168,6 +170,14 @@ export async function createTestContext(options: {
     return requestJson(app, `/admin/query/${name}`, { payload }, await login())
   }
 
+  async function adminPool(): Promise<AdminPoolDTO> {
+    const response = await adminQuery('adminFetchPool')
+    if (response.status !== 200) {
+      throw new Error(`adminFetchPool 失败：HTTP ${response.status}`)
+    }
+    return response.body.data as AdminPoolDTO
+  }
+
   async function adminMutate(name: string, payload: unknown = {}): Promise<ApiResponse> {
     return requestJson(app, `/admin/mutate/${name}`, { payload }, await login())
   }
@@ -296,6 +306,7 @@ export async function createTestContext(options: {
       current_now = value
     },
     login,
+    adminPool,
     adminQuery,
     adminMutate,
     query,

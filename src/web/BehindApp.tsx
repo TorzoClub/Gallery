@@ -218,7 +218,7 @@ function EnterAdmin(props: { onLoginSuccess(): void }) {
                 trigger={(
                   <input
                     id='behind-admin-password'
-                    type='password'
+                    type='text'
                     value={admin_password}
                     autoComplete='current-password'
                     placeholder='管理员密码'
@@ -249,8 +249,8 @@ function EnterAdmin(props: { onLoginSuccess(): void }) {
                   }
                 }}
                 modal={false}
-                side='right'
-                align='start'
+                side='top'
+                align='center'
                 offset={8}
                 label='登录错误'
                 className='behind-app__admin-error-popover'

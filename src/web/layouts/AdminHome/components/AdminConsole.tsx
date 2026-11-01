@@ -518,14 +518,46 @@ function useIsLarge() {
 
 export function AdminConsole({ stats, settings, onSettingsChange, members, memberCanDelete, onMembersChanged, onRebuild, rebuildNote }: AdminConsoleProps) {
   const [tab, setTab] = useState<TabId>('stats');
+  const [pressed_key, setPressedKey] = useState<TabId | null>(null);
+  const press_timer = useRef<number | null>(null);
   const isLarge = useIsLarge(); // 大屏时所有面板都可见
   const keyRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const clearPressTimer = () => {
+    if (press_timer.current !== null) {
+      window.clearTimeout(press_timer.current);
+      press_timer.current = null;
+    }
+  };
+
+  const releasePressedKey = () => {
+    clearPressTimer();
+    setPressedKey(null);
+  };
+
+  // 等 click 提交新的 aria-checked 后再松开；无 click 时用 180ms 兜底。
+  // 这样 pointerup 和选中态更新之间不会露出一帧抬起状态。
+  const schedulePressRelease = () => {
+    clearPressTimer();
+    press_timer.current = window.setTimeout(() => {
+      press_timer.current = null;
+      setPressedKey(null);
+    }, 180);
+  };
+
+  const selectTab = (id: TabId) => {
+    releasePressedKey();
+    setTab(id);
+  };
+
+  useEffect(() => clearPressTimer, []);
 
   const onKeyDown = (e: KeyboardEvent) => {
     const i = TABS.findIndex((t) => t.id === tab);
     const step = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
     if (!step) return;
     e.preventDefault();
+    releasePressedKey();
     const next = (i + step + TABS.length) % TABS.length;
     setTab(TABS[next].id);
     keyRefs.current[next]?.focus();
@@ -545,7 +577,32 @@ export function AdminConsole({ stats, settings, onSettingsChange, members, membe
             aria-controls={`panel-${t.id}`}
             tabIndex={t.id === tab ? 0 : -1}
             className={styles.key}
-            onClick={() => setTab(t.id)}
+            data-pressed={pressed_key === t.id ? 'true' : undefined}
+            onPointerDown={(e) => {
+              if (e.button !== 0) return;
+              clearPressTimer();
+              e.currentTarget.setPointerCapture?.(e.pointerId);
+              setPressedKey(t.id);
+            }}
+            onPointerUp={schedulePressRelease}
+            onPointerCancel={releasePressedKey}
+            onBlur={() => {
+              if (pressed_key === t.id) {
+                releasePressedKey();
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === ' ' || e.key === 'Enter') {
+                clearPressTimer();
+                setPressedKey(t.id);
+              }
+            }}
+            onKeyUp={(e) => {
+              if (e.key === ' ' || e.key === 'Enter') {
+                schedulePressRelease();
+              }
+            }}
+            onClick={() => selectTab(t.id)}
           >
             {t.label}
           </button>

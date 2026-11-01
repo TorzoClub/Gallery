@@ -61,6 +61,8 @@
   font-weight: 500;
   letter-spacing: 0.04em;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+  touch-action: manipulation;
+  user-select: none;
   /* background:
     linear-gradient(90deg,
       rgba(255, 255, 255, 0.7) 0%,
@@ -134,8 +136,8 @@
   pointer-events: none;
 }
 
-/* 按下 = 选中：琴键落进槽里并保持锁定 */
-.key:active,
+/* 按下通过 data-pressed 保持到 click，选中后由 aria-checked 接替，不依赖 :active */
+.key[data-pressed='true'],
 .key[aria-checked='true'] {
   color: #1e2326;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
@@ -172,12 +174,12 @@
   background: linear-gradient(to bottom, rgb(219, 219, 219), silver);
 }
 
-.key:active::before,
+.key[data-pressed='true']::before,
 .key[aria-checked='true']::before {
   opacity: 0.45;
 }
 
-.key:active::after,
+.key[data-pressed='true']::after,
 .key[aria-checked='true']::after {
   height: 4px;
   background:

@@ -93,6 +93,46 @@
   }
 }
 
+.behind-app__admin-pull {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  margin: 0 auto 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #306785;
+  cursor: pointer;
+}
+
+.behind-app__admin-pull-graphic {
+  display: block;
+  width: 188px;
+  height: 68px;
+  filter: drop-shadow(0 3px 2px rgb(42 52 55 / .22));
+}
+
+.behind-app__admin-pull:hover .behind-app__admin-pull-graphic {
+  filter: brightness(1.04) drop-shadow(0 3px 2px rgb(42 52 55 / .22));
+}
+
+.behind-app__admin-pull:active .behind-app__admin-pull-graphic {
+  transform: translateY(1px);
+}
+
+.behind-app__admin-pull:focus-visible {
+  outline: 2px solid #306785;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.behind-app__admin-pull-label {
+  color: #306785;
+  font: 700 11px/1.2 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  letter-spacing: .12em;
+}
+
 .behind-app__admin-entry {
   box-sizing: border-box;
   width: calc(100% - 32px);

@@ -14,7 +14,7 @@ export type Props = {
   onClickAnyWhere?: () => void
 }
 
-export default (props: Props) => {
+export default function DialogLayout(props: Props) {
   const { in: inProp, onClickAnyWhere } = props
 
   const [rendered, setRendered] = useState(Boolean(inProp))

@@ -13,6 +13,8 @@ import Navigator from './components/Navigator'
 import { login as adminLogin } from './admin/api/auth'
 import { setToken } from './admin/auth/token'
 import { getApiErrorMessage } from './admin/utils/errors'
+import SkeuomorphismButton from './components/SkeuomorphismButton'
+import { ZeldaQuestBanner } from './components/ZeldaQuestBanner'
 
 const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'N/A'
 const BASE_PATH = import.meta.env.VITE_BASE_PATH ?? 'N/A'
@@ -187,6 +189,8 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
           </div>
           {admin_error !== '' && <div className='behind-app__admin-error' role='alert'>{admin_error}</div>}
         </form>
+        <ZeldaQuestBannerTest />
+        {/* <SkeuomorphismButton>测试</SkeuomorphismButton> */}
         {show_card && (
           <div className='behind-app__card-wrapper'>
             <ReportCard
@@ -199,4 +203,29 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
       </div>
     </section>
   )
+}
+
+function ZeldaQuestBannerTest() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const triggerQuest = () => {
+    if (isOpen) return;
+    setIsOpen(true);
+    // 3.8秒后自动关闭
+    setTimeout(() => {
+      setIsOpen(false);
+    }, 3800);
+  };
+
+  return (
+    <div style={{ marginTop: '40px'}}>
+      <SkeuomorphismButton onClick={triggerQuest}>触发同装摄影活动banner</SkeuomorphismButton>
+
+      <ZeldaQuestBanner
+        isOpen={isOpen}
+        category="迷你挑战"
+        title="同装相册投票"
+      />
+    </div>
+  );
 }

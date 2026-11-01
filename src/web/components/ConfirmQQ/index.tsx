@@ -19,8 +19,15 @@ export type ConfirmQQEvent = {
 }
 export type Props = ConfirmQQState & ConfirmQQEvent
 
+function scrollTop() {
+  document.scrollingElement?.scrollTo({
+    top: 0
+  })
+}
+
 export default (props: Props) => {
   const { in: inProp, isFailure } = props
+
 
   const wifNode = useMemo(() => {
     return (
@@ -31,6 +38,8 @@ export default (props: Props) => {
           handleInputChange={props.handleInputChange}
           handlesubmitDetect={props.handlesubmitDetect}
           placeholder="QQ Number"
+          onBlur={scrollTop}
+          onFocus={scrollTop}
         />
       </div>
     )

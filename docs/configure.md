@@ -24,7 +24,7 @@ pnpm dev
 - 只有一个端口：`HTTP_PORT`（默认 `7001`）。
 - Hono 在 Node HTTP Server 最前面处理 API。
 - development 下非 API 请求进入同进程的 Vite middleware；production 下进入 Hono 的 `dist/client` 静态服务。
-- 公开页 `/explore`（`/` 重定向），About 页 `/behind`，取消投稿频道 `/cancelSubmission`（别名 `/removingSubmission`），后台入口 `/admin`。
+- 公开页 `/explore`（`/` 重定向），About 页 `/behind`，取消投稿覆盖层 `/explore/cancelSubmission`（旧 `/cancelSubmission`、`/removingSubmission` 会重定向到这里），后台入口 `/admin`。
 - 单体 SPA 服务要求 `API_BASE_PATH=/`；`VITE_BASE_PATH` 也按根路径部署。
 - 不再有独立的 Vite 3000 端口或 proxy。
 

@@ -19,6 +19,12 @@ export function isAdminPath(pathname: string): boolean {
 
 export function isCancelSubmissionPath(pathname: string): boolean {
   const normalized = normalizePath(pathname)
+  return normalized === '/explore/cancelSubmission'
+    || normalized.startsWith('/explore/cancelSubmission/')
+}
+
+export function isLegacyCancelSubmissionPath(pathname: string): boolean {
+  const normalized = normalizePath(pathname)
   return normalized === '/cancelSubmission'
     || normalized.startsWith('/cancelSubmission/')
     || normalized === '/removingSubmission'

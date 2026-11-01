@@ -20,8 +20,7 @@ export default function AppHome() {
   return (
     <div className="app">
       <Navigator
-        showTitle
-        isAdminTitle={false}
+        scene='explore'
         onClickPushButton={() => {
           navigate('/behind', {
             replace: true,

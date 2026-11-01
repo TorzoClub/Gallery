@@ -484,8 +484,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
   return (
     <main className={styles.page}>
       <Navigator
-        showTitle
-        isAdminTitle={true}
+        scene='admin'
         onClickPushButton={() => navigate('/explore', { replace: true })}
       />
       <AdminConsole

@@ -156,7 +156,7 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
   return (
     <section className='behind-app' aria-label='关于同装相册'>
       <div className='behind-app__inner'>
-        <Navigator showTitle={false} isAdminTitle={false} onClickPushButton={() => {
+        <Navigator scene='behind' onClickPushButton={() => {
           navigate('/explore', { replace: true })
           setShowCard(false)
         }} />

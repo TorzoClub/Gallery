@@ -16,6 +16,7 @@ export type CancelSubmissionRouteState = {
 }
 
 export default function CancelSubmissionApp({ thisIsDisplay }: { thisIsDisplay: boolean }) {
+  const [hide_effect, setHideEffect] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
   const [auto, setAuto] = useState(false)
@@ -72,6 +73,7 @@ export default function CancelSubmissionApp({ thisIsDisplay }: { thisIsDisplay: 
         }
       }
       setTimeout(() => {
+        setHideEffect(true)
         navigate('/explore', { replace: true })
       }, 2000)
     })()
@@ -86,9 +88,11 @@ export default function CancelSubmissionApp({ thisIsDisplay }: { thisIsDisplay: 
       <div className={styles.label}>cancelSubmission</div>
 
       <div className={styles.shredderLayer}>
-        <PaperShredder auto={auto} speed={35} sound strips={30} onShred={finish}>
-          {photo && <img src={photo.thumb_url} alt="" />}
-        </PaperShredder>
+        {
+          hide_effect ? null : <PaperShredder auto={auto} speed={35} sound strips={30} onShred={finish}>
+            {photo && <img src={photo.thumb_url} alt="" />}
+          </PaperShredder>
+        }
       </div>
 
       {error && <div className={styles.error}>{error}</div>}

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { cancelSubmission, confirmMember, fetchMemberView } from 'api/client-pool'
 
 import s from './scripts.module.scss'
@@ -91,11 +91,14 @@ export function init(init_args : InitArgs) {
     const { photo, qq_num } = useSubmissionStore.getState()
     const navigate = useNavigate()
     const location = useLocation()
+    // Activity 会让 Explore 的 effects 在恢复时重新执行；这个入口只允许进入一次。
+    const has_navigated = useRef(false)
 
     useEffect(() => {
-      if (!photo || !qq_num) {
+      if (has_navigated.current || !photo || !qq_num) {
         return
       }
+      has_navigated.current = true
       navigate('/explore/cancelSubmission', {
         replace: true,
         state: {
@@ -258,23 +261,27 @@ export function init(init_args : InitArgs) {
 
         function RemovingSubmission() {
           const [removing, setRemoving] = useState(true)
+          // Activity 恢复 Explore 时会重新执行 effect，不能再次跳进碎纸机。
+          const has_navigated = useRef(false)
 
           useEffect(() => {
-            if (photo && qq_num) {
-              Signal.once(_EVENT_.canceled, () => {
-                setTimeout(() => {
-                  setRemoving(false)
-                }, 2000)
-              })
-              navigate('/explore/cancelSubmission', {
-                replace: true,
-                state: {
-                  photo,
-                  qq_num: Number(qq_num),
-                  return_to: location.pathname,
-                },
-              })
+            if (has_navigated.current || !photo || !qq_num) {
+              return
             }
+            has_navigated.current = true
+            Signal.once(_EVENT_.canceled, () => {
+              setTimeout(() => {
+                setRemoving(false)
+              }, 2000)
+            })
+            navigate('/explore/cancelSubmission', {
+              replace: true,
+              state: {
+                photo,
+                qq_num: Number(qq_num),
+                return_to: location.pathname,
+              },
+            })
           }, [])
 
           const removed_selects = [

@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import React, { Activity, lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 
 import BehindApp from './BehindApp'
@@ -73,6 +73,8 @@ export default function PublicRoot() {
   const previous_cancel_visible = useRef(false)
   const [cancel_visible, setCancelVisible] = useState(false)
   const [cancel_transition, setCancelTransition] = useState<CancelTransitionState | null>(null)
+  const explore_scroll_y = useRef(0)
+  const restore_explore_scroll = useRef(false)
 
   useEffect(() => {
     const prime = () => {
@@ -114,6 +116,10 @@ export default function PublicRoot() {
     }
     previous_cancel_visible.current = should_show
 
+    if (!should_show && cancel_visible && explore) {
+      restore_explore_scroll.current = true
+    }
+
     if (should_show === cancel_visible) {
       setCancelTransition(null)
       return
@@ -147,6 +153,45 @@ export default function PublicRoot() {
     window.scrollTo(0, 0)
   }, [activeChannel])
 
+  // 记录用户离开 Explore 前的最后一个滚动位置；取消投稿的换台抖动期间暂停记录。
+  useEffect(() => {
+    if (activeChannel !== 'explore' || cancel) {
+      return
+    }
+
+    const record = () => {
+      if (!restore_explore_scroll.current) {
+        explore_scroll_y.current = window.scrollY
+      }
+    }
+
+    record()
+    window.addEventListener('scroll', record, { passive: true })
+    return () => window.removeEventListener('scroll', record)
+  }, [activeChannel, cancel])
+
+  useLayoutEffect(() => {
+    if (activeChannel !== 'explore') {
+      return
+    }
+
+    if (cancel_visible) {
+      window.scrollTo(0, 0)
+      return
+    }
+
+    if (!restore_explore_scroll.current) {
+      return
+    }
+
+    // 等 Activity 恢复布局后再归还位置，避免被浏览器的滚动锚定覆盖。
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo(0, explore_scroll_y.current)
+      restore_explore_scroll.current = false
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [activeChannel, cancel_visible])
+
   if (legacy_cancel) {
     return <Navigate to='/explore/cancelSubmission' replace state={location.state} />
   }
@@ -167,14 +212,20 @@ export default function PublicRoot() {
         </div>
       )}
       {activeChannel === 'explore' && (
-        <div
-          ref={homeStageRef}
-          className={styles.pageStage}
-          style={activeStageStyle}
-        >
-          <HomeApp />
+        <>
+          {/* Activity 隐藏时保留 Explore 的 state 和 DOM，但会清理 effects；
+              CancelSubmission 必须留在 Activity 外，避免继承 pageStage 的 transform。 */}
+          <Activity mode={cancel_visible ? 'hidden' : 'visible'} name='explore'>
+            <div
+              ref={homeStageRef}
+              className={styles.pageStage}
+              style={activeStageStyle}
+            >
+              <HomeApp />
+            </div>
+          </Activity>
           {cancel_visible && <CancelSubmissionApp thisIsDisplay />}
-        </div>
+        </>
       )}
       {activeChannel === 'admin' && (
         <div

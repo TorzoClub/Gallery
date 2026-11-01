@@ -1,16 +1,14 @@
 .page {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  position: relative;
+  width: 100%;
+  height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   background: #fff;
   overflow: hidden;
-  z-index: 12000;
 }
 
 .label {
-  position: fixed;
+  position: absolute;
   left: 50%;
   top: 16px;
   transform: translateX(-50%);
@@ -22,12 +20,11 @@
 }
 
 .shredderLayer {
-  position: fixed;
+  position: absolute;
   left: 50%;
   top: 56%;
-  z-index: 12000;
   width: max-content;
-  max-width: 100vw;
+  max-width: 100%;
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
@@ -47,14 +44,12 @@
 
 @media (width < 640px) {
   .shredderLayer {
-    position: fixed;
-    left: calc(50vw - 160px);
+    left: 50%;
     top: auto;
     bottom: 32px;
-    z-index: 12000;
     width: 320px;
-    max-width: 100vw;
-    transform: none;
+    max-width: calc(100% - 16px);
+    transform: translateX(-50%);
   }
 }
 
@@ -64,7 +59,7 @@
 }
 
 .error {
-  position: fixed;
+  position: absolute;
   left: 50%;
   top: 24px;
   transform: translateX(-50%);

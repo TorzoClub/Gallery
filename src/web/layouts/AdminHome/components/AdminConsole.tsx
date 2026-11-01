@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { cn } from '@/utils/cn'
+import { playMechanicalKeyReleaseSound, playMechanicalKeySound } from '@/utils/mechanical-key-audio'
 import { LedIndicator } from './LedIndicator';
 import SegmentLCDProgress from './SegmentLCDProgress';
 import MemberPopover from './MemberPopover';
@@ -518,16 +519,40 @@ function useIsLarge() {
 
 export function AdminConsole({ stats, settings, onSettingsChange, members, memberCanDelete, onMembersChanged, onRebuild, rebuildNote }: AdminConsoleProps) {
   const [tab, setTab] = useState<TabId>('stats');
+  const [pressed_key, setPressedKey] = useState<TabId | null>(null);
+  const tab_ref = useRef<TabId>('stats');
   const isLarge = useIsLarge(); // 大屏时所有面板都可见
   const keyRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
+  // 收音机逻辑：新键按下时立即切换面板，旧键同时弹起并发出回弹声。
+  const switchTab = (id: TabId) => {
+    if (tab_ref.current === id) {
+      return;
+    }
+    tab_ref.current = id;
+    setTab(id);
+    playMechanicalKeyReleaseSound();
+  };
+
+  const pressTab = (id: TabId) => {
+    playMechanicalKeySound();
+    setPressedKey(id);
+    switchTab(id);
+  };
+
+  const releaseTab = () => {
+    setPressedKey(null);
+  };
+
   const onKeyDown = (e: KeyboardEvent) => {
-    const i = TABS.findIndex((t) => t.id === tab);
+    const i = TABS.findIndex((t) => t.id === tab_ref.current);
     const step = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
     if (!step) return;
     e.preventDefault();
+    releaseTab();
     const next = (i + step + TABS.length) % TABS.length;
-    setTab(TABS[next].id);
+    playMechanicalKeySound();
+    switchTab(TABS[next].id);
     keyRefs.current[next]?.focus();
   };
 
@@ -545,7 +570,34 @@ export function AdminConsole({ stats, settings, onSettingsChange, members, membe
             aria-controls={`panel-${t.id}`}
             tabIndex={t.id === tab ? 0 : -1}
             className={styles.key}
-            onClick={() => setTab(t.id)}
+            data-pressed={pressed_key === t.id ? 'true' : undefined}
+            onPointerDown={(e) => {
+              if (e.button !== 0) return;
+              pressTab(t.id);
+              e.currentTarget.setPointerCapture?.(e.pointerId);
+            }}
+            onPointerUp={releaseTab}
+            onPointerCancel={releaseTab}
+            onBlur={() => {
+              if (pressed_key === t.id) {
+                releaseTab();
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key !== ' ' && e.key !== 'Enter') return;
+              if (e.repeat) return;
+              pressTab(t.id);
+            }}
+            onKeyUp={(e) => {
+              if (e.key === ' ' || e.key === 'Enter') {
+                releaseTab();
+              }
+            }}
+            onClick={() => {
+              if (tab_ref.current === t.id) return;
+              playMechanicalKeySound();
+              switchTab(t.id);
+            }}
           >
             {t.label}
           </button>

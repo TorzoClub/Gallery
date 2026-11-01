@@ -96,7 +96,7 @@ export function init(init_args : InitArgs) {
       if (!photo || !qq_num) {
         return
       }
-      navigate('/removingSubmission', {
+      navigate('/explore/cancelSubmission', {
         replace: true,
         state: {
           photo,
@@ -266,7 +266,7 @@ export function init(init_args : InitArgs) {
                   setRemoving(false)
                 }, 2000)
               })
-              navigate('/removingSubmission', {
+              navigate('/explore/cancelSubmission', {
                 replace: true,
                 state: {
                   photo,

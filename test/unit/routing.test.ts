@@ -6,7 +6,7 @@ describe('isApiLikePath', () => {
     for (const pathname of [
       '/query/listGalleries',
       '/mutate/vote',
-      '/admin/query/adminStatistic',
+      '/admin/query/adminFetchPool',
       '/admin/mutate/adminCreatePhoto',
       '/auth/login',
       '/upload-image',

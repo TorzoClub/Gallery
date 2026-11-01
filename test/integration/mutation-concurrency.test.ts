@@ -55,9 +55,8 @@ describe('mutation concurrency', () => {
     expect(response_a.body.data.id).not.toBe(response_b.body.data.id)
     expect(Number(ctx.instance.read().next_id)).toBe(before + 2)
 
-    const photos = await ctx.adminQuery('adminListPhotos')
-    expect(photos.status).toBe(200)
-    expect(photos.body.data.map((photo: { id: number }) => photo.id).sort())
+    const pool = await ctx.adminPool()
+    expect(pool.galleries.flatMap(gallery => gallery.photos).map(photo => photo.id).sort())
       .toEqual([response_a.body.data.id, response_b.body.data.id].sort())
 
     const pool_raw = JSON.parse(await fs.readFile(ctx.storage.paths.pool_file, 'utf8'))

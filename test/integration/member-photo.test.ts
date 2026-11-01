@@ -23,12 +23,9 @@ describe('member actions', () => {
     expect(member.id).toBeGreaterThan(0)
     expect(String(member.avatar_src)).toMatch(new RegExp(`^avatar-${member.id}-[0-9a-f]{8}\\.png$`))
 
-    const list = await ctx.adminQuery('adminListMembers')
-    expect(list.status).toBe(200)
-    expect(list.body.data).toHaveLength(1)
-
-    const got = await ctx.adminQuery('adminGetMember', { member_id: member.id })
-    expect(got.body.data.name).toBe('Alice')
+    const pool = await ctx.adminPool()
+    expect(pool.members).toHaveLength(1)
+    expect(pool.members.find(item => item.id === member.id)?.name).toBe('Alice')
 
     const updated = await ctx.adminMutate('adminUpdateMember', {
       member_id: member.id,
@@ -167,9 +164,11 @@ describe('photo actions', () => {
     })
     expect(updated.status).toBe(400)
 
-    const got = await ctx.adminQuery('adminGetPhoto', { photo_id: photo.id })
-    expect(got.status).toBe(200)
-    expect(got.body.data.member_id).toBe(member.id)
-    expect(got.body.data.member.qq_num).toBe(31004)
+    const pool = await ctx.adminPool()
+    const got = pool.galleries
+      .flatMap(item => item.photos)
+      .find(item => item.id === photo.id)
+    expect(got?.member_id).toBe(member.id)
+    expect(got?.member?.qq_num).toBe(31004)
   })
 })

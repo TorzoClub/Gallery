@@ -26,14 +26,7 @@ export const InstanceConfigFileSchema = InstanceConfigDataSchema.extend({
 export const InstanceConfigUpdateSchema = InstanceConfigDataSchema.partial().strict()
 
 export const DEFAULT_INSTANCE_CONFIG: InstanceConfig = Object.freeze({
-  schema_version: 1,
-  avatar_thumb_size: 128,
-  image_thumb_size: 640,
-  image_thumb_quality: 40,
-  avif_source_quality: 75,
-  image_processing_effort: 8,
-  max_image_dimension: 3840,
-  max_upload_bytes: 16 * 1024 * 1024,
+  ...InstanceConfigFileSchema.parse({})
 })
 
 export function parseInstanceConfig(input: unknown): InstanceConfig {

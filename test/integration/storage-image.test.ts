@@ -97,16 +97,11 @@ describe('storage persistence', () => {
     })
     active = second
     try {
-      const galleries = await second.adminQuery('adminListGalleries')
-      expect(galleries.body.data).toHaveLength(1)
-      expect(galleries.body.data[0].name).toBe('Persisted Gallery')
-
-      const photos = await second.adminQuery('adminListPhotos')
-      expect(photos.body.data).toHaveLength(1)
-      expect(photos.body.data[0].id).toBe(photo.id)
-
-      const config = await second.adminQuery('adminGetInstanceConfig')
-      expect(config.body.data.image_thumb_size).toBe(222)
+      const admin_pool = await second.adminPool()
+      expect(admin_pool.galleries).toHaveLength(1)
+      expect(admin_pool.galleries[0]?.name).toBe('Persisted Gallery')
+      expect(admin_pool.galleries.flatMap(gallery => gallery.photos)[0]?.id).toBe(photo.id)
+      expect(admin_pool.instance_config.image_thumb_size).toBe(222)
 
       const pool = JSON.parse(await fs.readFile(path.join(dir, 'pool.json'), 'utf8'))
       expect(pool.schema_version).toBe(2)

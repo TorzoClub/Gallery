@@ -5,6 +5,7 @@ export default function SkeuomorphismButton(
   props: React.PropsWithChildren<{
     onClick?: React.MouseEventHandler<HTMLButtonElement>
     disabled?: boolean
+    type?: 'button' | 'submit' | 'reset'
     inputProps?: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>
   }>
 ) {
@@ -15,7 +16,7 @@ export default function SkeuomorphismButton(
         className={s.ButtonBefore}
         onClick={props.onClick}
         disabled={props.disabled}
-        type="button"
+        type={props.type ?? 'button'}
       >{props.children}</button>
     </div>
   )

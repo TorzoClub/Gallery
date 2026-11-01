@@ -23,10 +23,9 @@ describe('gallery actions', () => {
     expect(gallery.name).toBe('First')
     expect(gallery.index).toBe(2)
 
-    const list = await ctx.adminQuery('adminListGalleries')
-    expect(list.status).toBe(200)
-    expect(list.body.data).toHaveLength(1)
-    expect(list.body.data[0].id).toBe(gallery.id)
+    const pool = await ctx.adminPool()
+    expect(pool.galleries).toHaveLength(1)
+    expect(pool.galleries[0]?.id).toBe(gallery.id)
 
     const updated = await ctx.adminMutate('adminUpdateGallery', {
       gallery_id: gallery.id,
@@ -37,8 +36,8 @@ describe('gallery actions', () => {
     expect(updated.body.data.name).toBe('Updated')
     expect(updated.body.data.vote_limit).toBe(5)
 
-    const got = await ctx.adminQuery('adminGetGallery', { gallery_id: gallery.id })
-    expect(got.body.data.name).toBe('Updated')
+    const updated_pool = await ctx.adminPool()
+    expect(updated_pool.galleries.find(item => item.id === gallery.id)?.name).toBe('Updated')
   })
 
   it('rejects gallery names longer than 256 characters', async () => {
@@ -152,9 +151,9 @@ describe('gallery actions', () => {
     expect(rejected.body.code).toBe('CONFLICT')
     expect(rejected.body.message).toBe('相册的活动期间不能有重合')
 
-    const unchanged = await ctx.adminQuery('adminGetGallery', { gallery_id: future.body.data.id })
-    expect(unchanged.status).toBe(200)
-    expect(unchanged.body.data.event_start).toBe(future.body.data.event_start)
+    const unchanged = (await ctx.adminPool()).galleries
+      .find(item => item.id === future.body.data.id)
+    expect(unchanged?.event_start).toBe(future.body.data.event_start)
   })
 
   it('rejects removing a gallery that still has photos, then removes it after the last photo', async () => {
@@ -170,10 +169,9 @@ describe('gallery actions', () => {
     expect(blocked.body.code).toBe('CONFLICT')
     expect(blocked.body.message).toContain('还有 1 张相片')
 
-    const gallery_after = await ctx.adminQuery('adminGetGallery', { gallery_id: gallery.id })
-    expect(gallery_after.status).toBe(200)
-    const photo_after = await ctx.adminQuery('adminGetPhoto', { photo_id: photo.id })
-    expect(photo_after.status).toBe(200)
+    const pool_after = await ctx.adminPool()
+    expect(pool_after.galleries.find(item => item.id === gallery.id)).toBeDefined()
+    expect(pool_after.galleries.flatMap(item => item.photos).find(item => item.id === photo.id)).toBeDefined()
 
     const photo_removed = await ctx.adminMutate('adminRemovePhoto', { photo_id: photo.id })
     expect(photo_removed.status).toBe(200)
@@ -181,8 +179,9 @@ describe('gallery actions', () => {
     const removed = await ctx.adminMutate('adminRemoveGallery', { gallery_id: gallery.id })
     expect(removed.status).toBe(200)
 
-    const gone = await ctx.adminQuery('adminGetGallery', { gallery_id: gallery.id })
-    expect(gone.status).toBe(404)
+    const gone = (await ctx.adminPool()).galleries
+      .find(item => item.id === gallery.id)
+    expect(gone).toBeUndefined()
   })
 
   it('rejects removing a gallery id that does not exist', async () => {
@@ -214,8 +213,8 @@ describe('instance configuration', () => {
     expect(file.image_thumb_size).toBe(300)
     expect(file.avatar_thumb_size).toBe(64)
 
-    const read = await ctx.adminQuery('adminGetInstanceConfig')
-    expect(read.body.data.image_thumb_size).toBe(300)
+    const read = await ctx.adminPool()
+    expect(read.instance_config.image_thumb_size).toBe(300)
   })
 
   it('applies new image_thumb_size to subsequent photos only', async () => {
@@ -239,10 +238,11 @@ describe('instance configuration', () => {
     })
     const hash_after = ctx.instance.getInstanceHash()
     expect(hash_after).not.toBe(hash_before)
-    const fetched = await ctx.adminQuery('adminGetPhoto', { photo_id: before.id })
-    expect(fetched.status).toBe(200)
-    expect(fetched.body.data.src_optimized).toContain(`?v=${hash_after}`)
-    expect(fetched.body.data.thumb).toContain(`?v=${hash_after}`)
+    const fetched = (await ctx.adminPool()).galleries
+      .flatMap(item => item.photos)
+      .find(item => item.id === before.id)
+    expect(fetched?.src_optimized).toContain(`?v=${hash_after}`)
+    expect(fetched?.thumb).toContain(`?v=${hash_after}`)
 
     const after = await ctx.createPhoto({
       gallery_id: gallery.id as number,

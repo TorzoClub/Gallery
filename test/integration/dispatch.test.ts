@@ -23,13 +23,13 @@ describe('dispatch authentication and envelopes', () => {
       data: { active: null, galleries: [] },
     })
 
-    const admin_result = await ctx.query('adminGetInstanceConfig')
+    const admin_result = await ctx.query('adminFetchPool')
     expect(admin_result.status).toBe(403)
     expect(admin_result.body.code).toBe('ADMIN_ONLY')
   })
 
   it('requires admin authentication', async () => {
-    const response = await ctx.app.request('/admin/query/adminGetInstanceConfig', {
+    const response = await ctx.app.request('/admin/query/adminFetchPool', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ payload: {} }),
@@ -49,12 +49,12 @@ describe('dispatch authentication and envelopes', () => {
     const token = await ctx.login()
     expect(token.length).toBeGreaterThan(10)
 
-    const config = await ctx.adminQuery('adminGetInstanceConfig')
-    expect(config.status).toBe(200)
-    expect(config.body.data.image_thumb_size).toBe(640)
-    expect(config.body.data.avif_source_quality).toBe(75)
-    expect(config.body.data.image_processing_effort).toBe(8)
-    expect(config.body.data.max_upload_bytes).toBe(16 * 1024 * 1024)
+    const pool = await ctx.adminQuery('adminFetchPool')
+    expect(pool.status).toBe(200)
+    expect(pool.body.data.instance_config.image_thumb_size).toBe(640)
+    expect(pool.body.data.instance_config.avif_source_quality).toBe(75)
+    expect(pool.body.data.instance_config.image_processing_effort).toBe(8)
+    expect(pool.body.data.instance_config.max_upload_bytes).toBe(16 * 1024 * 1024)
   })
 
   it('returns 404 for unknown actions and 400 for malformed JSON', async () => {
@@ -65,6 +65,24 @@ describe('dispatch authentication and envelopes', () => {
     const removed = await ctx.adminMutate('adminCleanUnusedImages')
     expect(removed.status).toBe(404)
     expect(removed.body.code).toBe('UNKNOWN_ACTION')
+
+    for (const name of [
+      'adminGetInstanceConfig',
+      'adminStatistic',
+      'adminListGalleries',
+      'adminGetGallery',
+      'adminListMembers',
+      'adminGetMember',
+      'adminListPhotos',
+      'adminGetPhoto',
+      'adminListAvailablePhotos',
+      'adminListMemberVotes',
+      'adminListPhotoVotes',
+    ]) {
+      const old_query = await ctx.adminQuery(name)
+      expect(old_query.status).toBe(404)
+      expect(old_query.body.code).toBe('UNKNOWN_ACTION')
+    }
 
     const malformed = await ctx.app.request('/query/listGalleries', {
       method: 'POST',

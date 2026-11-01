@@ -1,13 +1,5 @@
-import { adminMutate, adminQuery } from './client'
+import { adminMutate } from './client'
 import type { Member, MemberCreatePayload, MemberUpdatePayload } from './types'
-
-export function listMembers(): Promise<Member[]> {
-  return adminQuery<Member[]>('adminListMembers')
-}
-
-export function getMember(id: number | string): Promise<Member> {
-  return adminQuery<Member>('adminGetMember', { member_id: Number(id) })
-}
 
 export function createMember(data: MemberCreatePayload): Promise<Member> {
   return adminMutate<Member>('adminCreateMember', data)

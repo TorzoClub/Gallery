@@ -25,6 +25,7 @@ export type PopoverProps = {
   onOpenChange?: (open: boolean) => void
   label?: string
   className?: string
+  modal?: boolean
 }
 
 const MARGIN = 8
@@ -181,6 +182,7 @@ export default function Popover({
   onOpenChange,
   label,
   className,
+  modal = true,
 }: PopoverProps) {
   const [internal_open, setInternalOpen] = useState(false)
   const open = open_prop ?? internal_open
@@ -252,7 +254,7 @@ export default function Popover({
   const positioned = placement !== null
 
   useEffect(() => {
-    if (!open || !positioned) {
+    if (!modal || !open || !positioned) {
       return
     }
 
@@ -303,7 +305,7 @@ export default function Popover({
         previous.focus({ preventScroll: true })
       }
     }
-  }, [layer, open, positioned])
+  }, [layer, modal, open, positioned])
 
   useEffect(() => {
     if (!open) {

@@ -6,13 +6,19 @@ import './BehindApp.css'
 import ReportCard, { type ReportCardBuild, type ReportCardRow } from './components/ReportCard'
 
 import __logo_src from './about-image.jpg'
-import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useId, useRef, useState } from 'react'
 import { useClientPool } from './pool/store'
 import { formatUptime } from '@shared/uptime'
 import Navigator from './components/Navigator'
 import { login as adminLogin } from './admin/api/auth'
 import { setToken } from './admin/auth/token'
 import { getApiErrorMessage } from './admin/utils/errors'
+import Popover from './components/Popover'
+import SkeuomorphismButton from './components/SkeuomorphismButton'
+import { ZeldaQuestBanner } from './components/ZeldaQuestBanner'
+import { Slit } from './components/Title'
+import { identity, thunkify } from 'ramda'
+import { WhitePlasticButton } from './components/WhitePlasticButton'
 
 const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'N/A'
 const BASE_PATH = import.meta.env.VITE_BASE_PATH ?? 'N/A'
@@ -80,9 +86,6 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
   const pool = pool_state.status === 'ready' ? pool_state.pool : null
   const [show_card, setShowCard] = useState(false)
   const [uptime, setUptime] = useState('—')
-  const [admin_password, setAdminPassword] = useState('')
-  const [admin_error, setAdminError] = useState('')
-  const [admin_submitting, setAdminSubmitting] = useState(false)
 
   useEffect(() => {
     if (pool === null) {
@@ -127,34 +130,10 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
     return () => window.clearTimeout(h)
   }, [thisIsDisplay])
 
-  const handleAdminLogin = async (event: FormEvent) => {
-    event.preventDefault()
-    if (admin_submitting) {
-      return
-    }
-    if (admin_password.length === 0) {
-      setAdminError('请输入后台密码')
-      return
-    }
-
-    setAdminSubmitting(true)
-    setAdminError('')
-    try {
-      const result = await adminLogin(admin_password)
-      setToken(result.token)
-      setShowCard(false)
-      navigate('/admin', { replace: true })
-    } catch (error) {
-      setAdminError(getApiErrorMessage(error, '登录失败'))
-    } finally {
-      setAdminSubmitting(false)
-    }
-  }
-
   return (
     <section className='behind-app' aria-label='关于同装相册'>
       <div className='behind-app__inner'>
-        <Navigator showTitle={false} isAdminTitle={false} onClickPushButton={() => {
+        <Navigator scene='behind' onClickPushButton={() => {
           navigate('/explore', { replace: true })
           setShowCard(false)
         }} />
@@ -163,30 +142,14 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
           <h1 className='behind-app__title'>{pkg.title}</h1>
           <AppYearLabel year={2026} />
         </div>
-        <form className='behind-app__admin-entry' onSubmit={handleAdminLogin}>
-          <label htmlFor='behind-admin-password'>进入后台管理</label>
-          <div className='behind-app__admin-row'>
-            <input
-              id='behind-admin-password'
-              type='password'
-              value={admin_password}
-              autoComplete='current-password'
-              placeholder='管理员密码'
-              disabled={admin_submitting}
-              aria-invalid={admin_error !== ''}
-              onChange={event => {
-                setAdminPassword(event.target.value)
-                if (admin_error !== '') {
-                  setAdminError('')
-                }
-              }}
-            />
-            <button type='submit' disabled={admin_submitting}>
-              {admin_submitting ? '验证中…' : '进入'}
-            </button>
-          </div>
-          {admin_error !== '' && <div className='behind-app__admin-error' role='alert'>{admin_error}</div>}
-        </form>
+
+        <EnterAdmin onLoginSuccess={() => {
+          setShowCard(false)
+          navigate('/admin', { replace: true })
+        }} />
+
+        <ZeldaQuestBannerTest />
+        {/* <SkeuomorphismButton>测试</SkeuomorphismButton> */}
         {show_card && (
           <div className='behind-app__card-wrapper'>
             <ReportCard
@@ -199,4 +162,271 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
       </div>
     </section>
   )
+}
+
+function EnterAdmin(props: { onLoginSuccess(): void }) {
+  const [open, setOpen] = useState(false)
+  const [admin_password, setAdminPassword] = useState('')
+  const [admin_error, setAdminError] = useState('')
+  const [admin_submitting, setAdminSubmitting] = useState(false)
+  const admin_submitting_ref = useRef(false)
+
+  const submitAdminPassword = async (password: string) => {
+    if (admin_submitting_ref.current) {
+      return
+    }
+    if (password.length === 0) {
+      setAdminError('请输入后台密码')
+      return
+    }
+
+    admin_submitting_ref.current = true
+    setAdminSubmitting(true)
+    setAdminError('')
+    try {
+      const result = await adminLogin(password)
+      setToken(result.token)
+      props.onLoginSuccess()
+    } catch (error) {
+      setAdminError(getApiErrorMessage(error, '登录失败'))
+    } finally {
+      admin_submitting_ref.current = false
+      setAdminSubmitting(false)
+    }
+  }
+
+  const handleAdminLogin = (event: FormEvent) => {
+    event.preventDefault()
+    void submitAdminPassword(admin_password)
+  }
+
+  return (
+    <>
+      <div className='behind-app__admin-login-area' id='behind-admin-login'>
+        <Slit open={open} keepTransition>
+          <form className='behind-app__admin-entry' onSubmit={handleAdminLogin}>
+            <div className='behind-app__admin-head'>
+              <span className='behind-app__admin-rule' aria-hidden='true' />
+              <span className='behind-app__admin-kicker'>Admin Login</span>
+              <span className='behind-app__admin-rule' aria-hidden='true' />
+            </div>
+            <label className='behind-app__admin-sr-label' htmlFor='behind-admin-password'>
+              管理员密码
+            </label>
+            <div className='behind-app__admin-row'>
+              <Popover
+                trigger={(
+                  <input
+                    id='behind-admin-password'
+                    type='text'
+                    value={admin_password}
+                    autoComplete='current-password'
+                    placeholder='管理员密码'
+                    disabled={admin_submitting}
+                    aria-invalid={admin_error !== ''}
+                    aria-describedby={admin_error !== '' ? 'behind-admin-error' : undefined}
+                    onChange={event => {
+                      setAdminPassword(event.target.value)
+                      if (admin_error !== '') {
+                        setAdminError('')
+                      }
+                    }}
+                  />
+                )}
+                content={(
+                  <div
+                    id='behind-admin-error'
+                    className='behind-app__admin-error-message'
+                    role='alert'
+                  >
+                    {admin_error}
+                  </div>
+                )}
+                open={admin_error !== ''}
+                onOpenChange={next_open => {
+                  if (!next_open && admin_error !== '') {
+                    setAdminError('')
+                  }
+                }}
+                modal={false}
+                side='top'
+                align='center'
+                offset={8}
+                label='登录错误'
+                className='behind-app__admin-error-popover'
+              />
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <WhitePlasticButton
+                type='submit'
+                press={admin_submitting}
+              >{admin_submitting ? '验证中…' : '进入'}</WhitePlasticButton>
+            </div>
+          </form>
+        </Slit>
+      </div>
+      <div>
+        <AdminPullHandle
+          expanded={open}
+          onClick={thunkify(setOpen)(identity(true))}
+        />
+      </div>
+    </>
+  )
+}
+
+const HAND_MOVE_MS = 380
+const HAND_GRIP_DELAY_MS = 300
+const HAND_GRIP_HOLD_MS = 260
+
+type HandPhase = 'idle' | 'entering' | 'moving' | 'gripped' | 'released'
+
+function AdminPullHandle({ expanded, onClick }: {
+  expanded: boolean
+  onClick(): void
+}) {
+  const uid = useId().replace(/:/g, '')
+  const bar_gradient = `admin-pull-bar-${uid}`
+  const post_gradient = `admin-pull-post-${uid}`
+  const [hand_phase, setHandPhase] = useState<HandPhase>('idle')
+  const timers = useRef<number[]>([])
+  const animation_frame = useRef<number | null>(null)
+
+  useEffect(() => () => {
+    timers.current.forEach(timer => window.clearTimeout(timer))
+    if (animation_frame.current !== null) {
+      window.cancelAnimationFrame(animation_frame.current)
+    }
+  }, [])
+
+  const handleClick = () => {
+    if (hand_phase !== 'idle') {
+      return
+    }
+    if (expanded) {
+      onClick()
+      return
+    }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      onClick()
+      return
+    }
+
+    setHandPhase('entering')
+    animation_frame.current = window.requestAnimationFrame(() => {
+      animation_frame.current = window.requestAnimationFrame(() => {
+        setHandPhase('moving')
+        timers.current.push(window.setTimeout(() => {
+          setHandPhase('gripped')
+          onClick()
+          timers.current.push(window.setTimeout(() => {
+            setHandPhase('released')
+            timers.current.push(window.setTimeout(() => {
+              setHandPhase('idle')
+            }, 120))
+          }, HAND_GRIP_HOLD_MS))
+        }, HAND_MOVE_MS + HAND_GRIP_DELAY_MS))
+      })
+    })
+  }
+
+  const stage_class = [
+    'behind-app__admin-pull-stage',
+    hand_phase !== 'idle' ? `behind-app__admin-pull-stage--${hand_phase}` : '',
+  ].filter(Boolean).join(' ')
+
+  return (
+    <div className={stage_class}>
+      <span
+        className='behind-app__admin-pull-hand'
+        aria-hidden='true'
+        style={{ zIndex: hand_phase === 'gripped' || hand_phase === 'released' ? '10000' : '' }}
+      >
+        {hand_phase === 'gripped' || hand_phase === 'released' ? '✊' : '✋'}
+      </span>
+      <button
+        type='button'
+        className='behind-app__admin-pull'
+        aria-label={expanded ? '收起后台管理' : '进入后台管理'}
+        aria-expanded={expanded}
+        aria-controls='behind-admin-login'
+        aria-busy={hand_phase !== 'idle'}
+        disabled={hand_phase !== 'idle'}
+        onClick={handleClick}
+      >
+        <svg
+          className='behind-app__admin-pull-graphic'
+          viewBox='0 0 164 60'
+          aria-hidden='true'
+          focusable='false'
+        >
+          <defs>
+            <linearGradient id={bar_gradient} x1='0' y1='0' x2='0' y2='1'>
+              <stop offset='0' stopColor='#f2f5f4' />
+              <stop offset='0.18' stopColor='#c7d0d1' />
+              <stop offset='0.42' stopColor='#8e9a9e' />
+              <stop offset='0.62' stopColor='#606c71' />
+              <stop offset='0.82' stopColor='#899599' />
+              <stop offset='1' stopColor='#424d52' />
+            </linearGradient>
+            <linearGradient id={post_gradient} x1='0' y1='0' x2='1' y2='0'>
+              <stop offset='0' stopColor='#aab5b7' />
+              <stop offset='0.45' stopColor='#6d797e' />
+              <stop offset='1' stopColor='#394348' />
+            </linearGradient>
+          </defs>
+          <rect x='22' y='34' width='10' height='18' rx='3.5' fill={`url(#${post_gradient})`} />
+          <rect x='132' y='34' width='10' height='18' rx='3.5' fill={`url(#${post_gradient})`} />
+          <path
+            d='M27 42 V26 Q27 16 37 16 H127 Q137 16 137 26 V42'
+            fill='none'
+            stroke={`url(#${bar_gradient})`}
+            strokeWidth='12'
+            strokeLinecap='round'
+          />
+          <path
+            d='M30 31 V26 Q30 19 38 19 H126 Q134 19 134 26 V31'
+            fill='none'
+            stroke='#E8EbEb'
+            strokeWidth='2.4'
+            strokeLinecap='round'
+            opacity='0.8'
+          />
+          <path
+            d='M29 39 V26 Q29 18 38 18 H126 Q135 18 135 26 V39'
+            fill='none'
+            stroke='#5b666b'
+            strokeWidth='1.2'
+            strokeLinecap='round'
+            opacity='0.55'
+          />
+        </svg>
+      </button>
+    </div>
+  )
+}
+
+function ZeldaQuestBannerTest() {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const triggerQuest = () => {
+    if (isOpen) return;
+    setIsOpen(true);
+    // 3.8秒后自动关闭
+    setTimeout(() => {
+      setIsOpen(false);
+    }, 3800);
+  };
+
+  return (
+    <div style={{ marginTop: '40px'}}>
+      <SkeuomorphismButton onClick={triggerQuest}>触发同装摄影活动banner</SkeuomorphismButton>
+
+      <ZeldaQuestBanner
+        isOpen={isOpen}
+        category="迷你挑战"
+        title="同装相册投票"
+      />
+    </div>
+  );
 }

@@ -43,7 +43,7 @@ type SlitProps = {
   keepTransition: boolean,
   children?: ReactNode
 }
-function Slit(p: SlitProps) {
+export function Slit(p: SlitProps) {
   const slit_wrapper_ref = useRef<HTMLDivElement>(null)
   const slit_ref = useRef<HTMLDivElement>(null)
 

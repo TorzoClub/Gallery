@@ -15,6 +15,8 @@ import { setToken } from './admin/auth/token'
 import { getApiErrorMessage } from './admin/utils/errors'
 import SkeuomorphismButton from './components/SkeuomorphismButton'
 import { ZeldaQuestBanner } from './components/ZeldaQuestBanner'
+import { Slit } from './components/Title'
+import { thunkify } from 'ramda'
 
 const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'N/A'
 const BASE_PATH = import.meta.env.VITE_BASE_PATH ?? 'N/A'
@@ -82,9 +84,6 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
   const pool = pool_state.status === 'ready' ? pool_state.pool : null
   const [show_card, setShowCard] = useState(false)
   const [uptime, setUptime] = useState('—')
-  const [admin_password, setAdminPassword] = useState('')
-  const [admin_error, setAdminError] = useState('')
-  const [admin_submitting, setAdminSubmitting] = useState(false)
 
   useEffect(() => {
     if (pool === null) {
@@ -129,30 +128,6 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
     return () => window.clearTimeout(h)
   }, [thisIsDisplay])
 
-  const handleAdminLogin = async (event: FormEvent) => {
-    event.preventDefault()
-    if (admin_submitting) {
-      return
-    }
-    if (admin_password.length === 0) {
-      setAdminError('请输入后台密码')
-      return
-    }
-
-    setAdminSubmitting(true)
-    setAdminError('')
-    try {
-      const result = await adminLogin(admin_password)
-      setToken(result.token)
-      setShowCard(false)
-      navigate('/admin', { replace: true })
-    } catch (error) {
-      setAdminError(getApiErrorMessage(error, '登录失败'))
-    } finally {
-      setAdminSubmitting(false)
-    }
-  }
-
   return (
     <section className='behind-app' aria-label='关于同装相册'>
       <div className='behind-app__inner'>
@@ -165,8 +140,76 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
           <h1 className='behind-app__title'>{pkg.title}</h1>
           <AppYearLabel year={2026} />
         </div>
+
+        <EnterAdmin onLoginSuccess={() => {
+          setShowCard(false)
+          navigate('/admin', { replace: true })
+        }} />
+
+        <ZeldaQuestBannerTest />
+        {/* <SkeuomorphismButton>测试</SkeuomorphismButton> */}
+        {show_card && (
+          <div className='behind-app__card-wrapper'>
+            <ReportCard
+              className='behind-app__report'
+              report={report}
+              build={build}
+            />
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function EnterAdmin(props: { onLoginSuccess(): void }) {
+  const [open, setOpen] = useState(false)
+  const [admin_password, setAdminPassword] = useState('')
+  const [admin_error, setAdminError] = useState('')
+  const [admin_submitting, setAdminSubmitting] = useState(false)
+  const admin_submitting_ref = useRef(false)
+
+  const submitAdminPassword = async (password: string) => {
+    if (admin_submitting_ref.current) {
+      return
+    }
+    if (password.length === 0) {
+      setAdminError('请输入后台密码')
+      return
+    }
+
+    admin_submitting_ref.current = true
+    setAdminSubmitting(true)
+    setAdminError('')
+    try {
+      const result = await adminLogin(password)
+      setToken(result.token)
+      props.onLoginSuccess()
+    } catch (error) {
+      setAdminError(getApiErrorMessage(error, '登录失败'))
+    } finally {
+      admin_submitting_ref.current = false
+      setAdminSubmitting(false)
+    }
+  }
+
+  const handleAdminLogin = (event: FormEvent) => {
+    event.preventDefault()
+    void submitAdminPassword(admin_password)
+  }
+
+  return (
+    <div className='behind-app__admin-login-area'>
+      <Slit open={open} keepTransition>
         <form className='behind-app__admin-entry' onSubmit={handleAdminLogin}>
-          <label htmlFor='behind-admin-password'>进入后台管理</label>
+          <div className='behind-app__admin-head'>
+            <span className='behind-app__admin-rule' aria-hidden='true' />
+            <span className='behind-app__admin-kicker'>Admin Login</span>
+            <span className='behind-app__admin-rule' aria-hidden='true' />
+          </div>
+          <label className='behind-app__admin-sr-label' htmlFor='behind-admin-password'>
+            管理员密码
+          </label>
           <div className='behind-app__admin-row'>
             <input
               id='behind-admin-password'
@@ -183,25 +226,19 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
                 }
               }}
             />
-            <button type='submit' disabled={admin_submitting}>
+            <SkeuomorphismButton
+              type='submit'
+              disabled={admin_submitting}
+              inputProps={{ className: 'behind-app__admin-submit' }}
+            >
               {admin_submitting ? '验证中…' : '进入'}
-            </button>
+            </SkeuomorphismButton>
           </div>
           {admin_error !== '' && <div className='behind-app__admin-error' role='alert'>{admin_error}</div>}
         </form>
-        <ZeldaQuestBannerTest />
-        {/* <SkeuomorphismButton>测试</SkeuomorphismButton> */}
-        {show_card && (
-          <div className='behind-app__card-wrapper'>
-            <ReportCard
-              className='behind-app__report'
-              report={report}
-              build={build}
-            />
-          </div>
-        )}
-      </div>
-    </section>
+      </Slit>
+      <SkeuomorphismButton onClick={thunkify(setOpen)(!open)}>进入后后台管理</SkeuomorphismButton>
+    </div>
   )
 }
 

@@ -296,11 +296,13 @@
   outline-offset: 2px;
 }
 
-.behind-app__admin-error {
-  margin-top: 9px;
-  padding: 6px 8px;
-  border-left: 2px solid #8c2828;
-  background: #f8ece7;
+body .behind-app__admin-error-popover {
+  min-width: 180px;
+  max-width: min(240px, calc(100vw - 16px));
+  padding: 9px 12px;
+}
+
+.behind-app__admin-error-message {
   color: #8c2828;
   font-size: 12px;
   line-height: 1.4;

@@ -13,10 +13,12 @@ import Navigator from './components/Navigator'
 import { login as adminLogin } from './admin/api/auth'
 import { setToken } from './admin/auth/token'
 import { getApiErrorMessage } from './admin/utils/errors'
+import Popover from './components/Popover'
 import SkeuomorphismButton from './components/SkeuomorphismButton'
 import { ZeldaQuestBanner } from './components/ZeldaQuestBanner'
 import { Slit } from './components/Title'
 import { identity, thunkify } from 'ramda'
+import { WhitePlasticButton } from './components/WhitePlasticButton'
 
 const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'N/A'
 const BASE_PATH = import.meta.env.VITE_BASE_PATH ?? 'N/A'
@@ -212,32 +214,54 @@ function EnterAdmin(props: { onLoginSuccess(): void }) {
               管理员密码
             </label>
             <div className='behind-app__admin-row'>
-              <input
-                id='behind-admin-password'
-                type='password'
-                value={admin_password}
-                autoComplete='current-password'
-                placeholder='管理员密码'
-                disabled={admin_submitting}
-                aria-invalid={admin_error !== ''}
-                onChange={event => {
-                  setAdminPassword(event.target.value)
-                  if (admin_error !== '') {
+              <Popover
+                trigger={(
+                  <input
+                    id='behind-admin-password'
+                    type='password'
+                    value={admin_password}
+                    autoComplete='current-password'
+                    placeholder='管理员密码'
+                    disabled={admin_submitting}
+                    aria-invalid={admin_error !== ''}
+                    aria-describedby={admin_error !== '' ? 'behind-admin-error' : undefined}
+                    onChange={event => {
+                      setAdminPassword(event.target.value)
+                      if (admin_error !== '') {
+                        setAdminError('')
+                      }
+                    }}
+                  />
+                )}
+                content={(
+                  <div
+                    id='behind-admin-error'
+                    className='behind-app__admin-error-message'
+                    role='alert'
+                  >
+                    {admin_error}
+                  </div>
+                )}
+                open={admin_error !== ''}
+                onOpenChange={next_open => {
+                  if (!next_open && admin_error !== '') {
                     setAdminError('')
                   }
                 }}
+                modal={false}
+                side='right'
+                align='start'
+                offset={8}
+                label='登录错误'
+                className='behind-app__admin-error-popover'
               />
             </div>
-            <div>
-              <SkeuomorphismButton
+            <div style={{ textAlign: 'center' }}>
+              <WhitePlasticButton
                 type='submit'
-                disabled={admin_submitting}
-                inputProps={{ className: 'behind-app__admin-submit' }}
-              >
-                {admin_submitting ? '验证中…' : '进入'}
-              </SkeuomorphismButton>
+                press={admin_submitting}
+              >{admin_submitting ? '验证中…' : '进入'}</WhitePlasticButton>
             </div>
-            {admin_error !== '' && <div className='behind-app__admin-error' role='alert'>{admin_error}</div>}
           </form>
         </Slit>
       </div>

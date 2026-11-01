@@ -28,9 +28,7 @@ import {
   galleryCanSubmission,
   galleryInEvent,
   galleryPhotoByMember,
-  galleryPhotosSorted,
   galleryVotesForMember,
-  galleryVotesForPhoto,
   memberHasSubmitted,
   type Gallery,
 } from '../core/Gallery'
@@ -42,7 +40,6 @@ import {
   findPhoto,
   allocateId,
   poolAddPhotoReserved,
-  poolAllPhotos,
   poolClearMemberGalleryVotes,
   poolCreateGallery,
   poolCreateMember,
@@ -50,7 +47,6 @@ import {
   poolCreateEmpty,
   poolDeleteMember,
   poolGalleriesSorted,
-  poolMembersSorted,
   poolRemoveGallery,
   poolRemovePhoto,
   poolSubmitPhotoReserved,
@@ -77,17 +73,14 @@ import {
   publicGalleryDto,
   publicHomeDto,
   publicPhotoDto,
-  statisticDto,
   voteDto,
   type AdminPoolDTO,
   type GalleryDTO,
   type MemberDTO,
-  type MemberVoteDTO,
   type PhotoDTO,
   type PublicGalleryDTO,
   type PublicHomeDTO,
   type PublicPhotoDTO,
-  type StatisticDTO,
   type VoteDTO,
 } from './serializers'
 
@@ -379,12 +372,6 @@ export const queries = {
     },
   }),
 
-  adminGetInstanceConfig: defineQuery({
-    schema: EmptySchema,
-    admin: true,
-    run: (ctx): InstanceConfig => ctx.config,
-  }),
-
   adminFetchPool: defineQuery({
     schema: EmptySchema,
     admin: true,
@@ -400,108 +387,8 @@ export const queries = {
       instance_config: ctx.config,
     }),
   }),
-
-  adminStatistic: defineQuery({
-    schema: EmptySchema,
-    admin: true,
-    run: (ctx): StatisticDTO => statisticDto(ctx.pool),
-  }),
-
-  adminListGalleries: defineQuery({
-    schema: EmptySchema,
-    admin: true,
-    run: (ctx): GalleryDTO[] => poolGalleriesSorted(ctx.pool).map((gallery) => galleryDto({
-      pool: ctx.pool,
-      gallery,
-      env: ctx.env, instance_hash: ctx.instance_hash,
-      now: ctx.now,
-    })),
-  }),
-
-  adminGetGallery: defineQuery({
-    schema: GalleryIDPayloadSchema,
-    admin: true,
-    run: (ctx, payload): GalleryDTO => {
-      const gallery = findGallery(ctx.pool, toGalleryID(payload.gallery_id))
-      return galleryDto({ pool: ctx.pool, gallery, env: ctx.env, instance_hash: ctx.instance_hash, now: ctx.now })
-    },
-  }),
-
-  adminListMembers: defineQuery({
-    schema: EmptySchema,
-    admin: true,
-    run: (ctx): MemberDTO[] => poolMembersSorted(ctx.pool).map((member) => memberDto(member, ctx.env, ctx.instance_hash)),
-  }),
-
-  adminGetMember: defineQuery({
-    schema: MemberIDPayloadSchema,
-    admin: true,
-    run: (ctx, payload): MemberDTO => {
-      const member = findMemberById(ctx.pool, asMemberID(payload.member_id))
-      return memberDto(member, ctx.env, ctx.instance_hash)
-    },
-  }),
-
-  adminListPhotos: defineQuery({
-    schema: EmptySchema,
-    admin: true,
-    run: (ctx): PhotoDTO[] => poolAllPhotos(ctx.pool).map(({ gallery, photo }) => photoDto({
-      pool: ctx.pool,
-      gallery,
-      photo,
-      env: ctx.env, instance_hash: ctx.instance_hash,
-    })),
-  }),
-
-  adminGetPhoto: defineQuery({
-    schema: PhotoIDPayloadSchema,
-    admin: true,
-    run: (ctx, payload): PhotoDTO => {
-      const found = findPhoto(ctx.pool, toPhotoID(payload.photo_id))
-      return photoDto({
-        pool: ctx.pool,
-        gallery: found.gallery,
-        photo: found.photo,
-        env: ctx.env, instance_hash: ctx.instance_hash,
-      })
-    },
-  }),
-
-  adminListAvailablePhotos: defineQuery({
-    schema: EmptySchema,
-    admin: true,
-    run: (ctx): PhotoDTO[] => poolAllPhotos(ctx.pool).map(({ gallery, photo }) => photoDto({
-      pool: ctx.pool,
-      gallery,
-      photo,
-      env: ctx.env, instance_hash: ctx.instance_hash,
-    })),
-  }),
-
-  adminListMemberVotes: defineQuery({
-    schema: GalleryIDPayloadSchema,
-    admin: true,
-    run: (ctx, payload): MemberVoteDTO[] => {
-      const gallery = findGallery(ctx.pool, toGalleryID(payload.gallery_id))
-      return poolMembersSorted(ctx.pool).map((member) => ({
-        ...memberDto(member, ctx.env, ctx.instance_hash),
-        votes: galleryVotesForMember(gallery, member.id).map((vote) => voteDto(gallery, vote)),
-      }))
-    },
-  }),
-
-  adminListPhotoVotes: defineQuery({
-    schema: GalleryIDPayloadSchema,
-    admin: true,
-    run: (ctx, payload): Array<{ photo: PhotoDTO; votes: VoteDTO[] }> => {
-      const gallery = findGallery(ctx.pool, toGalleryID(payload.gallery_id))
-      return galleryPhotosSorted(gallery).map((photo) => ({
-        photo: photoDto({ pool: ctx.pool, gallery, photo, env: ctx.env, instance_hash: ctx.instance_hash }),
-        votes: galleryVotesForPhoto(gallery, photo.id).map((vote) => voteDto(gallery, vote)),
-      }))
-    },
-  }),
 }
+
 
 export const mutations = {
   submitPhoto: defineMutation({
@@ -1057,7 +944,6 @@ export type {
   MemberDTO,
   PhotoDTO,
   PublicHomeDTO,
-  StatisticDTO,
   VoteDTO,
 }
 

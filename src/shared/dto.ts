@@ -96,17 +96,6 @@ export type VoteDTO = {
   updated_at: DateTimeString
 }
 
-export type MemberVoteDTO = MemberDTO & {
-  votes: VoteDTO[]
-}
-
-export type StatisticDTO = {
-  gallery_count: number
-  member_count: number
-  photo_count: number
-  vote_count: number
-}
-
 export type TempUploadResult = {
   temp_id: string
   width: number

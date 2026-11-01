@@ -10,6 +10,8 @@ export type WaitingInputFrameProps = {
   placeholder: string
   handleInputChange: (v: string) => void
   handlesubmitDetect: (v: string) => void
+  onFocus?(): void
+  onBlur?(): void
 }
 export default function WaitingInputFrame(props: WaitingInputFrameProps) {
   const [ is_focus, setFocus ] = useState(Boolean(props.initFocus))
@@ -46,8 +48,14 @@ export default function WaitingInputFrame(props: WaitingInputFrameProps) {
       value={ input_text }
       onChange={ handleInputChange }
       isFocus={ is_focus }
-      onBlur={ thunkify(setFocus)(false) }
-      onFocus={ thunkify(setFocus)(true) }
+      onBlur={() => {
+        setFocus(false)
+        props.onBlur && props.onBlur()
+      }}
+      onFocus={() => {
+        setFocus(true)
+        props.onFocus && props.onFocus()
+      }}
     />
   )
 }

@@ -50,12 +50,13 @@ describe('public QQ masking', () => {
     expect(submission.status).toBe(200)
     expect(submission.body.data.member.qq_num).toBeNull()
 
-    const admin_gallery = await ctx.adminQuery('adminGetGallery', { gallery_id: gallery.id })
-    expect(admin_gallery.status).toBe(200)
-    expect(admin_gallery.body.data.photos[0].member.qq_num).toBe(qq_num)
+    const admin_pool = await ctx.adminPool()
+    const admin_gallery = admin_pool.galleries.find(item => item.id === gallery.id)
+    expect(admin_gallery?.photos[0]?.member?.qq_num).toBe(qq_num)
 
-    const admin_photo = await ctx.adminQuery('adminGetPhoto', { photo_id: photo.id })
-    expect(admin_photo.status).toBe(200)
-    expect(admin_photo.body.data.member.qq_num).toBe(qq_num)
+    const admin_photo = admin_pool.galleries
+      .flatMap(item => item.photos)
+      .find(item => item.id === photo.id)
+    expect(admin_photo?.member?.qq_num).toBe(qq_num)
   })
 })

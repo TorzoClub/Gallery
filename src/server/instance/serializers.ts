@@ -25,8 +25,6 @@ export type {
   PublicHomeDTO,
   AdminGalleryDTO,
   AdminPoolDTO,
-  MemberVoteDTO,
-  StatisticDTO,
 } from '../../shared/dto'
 
 import type {
@@ -40,7 +38,6 @@ import type {
   PublicHomeDTO,
   AdminGalleryDTO,
   AdminPoolDTO,
-  StatisticDTO,
 } from '../../shared/dto'
 
 function imageUrl(
@@ -335,20 +332,5 @@ export function voteDto(gallery: Gallery, vote: Vote): VoteDTO {
     member_id: Number(vote.member_id),
     created_at: vote.created_at.toISOString(),
     updated_at: vote.updated_at.toISOString(),
-  }
-}
-
-export function statisticDto(pool: Pool): StatisticDTO {
-  let photo_count = 0
-  let vote_count = 0
-  pool.galleries.forEach((gallery) => {
-    photo_count += gallery.photos.size
-    vote_count += gallery.vote_records.size
-  })
-  return {
-    gallery_count: pool.galleries.size,
-    member_count: pool.members.size,
-    photo_count,
-    vote_count,
   }
 }

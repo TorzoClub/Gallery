@@ -28,74 +28,172 @@
   color: var(--ink);
 }
 
-/* ==================== 单选按钮组：象牙白的一体式药丸 ==================== */
+/* ==================== 单选按钮组：录音机式金属琴键 ==================== */
 .bank {
   display: flex;
-  gap: 0px;
-  margin: 8px auto 0 10px;
-  padding: .5px;
-  background: #d5d9dc;
-  border-radius: 6px;
-  box-shadow: inset 0 0 5px black;
+  gap: 2px;
+  box-sizing: border-box;
   width: 320px;
+  margin: 8px auto 0 10px;
+  padding: 0px 3px 6px;
+  background:
+    linear-gradient(180deg, #292e31 0%, #111517 35%, #171b1d 70%, #0b0e0f 100%);
+  border-radius: 8px;
+  box-shadow:
+    inset 0 6px 9px rgba(0, 0, 0, 0.9),
+    inset 0 1px 2px rgba(0, 0, 0, 0.9),
+    inset 4px 0 6px rgba(0, 0, 0, 0.8),
+    inset -4px 0 6px rgba(0, 0, 0, 0.8),
+    inset 0 -1px 1px rgba(255, 255, 255, 0.2),
+    0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .key {
+  position: relative;
   flex: 1;
-  height: 28px;
-  padding: 0 6px;
+  box-sizing: border-box;
+  height: 32px;
+  min-width: 0;
+  padding: 0 4px;
+  color: #262b2e;
   font-family: var(--font);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.04em;
-  color: #3b3a35;
-  text-shadow: 0 1px 0 #fff;
-  background: linear-gradient(#fffef7, #f1eee0);
-  /* border: solid 1px grey; */
-  /* border-top: solid 1px white; */
-  /* border-left: solid 1px #a7a7a7; */
-  /* border-right: solid 1px #a7a7a7; */
-  border-radius: 6px;
-  box-sizing: content-box;
-  box-shadow:
-    inset 0 -3px 5px rgba(130, 115, 70, 0.22),
-    0 10px 8px -8px rgba(0, 0, 0, 0.618),
-    inset 0 2px 0 -1px #AAA,
-    /* inset 0 -2px 0 -1px grey, */
-    inset 1.5px 0px 0 -1px grey,
-    inset -1.5px 0px 0 -1px grey
-  ;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+  touch-action: manipulation;
+  -webkit-touch-callout: none; /* Disables the long-press callout menu on links/images */
+  -webkit-user-select: none;   /* Required for iOS Safari */
+  user-select: none;           /* Standard syntax */
+  /* background:
+    linear-gradient(90deg,
+      rgba(255, 255, 255, 0.7) 0%,
+      rgba(255, 255, 255, 0) 9%,
+      rgba(0, 0, 0, 0.04) 50%,
+      rgba(255, 255, 255, 0) 91%,
+      rgba(255, 255, 255, 0.55) 100%
+    ),
+    repeating-linear-gradient(90deg,
+      rgba(255, 255, 255, 0.08) 0,
+      rgba(255, 255, 255, 0.08) 1px,
+      rgba(0, 0, 0, 0.025) 1px,
+      rgba(0, 0, 0, 0.025) 3px
+    ),
+    linear-gradient(180deg,
+      #f8f9f9 0%,
+      #d9dcdd 28%,
+      #bcc2c4 52%,
+      #9ea5a8 72%,
+      #d9dcdd 88%,
+      #f1f2f2 100%
+    ); */
+  border: 1px solid #aeb4b6;
+  border-top-color: #f7f8f8;
+  border-bottom-color: #7d8487;
+  border-radius: 7px 7px 4px 4px;
   cursor: pointer;
-}
-
-.key:first-child {
-  /* border-radius: 27px 6px 6px 27px; */
-}
-
-.key:last-child {
-  /* border-radius: 6px 27px 27px 6px; */
-}
-
-/* 按下 = 选中：瞬间凹陷，字变橙 */
-.key:active,
-.key[aria-checked='true'] {
-  /* color: #d9480f; */
-  background: linear-gradient(#e4e0cf, #eeebdc);
-  /* box-shadow: inset 0 4px 8px rgba(90, 75, 35, 0.45); */
-  box-shadow: inset 0 6px 6px -6px rgba(90, 75, 35, 0.618);
+  transform: translateY(-3px);
   box-shadow:
-    inset 0 2px 0 -1px grey,
-    inset 0 -2px 0 -1px grey,
-    inset 1.5px 0px 0 -1px grey,
-    inset -1.5px 0px 0 -1px grey
+    inset 0 2px 0 rgba(255, 255, 255, 0.95),
+    inset 2px 0 0 rgba(255, 255, 255, 0.55),
+    inset -2px 0 0 rgba(0, 0, 0, 0.16),
+    inset 0 -4px 3px rgba(0, 0, 0, 0.2),
+    0 3px 0 #747b7e,
+    0 4px 0 #303639,
+    0 6px 8px rgba(0, 0, 0, 0.6);
+  background: linear-gradient(to bottom, white, silver);
+}
+
+.key::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  right: 2px;
+  height: 45%;
+  border-radius: 4px 4px 7px 7px;
+  background:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(255, 255, 255, 0.35) 58%,
+      rgba(255, 255, 255, 0) 100%
+    );
+  pointer-events: none;
+}
+
+/* 按键前唇：给顶部金属面一层真实的厚度 */
+.key::after {
+  content: '';
+  position: absolute;
+  top: calc(100% - 1px);
+  left: 1px;
+  right: 1px;
+  height: 9px;
+  border-radius: 0 0 4px 4px;
+  background:
+    linear-gradient(180deg, #a2a8aa 0%, #5b6265 45%, #292f32 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 3px 4px rgba(0, 0, 0, 0.55),
+    0 6px 10px rgba(0, 0, 0, 0.55)
   ;
-  /* border-color: transparent; */
-  border: 0;
+  pointer-events: none;
+}
+
+/* 按下由 data-pressed 驱动，锁定的键由 aria-checked 保持下沉 */
+.key[data-pressed='true'],
+.key[aria-checked='true'] {
+  color: #1e2326;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+  /* background:
+    linear-gradient(90deg,
+      rgba(255, 255, 255, 0.4) 0%,
+      rgba(255, 255, 255, 0) 10%,
+      rgba(0, 0, 0, 0.08) 50%,
+      rgba(255, 255, 255, 0) 90%,
+      rgba(255, 255, 255, 0.3) 100%
+    ),
+    repeating-linear-gradient(90deg,
+      rgba(255, 255, 255, 0.05) 0,
+      rgba(255, 255, 255, 0.05) 1px,
+      rgba(0, 0, 0, 0.03) 1px,
+      rgba(0, 0, 0, 0.03) 3px
+    ),
+    linear-gradient(180deg,
+      #e3e6e7 0%,
+      #c8cdce 38%,
+      #aab0b2 72%,
+      #c9cdce 100%
+    ); */
+  border-color: #858c8f;
+  border-top-color: #d8dbdc;
+  transform: translateY(4px);
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 0.35),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.35),
+    inset 2px 0 2px rgba(0, 0, 0, 0.15),
+    inset -2px 0 2px rgba(0, 0, 0, 0.15),
+    0 1px 0 #454b4e;
+  border-top: 0;
+  background: linear-gradient(to bottom, rgb(219, 219, 219), silver);
+}
+
+.key[data-pressed='true']::before,
+.key[aria-checked='true']::before {
+  opacity: 0.45;
+}
+
+.key[data-pressed='true']::after,
+.key[aria-checked='true']::after {
+  height: 4px;
+  background:
+    linear-gradient(180deg, #62686b 0%, #3b4144 55%, #24292c 100%);
+  box-shadow: none;
 }
 
 .key:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: -5px;
+  outline-offset: 2px;
 }
 
 .field:focus-visible,

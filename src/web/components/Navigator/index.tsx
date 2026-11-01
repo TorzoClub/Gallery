@@ -1,47 +1,42 @@
 import { useMemo, type ReactNode } from 'react'
 import './index.css'
-import PushButton, { PushButtonProps } from './PushButton'
+import PushButton from './PushButton'
 
-export default function Navigator(props: {
-  showTitle: boolean
-  isAdminTitle: boolean
-  pressed?: PushButtonProps['pressed']
+export default function Navigator({ scene, onClickPushButton }: {
+  scene: 'explore' | 'behind' | 'admin'
   onClickPushButton(): void
 }) {
   const title_slot_node = useMemo(() => {
-    if (!props.showTitle) {
+    const common_node = (
+      <span className='navigator-title-normal'>
+        <span className="navigator-title-word">TORZO</span>
+        <span className="navigator-title-space"> </span>
+        <span className="navigator-title-word">GΛLLERY</span>
+      </span>
+    )
+    if (scene === 'behind') {
       return ''
-    } else if (props.isAdminTitle) {
+    } else if (scene === 'admin') {
       return <>
-        <span className='navigator-title-normal'>
-          <span className="navigator-title-word">TORZO</span>
-          <span className="navigator-title-space"> </span>
-          <span className="navigator-title-word">GΛLLERY</span>
-        </span>
+        {common_node}
         <span className="navigator-title-admin">
           <span className="navigator-title-admin-icon">🚧</span>
           <span className="navigator-title-admin-word">Admin</span>
         </span>
       </>
     } else {
-      return <>
-        <span className="navigator-title-word">TORZO</span>
-        <span className="navigator-title-space"> </span>
-        <span className="navigator-title-word">GΛLLERY</span>
-      </>
+      return common_node
     }
-  }, [props.showTitle, props.isAdminTitle])
+  }, [scene])
 
   return (
     <div className="navigator">
-      {props.isAdminTitle}
       <div className="navigator-title">{title_slot_node}</div>
       <div className="navigator-button-slot">
         <PushButton
-          pressed={props.pressed}
           diameter={34}
           capDiameter={28}
-          onClick={props.onClickPushButton}
+          onClick={onClickPushButton}
         />
       </div>
     </div>

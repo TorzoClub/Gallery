@@ -16,6 +16,7 @@ import { getApiErrorMessage } from './admin/utils/errors'
 import SkeuomorphismButton from './components/SkeuomorphismButton'
 import { ZeldaQuestBanner } from './components/ZeldaQuestBanner'
 import { Slit } from './components/Title'
+import { identity, thunkify } from 'ramda'
 
 const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'N/A'
 const BASE_PATH = import.meta.env.VITE_BASE_PATH ?? 'N/A'
@@ -226,6 +227,8 @@ function EnterAdmin(props: { onLoginSuccess(): void }) {
                   }
                 }}
               />
+            </div>
+            <div>
               <SkeuomorphismButton
                 type='submit'
                 disabled={admin_submitting}
@@ -238,19 +241,21 @@ function EnterAdmin(props: { onLoginSuccess(): void }) {
           </form>
         </Slit>
       </div>
-      <div style={{
-        width: '360px',
-        margin: 'auto',
-        borderTop: open ? '' : 'solid 1px grey'
-      }}>
+      <div>
         <AdminPullHandle
           expanded={open}
-          onClick={() => setOpen(value => !value)}
+          onClick={thunkify(setOpen)(identity(true))}
         />
       </div>
     </>
   )
 }
+
+const HAND_MOVE_MS = 380
+const HAND_GRIP_DELAY_MS = 300
+const HAND_GRIP_HOLD_MS = 260
+
+type HandPhase = 'idle' | 'entering' | 'moving' | 'gripped' | 'released'
 
 function AdminPullHandle({ expanded, onClick }: {
   expanded: boolean
@@ -259,63 +264,121 @@ function AdminPullHandle({ expanded, onClick }: {
   const uid = useId().replace(/:/g, '')
   const bar_gradient = `admin-pull-bar-${uid}`
   const post_gradient = `admin-pull-post-${uid}`
+  const [hand_phase, setHandPhase] = useState<HandPhase>('idle')
+  const timers = useRef<number[]>([])
+  const animation_frame = useRef<number | null>(null)
+
+  useEffect(() => () => {
+    timers.current.forEach(timer => window.clearTimeout(timer))
+    if (animation_frame.current !== null) {
+      window.cancelAnimationFrame(animation_frame.current)
+    }
+  }, [])
+
+  const handleClick = () => {
+    if (hand_phase !== 'idle') {
+      return
+    }
+    if (expanded) {
+      onClick()
+      return
+    }
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      onClick()
+      return
+    }
+
+    setHandPhase('entering')
+    animation_frame.current = window.requestAnimationFrame(() => {
+      animation_frame.current = window.requestAnimationFrame(() => {
+        setHandPhase('moving')
+        timers.current.push(window.setTimeout(() => {
+          setHandPhase('gripped')
+          onClick()
+          timers.current.push(window.setTimeout(() => {
+            setHandPhase('released')
+            timers.current.push(window.setTimeout(() => {
+              setHandPhase('idle')
+            }, 120))
+          }, HAND_GRIP_HOLD_MS))
+        }, HAND_MOVE_MS + HAND_GRIP_DELAY_MS))
+      })
+    })
+  }
+
+  const stage_class = [
+    'behind-app__admin-pull-stage',
+    hand_phase !== 'idle' ? `behind-app__admin-pull-stage--${hand_phase}` : '',
+  ].filter(Boolean).join(' ')
 
   return (
-    <button
-      type='button'
-      className='behind-app__admin-pull'
-      aria-expanded={expanded}
-      aria-controls='behind-admin-login'
-      onClick={onClick}
-    >
-      <svg
-        className='behind-app__admin-pull-graphic'
-        viewBox='0 0 164 60'
+    <div className={stage_class}>
+      <span
+        className='behind-app__admin-pull-hand'
         aria-hidden='true'
-        focusable='false'
+        style={{ zIndex: hand_phase === 'gripped' || hand_phase === 'released' ? '10000' : '' }}
       >
-        <defs>
-          <linearGradient id={bar_gradient} x1='0' y1='0' x2='0' y2='1'>
-            <stop offset='0' stopColor='#f2f5f4' />
-            <stop offset='0.18' stopColor='#c7d0d1' />
-            <stop offset='0.42' stopColor='#8e9a9e' />
-            <stop offset='0.62' stopColor='#606c71' />
-            <stop offset='0.82' stopColor='#899599' />
-            <stop offset='1' stopColor='#424d52' />
-          </linearGradient>
-          <linearGradient id={post_gradient} x1='0' y1='0' x2='1' y2='0'>
-            <stop offset='0' stopColor='#aab5b7' />
-            <stop offset='0.45' stopColor='#6d797e' />
-            <stop offset='1' stopColor='#394348' />
-          </linearGradient>
-        </defs>
-        <rect x='22' y='34' width='10' height='18' rx='3.5' fill={`url(#${post_gradient})`} />
-        <rect x='132' y='34' width='10' height='18' rx='3.5' fill={`url(#${post_gradient})`} />
-        <path
-          d='M27 42 V26 Q27 16 37 16 H127 Q137 16 137 26 V42'
-          fill='none'
-          stroke={`url(#${bar_gradient})`}
-          strokeWidth='12'
-          strokeLinecap='round'
-        />
-        <path
-          d='M30 31 V26 Q30 19 38 19 H126 Q134 19 134 26 V31'
-          fill='none'
-          stroke='#f8fbfb'
-          strokeWidth='2.4'
-          strokeLinecap='round'
-          opacity='0.8'
-        />
-        <path
-          d='M29 39 V26 Q29 18 38 18 H126 Q135 18 135 26 V39'
-          fill='none'
-          stroke='#5b666b'
-          strokeWidth='1.2'
-          strokeLinecap='round'
-          opacity='0.55'
-        />
-      </svg>
-    </button>
+        {hand_phase === 'gripped' || hand_phase === 'released' ? '✊' : '✋'}
+      </span>
+      <button
+        type='button'
+        className='behind-app__admin-pull'
+        aria-label={expanded ? '收起后台管理' : '进入后台管理'}
+        aria-expanded={expanded}
+        aria-controls='behind-admin-login'
+        aria-busy={hand_phase !== 'idle'}
+        disabled={hand_phase !== 'idle'}
+        onClick={handleClick}
+      >
+        <svg
+          className='behind-app__admin-pull-graphic'
+          viewBox='0 0 164 60'
+          aria-hidden='true'
+          focusable='false'
+        >
+          <defs>
+            <linearGradient id={bar_gradient} x1='0' y1='0' x2='0' y2='1'>
+              <stop offset='0' stopColor='#f2f5f4' />
+              <stop offset='0.18' stopColor='#c7d0d1' />
+              <stop offset='0.42' stopColor='#8e9a9e' />
+              <stop offset='0.62' stopColor='#606c71' />
+              <stop offset='0.82' stopColor='#899599' />
+              <stop offset='1' stopColor='#424d52' />
+            </linearGradient>
+            <linearGradient id={post_gradient} x1='0' y1='0' x2='1' y2='0'>
+              <stop offset='0' stopColor='#aab5b7' />
+              <stop offset='0.45' stopColor='#6d797e' />
+              <stop offset='1' stopColor='#394348' />
+            </linearGradient>
+          </defs>
+          <rect x='22' y='34' width='10' height='18' rx='3.5' fill={`url(#${post_gradient})`} />
+          <rect x='132' y='34' width='10' height='18' rx='3.5' fill={`url(#${post_gradient})`} />
+          <path
+            d='M27 42 V26 Q27 16 37 16 H127 Q137 16 137 26 V42'
+            fill='none'
+            stroke={`url(#${bar_gradient})`}
+            strokeWidth='12'
+            strokeLinecap='round'
+          />
+          <path
+            d='M30 31 V26 Q30 19 38 19 H126 Q134 19 134 26 V31'
+            fill='none'
+            stroke='#E8EbEb'
+            strokeWidth='2.4'
+            strokeLinecap='round'
+            opacity='0.8'
+          />
+          <path
+            d='M29 39 V26 Q29 18 38 18 H126 Q135 18 135 26 V39'
+            fill='none'
+            stroke='#5b666b'
+            strokeWidth='1.2'
+            strokeLinecap='round'
+            opacity='0.55'
+          />
+        </svg>
+      </button>
+    </div>
   )
 }
 

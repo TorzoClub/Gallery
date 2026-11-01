@@ -93,12 +93,50 @@
   }
 }
 
-.behind-app__admin-pull {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 7px;
+.behind-app__admin-pull-stage {
+  position: relative;
+  width: 188px;
+  height: 68px;
   margin: 0 auto 18px;
+}
+
+.behind-app__admin-pull-hand {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 0;
+  font-size: 44px;
+  line-height: 1;
+  pointer-events: none;
+  opacity: 0;
+  filter: drop-shadow(0 2px 1px rgb(42 52 55 / .18));
+  transform: translate(0, calc(-50% + 54px)) rotate(10deg) scale(.82);
+  transition:
+    transform 380ms cubic-bezier(.2, .75, .25, 1),
+    opacity 100ms linear;
+}
+
+.behind-app__admin-pull-stage--entering .behind-app__admin-pull-hand {
+  opacity: 1;
+}
+
+.behind-app__admin-pull-stage--moving .behind-app__admin-pull-hand,
+.behind-app__admin-pull-stage--gripped .behind-app__admin-pull-hand,
+.behind-app__admin-pull-stage--released .behind-app__admin-pull-hand {
+  opacity: 1;
+  transform: translate(-50%, calc(-50% - 13px)) rotate(-3deg) scale(1);
+}
+
+.behind-app__admin-pull-stage--released .behind-app__admin-pull-hand {
+  opacity: 0;
+}
+
+.behind-app__admin-pull {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 188px;
+  height: 68px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -127,10 +165,8 @@
   border-radius: 4px;
 }
 
-.behind-app__admin-pull-label {
-  color: #306785;
-  font: 700 11px/1.2 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  letter-spacing: .12em;
+.behind-app__admin-pull:disabled {
+  cursor: default;
 }
 
 .behind-app__admin-entry {
@@ -160,8 +196,9 @@
 
 .behind-app__admin-rule {
   flex: 1;
-  height: 1px;
-  background: #d8d0bf;
+  height: 2px;
+  background: #BBB;
+  border-bottom: solid 1px white;
 }
 
 .behind-app__admin-kicker {
@@ -170,6 +207,7 @@
   font: 700 11px/1.2 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   letter-spacing: .14em;
   white-space: nowrap;
+  text-shadow: 0 1px 0 white;
 }
 
 .behind-app__admin-sr-label {
@@ -184,11 +222,26 @@
   border: 0;
 }
 
+#behind-admin-password {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 40px 8px 10px;
+  font: 600 16px var(--mono);
+  color: #374151;
+  background: white;
+  border: 1px solid #8d8c87;
+  border-radius: 3px;
+  box-shadow:
+  inset 0 2px 4px -2px rgba(0, 0, 0, 0.25),
+  inset 0 2px 4px -2px rgba(0, 0, 0, 0.25),
+  0 2px 0 -1px white;
+}
+
 .behind-app__admin-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 12px;
+  margin: 20px auto;
 
   input {
     box-sizing: border-box;

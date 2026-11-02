@@ -402,7 +402,7 @@ export function init(init_args : InitArgs) {
 
   const script_同装同装 = componentScript([], () => {
     return <>
-      <img src={image_同装同装} style={{ height: '120px' }} />
+      <img src={image_同装同装} style={{ margin: 'auto', display: 'block', height: '120px' }} />
     </>
   })
 
@@ -411,25 +411,25 @@ export function init(init_args : InitArgs) {
       throw new Error('computeExpectTime failure: submission_expire is null')
     } else {
       const submission_expire_date = new Date(submission_expire)
-      const currentDate = new Date
+      const current_date = new Date
       if (isInvalidDate(submission_expire_date)) {
         throw new Error(`computeExpectTime failure: submission_expire('${submission_expire}') is invalid date`)
-      } else if (currentDate > submission_expire_date) {
+      } else if (current_date > submission_expire_date) {
         return null
       } else {
-        const day = dateDiffInDays(currentDate, submission_expire_date)
+        const day = dateDiffInDays(current_date, submission_expire_date)
         if (day === 1) {
           return '明天'
         } else if (day === 2) {
           return '后天'
-        } else if (isNextWeek(currentDate, submission_expire_date)) {
+        } else if (isNextWeek(current_date, submission_expire_date)) {
           const week_day = submission_expire_date.getDay()
           return `下${stringifyWeekDay(week_day)}`
-        } else if (isNextMonth(currentDate, submission_expire_date)) {
+        } else if (isNextMonth(current_date, submission_expire_date)) {
           const d = submission_expire_date.getDate()
           return `下个月${d}号`
         } else {
-          const m = monthDiff(currentDate, submission_expire_date)
+          const m = monthDiff(current_date, submission_expire_date)
           if (m === 0) {
             return `${day}天后`
           } else {

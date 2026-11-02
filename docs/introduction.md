@@ -11,6 +11,7 @@
 - 旧 `server/`、`web/`、脚本和 CI 已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支，不参与当前分支的构建、测试、lint、部署。
 - 后台页面和样式按路由异步加载，公开页首屏不会加载后台代码。
 - 后台是 `/admin`；使用完整 AdminPool 查询，并在 AdminConsole 中管理运行期配置和名单簿成员。
+- 公开页和 Admin 分别通过 `/events/pool`、`/admin/events/pool` 接收 SSE 增量更新。
 
 更细的状态和待办见 [TODOS.md](../TODOS.md)。
 
@@ -63,6 +64,7 @@ Node HTTP Server
   │     ├── POST /admin/query/*, /admin/mutate/*
   │     ├── POST /auth/login, /upload-image
   │     ├── GET /images/source|optimized|thumb/*
+  │     ├── GET /events/pool, /admin/events/pool（SSE）
   │     └── GET /healthz
   │           ▼
   │        Hono API listener

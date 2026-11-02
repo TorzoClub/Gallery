@@ -2,10 +2,9 @@ import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import ImageUploadingImport, { type ImageType, type ImageListType } from 'react-images-uploading'
 
 import { useSubmissionStore } from '.'
-import { fetchMemberView, submitPhoto, updateSubmission } from 'api/client-pool'
+import { submitPhoto, updateSubmission } from 'api/client-pool'
 import { uploadImage } from 'api/upload'
-import { getClientPoolState, reloadClientPool } from 'pool/store'
-import { submittedPhotoView, type PhotoView } from 'pool/view'
+import { photoViewFromDTO, type PhotoView } from 'pool/view'
 
 import s from './PhotoCreateOrEdit.module.scss'
 import { LoadingMask } from 'components/LoadingMask'
@@ -54,8 +53,9 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
       }
 
       const current_photo_id = photo?.id
+      let saved
       if (is_edit_mode && current_photo_id !== undefined) {
-        await updateSubmission({
+        saved = await updateSubmission({
           photo_id: current_photo_id,
           qq_num: Number(qq_num),
           desc: description,
@@ -68,7 +68,7 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
         if (gallery_id === null) {
           throw new Error('缺少相册信息')
         }
-        await submitPhoto({
+        saved = await submitPhoto({
           gallery_id,
           qq_num: Number(qq_num),
           desc: description,
@@ -76,18 +76,7 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
         })
       }
 
-      const [member_view] = await Promise.all([
-        fetchMemberView(Number(qq_num)),
-        reloadClientPool(),
-      ])
-      const pool_state = getClientPoolState()
-      if (pool_state.status !== 'ready') {
-        throw new Error('ClientPool 尚未加载完成')
-      }
-      const updated_photo = submittedPhotoView(pool_state.pool, member_view)
-      if (updated_photo === null) {
-        throw new Error('投稿成功，但无法读取投稿数据')
-      }
+      const updated_photo = photoViewFromDTO(saved)
       useSubmissionStore.setState({ photo: updated_photo })
       onUpdateDone(updated_photo)
     } catch (err) {

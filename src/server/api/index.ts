@@ -14,6 +14,7 @@ import type { EnvConfig } from '../config'
 import type { Instance } from '../instance'
 import type { Logger } from '../logger'
 import { createAdminAuth } from './admin'
+import { createAdminPoolEventsHandler, createPublicPoolEventsHandler } from './events'
 import { createUploadHandler } from './upload'
 
 type Deps = {
@@ -33,6 +34,8 @@ const API_LIKE_PREFIXES = [
   '/upload-image',
   '/images',
   '/healthz',
+  '/events',
+  '/admin/events',
 ]
 
 export function isApiLikePath(pathname: string, base_path = '/'): boolean {
@@ -217,11 +220,15 @@ export function constructApi(deps: Deps): Hono {
 
   app.use('/admin/query/*', auth)
   app.use('/admin/mutate/*', auth)
+  app.use('/admin/events/*', auth)
 
   const json_limit = bodyLimit({
     maxSize: 1024 * 1024,
     onError: bodyLimitError,
   })
+
+  app.get('/events/pool', createPublicPoolEventsHandler(instance, clock))
+  app.get('/admin/events/pool', createAdminPoolEventsHandler(instance, clock))
 
   app.post('/query/:name', json_limit, dispatchHandler(instance, 'query', false, clock))
   app.post('/mutate/:name', json_limit, dispatchHandler(instance, 'mutation', false, clock))

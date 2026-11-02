@@ -13,12 +13,12 @@ import SkeuomorphismButton from 'components/SkeuomorphismButton'
 import type { CoverClickEvent } from 'components/PhotoBox'
 import { usePhotoPriority } from './hooks/use-photo-priority'
 import { vote } from 'api/client-pool'
-import { useClientPool, reloadClientPool } from 'pool/store'
+import { useClientPool } from 'pool/store'
 import { useMemberView } from 'pool/member-view'
 import { activeGallery, normalGalleries } from 'pool/selectors'
 import { toGalleryViews, type GalleryView } from 'pool/view'
 import { canUseCacheWorker, transformCacheWorkerURL } from 'pool/media'
-import { useSubmissionEvent } from 'components/Submission'
+
 import { PaperShredder } from '@/components/uibrik/paper-shredder/paper-shredder'
 
 const watterfall_refreshed = Signal()
@@ -74,12 +74,6 @@ export default function ExplorePage() {
       setShowPast(true)
     }
   }, [active])
-
-  useSubmissionEvent({
-    created() { void reloadClientPool() },
-    updated() { void reloadClientPool() },
-    canceled() { void reloadClientPool() },
-  })
 
   const [ConfirmQQLayout, confirm_state, setConfirmState] = useConfirmQQ({
     onConfirmSuccess(value) {
@@ -155,10 +149,7 @@ export default function ExplorePage() {
         qq_num,
         photo_ids: selected_ids,
       })
-      await Promise.all([
-        reloadClientPool(),
-        member_view.reload(),
-      ])
+      member_view.applyVote(selected_ids)
       setShowConfirmVote(false)
     } catch (error) {
       if (error instanceof Error) {

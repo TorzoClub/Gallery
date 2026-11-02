@@ -11,7 +11,7 @@ import { LoadingMask } from 'components/LoadingMask'
 import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
 
 import image_同装同装 from '../../assets/同装 同装.png'
-import { getClientPoolState, reloadClientPool } from 'pool/store'
+import { getClientPoolState } from 'pool/store'
 import { submittedPhotoView, type GalleryView, type PhotoView } from 'pool/view'
 import { thunkify } from 'ramda'
 import { dateDiffInDays, isInvalidDate, isNextMonth, isNextWeek, monthDiff, stringifyWeekDay } from 'utils/date'
@@ -474,10 +474,7 @@ export function init(init_args : InitArgs) {
           return undefined
         }
 
-        const [member_view] = await Promise.all([
-          fetchMemberView(Number(qq_num)),
-          reloadClientPool(),
-        ])
+        const member_view = await fetchMemberView(Number(qq_num))
         const pool_state = getClientPoolState()
         if (pool_state.status !== 'ready') {
           throw new Error('ClientPool 尚未加载完成')

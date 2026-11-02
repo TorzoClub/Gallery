@@ -206,6 +206,7 @@ export default ({
       <Waterfall
         layout={layout}
         items={items}
+        newItemPlacement='top'
         onWatterfallRefreshed={onWatterfallRefreshed}
       />
     )

@@ -269,6 +269,8 @@ pnpm start
 - `PUBLIC_BASE_URL` 是浏览器可访问的站点 origin
 - 同一 storage 只运行一个 API 进程
 - 反向代理直接转发到 Hono，不需要单独的静态服务器
+- SSE `/events/pool` 和 `/admin/events/pool` 必须关闭响应 buffering；nginx 使用 `proxy_buffering off`，并将 `proxy_read_timeout` 设为大于 15 秒心跳间隔
+- SSE 连接不参与普通静态资源缓存
 
 Docker：
 

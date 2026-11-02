@@ -97,6 +97,7 @@ export default function AdminGallery({
                   <Waterfall
                     layout={layout}
                     items={items}
+                    newItemPlacement='top'
                     onWatterfallRefreshed={onWatterfallRefreshed}
                   />
                 )}

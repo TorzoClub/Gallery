@@ -39,20 +39,54 @@ function calcTotalBoxWidth({
   return [ box_width, gutter_total_len ] as const
 }
 
+export type WaterfallItemPlacement = 'top' | 'bottom'
+
 export type Props = {
   layout: WaterfallLayout
   items: WaterfallItem[]
+  newItemPlacement?: WaterfallItemPlacement
   onWatterfallRefreshed?(): void
 }
 
 export default (props: Props) => {
-  const { layout, items, onWatterfallRefreshed } = props
+  const { layout, items, onWatterfallRefreshed, newItemPlacement = 'bottom' } = props
   const { gallery_width, vertical_gutter } = layout
   const [ box_width ] = calcTotalBoxWidth(layout)
 
   const { refFn, columns, waterfall_height, pos_map, refresh_signal } = useLayout({
-    items, box_width, layout
+    items, box_width, layout, newItemPlacement
   })
+
+  const seen_ids = useRef<Set<string> | null>(null)
+  const entering_timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [entering_ids, setEnteringIds] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    const next_ids = new Set(items.map(item => item.id))
+    if (seen_ids.current === null) {
+      seen_ids.current = next_ids
+      return
+    }
+    const entering = [...next_ids].filter(id => !seen_ids.current?.has(id))
+    seen_ids.current = next_ids
+    if (entering.length === 0) {
+      return
+    }
+
+    setEnteringIds(current => new Set([...current, ...entering]))
+    if (entering_timer.current !== null) {
+      clearTimeout(entering_timer.current)
+    }
+    entering_timer.current = setTimeout(() => {
+      entering_timer.current = null
+      setEnteringIds(new Set())
+    }, 420)
+  }, [items])
+
+  useEffect(() => () => {
+    if (entering_timer.current !== null) {
+      clearTimeout(entering_timer.current)
+    }
+  }, [])
 
   useEffect(() => {
     let handler: ReturnType<typeof setTimeout>
@@ -103,6 +137,8 @@ export default (props: Props) => {
                 vertical_gutter={vertical_gutter}
                 style={posStyle(item.id)}
                 register={refFn}
+                animate={columns.length > 0}
+                entering={entering_ids.has(item.id)}
               />
             ))
           }
@@ -117,8 +153,10 @@ function WaterfallItemView(props: {
   vertical_gutter: number
   style: React.CSSProperties
   register(getDim: () => WaterfallDimension, id: string): void
+  animate: boolean
+  entering: boolean
 }) {
-  const { item, box_width, vertical_gutter, style, register } = props
+  const { item, box_width, vertical_gutter, style, register, animate, entering } = props
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -139,6 +177,11 @@ function WaterfallItemView(props: {
   return (
     <div
       ref={ref}
+      className={[
+        'waterfall-item',
+        animate ? 'waterfall-item-animated' : '',
+        entering ? 'waterfall-item-entering' : '',
+      ].filter(Boolean).join(' ')}
       style={{
         position: 'absolute',
         width: `${box_width}px`,
@@ -333,6 +376,23 @@ function appendMultiDim(cols: Columns, dim_list: DimessionInfo[]): Columns {
   }, cols)
 }
 
+function prependAtColumn(cols: Columns, prepend_col: number, dim: DimessionInfo): Columns {
+  return cols.map((col, col_idx) => {
+    if (prepend_col === col_idx) {
+      return [dim, ...col]
+    }
+    return col
+  })
+}
+
+function prependMultiDim(cols: Columns, dim_list: DimessionInfo[]): Columns {
+  const ordered = [...dim_list].sort((left, right) => left.item_idx - right.item_idx)
+  return [...ordered].reverse().reduce((next_cols, dim) => {
+    const target = whichCanAppend(next_cols, dim)
+    return prependAtColumn(next_cols, target, dim)
+  }, cols)
+}
+
 function addColumn(cols: Columns, col: DimessionInfo[]): Columns {
   return [...cols, col]
 }
@@ -420,13 +480,17 @@ function reverseNewColumns(
   }
 }
 
-function mergeColumns(prev_cols: Columns, latest_cols: Columns) {
+function mergeColumns(
+  prev_cols: Columns,
+  latest_cols: Columns,
+  new_item_placement: WaterfallItemPlacement = 'bottom',
+) {
   if (countColumn(prev_cols) === 0) {
     return latest_cols
   } else {
     return adjustColumns(
       countColumn(latest_cols),
-      updateColumnsKeepPosition(prev_cols, latest_cols)
+      updateColumnsKeepPosition(prev_cols, latest_cols, new_item_placement)
     )
   }
 }
@@ -481,7 +545,11 @@ function adjustColumns(target_column: number, cols: Columns): Columns {
   }
 }
 
-function updateColumnsKeepPosition(prev_cols: Columns, latest_cols: Columns): Columns {
+function updateColumnsKeepPosition(
+  prev_cols: Columns,
+  latest_cols: Columns,
+  new_item_placement: WaterfallItemPlacement = 'bottom',
+): Columns {
   const latest_list = toDimListSorted(latest_cols)
 
   const exists_list = new Set<string>()
@@ -506,12 +574,10 @@ function updateColumnsKeepPosition(prev_cols: Columns, latest_cols: Columns): Co
     )
   }, [])
 
-  return appendMultiDim(
-    keep_pos_cols,
-    latest_list.filter(dim => {
-      return exists_list.has(dim.id) !== true
-    })
-  )
+  const new_dims = latest_list.filter(dim => exists_list.has(dim.id) !== true)
+  return new_item_placement === 'top'
+    ? prependMultiDim(keep_pos_cols, new_dims)
+    : appendMultiDim(keep_pos_cols, new_dims)
 }
 
 function computeWaterfallHeight(waterfall_columns: Columns) {
@@ -524,6 +590,7 @@ function computeWaterfallHeight(waterfall_columns: Columns) {
 function useLayout({
   items,
   box_width,
+  newItemPlacement,
   layout: {
     column_count,
     column_gutter,
@@ -532,6 +599,7 @@ function useLayout({
   layout: WaterfallLayout
   box_width: number
   items: WaterfallItem[]
+  newItemPlacement: WaterfallItemPlacement
 }) {
   const refresh_signal = useMemo(() => Signal(), [])
   const [ refFn, getDimMap ] = useDimensionMap(
@@ -618,7 +686,8 @@ function useLayout({
           createPlainColumns(0),
           generateWaterfallColumns(
             items, column_count, getDimMap()
-          )
+          ),
+          newItemPlacement,
         )
       )
     }
@@ -642,11 +711,12 @@ function useLayout({
           prev_columns.current.cols,
           generateWaterfallColumns(
             items, column_count, getDimMap()
-          )
+          ),
+          newItemPlacement,
         )
       )
     }
-  }, [applyNewLayout, column_count, generateWaterfallColumns, getDimMap, items])
+  }, [applyNewLayout, column_count, generateWaterfallColumns, getDimMap, items, newItemPlacement])
 
   useEffect(() => {
     if (columns_cache.current === undefined) {

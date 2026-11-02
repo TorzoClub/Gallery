@@ -3,6 +3,7 @@ import type { AdminGalleryDTO, MemberDTO } from '@shared/dto'
 import { adminMutate } from '../../../admin/api/client'
 import { removeGallery } from '../../../admin/api/gallery'
 import Popover from '../../../components/Popover'
+import AddPhotoPopover from './AddPhotoPopover'
 import { sortPhotosByVoteCount } from '../../../admin/api/photo'
 import { getApiErrorMessage } from '../../../admin/utils/errors'
 import {
@@ -384,9 +385,17 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
                 </div>
               )}
             />
-            <button type='submit' className={styles.primaryButton} disabled={form_busy || delete_busy}>
-              {form_busy ? '保存中…' : '保存相册'}
-            </button>
+            <div className={styles.formActionsRight}>
+              <AddPhotoPopover
+                gallery_id={Number(gallery.id)}
+                members={members}
+                submitted_member_ids={submitted_ids}
+                onChanged={onChanged}
+              />
+              <button type='submit' className={styles.primaryButton} disabled={form_busy || delete_busy}>
+                {form_busy ? '保存中…' : '保存相册'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

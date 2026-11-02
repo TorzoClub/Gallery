@@ -135,6 +135,24 @@
   margin-top: 8px;
 }
 
+.voteBreakdown {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  margin-top: 8px;
+}
+
+.voteBreakdownCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.voteBreakdownCell + .voteBreakdownCell {
+  border-left: 1px solid #d2cabb;
+}
+
 .voteRatioValue {
   color: #3f4a55;
   font: 700 28px/1 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;

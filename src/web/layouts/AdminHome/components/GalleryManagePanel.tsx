@@ -158,6 +158,8 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
     () => members.filter(member => !submitted_ids.has(Number(member.id))),
     [members, submitted_ids],
   )
+  const submitted = total - non_submitters.length
+  const vote_count = gallery.vote_records.length
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm(current => ({ ...current, [key]: value }))
@@ -415,6 +417,24 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
                 <span className={styles.voteRatioLabel}>已投</span>
                 <span />
                 <span className={styles.voteRatioLabel}>成员数量</span>
+              </div>
+            </div>
+
+            <div
+              className={styles.voteRatioCard}
+              aria-label={`参与投稿的人数：已投稿 ${submitted} 人；投票计数：${vote_count} 票`}
+            >
+              <div className={styles.voteBreakdown} aria-hidden='true'>
+                <div className={styles.voteBreakdownCell}>
+                  <span className={styles.voteRatioTitle}>参与投稿的人数</span>
+                  <span className={styles.voteRatioValue}>{submitted}</span>
+                  <span className={styles.voteRatioLabel}>已投稿</span>
+                </div>
+                <div className={styles.voteBreakdownCell}>
+                  <span className={styles.voteRatioTitle}>投票计数</span>
+                  <span className={styles.voteRatioValue}>{vote_count}</span>
+                  <span className={styles.voteRatioLabel}>总票数</span>
+                </div>
               </div>
             </div>
 

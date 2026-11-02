@@ -148,7 +148,7 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
           navigate('/admin', { replace: true })
         }} />
 
-        <ZeldaQuestBannerTest />
+        {import.meta.env.DEV && <ZeldaQuestBannerTest />}
         {/* <SkeuomorphismButton>测试</SkeuomorphismButton> */}
         {show_card && (
           <div className='behind-app__card-wrapper'>

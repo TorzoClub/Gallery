@@ -3,7 +3,8 @@ import React, { useEffect, useState } from 'react'
 import './index.css'
 
 function looseRotate() {
-  return (Math.floor(Math.random() * 11) - 6) / 10
+  // -0.6 ~ +0.6 度，十三档，模拟塑料按键的松垮倾角。
+  return (Math.floor(Math.random() * 13) - 6) / 10
 }
 
 export interface WhitePlasticButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

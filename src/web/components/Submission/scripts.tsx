@@ -340,13 +340,11 @@ export function init(init_args : InitArgs) {
               />
             </div>
 
-            <div style={{
-              ...(show_photo ? {
-                marginTop: '20px'
-              } : {
-                overflow: 'hidden',
-                height: '0px'
-              }),
+            <div style={show_photo ? {
+              marginTop: '20px'
+            } : {
+              overflow: 'hidden',
+              height: '0px'
             }}>
               {
                 photo && (

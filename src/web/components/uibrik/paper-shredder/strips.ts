@@ -333,7 +333,8 @@ export class ShredScene {
   }
 
   dispose() {
-    for (const b of [...this.batches]) this.remove(b);
+    // remove() 用 filter 换一个新数组赋给 this.batches，不原地改，所以直接遍历旧数组是安全的
+    for (const b of this.batches) this.remove(b);
     this.renderer.dispose();
   }
 

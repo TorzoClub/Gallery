@@ -19,8 +19,10 @@ export function removePhoto(id: number): Promise<Photo> {
   return adminMutate<Photo>('adminRemovePhoto', { photo_id: id })
 }
 
-export function sortPhotosByVoteCount(galleryId: number | string): Promise<unknown> {
-  return adminMutate('adminSortPhotosByVoteCount', {
-    gallery_id: Number(galleryId),
+/** 按给定顺序一次性重排整个相册的相片；photo_ids 必须是该相册的全部相片 */
+export function sortPhotos(galleryId: number, photoIds: readonly number[]): Promise<unknown> {
+  return adminMutate('adminSortPhotos', {
+    gallery_id: galleryId,
+    photo_ids: [...photoIds],
   })
 }

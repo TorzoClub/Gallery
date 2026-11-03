@@ -1,6 +1,7 @@
-import React, { useRef, type CSSProperties } from 'react'
+import React, { useRef, useState, type CSSProperties } from 'react'
 import Popover from '../../../components/Popover'
 import { formatDateTime } from '../../../admin/utils/date'
+import { getApiErrorMessage } from '../../../admin/utils/errors'
 import {
   createMagnetOffset,
   type PhotoSortBy,
@@ -57,19 +58,86 @@ type LegendProps = {
   direction: PhotoSortDirection
   onSortByChange(value: PhotoSortBy): void
   onDirectionChange(value: PhotoSortDirection): void
+  /** 把当前展示顺序写成相片的 index（一次批量请求），公开页按这个顺序展示 */
+  onFreeze(): Promise<void>
 }
 
-export function VoteMagnetLegend({ sort_by, direction, onSortByChange, onDirectionChange }: LegendProps) {
+function FreezeSort({ sort_by, direction, onFreeze }: Pick<LegendProps, 'sort_by' | 'direction' | 'onFreeze'>) {
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const by_label = PHOTO_SORT_OPTIONS.find(option => option.value === sort_by)?.label ?? ''
+  const dir_label = direction === 'asc' ? '升序' : '降序'
+
+  const freeze = async () => {
+    if (busy) {
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await onFreeze()
+      setOpen(false)
+    } catch (err) {
+      setError(getApiErrorMessage(err, '固化排序失败'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={next => {
+        // 保存中不让点外面关掉，结果要留在弹层里给人看
+        if (busy) {
+          return
+        }
+        setOpen(next)
+        if (next) {
+          setError('')
+        }
+      }}
+      label='确认固化排序'
+      trigger={(
+        <button type='button' className={styles.freezeButton} disabled={busy}>
+          固化这个排序
+        </button>
+      )}
+      content={(
+        <div className={styles.freezeConfirm}>
+          <div className={styles.freezeConfirmText}>
+            要把相片固化为「{by_label}·{dir_label}」的顺序吗？固化后公开页的相片按这个顺序展示。
+          </div>
+          {error !== '' && <div className={styles.freezeError} role='alert'>{error}</div>}
+          <div className={styles.freezeConfirmActions}>
+            <button type='button' className={styles.close} disabled={busy} onClick={() => setOpen(false)}>
+              取消
+            </button>
+            <button type='button' className={styles.freezePrimary} disabled={busy} onClick={() => void freeze()}>
+              {busy ? '固化中…' : '固化'}
+            </button>
+          </div>
+        </div>
+      )}
+    />
+  )
+}
+
+export function VoteMagnetLegend({ sort_by, direction, onSortByChange, onDirectionChange, onFreeze }: LegendProps) {
   return (
     <div className={styles.legend} aria-label='投票磁粒图例'>
-      <SortSelect
-        label='相片展示排序'
-        options={PHOTO_SORT_OPTIONS}
-        value={sort_by}
-        direction={direction}
-        onChange={onSortByChange}
-        onDirectionChange={onDirectionChange}
-      />
+      <span className={styles.sortGroup}>
+        <FreezeSort sort_by={sort_by} direction={direction} onFreeze={onFreeze} />
+        <SortSelect
+          label='相片展示排序'
+          options={PHOTO_SORT_OPTIONS}
+          value={sort_by}
+          direction={direction}
+          onChange={onSortByChange}
+          onDirectionChange={onDirectionChange}
+        />
+      </span>
       <span className={styles.legendItem}><Magnet value={1} />1 票</span>
       <span className={styles.legendItem}><Magnet value={5} />5 票</span>
     </div>

@@ -6,6 +6,7 @@ import GalleryHeader from './GalleryHeader'
 import GalleryManagePanel, { type MemberHistory } from './GalleryManagePanel'
 import AdminPhotoBox from './AdminPhotoBox'
 import { VoteMagnetLegend } from './VoteMagnets'
+import { sortPhotos } from '../../../admin/api/photo'
 import { EMPTY_PHOTO_VOTES, indexPhotoVotes, sortGalleryPhotos, type PhotoSortBy, type PhotoSortDirection } from './photo-votes'
 import type { MemberCanDelete } from './AdminConsole'
 
@@ -114,6 +115,11 @@ export default function AdminGallery({
                       direction={photo_sort_direction}
                       onSortByChange={setPhotoSortBy}
                       onDirectionChange={setPhotoSortDirection}
+                      onFreeze={async () => {
+                        // 一次请求按当前展示顺序写完整个相册的 index；失败会抛给弹层显示
+                        await sortPhotos(gallery.id, sorted_photos.map(photo => photo.id))
+                        await (onGalleryChanged ?? onChanged)()
+                      }}
                     />
                     <Waterfall
                       preservePositions={false}

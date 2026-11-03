@@ -3,7 +3,6 @@ import type { AdminGalleryDTO, MemberDTO } from '@shared/dto'
 import { adminMutate } from '../../../admin/api/client'
 import { removeGallery } from '../../../admin/api/gallery'
 import Popover from '../../../components/Popover'
-import { sortPhotosByVoteCount } from '../../../admin/api/photo'
 import { getApiErrorMessage } from '../../../admin/utils/errors'
 import {
   compareDateTimeLocalValue,
@@ -112,8 +111,6 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
   const [form_busy, setFormBusy] = useState(false)
   const [form_error, setFormError] = useState('')
   const [saved_note, setSavedNote] = useState('')
-  const [sort_busy, setSortBusy] = useState(false)
-  const [sort_error, setSortError] = useState('')
   const [delete_open, setDeleteOpen] = useState(false)
   const [delete_busy, setDeleteBusy] = useState(false)
   const [vote_view, setVoteView] = useState<VoteView>('summary')
@@ -218,22 +215,6 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
       setFormError(getApiErrorMessage(err, '保存相册失败'))
     } finally {
       setFormBusy(false)
-    }
-  }
-
-  const handleSort = async () => {
-    if (sort_busy) {
-      return
-    }
-    setSortBusy(true)
-    setSortError('')
-    try {
-      await sortPhotosByVoteCount(gallery.id)
-      await onChanged()
-    } catch (err) {
-      setSortError(getApiErrorMessage(err, '按票数排序失败'))
-    } finally {
-      setSortBusy(false)
     }
   }
 
@@ -409,41 +390,7 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
               </div>
             </div>
 
-            {sort_error !== '' && <div className={styles.error} role='alert'>{sort_error}</div>}
-
             <div className={styles.voteActions}>
-              <Popover
-                label='确认按票数排序'
-                trigger={(
-                  <button
-                    type='button'
-                    className={styles.secondaryButton}
-                    disabled={sort_busy}
-                  >
-                    {sort_busy ? '排序中…' : '按票数排序'}
-                  </button>
-                )}
-                content={(close) => (
-                  <div className={styles.sortConfirm}>
-                    <div className={styles.sortConfirmText}>确定要按当前票数重新排列相片吗？</div>
-                    <div className={styles.sortConfirmActions}>
-                      <button type='button' className={styles.secondaryButton} onClick={close}>
-                        取消
-                      </button>
-                      <button
-                        type='button'
-                        className={styles.primaryButton}
-                        onClick={() => {
-                          close()
-                          void handleSort()
-                        }}
-                      >
-                        开始排序
-                      </button>
-                    </div>
-                  </div>
-                )}
-              />
               <button
                 type='button'
                 className={styles.secondaryButton}

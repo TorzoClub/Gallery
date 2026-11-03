@@ -209,7 +209,7 @@ payload: {}
 | `adminCreatePhoto` | `{ gallery_id, member_id, desc, index?, temp_id }` | 创建相片 |
 | `adminUpdatePhoto` | `{ photo_id, gallery_id?, member_id?, desc?, index?, temp_id? }` | 更新相片 |
 | `adminRemovePhoto` | `{ photo_id }` | 删除相片 |
-| `adminSortPhotosByVoteCount` | `{ gallery_id }` | 按票数排序 |
+| `adminSortPhotos` | `{ gallery_id, photo_ids }` | 一次性重排整个相册：`photo_ids[i]` 的 `index` 写成 `i`，公开页按 `index` 升序展示。`photo_ids` 必须恰好是该相册的全部相片，缺漏或重复返回 `400`，含其他相册的相片返回 `404`，整体拒绝、不改任何一张；`index` 未变的相片不刷新 `updated_at`。返回更新后的相册 |
 | `adminRefreshThumb` | `{ photo_id }` | 重建 SDR optimized 和缩略图 |
 | `adminRefreshAvatar` | `{ member_id }` | 重建头像缩略图 |
 

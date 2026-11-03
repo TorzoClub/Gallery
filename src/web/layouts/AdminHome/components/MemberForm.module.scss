@@ -281,6 +281,18 @@
     padding-left: 68px; /* 标签列 64 + 输入框内边距 4，与输入的字对齐 */
   }
 
+  /* QQ 号是 type=number：去掉浏览器的上下箭头，看起来仍是写在横线上的字 */
+  .field input[type='number'] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  .field input[type='number']::-webkit-inner-spin-button,
+  .field input[type='number']::-webkit-outer-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
+  }
+
   .field input::placeholder {
     color: #b9b09a;
   }

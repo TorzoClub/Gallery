@@ -251,12 +251,11 @@ function ListPage({ members, total, page, perPage, columns, focusId, newIds, sea
               }}
             />
           ) : (
-            <span className={styles.bookTitle}>名单簿</span>
+            <span className={styles.bookTitle}>名单簿（共{total}人）</span>
           )}
         </div>
         <div className={styles.headActions}>
-          <span className={styles.count}>{searching ? `找到 ${members.length} / ${total} 人` : `共 ${total} 人`}</span>
-          <button type="button" className={styles.headButton} onClick={onCreate}>新增成员</button>
+          <button type="button" className={styles.headButton} onClick={onCreate}>新增</button>
         </div>
       </div>
       <div className={styles.listArea}>
@@ -569,8 +568,7 @@ function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDra
         </div>
         <section className={styles.submissions} aria-label="过去的投稿">
           <div className={styles.sectionHead}>
-            <span>过去的投稿</span>
-            {submissions !== null && <span className={styles.count}>{total} 张</span>}
+            {submissions === null ? '过去的投稿' : `过去的投稿（共${total}张）`}
           </div>
           {submissions === null && <div className={cn(styles.card, styles.cardEmpty)}>新成员还没有投稿。</div>}
           {submissions !== null && total === 0 && <div className={cn(styles.card, styles.cardEmpty)}>还没有投稿。</div>}

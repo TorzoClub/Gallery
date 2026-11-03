@@ -185,14 +185,25 @@ export function MemberForm({
       <label className={styles.field}>
         <span>QQ 号</span>
         <input
+          type="number"
           value={qq}
           readOnly={mode === 'edit'}
           inputMode="numeric"
+          min={0}
+          step={1}
+          // QQ 号只要 0～9：type=number 自己还认 e、+、-、.，这里一并挡掉；粘贴进来的非数字在 onChange 里滤掉
+          onKeyDown={(event) => {
+            if (event.key.length === 1 && !/[0-9]/.test(event.key) && !event.ctrlKey && !event.metaKey) {
+              event.preventDefault()
+            }
+          }}
+          // 聚焦时滚轮会改数值，QQ 号不能被滚轮改掉
+          onWheel={(event) => event.currentTarget.blur()}
           placeholder={mode === 'create' ? '输入QQ号码' : undefined}
           aria-invalid={error !== '' && error_at === 'qq' ? true : undefined}
           data-autofocus={mode === 'create' ? true : undefined}
           onChange={(event) => {
-            setQQ(event.target.value)
+            setQQ(event.target.value.replace(/[^0-9]/g, ''))
             setError('')
           }}
         />

@@ -42,16 +42,17 @@ function calcTotalBoxWidth({
 export type Props = {
   layout: WaterfallLayout
   items: WaterfallItem[]
+  preservePositions?: boolean
   onWatterfallRefreshed?(): void
 }
 
 export default (props: Props) => {
-  const { layout, items, onWatterfallRefreshed } = props
+  const { layout, items, onWatterfallRefreshed, preservePositions = true } = props
   const { gallery_width, vertical_gutter } = layout
   const [ box_width ] = calcTotalBoxWidth(layout)
 
   const { refFn, columns, waterfall_height, pos_map, refresh_signal } = useLayout({
-    items, box_width, layout
+    items, box_width, layout, preservePositions
   })
 
   useEffect(() => {
@@ -524,6 +525,7 @@ function computeWaterfallHeight(waterfall_columns: Columns) {
 function useLayout({
   items,
   box_width,
+  preservePositions,
   layout: {
     column_count,
     column_gutter,
@@ -532,6 +534,7 @@ function useLayout({
   layout: WaterfallLayout
   box_width: number
   items: WaterfallItem[]
+  preservePositions: boolean
 }) {
   const refresh_signal = useMemo(() => Signal(), [])
   const [ refFn, getDimMap ] = useDimensionMap(
@@ -612,6 +615,10 @@ function useLayout({
   }, [genCacheID, refreshColumns, refresh_signal])
 
   const refreshLayout = useCallback(() => {
+    if (!preservePositions) {
+      applyNewLayout(generateWaterfallColumns(items, column_count, getDimMap()))
+      return
+    }
     if (prev_columns.current === undefined) {
       applyNewLayout(
         mergeColumns(
@@ -646,7 +653,7 @@ function useLayout({
         )
       )
     }
-  }, [applyNewLayout, column_count, generateWaterfallColumns, getDimMap, items])
+  }, [applyNewLayout, column_count, generateWaterfallColumns, getDimMap, items, preservePositions])
 
   useEffect(() => {
     if (columns_cache.current === undefined) {

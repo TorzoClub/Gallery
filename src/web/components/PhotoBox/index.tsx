@@ -55,6 +55,7 @@ export type Props = {
   avatar: PhotoBoxImage | null
   desc: string
 
+  coverOverlay?: ReactNode
   onClickCover?(clickInfo: CoverClickEvent): void
   renderAvatar?(avatar: ReactNode): ReactNode
   renderName?(name: ReactNode): ReactNode
@@ -118,6 +119,7 @@ const PhotoBox = (props: Props) => {
           { thumb_status === 'FAILURE' && <LoadFailure onClick={retryLoadPhotoThumb} /> }
 
           {/* <div className="highlight"></div> */}
+          {props.coverOverlay}
         </div>
 
         <div className="bottom-area">

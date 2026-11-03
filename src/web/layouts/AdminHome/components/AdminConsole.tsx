@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { cn } from '@/utils/cn'
-import { playMechanicalKeyReleaseSound, playMechanicalKeySound } from '@/utils/mechanical-key-audio'
+import { playCoverPopSound, playFireButtonSound, playMechanicalKeyReleaseSound, playMechanicalKeySound } from '@/utils/mechanical-key-audio'
 import { LedIndicator } from './LedIndicator';
 import SegmentLCDProgress from './SegmentLCDProgress';
 import MemberPopover from './MemberPopover';
@@ -34,7 +34,7 @@ export interface Member {
 }
 
 export interface RebuildReporter {
-  /** 汇报进度：已处理数量 / 总数量。数码管显示的是“剩余项目” = total - done */
+  /** 汇报进度：已处理数量 / 总数量。数码管显示的是“剩余项目” = total - done。开始前先报一次 (0, total)，数码管会立即显示总数 */
   progress: (done: number, total: number) => void;
   /** 打印一行错误。只有出错时才会调用 */
   error: (message: string) => void;
@@ -262,6 +262,8 @@ const MAX_LINES = 60;
 function LaunchSwitch({ armed, running, onToggleCover, onFire }: {
   armed: boolean; running: boolean; onToggleCover: () => void; onFire: () => void;
 }) {
+  // 指针按下的那一刻就出声；键盘触发没有 pointerdown，在 click 时补一声
+  const pressSounded = useRef(false);
   return (
     <div className={styles.launch}>
       <div className={styles.housing}>
@@ -282,7 +284,16 @@ function LaunchSwitch({ armed, running, onToggleCover, onFire }: {
               disabled={!armed || running}
               tabIndex={armed ? 0 : -1}
               aria-label="开始重建缩略图"
-              onClick={onFire}
+              onPointerDown={(e) => {
+                if (e.button !== 0) return;
+                pressSounded.current = true;
+                playFireButtonSound();
+              }}
+              onClick={() => {
+                if (!pressSounded.current) playFireButtonSound();
+                pressSounded.current = false;
+                onFire();
+              }}
             />
           </div>
           <div className={styles.hingeBar} />
@@ -300,17 +311,15 @@ function LaunchSwitch({ armed, running, onToggleCover, onFire }: {
   );
 }
 
-/** 热敏纸：最新一行贴着槽口，旧的往下排；每一节都比上一节再向外弯一点（见 CSS 的 .seg） */
+/** 热敏纸：一条平的纸从槽口直接伸出来。最新一行贴着槽口，旧的往下排 */
 const PAPER_LINES = 14;
 
 function Paper({ lines }: { lines: LogLine[] }) {
   const shown = [...lines].reverse().slice(0, PAPER_LINES);
   const newestId = shown[0]?.id;
-  const render = (i: number): ReactNode => {
-    const l = shown[i];
-    if (!l) return null;
-    return (
-      <div className={styles.seg}>
+  return (
+    <div className={styles.paper} role="log" aria-live="polite">
+      {shown.map((l, i) => (
         <p
           key={l.id}
           className={cn(
@@ -324,13 +333,7 @@ function Paper({ lines }: { lines: LogLine[] }) {
             <span className={styles.lineText}>{l.time} {l.text}</span>
           </span>
         </p>
-        {render(i + 1)}
-      </div>
-    );
-  };
-  return (
-    <div className={styles.paper} role="log" aria-live="polite">
-      {render(0)}
+      ))}
     </div>
   );
 }
@@ -369,7 +372,10 @@ function RebuildPanel({ onRebuild, note }: { onRebuild?: AdminConsoleProps['onRe
   return (
     <div className={styles.rebuild}>
       <div className={styles.rebuildTop}>
-        <LaunchSwitch armed={armed} running={phase === 'running'} onToggleCover={() => setArmed((a) => !a)} onFire={fire} />
+        <LaunchSwitch armed={armed} running={phase === 'running'} onToggleCover={() => {
+          if (!armed) playCoverPopSound();
+          setArmed(!armed);
+        }} onFire={fire} />
         <div className={styles.side}>
           <div className={styles.note}>
             {['TL', 'BR'].map((k) => (
@@ -638,6 +644,7 @@ export function AdminConsoleDemo() {
     { id: 4, nickname: '666', qq: '10004' },
   ];
   const fakeRebuild = async (r: RebuildReporter) => {
+    r.progress(0, 20);
     for (let i = 1; i <= 20; i++) {
       await new Promise((ok) => setTimeout(ok, 120));
       r.progress(i, 20);

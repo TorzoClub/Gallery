@@ -399,6 +399,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     const members = state.pool.members
     const total = photos.length + members.length
     let done = 0
+    reporter.progress(done, total)
 
     for (const photo of photos) {
       try {

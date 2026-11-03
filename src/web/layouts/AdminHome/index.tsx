@@ -21,6 +21,7 @@ import {
   type AdminStats,
   type Member as ConsoleMember,
   type MemberCanDelete,
+  type MemberSubmission,
   type RebuildReporter,
 } from './components/AdminConsole'
 import { instanceConfigFromSettings, settingsFromInstanceConfig } from './admin-settings'
@@ -441,6 +442,33 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     return member => !referenced.has(Number(member.id))
   }, [state])
 
+  // 名单簿成员页的“过去的投稿”：直接从 adminPool 归集，按投稿时间从新到旧
+  const memberSubmissions = useMemo(() => {
+    const by_member = new Map<number, Array<MemberSubmission & { created_at: string }>>()
+    if (state.status === 'ready') {
+      for (const gallery of state.pool.galleries) {
+        for (const photo of gallery.photos) {
+          const id = Number(photo.member_id)
+          const list = by_member.get(id) ?? []
+          list.push({
+            id: photo.id,
+            thumbUrl: photo.thumb_url,
+            width: photo.width,
+            height: photo.height,
+            desc: photo.desc,
+            galleryName: gallery.name,
+            created_at: photo.created_at,
+          })
+          by_member.set(id, list)
+        }
+      }
+    }
+    for (const list of by_member.values()) {
+      list.sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : b.id - a.id))
+    }
+    return (member: ConsoleMember): MemberSubmission[] => by_member.get(Number(member.id)) ?? []
+  }, [state])
+
   const member_history = useMemo<MemberHistory>(() => {
     const ever_voted = new Set<number>()
     const ever_submitted = new Set<number>()
@@ -493,6 +521,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
         onSettingsChange={handleSettingsChange}
         members={consoleMembersFromPool(state.pool)}
         memberCanDelete={memberCanDelete}
+        memberSubmissions={memberSubmissions}
         onMembersChanged={handleMembersChanged}
         onRebuild={handleRebuild}
       />

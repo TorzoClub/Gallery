@@ -4,7 +4,7 @@ import { cn } from '@/utils/cn'
 import { playCoverPopSound, playFireButtonSound, playMechanicalKeyReleaseSound, playMechanicalKeySound } from '@/utils/mechanical-key-audio'
 import { LedIndicator } from './LedIndicator';
 import SegmentLCDProgress from './SegmentLCDProgress';
-import MemberPopover from './MemberPopover';
+import { MemberNotebook } from './MemberNotebook';
 import styles from './AdminConsole.module.css';
 
 /* ============================== 类型 ============================== */
@@ -42,12 +42,24 @@ export interface RebuildReporter {
 
 export type MemberCanDelete = (member: Member) => boolean;
 
+/** 成员的一张投稿，名单簿成员页里的拼贴用 */
+export interface MemberSubmission {
+  id: number;
+  thumbUrl: string;
+  width: number;
+  height: number;
+  desc: string;
+  galleryName: string;
+}
+
 export interface AdminConsoleProps {
   stats: AdminStats;
   settings: AdminSettings;
   onSettingsChange: (next: AdminSettings) => void;
   members: Member[];
   memberCanDelete?(member: Member): boolean;
+  /** 成员过去的全部投稿，从新到旧 */
+  memberSubmissions?(member: Member): MemberSubmission[];
   onMembersChanged?(): void | Promise<void>;
   /** 抛出异常会被当作致命错误打印 */
   onRebuild?: (reporter: RebuildReporter) => Promise<void>;
@@ -430,8 +442,8 @@ function RebuildPanel({ onRebuild, note }: { onRebuild?: AdminConsoleProps['onRe
 
 /* ============================== 面板 D：名单簿 ============================== */
 
-function MemberPanel({ members, onMembersChanged, memberCanDelete }: { members: Member[]; onMembersChanged?: () => void | Promise<void>; memberCanDelete?: MemberCanDelete }) {
-  // 仅大屏生效：默认收起，点击标题条展开。小屏由单选按钮切换，这里的状态被 CSS 忽略
+function MemberPanel({ members, onMembersChanged, memberCanDelete, memberSubmissions }: { members: Member[]; onMembersChanged?: () => void | Promise<void>; memberCanDelete?: MemberCanDelete; memberSubmissions?: (member: Member) => MemberSubmission[] }) {
+  // 仅 641–1439px 生效：默认收起，点击标题条展开。小屏由单选按钮切换，≥1440px 是常驻侧栏，这里的状态被 CSS 忽略
   const [open, setOpen] = useState(false);
   return (
     <div className={cn(open && styles.memberOpen)}>
@@ -446,55 +458,12 @@ function MemberPanel({ members, onMembersChanged, memberCanDelete }: { members: 
         <span className={styles.bookCount}>共 {members.length} 人</span>
       </button>
       <div id="member-body" className={styles.memberBody}>
-        <div className={styles.book}>
-          <div className={styles.bookHead}>
-            <span className={styles.bookTitle}>名单簿</span>
-            <div className={styles.bookHeadActions}>
-              <span className={styles.bookCount}>共 {members.length} 人</span>
-              <MemberPopover
-                mode='create'
-                trigger={(
-                  <button type='button' className={styles.addMember}>
-                    新增成员
-                  </button>
-                )}
-                onSaved={onMembersChanged ?? (() => {})}
-              />
-            </div>
-          </div>
-          <div className={styles.bookScroll}>
-            {members.length === 0 && <div className={styles.empty}>还没有成员。</div>}
-            <div className={styles.memberList}>
-              {members.map((m) => {
-                const hue = Number(m.qq.replace(/\D/g, '')) % 360 || 0; // 没有头像时，用 QQ 号算一个稳定的底色
-                return (
-                  <MemberPopover
-                    key={m.id}
-                    mode='edit'
-                    member={m}
-                    canDelete={memberCanDelete?.(m) ?? false}
-                    trigger={(
-                      <button type='button' className={styles.member} aria-label={`修改成员 ${m.nickname}`}>
-                        {m.avatarUrl ? (
-                          <img className={styles.avatar} src={m.avatarUrl} alt="" loading="lazy" />
-                        ) : (
-                          <span className={styles.avatar} style={{ background: `hsl(${hue} 40% 82%)`, color: `hsl(${hue} 35% 28%)` }}>
-                            {m.nickname.slice(0, 1)}
-                          </span>
-                        )}
-                        <div className={styles.who}>
-                          <span className={styles.nick}>{m.nickname}</span>
-                          <span className={styles.qq}><small>QQ</small>{m.qq}</span>
-                        </div>
-                      </button>
-                    )}
-                    onSaved={onMembersChanged ?? (() => {})}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        <MemberNotebook
+          members={members}
+          memberCanDelete={memberCanDelete}
+          memberSubmissions={memberSubmissions}
+          onMembersChanged={onMembersChanged}
+        />
       </div>
     </div>
   );
@@ -523,7 +492,7 @@ function useIsLarge() {
   return large;
 }
 
-export function AdminConsole({ stats, settings, onSettingsChange, members, memberCanDelete, onMembersChanged, onRebuild, rebuildNote }: AdminConsoleProps) {
+export function AdminConsole({ stats, settings, onSettingsChange, members, memberCanDelete, memberSubmissions, onMembersChanged, onRebuild, rebuildNote }: AdminConsoleProps) {
   const [tab, setTab] = useState<TabId>('stats');
   const [pressed_key, setPressedKey] = useState<TabId | null>(null);
   const tab_ref = useRef<TabId>('stats');
@@ -622,7 +591,7 @@ export function AdminConsole({ stats, settings, onSettingsChange, members, membe
           <RebuildPanel onRebuild={onRebuild} note={rebuildNote} />
         </div>
         <div id="panel-members" className={cn(styles.panel, styles.pMembers, tab !== 'members' && styles.off)}>
-          <MemberPanel members={members} memberCanDelete={memberCanDelete} onMembersChanged={onMembersChanged} />
+          <MemberPanel members={members} memberCanDelete={memberCanDelete} memberSubmissions={memberSubmissions} onMembersChanged={onMembersChanged} />
         </div>
         </div>
       </div>

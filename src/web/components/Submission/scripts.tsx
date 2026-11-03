@@ -11,7 +11,8 @@ import { LoadingMask } from 'components/LoadingMask'
 import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
 
 import image_同装同装 from '../../assets/同装 同装.png'
-import { getClientPoolState, reloadClientPool } from 'pool/store'
+import { getClientPoolState, reloadClientPool, replaceClientPool } from 'pool/store'
+import type { ClientPool } from '@shared/client-pool'
 import { submittedPhotoView, type GalleryView, type PhotoView } from 'pool/view'
 import { thunkify } from 'ramda'
 import { dateDiffInDays, isInvalidDate, isNextMonth, isNextWeek, monthDiff, stringifyWeekDay } from 'utils/date'
@@ -136,28 +137,47 @@ export function init(init_args : InitArgs) {
       })
     } else {
       return componentScript([], ({ changeScript }) => {
-        return <PhotoCreateOrEdit onUpdateDone={(created_photo) => {
-          changeScript(script_大感谢('CREATE', created_photo))
+        return <PhotoCreateOrEdit onUpdateDone={(created_photo, pool) => {
+          changeScript(script_大感谢('CREATE', created_photo, pool))
         }} />
       })
     }
   }
 
-  const script_大感谢 = (type: 'CREATE' | 'EDIT', photo: PhotoView) => {
-    return componentScript([], ({ changeScript }) => {
+  const THANKS_TEXT = '大感谢'
+  const THANKS_WAITTIME = 300
+  /** “大感谢”最后一个字出现之后，再停这么久，新相片才开始贴上瀑布流 */
+  const THANKS_HOLD = 382
+
+  const script_大感谢 = (type: 'CREATE' | 'EDIT', photo: PhotoView, pool: ClientPool) => {
+    return componentScript([], () => {
       useEffect(() => {
-        setTimeout(() => {
+        let published = false
+        // 先通知（Gallery 据此把这张标成“正在贴上来”），再发布新数据，两者在同一批渲染里生效
+        const publish = () => {
+          if (published) { return }
+          published = true
           if (type === 'CREATE') {
             _EVENT_.created.trigger(photo)
           } else if (type === 'EDIT') {
             _EVENT_.updated.trigger(photo)
           }
-        }, 1500)
+          replaceClientPool(pool)
+        }
+        const handler = setTimeout(
+          publish,
+          textContentEffectTotalTime(THANKS_WAITTIME, THANKS_TEXT) + THANKS_HOLD,
+        )
+        return () => {
+          clearTimeout(handler)
+          // 没等到就被卸载（换了剧本 / 离开页面）也要把新数据发布出去
+          publish()
+        }
       }, [])
       return (
         <TextContentEffect
-          textContent='大感谢'
-          showContentWaittime={300}
+          textContent={THANKS_TEXT}
+          showContentWaittime={THANKS_WAITTIME}
           showClassName={s.ThanksShow}
           hideClassName={s.ThanksHide}
         />
@@ -181,8 +201,8 @@ export function init(init_args : InitArgs) {
       </div>
       {
         (show_form || immediately) && (
-          <PhotoCreateOrEdit onUpdateDone={(updated_photo) => {
-            changeScript(script_大感谢(type, updated_photo))
+          <PhotoCreateOrEdit onUpdateDone={(updated_photo, pool) => {
+            changeScript(script_大感谢(type, updated_photo, pool))
           }} />
         )
       }

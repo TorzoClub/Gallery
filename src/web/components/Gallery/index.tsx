@@ -3,10 +3,10 @@ import React, { useEffect, useMemo, useState } from 'react'
 import './index.scss'
 
 import Title from 'components/Title'
-import Waterfall, { WaterfallLayout } from 'components/Waterfall'
+import Waterfall, { WATERFALL_SHIFT_MS, WaterfallLayout } from 'components/Waterfall'
 import type { GalleryView } from 'pool/view'
 import PhotoCard, { getPhotoCardScatter, type CoverClickEvent, type PhotoCardScatter } from 'components/PhotoCard'
-import Submission from 'components/Submission'
+import Submission, { _EVENT_ as SUBMISSION_EVENT } from 'components/Submission'
 import useSafeState from 'hooks/useSafeState'
 import { dateDiffInDays } from 'utils/date'
 import TextPlaceholder from './TextPlaceholder'
@@ -150,6 +150,36 @@ export function scatterFor(layout: GalleryLayout, photo: {
   })
 }
 
+/**
+ * 新投稿贴上瀑布流的时间线（与 index.scss 的 .photo-card-entering 一致）：
+ * 某列往下挪 WATERFALL_SHIFT_MS → 停顿 300ms → 相片落下、压平 900ms → 贴纸胶带 380ms
+ */
+const ENTER_PAUSE_MS = 300
+const ENTER_CARD_MS = 900
+const ENTER_TAPE_MS = 380
+const ENTER_TOTAL_MS = WATERFALL_SHIFT_MS + ENTER_PAUSE_MS + ENTER_CARD_MS + ENTER_TAPE_MS
+
+const NO_ENTERING: ReadonlySet<string> = new Set()
+
+/** 刚投稿成功的相片：在它出现在 gallery.photos 里时播放入场，播完后清掉 */
+function useEnteringPhotos(): ReadonlySet<string> {
+  const [entering, setEntering] = useState<ReadonlySet<string>>(NO_ENTERING)
+
+  useEffect(() => SUBMISSION_EVENT.created.receive((photo) => {
+    setEntering(new Set([String(photo.id)]))
+  }), [])
+
+  useEffect(() => {
+    if (entering.size === 0) {
+      return
+    }
+    const handler = setTimeout(() => setEntering(NO_ENTERING), ENTER_TOTAL_MS + 120)
+    return () => clearTimeout(handler)
+  }, [entering])
+
+  return entering
+}
+
 export type Props = {
   /** 显示登录成员自己放在相片上的磁粒 */
   show_vote_button: boolean
@@ -171,6 +201,7 @@ export default ({
   onWatterfallRefreshed,
 }: Props) => {
   const layout = useWaterfallLayout()
+  const entering_ids = useEnteringPhotos()
 
   const title_node = useTitleNode(gallery)
 
@@ -182,6 +213,8 @@ export default ({
         id: String(photo.id),
         node: (
           <PhotoCardCell scatter={scatter}>
+            {/* 入场动画放在这层：卡片自身的 transform 是倾斜，从一开始就是斜的 */}
+            <div className={entering_ids.has(String(photo.id)) ? 'photo-card-entering' : undefined}>
             <PhotoCard
               id={photo.id}
               width={scatter.card_width}
@@ -209,6 +242,7 @@ export default ({
                 src: photo.member.avatar_thumb_url,
               } : null}
             />
+            </div>
           </PhotoCardCell>
         ),
       }
@@ -217,6 +251,7 @@ export default ({
       <Waterfall
         layout={layout}
         items={items}
+        enteringIds={entering_ids}
         onWatterfallRefreshed={onWatterfallRefreshed}
       />
     )
@@ -242,7 +277,7 @@ export default ({
         return waterfall()
       }
     }
-  }, [gallery.can_submission, gallery.event_start, gallery.in_event, gallery.photos, layout, onClickCover, onClickVote, onWatterfallRefreshed, selected_id_list, show_vote_button, vote_interactive])
+  }, [entering_ids, gallery.can_submission, gallery.event_start, gallery.in_event, gallery.photos, layout, onClickCover, onClickVote, onWatterfallRefreshed, selected_id_list, show_vote_button, vote_interactive])
 
   return (
     <div className="gallery">

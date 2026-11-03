@@ -2,15 +2,16 @@ import { CSSProperties, useCallback, useEffect, useMemo, useState } from 'react'
 import ImageUploadingImport, { type ImageType, type ImageListType } from 'react-images-uploading'
 
 import { useSubmissionStore } from '.'
-import { fetchMemberView, submitPhoto, updateSubmission } from 'api/client-pool'
+import { fetchClientPool, fetchMemberView, submitPhoto, updateSubmission } from 'api/client-pool'
 import { uploadImage } from 'api/upload'
-import { getClientPoolState, reloadClientPool } from 'pool/store'
 import { submittedPhotoView, type PhotoView } from 'pool/view'
 
 import s from './PhotoCreateOrEdit.module.scss'
 import { LoadingMask } from 'components/LoadingMask'
 import { global_queue, useQueueload } from 'utils/queue-load'
 import SkeuomorphismButton from 'components/SkeuomorphismButton'
+import { PhotoCardPaper, photoCardBottomMin, photoCardCover, photoCardFrame } from 'components/PhotoCard'
+import type { ClientPool } from '@shared/client-pool'
 
 // Vite's CJS interop for this package can expose the module exports object as
 // the default import. Normalize both the CJS and ESM shapes to the component.
@@ -19,10 +20,29 @@ const ImageUploading = (
     ?? ImageUploadingImport
 ) as typeof ImageUploadingImport
 
-type WillUploadImage = null | { blob: Blob, filename: string, blob_url: string }
+type ImageSize = { width: number, height: number }
+type WillUploadImage = null | { blob: Blob, filename: string, blob_url: string, size: ImageSize }
+
+/** 表单这张拍立得的宽度；摆正、不贴纸胶带 */
+const CARD_WIDTH = 320
+/** 还没选图时，相纸上的空位按 4:3 */
+const EMPTY_COVER: ImageSize = { width: 4, height: 3 }
+
+function readImageSize(url: string): Promise<ImageSize> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => resolve({ width: img.naturalWidth || 4, height: img.naturalHeight || 3 })
+    img.onerror = () => resolve(EMPTY_COVER)
+    img.src = url
+  })
+}
 
 type Props = {
-  onUpdateDone(data: PhotoView): void
+  /**
+   * 投稿 / 修改成功。pool 是已经拉回来、但还没有发布到页面的新数据：
+   * 要等“大感谢”完整出现之后再发布，新相片才会在那之后贴上瀑布流。
+   */
+  onUpdateDone(data: PhotoView, pool: ClientPool): void
 }
 export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
   const [ isProcessing, setProcessing ] = useState(false)
@@ -76,20 +96,16 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
         })
       }
 
-      const [member_view] = await Promise.all([
+      const [member_view, pool] = await Promise.all([
         fetchMemberView(Number(qq_num)),
-        reloadClientPool(),
+        fetchClientPool(),
       ])
-      const pool_state = getClientPoolState()
-      if (pool_state.status !== 'ready') {
-        throw new Error('ClientPool 尚未加载完成')
-      }
-      const updated_photo = submittedPhotoView(pool_state.pool, member_view)
+      const updated_photo = submittedPhotoView(pool, member_view)
       if (updated_photo === null) {
         throw new Error('投稿成功，但无法读取投稿数据')
       }
       useSubmissionStore.setState({ photo: updated_photo })
-      onUpdateDone(updated_photo)
+      onUpdateDone(updated_photo, pool)
     } catch (err) {
       alert(`错误: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
@@ -122,17 +138,27 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
             quality: 0.8,
           })
           const jpg_blob = new Blob([new Uint8Array(jpg_buf)], { type: 'image/jpeg' })
+          const blob_url = URL.createObjectURL(jpg_blob)
           setWillUploadImage({
             filename: `img-${Date.now()}.jpg`,
             blob: jpg_blob,
-            blob_url: URL.createObjectURL(jpg_blob)
+            blob_url,
+            size: await readImageSize(blob_url),
           })
         } else {
-          setWillUploadImage({ filename: file.name, blob, blob_url: URL.createObjectURL(blob) })
+          const blob_url = URL.createObjectURL(blob)
+          setWillUploadImage({ filename: file.name, blob, blob_url, size: await readImageSize(blob_url) })
         }
       }
     }
   }, [])
+
+  const preview_url = selectPreviewPicture(photo ? photo.thumb_url : null, will_upload_image)
+  const cover_size: ImageSize = will_upload_image !== null
+    ? will_upload_image.size
+    : (photo ? { width: photo.width, height: photo.height } : EMPTY_COVER)
+  const frame = photoCardFrame(CARD_WIDTH)
+  const { cover_height } = photoCardCover(CARD_WIDTH, cover_size)
 
   return (
     <div>
@@ -155,59 +181,34 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
           alert('文件上传处理出错')
         }}
       >
-        {({
-          // imageList,
-          onImageUpload,
-          onImageRemoveAll,
-          onImageUpdate,
-          onImageRemove,
-          isDragging,
-          dragProps,
-          errors
-        }) => {
-          return (
-            <div className="upload__image-wrapper">
-              <button
-                type="button"
-                className={s.UploadButton}
-                aria-label="选择或更换投稿图片"
-                style={{
-                  appearance: 'none',
-                  WebkitAppearance: 'none',
-                  background: 'transparent',
-                  border: 'none',
-                  margin: '0',
-                  padding: '0',
+        {({ onImageUpload, isDragging, dragProps }) => (
+          // 和瀑布流里同一张拍立得（PhotoCardPaper），只是摆正、不贴纸胶带
+          <PhotoCardPaper className={s.Card} width={CARD_WIDTH} frame={frame} has_bottom tape={false}>
+            <button
+              type="button"
+              className={['cover-area', s.CoverButton, isDragging ? s.IsDragging : ''].join(' ')}
+              style={{ height: `${cover_height}px` }}
+              aria-label="选择或更换投稿图片"
+              onClick={onImageUpload}
+              {...dragProps}
+            >
+              <FormCover previewURL={preview_url} isDragging={isDragging} />
+            </button>
+            <div className="bottom-area" style={{ minHeight: `${photoCardBottomMin(CARD_WIDTH)}px` }}>
+              <textarea
+                value={description}
+                className={s.Desc}
+                rows={3}
+                aria-label="相片介绍"
+                onChange={(e) => {
+                  setDescription(e.target.value)
                 }}
-                onClick={onImageUpload}
-                {...dragProps}
-              >
-                {/* {errors && <div>
-                  {errors.maxNumber && <span>Number of selected images exceed maxNumber</span>}
-                  {errors.acceptType && <span>Your selected file type is not allow</span>}
-                  {errors.maxFileSize && <span>Selected file size exceed maxFileSize</span>}
-                  {errors.resolution && <span>Selected file is not match your desired resolution</span>}
-                </div>} */}
-                <PreviewBox
-                  canClick={is_edit_mode}
-                  previewURL={ selectPreviewPicture(photo ? photo.thumb_url : null, will_upload_image) }
-                  isDragging={ isDragging }
-                />
-              </button>
-              {/* <button onClick={onImageRemoveAll}>Remove all images</button> */}
+                placeholder="点击此处填写介绍（可不填）"
+              />
             </div>
-          )
-        }}
+          </PhotoCardPaper>
+        )}
       </ImageUploading>
-
-      <textarea
-        value={description}
-        className={s.Textarea}
-        onChange={(e) => {
-          setDescription(e.target.value)
-        }}
-        placeholder='相片介绍，选填'
-      />
 
       <div style={{ marginTop: '20px' }}>
         <SkeuomorphismButton onClick={handleSubmit}>提 交</SkeuomorphismButton>
@@ -218,6 +219,29 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
       }
     </div>
   )
+}
+
+/** 拍立得上的相片位：没选图时是提示语，选了图就是预览 */
+function FormCover({ previewURL, isDragging }: { previewURL: string | null, isDragging: boolean }) {
+  useEffect(() => {
+    global_queue.startWorking()
+  }, [previewURL])
+
+  const [load_status, blob_url] = useQueueload(previewURL === null ? undefined : previewURL, true)
+
+  if (previewURL === null) {
+    return (
+      <span className={s.CoverTips}>
+        {isDragging ? '对，就是这样，该放手了' : '点击此处选择作品，或者拖拽文件到此处'}
+      </span>
+    )
+  } else if (load_status === 'LOADED') {
+    return <img className={s.CoverImage} src={blob_url} alt="投稿相片预览" />
+  } else if (load_status === 'FAILURE') {
+    return <span className={s.CoverTips}>图片读取失败</span>
+  } else {
+    return <LoadingMask opacity={0.7} />
+  }
 }
 
 function selectPreviewPicture(

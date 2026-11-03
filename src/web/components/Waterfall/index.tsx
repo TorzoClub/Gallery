@@ -43,17 +43,32 @@ export type Props = {
   layout: WaterfallLayout
   items: WaterfallItem[]
   preservePositions?: boolean
+  /**
+   * 正在“贴上来”的条目：第一次出现时插到当前最矮那一列的顶部（而不是追加到底部），
+   * 并且这段时间里各条目的 top 变化带过渡，看得见那一列往下挪出空位。
+   */
+  enteringIds?: ReadonlySet<string>
   onWatterfallRefreshed?(): void
 }
 
+/** 某列往下挪出空位的时长；PhotoCard 的入场动画在它之后开始（见 Gallery/index.scss） */
+export const WATERFALL_SHIFT_MS = 420
+
+const NO_ENTERING: ReadonlySet<string> = new Set()
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+}
+
 export default (props: Props) => {
-  const { layout, items, onWatterfallRefreshed, preservePositions = true } = props
+  const { layout, items, onWatterfallRefreshed, preservePositions = true, enteringIds = NO_ENTERING } = props
   const { gallery_width, vertical_gutter } = layout
   const [ box_width ] = calcTotalBoxWidth(layout)
 
   const { refFn, columns, waterfall_height, pos_map, refresh_signal } = useLayout({
-    items, box_width, layout, preservePositions
+    items, box_width, layout, preservePositions, enteringIds
   })
+  const shifting = enteringIds.size > 0 && !prefersReducedMotion()
 
   useEffect(() => {
     let handler: ReturnType<typeof setTimeout>
@@ -75,12 +90,13 @@ export default (props: Props) => {
         left: `calc(${pos.left})`,
         zIndex: `calc(${pos.zIndex})`,
         opacity: pos.col_count >= layout.column_count ? 0 : 1,
-        // transition: pos && 'left 382ms, top 382ms'
+        // 平时排布是瞬时的；只有新相片贴上来时，让那一列往下挪
+        transition: shifting ? `top ${WATERFALL_SHIFT_MS}ms cubic-bezier(0.2, 0.7, 0.2, 1)` : undefined,
       }
     } else {
       return { opacity: 0 }
     }
-  }, [layout.column_count, pos_map])
+  }, [layout.column_count, pos_map, shifting])
 
   return (
     <div className="waterfall-wrap" style={{
@@ -421,13 +437,13 @@ function reverseNewColumns(
   }
 }
 
-function mergeColumns(prev_cols: Columns, latest_cols: Columns) {
+function mergeColumns(prev_cols: Columns, latest_cols: Columns, prepend_ids: ReadonlySet<string> = NO_ENTERING) {
   if (countColumn(prev_cols) === 0) {
     return latest_cols
   } else {
     return adjustColumns(
       countColumn(latest_cols),
-      updateColumnsKeepPosition(prev_cols, latest_cols)
+      updateColumnsKeepPosition(prev_cols, latest_cols, prepend_ids)
     )
   }
 }
@@ -482,7 +498,11 @@ function adjustColumns(target_column: number, cols: Columns): Columns {
   }
 }
 
-function updateColumnsKeepPosition(prev_cols: Columns, latest_cols: Columns): Columns {
+function prependAtColumn(cols: Columns, col_idx: number, dim: DimessionInfo): Columns {
+  return cols.map((col, idx) => idx === col_idx ? [dim, ...col] : col)
+}
+
+function updateColumnsKeepPosition(prev_cols: Columns, latest_cols: Columns, prepend_ids: ReadonlySet<string>): Columns {
   const latest_list = toDimListSorted(latest_cols)
 
   const exists_list = new Set<string>()
@@ -507,11 +527,15 @@ function updateColumnsKeepPosition(prev_cols: Columns, latest_cols: Columns): Co
     )
   }, [])
 
+  const fresh_list = latest_list.filter(dim => exists_list.has(dim.id) !== true)
+  // 正在贴上来的新条目放到最矮那一列的顶部，其余新条目照旧追加到底部
+  const prepended = fresh_list
+    .filter(dim => prepend_ids.has(dim.id))
+    .reduce((cols, dim) => prependAtColumn(cols, whichMinimum(toHeightList(cols)), dim), keep_pos_cols)
+
   return appendMultiDim(
-    keep_pos_cols,
-    latest_list.filter(dim => {
-      return exists_list.has(dim.id) !== true
-    })
+    prepended,
+    fresh_list.filter(dim => !prepend_ids.has(dim.id))
   )
 }
 
@@ -526,6 +550,7 @@ function useLayout({
   items,
   box_width,
   preservePositions,
+  enteringIds,
   layout: {
     column_count,
     column_gutter,
@@ -535,6 +560,7 @@ function useLayout({
   box_width: number
   items: WaterfallItem[]
   preservePositions: boolean
+  enteringIds: ReadonlySet<string>
 }) {
   const refresh_signal = useMemo(() => Signal(), [])
   const [ refFn, getDimMap ] = useDimensionMap(
@@ -649,11 +675,12 @@ function useLayout({
           prev_columns.current.cols,
           generateWaterfallColumns(
             items, column_count, getDimMap()
-          )
+          ),
+          enteringIds,
         )
       )
     }
-  }, [applyNewLayout, column_count, generateWaterfallColumns, getDimMap, items, preservePositions])
+  }, [applyNewLayout, column_count, enteringIds, generateWaterfallColumns, getDimMap, items, preservePositions])
 
   useEffect(() => {
     if (columns_cache.current === undefined) {

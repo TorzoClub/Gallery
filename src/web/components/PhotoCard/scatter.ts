@@ -88,7 +88,8 @@ export function estimatePhotoCardHeight(
   if (!photoCardHasBottom(has_member, desc_length)) {
     return frame + cover_height + frame
   }
-  const per_line = Math.max(1, Math.floor((cover_width - 8) / 12))
+  // 描述用 13px 手写字体
+  const per_line = Math.max(1, Math.floor((cover_width - 8) / 13))
   const desc_lines = desc_length > 0 ? Math.ceil(desc_length / per_line) : 0
   const content = (has_member ? 32 : 0) + desc_lines * 18 + (has_member && desc_lines > 0 ? 6 : 0) + 20
   return frame + cover_height + Math.max(photoCardBottomMin(card_width), content)

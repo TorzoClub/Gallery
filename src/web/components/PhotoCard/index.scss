@@ -2,6 +2,10 @@
  * 白边宽度、下方最小高度由 scatter.ts 按卡片宽度算出，写在行内样式里。 */
 
 .photo-card {
+  /* 手写字体：西文手写体 → 霞鹜文楷 → 行楷 → 楷体（macOS / Windows / 繁体）→ 系统无衬线 */
+  --photo-card-hand: "Bradley Hand", "Segoe Print", "LXGW WenKai", "LXGW WenKai Screen", "Xingkai SC", "STXingkai",
+    "Kaiti SC", "STKaiti", "KaiTi", "楷体", "BiauKai", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+
   position: relative;
   box-sizing: border-box;
   background: #fffefb;
@@ -96,10 +100,10 @@
     margin: 0;
     padding: 0;
     overflow: hidden;
-    font-family: var(--app-default-font);
-    font-size: 12px;
+    font-family: var(--photo-card-hand);
+    font-size: 13px;
     line-height: 18px;
-    color: rgb(0 0 0 / 0.55);
+    color: rgb(0 0 0 / 0.62);
     text-align: justify;
     white-space: pre-line;
     overflow-wrap: anywhere;
@@ -140,7 +144,8 @@
   background: rgb(238 226 186 / 0.72);
   border-right: 1px dashed rgb(160 140 90 / 0.22);
   border-left: 1px dashed rgb(160 140 90 / 0.22);
-  /* transform 写在行内：按相片 id 随机 translateX(-55%～-45%) rotate(-3°～3°) */
+  /* --tape-x / --tape-r 写在行内：按相片 id 随机 -55%～-45%、-3°～3°。用变量是为了让“贴胶带”的动画能沿用同一个位置 */
+  transform: translateX(var(--tape-x, -50%)) rotate(var(--tape-r, -3deg));
 }
 
 /* 登录成员自己的那一票：贴在相片右上角，与后台磁粒的位置一致。点击区 28px，磁粒 16px */

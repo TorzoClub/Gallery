@@ -6,7 +6,49 @@ import { Magnet, MagnetSlot } from 'components/Magnet'
 import LoadFailure from './LoadFailure'
 import { photoCardBottomMin, photoCardCover, photoCardHasBottom } from './scatter'
 
-export { getPhotoCardScatter, photoCardCover, type PhotoCardScatter } from './scatter'
+export { getPhotoCardScatter, photoCardBottomMin, photoCardCover, photoCardFrame, type PhotoCardScatter } from './scatter'
+
+export type PhotoCardPaperProps = {
+  id?: string
+  className?: string
+  /** 卡片（含拍立得白边）的宽度 */
+  width: number
+  /** 白边宽度，photoCardFrame(width) */
+  frame: number
+  /** 下方有写字区时，底边的白边由写字区自己撑开 */
+  has_bottom: boolean
+  tilt?: { rotate: number; x: number }
+  /** 纸胶带的 translateX 百分比和倾角（度）；false 表示不贴纸胶带 */
+  tape?: { x: number; rotate: number } | false
+  style?: Partial<CSSProperties>
+  children: ReactNode
+}
+
+/**
+ * 拍立得的那张相纸：白边、阴影、倾斜和纸胶带。
+ * PhotoCard 和投稿表单共用它，里面放 .cover-area 和 .bottom-area。
+ */
+export function PhotoCardPaper({ id, className, width, frame, has_bottom, tilt, tape, style, children }: PhotoCardPaperProps) {
+  const tape_style = tape === false ? undefined : {
+    '--tape-x': `${tape?.x ?? -50}%`,
+    '--tape-r': `${tape?.rotate ?? -3}deg`,
+  } as CSSProperties
+  return (
+    <div
+      id={id}
+      className={['photo-card', className].filter(Boolean).join(' ')}
+      style={{
+        width: `${width}px`,
+        padding: `${frame}px ${frame}px ${has_bottom ? 0 : frame}px`,
+        transform: tilt === undefined ? undefined : `translateX(${tilt.x}px) rotate(${tilt.rotate}deg)`,
+        ...(style ?? {}),
+      } as CSSProperties}
+    >
+      {tape !== false && <span className="photo-card-tape" aria-hidden style={tape_style} />}
+      {children}
+    </div>
+  )
+}
 
 type PhotoCardImage = {
   width: number
@@ -89,21 +131,15 @@ const PhotoCard = (props: Props) => {
   )
 
   return (
-    <div
+    <PhotoCardPaper
       id={`photo-${props.id}`}
-      className="photo-card"
-      style={{
-        width: `${width}px`,
-        padding: `${frame}px ${frame}px ${has_bottom ? 0 : frame}px`,
-        transform: tilt === undefined ? undefined : `translateX(${tilt.x}px) rotate(${tilt.rotate}deg)`,
-        ...(style ?? {}),
-      } as CSSProperties}
+      width={width}
+      frame={frame}
+      has_bottom={has_bottom}
+      tilt={tilt}
+      tape={tape}
+      style={style}
     >
-      <span
-        className="photo-card-tape"
-        aria-hidden
-        style={{ transform: `translateX(${tape?.x ?? -50}%) rotate(${tape?.rotate ?? -3}deg)` }}
-      />
       <div
         className="cover-area"
         ref={coverFrameEl}
@@ -152,7 +188,7 @@ const PhotoCard = (props: Props) => {
         )}
         {show_desc && <pre className="desc-block">{desc}</pre>}
       </div>}
-    </div>
+    </PhotoCardPaper>
   )
 }
 export default PhotoCard

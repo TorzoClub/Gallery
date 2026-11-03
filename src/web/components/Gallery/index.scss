@@ -5,3 +5,87 @@
     padding-bottom: 5em;
   }
 }
+
+/*
+ * 新投稿贴上瀑布流（叙事时刻）。时间线与 index.tsx 的 ENTER_* 常量一致：
+ *   0–420ms      某列往下挪出空位（Waterfall 给 top 加过渡）
+ *   420–720ms    停顿，空位先露出来
+ *   720–1620ms   相片落下：translateY(-10px)→0、opacity 0→1；
+ *                同时用 3D 把下沿从“离墙”压平到墙面，阴影从远到近
+ *   1620–2000ms  纸胶带从上方落下、贴平
+ * 卡片自己的 transform 是倾斜，入场动画放在外面这层，所以从第一帧起相片就是斜的。
+ */
+$enter-shift: 420ms;
+$enter-pause: 300ms;
+$enter-card: 900ms;
+$enter-tape: 380ms;
+
+@keyframes photo-card-enter {
+  0% {
+    opacity: 0;
+    transform: perspective(900px) translateY(-10px) translateZ(28px) rotateX(16deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: perspective(900px) translateY(0) translateZ(0) rotateX(0deg);
+  }
+}
+
+/* 离墙时影子又大又淡、离得远；压平后回到 .photo-card 的静态阴影 */
+@keyframes photo-card-press {
+  0% {
+    box-shadow:
+      0 0 0 0.5px rgb(0 0 0 / 0.08),
+      0 2px 2px rgb(0 0 0 / 0.06),
+      0 28px 32px -12px rgb(40 30 10 / 0.3);
+  }
+
+  100% {
+    box-shadow:
+      0 0 0 0.5px rgb(0 0 0 / 0.12),
+      0 1px 1px rgb(0 0 0 / 0.14),
+      0 10px 18px -10px rgb(40 30 10 / 0.42);
+  }
+}
+
+@keyframes photo-card-tape-stick {
+  0% {
+    opacity: 0;
+    transform: translateX(var(--tape-x, -50%)) perspective(400px) translateY(-10px) translateZ(36px)
+      rotate(calc(var(--tape-r, -3deg) - 7deg)) rotateX(-28deg);
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateX(var(--tape-x, -50%)) perspective(400px) translateY(0) translateZ(0)
+      rotate(var(--tape-r, -3deg)) rotateX(0deg);
+  }
+}
+
+.photo-card-entering {
+  /* 上沿先贴住墙，下沿后压平 */
+  transform-origin: 50% 0;
+  animation: photo-card-enter $enter-card cubic-bezier(0.2, 0.7, 0.3, 1) ($enter-shift + $enter-pause) both;
+
+  .photo-card {
+    animation: photo-card-press $enter-card cubic-bezier(0.2, 0.7, 0.3, 1) ($enter-shift + $enter-pause) both;
+  }
+
+  .photo-card-tape {
+    transform-origin: 50% 50%;
+    animation: photo-card-tape-stick $enter-tape cubic-bezier(0.3, 0.6, 0.3, 1) ($enter-shift + $enter-pause + $enter-card) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &,
+    .photo-card,
+    .photo-card-tape {
+      animation: none;
+    }
+  }
+}

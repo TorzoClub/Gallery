@@ -250,7 +250,8 @@ export function MemberForm({
 
       {error !== '' && error_at === 'form' && <div className={styles.error} role="alert">{error}</div>}
 
-      {(!embedded || (mode === 'edit' && canDelete)) && (
+      {/* 名单簿成员页的删除按钮在页眉里（MemberNotebook 的 DeleteMember），这里只给弹层版用 */}
+      {!embedded && (
         <div className={styles.actions}>
           {mode === 'edit' && canDelete && (
             <button

@@ -1,6 +1,10 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { cn } from '@/utils/cn'
+import Popover from '../../../components/Popover'
+import { removeMember } from '../../../admin/api/member'
+import { getApiErrorMessage } from '../../../admin/utils/errors'
 import { useQueueload } from '../../../utils/queue-load'
+import { playPageBackSound, playPageFlipSound, playPageTearSound, primePaperAudio } from '../../../utils/paper-audio'
 import type { Member, MemberCanDelete, MemberSubmission } from './AdminConsole'
 import { FlipStack, type FlipDir } from './FlipStack'
 import { MemberForm, type MemberFormDraft } from './MemberForm'
@@ -416,6 +420,83 @@ function useFocusOnMount() {
   return ref
 }
 
+/* ============================== 删除成员 ==============================
+ * 页眉里“保存修改”左边的红色按钮。点开是一个确认弹层：
+ *   投过稿 → “这位成员曾经有过投稿，不能删”；
+ *   没投过稿但投过票 → 服务端同样不让删，提示“这位成员投过票，不能删”；
+ *   都没有 → 确认后发删除请求，请求成功才关弹层、撕下这一页。 */
+
+function DeleteMember({ member, submitted, canDelete, disabled, onDeleted }: {
+  member: Member
+  submitted: boolean
+  canDelete: boolean
+  disabled: boolean
+  onDeleted(member: Member): void
+}) {
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const blocked = submitted
+    ? '这位成员曾经有过投稿，不能删。'
+    : canDelete ? null : '这位成员投过票，不能删。'
+
+  const confirm = async () => {
+    if (busy) return
+    primePaperAudio() // 撕纸声在请求完成后才响，先在这次点击里把音频上下文准备好
+    setBusy(true)
+    setError('')
+    try {
+      await removeMember(Number(member.id))
+      setOpen(false)
+      onDeleted(member)
+    } catch (err) {
+      setError(getApiErrorMessage(err, '删除成员失败'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (busy) return // 请求进行中不让关
+        setOpen(next)
+        setError('')
+      }}
+      side="bottom"
+      align="end"
+      label={blocked === null ? '确认删除成员' : '不能删除成员'}
+      trigger={(
+        <button type="button" className={styles.deleteButton} disabled={disabled}>删除</button>
+      )}
+      content={(close) => (
+        <div className={styles.confirm}>
+          {blocked === null ? (
+            <>
+              <p className={styles.confirmText}>确定删除成员「{member.nickname}」吗？此操作不可撤销。</p>
+              {error !== '' && <p className={styles.confirmError} role="alert">{error}</p>}
+              <div className={styles.confirmActions}>
+                <button type="button" className={styles.headButton} disabled={busy} onClick={close}>取消</button>
+                <button type="button" className={styles.deleteButton} disabled={busy} data-autofocus onClick={() => void confirm()}>
+                  {busy ? '删除中…' : '删除'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className={styles.confirmText}>{blocked}</p>
+              <div className={styles.confirmActions}>
+                <button type="button" className={styles.headButton} data-autofocus onClick={close}>知道了</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    />
+  )
+}
+
 /* ============================== 成员页（二级页面） ============================== */
 
 type DetailPageProps = {
@@ -428,10 +509,12 @@ type DetailPageProps = {
   onDraftChange(draft: MemberFormDraft): void
   onBack(): void
   onSaved(): void | Promise<void>
+  /** 删除请求已经成功：撕下这一页，回到名单 */
+  onDeleted(member: Member): void
   onFlip(dir: 1 | -1): void
 }
 
-function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDraftChange, onBack, onSaved, onFlip }: DetailPageProps) {
+function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDraftChange, onBack, onSaved, onDeleted, onFlip }: DetailPageProps) {
   const title = useFocusOnMount()
   const form_id = useId()
   const [busy, setBusy] = useState(false)
@@ -446,9 +529,20 @@ function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDra
             {mode === 'create' ? '新增成员' : `member_id=${member?.id}`}
           </h3>
         </div>
-        <button type="submit" form={form_id} className={styles.saveButton} disabled={busy}>
-          {busy ? '保存中…' : mode === 'create' ? '创建成员' : '保存修改'}
-        </button>
+        <div className={styles.headActions}>
+          {mode === 'edit' && member !== undefined && (
+            <DeleteMember
+              member={member}
+              submitted={total > 0}
+              canDelete={canDelete}
+              disabled={busy}
+              onDeleted={onDeleted}
+            />
+          )}
+          <button type="submit" form={form_id} className={styles.saveButton} disabled={busy}>
+            {busy ? '保存中…' : mode === 'create' ? '创建成员' : '保存修改'}
+          </button>
+        </div>
       </div>
       <div className={styles.detailBody}>
         <div className={styles.formColumn}>
@@ -560,6 +654,8 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
   const [search_open, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const search_focus_ref = useRef(false)
+  // 刚删掉的成员：撕下来的那一页在动画期间还要画出他的内容，而 adminPool 刷新后他已经不在 members 里了
+  const torn_ref = useRef<{ member: Member } | null>(null)
   // 成员页没保存的输入。翻到续页时成员页会卸载，翻回来用它恢复
   const draft_ref = useRef<{ key: string; draft: MemberFormDraft } | null>(null)
 
@@ -624,6 +720,7 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
 
   const openMember = (m: Member) => {
     draft_ref.current = null
+    playPageFlipSound()
     setDir('forward')
     setFocusId(null)
     setView({ kind: 'edit', id: String(m.id), sheet: 0 })
@@ -631,6 +728,7 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
 
   const openCreate = () => {
     draft_ref.current = null
+    playPageFlipSound()
     setDir('forward')
     setFocusId(null)
     setView({ kind: 'create' })
@@ -646,12 +744,29 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
         setFocusId(view.id)
       }
     }
+    playPageBackSound()
     setDir('backward')
     setView({ kind: 'list' })
   }
 
+  const tearOff = (m: Member) => {
+    draft_ref.current = null
+    torn_ref.current = { member: m }
+    // 撕下后停在原来那一页；被删的人不在了，这一页可能少一行
+    const idx = listed.findIndex(x => x.id === m.id)
+    if (idx >= 0) setListPage(Math.floor(idx / per_page))
+    setFocusId(null)
+    playPageTearSound()
+    setDir('tear')
+    setView({ kind: 'list' })
+    void onMembersChanged?.()
+  }
+
   const flipList = (step: 1 | -1) => {
     const next = clampPage(current_page + step, listed.length, per_page)
+    if (next === current_page) return
+    if (step > 0) playPageFlipSound()
+    else playPageBackSound()
     setDir(step > 0 ? 'forward' : 'backward')
     setFocusId(null)
     setListPage(next)
@@ -660,12 +775,17 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
 
   const flipSheet = (step: 1 | -1) => {
     if (shown_view.kind !== 'edit') return
+    const next = clampSheet(shown_view.sheet + step, submissions?.length ?? 0, paging)
+    if (next === shown_view.sheet) return
+    if (step > 0) playPageFlipSound()
+    else playPageBackSound()
     setDir(step > 0 ? 'forward' : 'backward')
-    setView({ ...shown_view, sheet: clampSheet(shown_view.sheet + step, submissions?.length ?? 0, paging) })
+    setView({ ...shown_view, sheet: next })
   }
 
   const backToDetail = () => {
     if (shown_view.kind !== 'edit') return
+    playPageBackSound()
     setDir('backward')
     setView({ ...shown_view, sheet: 0 })
   }
@@ -711,9 +831,12 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
               />
             )
           }
-          const m = kind === 'edit' ? members.find(x => String(x.id) === a) : undefined
+          const torn = torn_ref.current
+          const m = kind === 'edit'
+            ? members.find(x => String(x.id) === a) ?? (torn !== null && String(torn.member.id) === a ? torn.member : undefined)
+            : undefined
           if (kind === 'edit' && m === undefined) {
-            return null // 刚删除的成员：翻走中的那一页只剩空白纸
+            return null // 被删掉（或刷新后不存在）的成员：翻走中的那一页只剩空白纸
           }
           const photos = m === undefined ? null : memberSubmissions?.(m) ?? []
           const sheet = kind === 'edit' ? Number(b) : 0
@@ -741,6 +864,7 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
               onDraftChange={saveDraft(draft_key)}
               onBack={backToList}
               onSaved={onMembersChanged ?? (() => {})}
+              onDeleted={tearOff}
               onFlip={flipSheet}
             />
           )

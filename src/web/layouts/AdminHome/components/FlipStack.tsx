@@ -6,17 +6,20 @@ import styles from './MemberNotebook.module.scss'
 /**
  * forward：当前页绕上沿翻起，露出下面的新页
  * backward：新页从上方翻回来盖住当前页
+ * tear：当前页从线圈上撕下来掉走，露出下面的新页（删除成员）
  * none：直接换页（例如布局变化导致的重新分页）
  */
-export type FlipDir = 'forward' | 'backward' | 'none'
+export type FlipDir = 'forward' | 'backward' | 'tear' | 'none'
 
 /** 与 .flipAway 的 animation-duration 一致；animationend 没来时用它兜底 */
 export const FLIP_MS = 440
+/** 与 .tearAway 的 animation-duration 一致 */
+export const TEAR_MS = 620
 
 type Leaving = {
   id: number
   key: string
-  dir: 'forward' | 'backward'
+  dir: 'forward' | 'backward' | 'tear'
 }
 
 function prefersReducedMotion() {
@@ -60,7 +63,7 @@ export function FlipStack({ pageKey, dir, className, sheetClassName, renderPage 
     const id = leaving.id
     const timer = window.setTimeout(() => {
       setLeaving(current => (current?.id === id ? null : current))
-    }, FLIP_MS + 120)
+    }, (leaving.dir === 'tear' ? TEAR_MS : FLIP_MS) + 120)
     return () => window.clearTimeout(timer)
   }, [leaving])
 
@@ -72,13 +75,20 @@ export function FlipStack({ pageKey, dir, className, sheetClassName, renderPage 
     setLeaving(current => (current?.id === id ? null : current))
   }
 
+  const on_top = leaving !== null && leaving.dir !== 'backward'
   const leaving_sheet = leaving && (
     <div
       key={`sheet:${leaving.key}`}
-      className={cn(styles.sheet, sheetClassName, leaving.dir === 'forward' ? styles.flipAway : styles.under)}
+      className={cn(
+        styles.sheet,
+        sheetClassName,
+        leaving.dir === 'forward' && styles.flipAway,
+        leaving.dir === 'tear' && styles.tearAway,
+        leaving.dir === 'backward' && styles.under,
+      )}
       aria-hidden
       inert
-      onAnimationEnd={leaving.dir === 'forward' ? finish : undefined}
+      onAnimationEnd={on_top ? finish : undefined}
     >
       {renderPage(leaving.key)}
     </div>
@@ -94,7 +104,7 @@ export function FlipStack({ pageKey, dir, className, sheetClassName, renderPage 
       >
         {renderPage(pageKey)}
       </div>
-      {leaving?.dir === 'forward' && leaving_sheet}
+      {on_top && leaving_sheet}
     </div>
   )
 }

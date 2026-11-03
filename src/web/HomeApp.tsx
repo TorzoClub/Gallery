@@ -5,7 +5,6 @@ import ExplorePage from './layouts/Explore'
 // import CoverScroller from './layouts/CoverScroller'
 // import BgImageUrl from 'assets/bg.png'
 
-import './HomeApp.css'
 import { Link, useNavigate } from 'react-router-dom'
 import Navigator from './components/Navigator'
 

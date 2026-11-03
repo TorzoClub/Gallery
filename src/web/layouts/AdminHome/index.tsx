@@ -54,11 +54,27 @@ function statsFromPool(pool: AdminPoolDTO): AdminStats {
 }
 
 function consoleMembersFromPool(pool: AdminPoolDTO): ConsoleMember[] {
+  // 名单簿排序用：每位成员投过几张稿、投过几票
+  const photos = new Map<number, number>()
+  const votes = new Map<number, number>()
+  for (const gallery of pool.galleries) {
+    for (const photo of gallery.photos) {
+      const id = Number(photo.member_id)
+      photos.set(id, (photos.get(id) ?? 0) + 1)
+    }
+    for (const vote of gallery.vote_records) {
+      const id = Number(vote.member_id)
+      votes.set(id, (votes.get(id) ?? 0) + 1)
+    }
+  }
   return pool.members.map(member => ({
     id: member.id,
     nickname: member.name,
     qq: String(member.qq_num),
     avatarUrl: member.avatar_thumb_url,
+    createdAt: member.created_at,
+    photoCount: photos.get(Number(member.id)) ?? 0,
+    voteCount: votes.get(Number(member.id)) ?? 0,
   }))
 }
 

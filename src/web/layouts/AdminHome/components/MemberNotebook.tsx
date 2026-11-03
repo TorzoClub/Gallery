@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '@/utils/cn'
 import Popover from '../../../components/Popover'
 import { removeMember } from '../../../admin/api/member'
@@ -9,6 +9,7 @@ import type { Member, MemberCanDelete, MemberSubmission } from './AdminConsole'
 import { FlipStack, type FlipDir } from './FlipStack'
 import { MemberForm, type MemberFormDraft } from './MemberForm'
 import styles from './MemberNotebook.module.scss'
+import { SortSelect, type SortDirection, type SortOption } from './SortSelect'
 
 /* ============================== 布局 ==============================
  * 三种布局的断点与 AdminConsole.module.css / MemberNotebook.module.scss 完全一致：
@@ -181,13 +182,55 @@ type ListPageProps = {
   focusId: string | null
   /** 本次打开名单簿后新建的成员：序号位置换成“new”角标 */
   newIds: ReadonlySet<string>
+  sort: Sort
   search: Search
   onOpen(member: Member): void
   onCreate(): void
   onFlip(dir: 1 | -1): void
 }
 
-function ListPage({ members, total, page, perPage, columns, focusId, newIds, search, onOpen, onCreate, onFlip }: ListPageProps) {
+/* ============================== 名单排序 ============================== */
+
+export type MemberSortKey = 'nickname' | 'id' | 'created_at' | 'photos' | 'votes'
+
+const MEMBER_SORT_OPTIONS: ReadonlyArray<SortOption<MemberSortKey>> = [
+  { value: 'nickname', label: '昵称' },
+  { value: 'id', label: 'member_id' },
+  { value: 'created_at', label: '创建时间' },
+  { value: 'photos', label: '投稿数量' },
+  { value: 'votes', label: '投票数量' },
+]
+
+const nickname_collator = new Intl.Collator('zh-Hans-CN', { numeric: true, sensitivity: 'base' })
+
+function compareMembers(key: MemberSortKey, a: Member, b: Member): number {
+  switch (key) {
+    case 'nickname': return nickname_collator.compare(a.nickname, b.nickname)
+    case 'id': return Number(a.id) - Number(b.id)
+    case 'created_at': {
+      const x = a.createdAt ?? ''
+      const y = b.createdAt ?? ''
+      return x < y ? -1 : x > y ? 1 : 0
+    }
+    case 'photos': return (a.photoCount ?? 0) - (b.photoCount ?? 0)
+    case 'votes': return (a.voteCount ?? 0) - (b.voteCount ?? 0)
+  }
+}
+
+/** 排序结果稳定：主键相同时按 member_id，降序时一起倒过来 */
+function sortMembers(members: Member[], key: MemberSortKey, direction: SortDirection): Member[] {
+  const sign = direction === 'asc' ? 1 : -1
+  return [...members].sort((a, b) => sign * (compareMembers(key, a, b) || Number(a.id) - Number(b.id)))
+}
+
+type Sort = {
+  key: MemberSortKey
+  direction: SortDirection
+  onChange(key: MemberSortKey): void
+  onDirectionChange(direction: SortDirection): void
+}
+
+function ListPage({ members, total, page, perPage, columns, focusId, newIds, sort, search, onOpen, onCreate, onFlip }: ListPageProps) {
   const root = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const start = page * perPage
@@ -251,10 +294,19 @@ function ListPage({ members, total, page, perPage, columns, focusId, newIds, sea
               }}
             />
           ) : (
-            <span className={styles.bookTitle}>名单簿（共{total}人）</span>
+            <span className={styles.bookTitle}>名单簿 ({total}人)</span>
           )}
         </div>
         <div className={styles.headActions}>
+          <SortSelect
+            className={styles.sortSelect}
+            label="名单排序"
+            options={MEMBER_SORT_OPTIONS}
+            value={sort.key}
+            direction={sort.direction}
+            onChange={sort.onChange}
+            onDirectionChange={sort.onDirectionChange}
+          />
           <button type="button" className={styles.headButton} onClick={onCreate}>新增</button>
         </div>
       </div>
@@ -670,7 +722,11 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
   // 成员页没保存的输入。翻到续页时成员页会卸载，翻回来用它恢复
   const draft_ref = useRef<{ key: string; draft: MemberFormDraft } | null>(null)
 
-  const listed = query.trim() === '' ? members : members.filter(m => matchMember(m, query))
+  // 默认按创建时间升序：最早的成员在第 1 页，新建的成员排在最后
+  const [sort_key, setSortKey] = useState<MemberSortKey>('created_at')
+  const [sort_dir, setSortDir] = useState<SortDirection>('asc')
+  const sorted = useMemo(() => sortMembers(members, sort_key, sort_dir), [members, sort_key, sort_dir])
+  const listed = query.trim() === '' ? sorted : sorted.filter(m => matchMember(m, query))
 
   // 每页行数变了（换布局、侧栏变高）：按本页第一行换算页码，不播翻页
   if (last_per_page !== per_page) {
@@ -736,6 +792,20 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
       const take = search_focus_ref.current
       search_focus_ref.current = false
       return take
+    },
+  }
+
+  // 换排序只改页码（回到第 1 页），不换纸也不播翻页，和搜索一样
+  const sort: Sort = {
+    key: sort_key,
+    direction: sort_dir,
+    onChange: (key) => {
+      setSortKey(key)
+      setListPage(0)
+    },
+    onDirectionChange: (direction) => {
+      setSortDir(direction)
+      setListPage(0)
     },
   }
 
@@ -855,6 +925,7 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
                 columns={columns}
                 focusId={focus_id}
                 newIds={new_ids}
+                sort={sort}
                 search={search}
                 onOpen={openMember}
                 onCreate={openCreate}

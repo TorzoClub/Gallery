@@ -80,35 +80,6 @@
   white-space: nowrap;
 }
 
-.sortControls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-
-  label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  select {
-    max-width: 100%;
-    padding: 5px 8px;
-    border: 1px solid #a8aa9e;
-    border-radius: 3px;
-    background: #fffdf6;
-    color: #4b5563;
-    font: inherit;
-    cursor: pointer;
-  }
-
-  select:focus-visible {
-    outline: 2px solid #e8571f;
-    outline-offset: 2px;
-  }
-}
-
 .records {
   display: flex;
   flex-direction: column;

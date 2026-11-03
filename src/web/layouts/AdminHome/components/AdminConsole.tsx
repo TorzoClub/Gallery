@@ -31,6 +31,10 @@ export interface Member {
   nickname: string;
   qq: string;
   avatarUrl?: string;
+  /** 以下三项给名单簿排序用；没有时按 0 / 空串处理 */
+  createdAt?: string;
+  photoCount?: number;
+  voteCount?: number;
 }
 
 export interface RebuildReporter {

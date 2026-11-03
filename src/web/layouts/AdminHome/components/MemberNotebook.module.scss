@@ -232,13 +232,27 @@ $margin-x: 44px;
 }
 
 .bookTitle {
+  min-width: 0;
+  overflow: hidden;
   font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.14em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 窄屏页眉放不下“名单簿（共 XX 人）”+ 排序 + 新增：标题收紧字距，仍放不下时省略号 */
+.notebook[data-layout='S'] .bookTitle {
+  letter-spacing: 0.02em;
+}
+
+.notebook[data-layout='S'] .headActions {
+  gap: 6px;
 }
 
 .headActions {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   gap: 10px;
 }
@@ -296,6 +310,12 @@ $margin-x: 44px;
 
 .searchInput::-webkit-search-cancel-button {
   display: none;
+}
+
+/* 名单排序：字体字号跟页眉按钮一致 */
+.sortSelect {
+  font: 700 11px var(--font);
+  letter-spacing: 0.04em;
 }
 
 .headButton:hover,

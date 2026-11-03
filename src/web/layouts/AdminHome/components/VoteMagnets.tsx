@@ -9,7 +9,13 @@ import {
   getVoteMagnetValues,
   type PhotoVoteRecord,
 } from './photo-votes'
+import { SortSelect, type SortOption } from './SortSelect'
 import styles from './VoteMagnets.module.scss'
+
+const PHOTO_SORT_OPTIONS: ReadonlyArray<SortOption<PhotoSortBy>> = [
+  { value: 'created_at', label: '投稿时间' },
+  { value: 'vote_count', label: '获票数' },
+]
 
 type Props = {
   photo_id: number
@@ -56,20 +62,14 @@ type LegendProps = {
 export function VoteMagnetLegend({ sort_by, direction, onSortByChange, onDirectionChange }: LegendProps) {
   return (
     <div className={styles.legend} aria-label='投票磁粒图例'>
-      <div className={styles.sortControls} role='group' aria-label='相片展示排序'>
-        <label>
-          <select value={direction} onChange={event => onDirectionChange(event.target.value as PhotoSortDirection)}>
-            <option value='asc'>升序</option>
-            <option value='desc'>降序</option>
-          </select>
-        </label>
-        <label>
-          <select value={sort_by} onChange={event => onSortByChange(event.target.value as PhotoSortBy)}>
-            <option value='created_at'>按投稿时间顺序</option>
-            <option value='vote_count'>按获票数顺序</option>
-          </select>
-        </label>
-      </div>
+      <SortSelect
+        label='相片展示排序'
+        options={PHOTO_SORT_OPTIONS}
+        value={sort_by}
+        direction={direction}
+        onChange={onSortByChange}
+        onDirectionChange={onDirectionChange}
+      />
       <span className={styles.legendItem}><Magnet value={1} />1 票</span>
       <span className={styles.legendItem}><Magnet value={5} />5 票</span>
     </div>

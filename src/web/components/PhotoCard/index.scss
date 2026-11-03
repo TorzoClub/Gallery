@@ -1,0 +1,186 @@
+/* PhotoCard：一张拍立得。四周白边、下方留出写字的位置，顶边贴一截纸胶带。
+ * 白边宽度、下方最小高度由 scatter.ts 按卡片宽度算出，写在行内样式里。 */
+
+.photo-card {
+  position: relative;
+  box-sizing: border-box;
+  background: #fffefb;
+  border-radius: 1px;
+  box-shadow:
+    0 0 0 0.5px rgb(0 0 0 / 0.12),
+    0 1px 1px rgb(0 0 0 / 0.14),
+    0 10px 18px -10px rgb(40 30 10 / 0.42);
+
+  .cover-area {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    cursor: pointer;
+    background: linear-gradient(-15deg, #ecebe6, #f6f5f0, #ecebe6);
+    /* 相纸压在白边里的那一圈细线 */
+    box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.1);
+
+    .cover {
+      display: block;
+      width: 100%;
+      height: 100%;
+      transition: opacity 382ms;
+    }
+  }
+
+  .bottom-area {
+    box-sizing: border-box;
+    padding: 10px 2px 10px;
+  }
+
+  .member-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .avatar-wrapper {
+    position: relative;
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    overflow: hidden;
+    box-shadow: inset 0 -1px 1px rgb(0 0 0 / 0.2), 0 0 1px rgb(0 0 0 / 0.3);
+
+    .avatar {
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #eee;
+      border-radius: 50%;
+      box-shadow:
+        inset 0 0 6px rgb(0 0 0 / 0.5),
+        0 0 1px rgb(0 0 0 / 0.5);
+
+      .avatar-inner {
+        width: 100%;
+        height: 100%;
+        background-position: center center;
+        background-size: cover;
+        border-radius: 50%;
+        transition: transform 382ms;
+        transition-timing-function: cubic-bezier(0.42, 0, 0.19, 1.51);
+      }
+    }
+  }
+
+  .member-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 14px;
+    line-height: 28px;
+    color: #4a4a4a;
+    text-shadow: 1px 1px 0 #fff;
+
+    .name-label {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .member-info + .desc-block {
+    margin-top: 6px;
+  }
+
+  .desc-block {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: var(--app-default-font);
+    font-size: 12px;
+    line-height: 18px;
+    color: rgb(0 0 0 / 0.55);
+    text-align: justify;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+
+    &::before,
+    &::after {
+      display: inline-block;
+      font-size: 1.5em;
+      font-weight: 900;
+      line-height: 0;
+      color: rgb(0 0 0 / 0.2);
+      vertical-align: middle;
+    }
+
+    &::before {
+      content: "“";
+      margin-right: 2px;
+    }
+
+    &::after {
+      content: "”";
+      margin-left: 2px;
+    }
+  }
+}
+
+/* 一截半透明的纸胶带，和名单簿里拼贴相片的那截是同一种 */
+.photo-card-tape {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  z-index: 1;
+  width: 40%;
+  min-width: 38px;
+  max-width: 96px;
+  height: 17px;
+  pointer-events: none;
+  background: rgb(238 226 186 / 0.72);
+  border-right: 1px dashed rgb(160 140 90 / 0.22);
+  border-left: 1px dashed rgb(160 140 90 / 0.22);
+  /* transform 写在行内：按相片 id 随机 translateX(-55%～-45%) rotate(-3°～3°) */
+}
+
+/* 登录成员自己的那一票：贴在相片右上角，与后台磁粒的位置一致。点击区 28px，磁粒 16px */
+.photo-card-vote {
+  --magnet-size: 16px;
+
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  touch-action: manipulation;
+
+  &.is-static {
+    cursor: default;
+    pointer-events: none;
+  }
+
+  /* 空位在相片上要看得见：底下垫一层半透明的白 */
+  &[aria-pressed='false'] > span {
+    background: rgb(255 255 255 / 0.55);
+  }
+
+  &:hover > span,
+  &:focus-visible > span {
+    outline: 1px solid rgb(255 255 255 / 0.9);
+    outline-offset: 1px;
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+}

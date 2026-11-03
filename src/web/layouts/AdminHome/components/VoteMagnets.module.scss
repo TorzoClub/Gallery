@@ -1,23 +1,6 @@
-.magnet {
-  display: block;
-  width: var(--magnet-size, 16px);
-  height: var(--magnet-size, 16px);
-  flex: 0 0 auto;
-  border-radius: 50%;
-  background-image: radial-gradient(circle at 32% 25%, rgb(255 255 255 / .55), transparent 55%);
-  box-shadow:
-    inset 0 1px 1px rgb(255 255 255 / .5),
-    inset 0 -2px 2px rgb(0 0 0 / .3),
-    0 1px 1px rgb(0 0 0 / .4),
-    1px 2px 3px rgb(0 0 0 / .25);
-}
-
-.one {
-  background-color: rgba(48, 103, 133, 1);
-}
-
-.five {
-  background-color: #ba1616;
+/* 磁粒本身的样子在 components/Magnet；这里只管它在后台的交互描边 */
+.dot {
+  outline-color: transparent;
 }
 
 .trigger {
@@ -41,8 +24,8 @@
     outline-offset: 3px;
   }
 
-  &:hover .magnet,
-  &:focus-visible .magnet {
+  &:hover .dot,
+  &:focus-visible .dot {
     outline: 1px solid rgb(255 255 255 / .85);
     outline-offset: 1px;
   }
@@ -94,6 +77,8 @@
 
 /* 固化按钮：尺寸与 SortSelect 一致（高 22px），配色同后台次要按钮 */
 .freezeButton {
+  display: inline-grid;
+  place-items: center;
   flex: 0 0 auto;
   height: 22px;
   padding: 0 8px;
@@ -106,6 +91,11 @@
   border: 1px solid #9ba3a7;
   border-radius: 3px;
   box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(0 0 0 / 0.16);
+}
+
+/* 三种文案叠放在同一格，宽度 = 最宽文案（“固化这个排序”） */
+.freezeLabel {
+  grid-area: 1 / 1;
 }
 
 .freezeButton:disabled {
@@ -136,11 +126,6 @@
 }
 
 .freezeConfirmText {
-  line-height: 1.5;
-}
-
-.freezeError {
-  color: #b42318;
   line-height: 1.5;
 }
 

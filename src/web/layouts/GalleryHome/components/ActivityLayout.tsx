@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import type { GalleryView } from 'pool/view'
 import { ConfirmQQState } from 'components/ConfirmQQ'
 
@@ -8,6 +8,10 @@ import SkeuomorphismButton from 'components/SkeuomorphismButton'
 import SkeuomorphismButtonHighlight from 'components/SkeuomorphismButtonHighlight'
 import { removeListItemByIdx } from 'utils/common'
 import Spinner from '@/components/Spinner'
+import MagnetTray from 'components/MagnetTray'
+
+/** 磁粒用完还想放时，托盘描红的时长 */
+const TRAY_FULL_MS = 600
 
 type ActivityLayoutProps = {
   show_submit_button_area: boolean
@@ -51,9 +55,17 @@ export default function ActivityLayout({
     return Boolean(is_unlimited || !over_limit)
   }, [active.vote_limit, selected_id_list.length])
 
-  const cannot_add_vote_effect = useMemo(() => {
-    return Boolean(!can_add_vote || active.vote_submitted || submit_request_was_sent)
-  }, [active.vote_submitted, can_add_vote, submit_request_was_sent])
+  // 能放 / 收回磁粒：投票期、已确认 QQ（提交区已出现）、还没提交过
+  const vote_interactive = show_submit_button_area && !submit_request_was_sent && !active.vote_submitted
+
+  const [tray_full, setTrayFull] = useState(false)
+  useEffect(() => {
+    if (!tray_full) {
+      return
+    }
+    const timer = setTimeout(() => setTrayFull(false), TRAY_FULL_MS)
+    return () => clearTimeout(timer)
+  }, [tray_full])
 
   const handleClickVote = (photo_id: number) => {
     if (!show_submit_button_area) {
@@ -70,6 +82,8 @@ export default function ActivityLayout({
       } else if (can_add_vote) {
         setArrowTickTock(Date.now())
         setSelectedIdList([...selected_id_list, photo_id])
+      } else {
+        setTrayFull(true)
       }
     }
   }
@@ -87,11 +101,14 @@ export default function ActivityLayout({
       <Gallery
         {...remain_props}
         gallery={active}
-        cannot_add_vote={cannot_add_vote_effect}
+        vote_interactive={vote_interactive}
         selected_id_list={selected_id_list}
         onClickVote={handleClickVote}
         onWatterfallRefreshed={onWatterfallRefreshed}
       />
+      {vote_interactive && (
+        <MagnetTray vote_limit={active.vote_limit} used={selected_id_list.length} full={tray_full} />
+      )}
       {show_submit_button_area && (
         <div className="submit-button-area">
           {(() => {

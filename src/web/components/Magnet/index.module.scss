@@ -1,0 +1,33 @@
+.magnet {
+  display: block;
+  width: var(--magnet-size, 16px);
+  height: var(--magnet-size, 16px);
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background-image: radial-gradient(circle at 32% 25%, rgb(255 255 255 / .55), transparent 55%);
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / .5),
+    inset 0 -2px 2px rgb(0 0 0 / .3),
+    0 1px 1px rgb(0 0 0 / .4),
+    1px 2px 3px rgb(0 0 0 / .25);
+}
+
+.one {
+  background-color: rgba(48, 103, 133, 1);
+}
+
+.five {
+  background-color: #ba1616;
+}
+
+/* 磁粒拿走之后留下的空位：一圈虚线 */
+.slot {
+  display: block;
+  width: var(--magnet-size, 16px);
+  height: var(--magnet-size, 16px);
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  border: 1.5px dashed rgb(48 103 133 / .55);
+  border-radius: 50%;
+}

@@ -1,5 +1,5 @@
 import React, { type ReactNode } from 'react'
-import PhotoBox from '../../../components/PhotoBox'
+import PhotoCard, { photoCardCover, type PhotoCardScatter } from '../../../components/PhotoCard'
 import MemberPopover from './MemberPopover'
 import PhotoPopover from './PhotoPopover'
 import VoteMagnets from './VoteMagnets'
@@ -11,18 +11,16 @@ type Props = {
   gallery: AdminGalleryDTO
   photo: AdminGalleryDTO['photos'][number]
   votes: readonly PhotoVoteRecord[]
-  box_width: number
-  box_type: 'normal' | 'compact'
+  scatter: PhotoCardScatter
   memberCanDelete?: MemberCanDelete
   onChanged(): Promise<void>
 }
 
-export default function AdminPhotoBox({
+export default function AdminPhotoCard({
   gallery,
   photo,
   votes,
-  box_width,
-  box_type,
+  scatter,
   memberCanDelete,
   onChanged,
 }: Props) {
@@ -35,6 +33,9 @@ export default function AdminPhotoBox({
         qq: String(member.qq_num),
         avatarUrl: member.avatar_thumb_url,
       }
+
+  // 磁粒在相片区域内，随卡片一起倾斜
+  const cover = photoCardCover(scatter.card_width, photo)
 
   const can_delete = member_data !== undefined && memberCanDelete?.(member_data) === true
 
@@ -59,12 +60,12 @@ export default function AdminPhotoBox({
       gallery_id={gallery.id}
       onChanged={onChanged}
       trigger={(
-        <PhotoBox
+        <PhotoCard
           id={photo.id}
-          type={box_type}
-          box_width={box_width}
+          width={scatter.card_width}
+          tilt={{ rotate: scatter.rotate, x: scatter.offset_x }}
+          tape={{ x: scatter.tape_x, rotate: scatter.tape_rotate }}
           hideMember={false}
-          show_vote_button={false}
           name={member?.name ?? null}
           desc={photo.desc}
           photo={{
@@ -83,8 +84,8 @@ export default function AdminPhotoBox({
             <VoteMagnets
               photo_id={photo.id}
               records={votes}
-              cover_width={box_width}
-              cover_height={box_width * Number((photo.height / photo.width).toFixed(4))}
+              cover_width={cover.cover_width}
+              cover_height={cover.cover_height}
             />
           )}
           renderAvatar={(avatar) => with_member_popover(

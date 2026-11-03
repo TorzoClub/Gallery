@@ -5,14 +5,15 @@ import './index.scss'
 import Title from 'components/Title'
 import Waterfall, { WaterfallLayout } from 'components/Waterfall'
 import type { GalleryView } from 'pool/view'
-import PhotoBox, { CoverClickEvent, Props as PhotoBoxProps } from 'components/PhotoBox'
+import PhotoCard, { getPhotoCardScatter, type CoverClickEvent, type PhotoCardScatter } from 'components/PhotoCard'
 import Submission from 'components/Submission'
 import useSafeState from 'hooks/useSafeState'
 import { dateDiffInDays } from 'utils/date'
 import TextPlaceholder from './TextPlaceholder'
 
 export type GalleryLayout = WaterfallLayout & {
-  box_type: PhotoBoxProps['type']
+  /** ≤ 900px 的紧凑布局：PhotoCard 散落得更小、更浅 */
+  tight: boolean
 }
 
 function getViewportWidth() {
@@ -20,41 +21,23 @@ function getViewportWidth() {
   return innerWidth
 }
 
-const normalLayout = ({
+/** 宽屏列间距：给倾斜和横向位移留出余地（两列各占一半） */
+const WIDE_GUTTER = 32
+/** ≤ 900px 的列间距 */
+const TIGHT_GUTTER = 20
+
+const fixedLayout = ({
   column_count,
   gallery_width,
-}: Pick<GalleryLayout, 'column_count' | 'gallery_width'>): GalleryLayout => {
-  const column_gutter = 54
-  const vertial_gutter = column_gutter / 2
-  return {
-    box_type: 'normal',
-    column_count,
-    gallery_width,
-    column_gutter,
-    vertical_gutter: vertial_gutter,
-  }
-}
-
-const compactLayout = (g: Pick<GalleryView, 'in_event' | 'can_submission'>, {
-  column_count,
   column_gutter,
-  vote_event_vertial_gutter,
-  gallery_width = getViewportWidth() - (column_gutter * column_count)
-}: Pick<GalleryLayout, 'column_count' | 'column_gutter'> & {
-  vote_event_vertial_gutter: number
-  gallery_width?: number
-}): GalleryLayout => {
-  const is_vote_date = g.in_event && !g.can_submission
-  const vertial_gutter = is_vote_date ? vote_event_vertial_gutter : column_gutter
-
-  return {
-    box_type: 'compact',
-    column_count: column_count,
-    gallery_width,
-    column_gutter: column_gutter,
-    vertical_gutter: vertial_gutter,
-  }
-}
+  tight,
+}: Pick<GalleryLayout, 'column_count' | 'gallery_width' | 'column_gutter' | 'tight'>): GalleryLayout => ({
+  tight,
+  column_count,
+  gallery_width,
+  column_gutter,
+  vertical_gutter: tight ? TIGHT_GUTTER : 27,
+})
 
 function computeColumnCountByBoxWidth(
   gallery_width: number,
@@ -91,61 +74,87 @@ function computeGalleryWidthWithAutoColumnCount(
   } as const
 }
 
-const getLayoutConfigure = (gallery: Pick<GalleryView, 'in_event' | 'can_submission'>): GalleryLayout => {
+const getLayoutConfigure = (): GalleryLayout => {
   const viewport_width = getViewportWidth()
   if (viewport_width > 1900) {
     const box_width = 232
     const column_gutter = 27
     const padding_horizontal = 54
-    return compactLayout(gallery, {
+    return fixedLayout({
+      tight: false,
       column_gutter,
-      vote_event_vertial_gutter: 27,
       ...computeGalleryWidthWithAutoColumnCount(
         viewport_width - (2 * padding_horizontal),
         column_gutter,
         box_width,
-      )
+      ),
     })
   } else if (viewport_width > 1450) {
-    return normalLayout({
-      gallery_width: 1200,
-      column_count: 4,
-    })
+    return fixedLayout({ tight: false, gallery_width: 1200, column_count: 4, column_gutter: WIDE_GUTTER })
   } else if (viewport_width > 1150) {
-    return normalLayout({
-      gallery_width: 900,
-      column_count: 4,
-    })
+    return fixedLayout({ tight: false, gallery_width: 900, column_count: 4, column_gutter: WIDE_GUTTER })
   } else if (viewport_width > 900) {
-    return normalLayout({
-      gallery_width: 750,
-      column_count: 3,
-    })
+    return fixedLayout({ tight: false, gallery_width: 750, column_count: 3, column_gutter: WIDE_GUTTER })
   } else if (viewport_width > 640) {
-    return compactLayout(gallery, {
-      gallery_width: 640 - 8 * 2,
-      column_count: 3,
-      column_gutter: 8,
-      vote_event_vertial_gutter: 27
-    })
+    return fixedLayout({ tight: true, gallery_width: 640 - TIGHT_GUTTER * 2, column_count: 3, column_gutter: TIGHT_GUTTER })
   } else {
-    return compactLayout(gallery, {
+    return fixedLayout({
+      tight: true,
+      gallery_width: viewport_width - TIGHT_GUTTER * 2,
       column_count: 2,
-      column_gutter: 8,
-      vote_event_vertial_gutter: 27
+      column_gutter: TIGHT_GUTTER,
     })
   }
 }
 
-export function getGalleryLayout(
-  gallery: Pick<GalleryView, 'in_event' | 'can_submission'>,
-): GalleryLayout {
-  return getLayoutConfigure(gallery)
+export function getGalleryLayout(): GalleryLayout {
+  return getLayoutConfigure()
+}
+
+export function galleryColumnWidth(layout: GalleryLayout): number {
+  return (layout.gallery_width - layout.column_gutter * (layout.column_count - 1)) / layout.column_count
+}
+
+/** 瀑布流的一格：上下留白容纳纸胶带、倾斜多出来的高度和纵向错落；卡片在格子里居中，再由自身 transform 偏移、倾斜 */
+export function PhotoCardCell({ scatter, children }: { scatter: PhotoCardScatter; children: React.ReactNode }) {
+  return (
+    <div
+      className="photo-card-cell"
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        paddingTop: `${scatter.pad_top}px`,
+        paddingBottom: `${scatter.pad_bottom}px`,
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+export function scatterFor(layout: GalleryLayout, photo: {
+  id: number
+  width: number
+  height: number
+  desc: string
+  member: unknown
+}): PhotoCardScatter {
+  return getPhotoCardScatter({
+    id: photo.id,
+    column_width: galleryColumnWidth(layout),
+    column_gutter: layout.column_gutter,
+    photo,
+    desc_length: photo.desc.trim().length,
+    has_member: Boolean(photo.member),
+    tight: layout.tight,
+  })
 }
 
 export type Props = {
-  cannot_add_vote?: boolean
+  /** 显示登录成员自己放在相片上的磁粒 */
   show_vote_button: boolean
+  /** 还能放 / 收回磁粒（投票期、已确认 QQ、尚未提交） */
+  vote_interactive?: boolean
   gallery: GalleryView
   selected_id_list: number[]
   onClickVote?: (photo_id: number) => void
@@ -153,55 +162,57 @@ export type Props = {
   onWatterfallRefreshed(): void
 }
 export default ({
-  cannot_add_vote = false,
   show_vote_button,
+  vote_interactive = false,
   gallery,
   selected_id_list,
   onClickVote,
   onClickCover,
   onWatterfallRefreshed,
 }: Props) => {
-  const layout = useWaterfallLayout(gallery)
+  const layout = useWaterfallLayout()
 
   const title_node = useTitleNode(gallery)
 
   const waterfall_layout_node = useMemo(() => {
     const day_diff = dateDiffInDays(new Date(gallery.event_start), new Date)
-    const items = gallery.photos.map(photo => ({
-      id: String(photo.id),
-      node: (
-        <PhotoBox
-          id={photo.id}
-          type={layout.box_type}
-          box_width={(layout.gallery_width - layout.column_gutter * (layout.column_count - 1)) / layout.column_count}
-          onClickCover={(click_info) => onClickCover(click_info, photo.id)}
-          {...{
-            hideMember: !photo.member,
-            show_vote_button: show_vote_button,
-            vote_button_status: (
-              selected_id_list.indexOf(photo.id) !== -1
-                ? 'selected'
-                : (cannot_add_vote ? 'cannot-add' : 'un-selected')
-            ),
-            handleClickVote: () => onClickVote?.(photo.id),
-            name: photo.member ? photo.member.name : null,
-            desc: photo.desc,
-            photo: {
-              width: photo.width,
-              height: photo.height,
-              src: photo.src_url,
-              thumb: photo.thumb,
-            },
-            avatar: photo.member ? {
-              width: 0,
-              height: 0,
-              thumb: photo.member.avatar_thumb_url,
-              src: photo.member.avatar_thumb_url,
-            } : null,
-          }}
-        />
-      ),
-    }))
+    const items = gallery.photos.map(photo => {
+      const scatter = scatterFor(layout, photo)
+      return {
+        id: String(photo.id),
+        node: (
+          <PhotoCardCell scatter={scatter}>
+            <PhotoCard
+              id={photo.id}
+              width={scatter.card_width}
+              tilt={{ rotate: scatter.rotate, x: scatter.offset_x }}
+              tape={{ x: scatter.tape_x, rotate: scatter.tape_rotate }}
+              onClickCover={(click_info) => onClickCover(click_info, photo.id)}
+              hideMember={!photo.member}
+              vote={show_vote_button ? {
+                selected: selected_id_list.includes(photo.id),
+                interactive: vote_interactive,
+                onToggle: () => onClickVote?.(photo.id),
+              } : undefined}
+              name={photo.member ? photo.member.name : null}
+              desc={photo.desc}
+              photo={{
+                width: photo.width,
+                height: photo.height,
+                src: photo.src_url,
+                thumb: photo.thumb,
+              }}
+              avatar={photo.member ? {
+                width: 0,
+                height: 0,
+                thumb: photo.member.avatar_thumb_url,
+                src: photo.member.avatar_thumb_url,
+              } : null}
+            />
+          </PhotoCardCell>
+        ),
+      }
+    })
     const waterfall = () => (
       <Waterfall
         layout={layout}
@@ -231,7 +242,7 @@ export default ({
         return waterfall()
       }
     }
-  }, [cannot_add_vote, gallery.can_submission, gallery.event_start, gallery.in_event, gallery.photos, layout, onClickCover, onClickVote, onWatterfallRefreshed, selected_id_list, show_vote_button])
+  }, [gallery.can_submission, gallery.event_start, gallery.in_event, gallery.photos, layout, onClickCover, onClickVote, onWatterfallRefreshed, selected_id_list, show_vote_button, vote_interactive])
 
   return (
     <div className="gallery">
@@ -241,8 +252,8 @@ export default ({
   )
 }
 
-function useWaterfallLayout(gallery: GalleryView) {
-  const [layout, refreshLayout] = useSafeState(getLayoutConfigure(gallery))
+function useWaterfallLayout() {
+  const [layout, refreshLayout] = useSafeState(getLayoutConfigure())
 
   useEffect(() => {
     let latest_width: number | undefined
@@ -252,12 +263,12 @@ function useWaterfallLayout(gallery: GalleryView) {
       const viewport_width = getViewportWidth()
       if (latest_width !== viewport_width) {
         latest_width = viewport_width
-        refreshLayout(getLayoutConfigure(gallery))
+        refreshLayout(getLayoutConfigure())
       }
     }
     window.addEventListener('resize', updateState)
     return () => window.removeEventListener('resize', updateState)
-  }, [gallery, refreshLayout])
+  }, [refreshLayout])
 
   return layout
 }

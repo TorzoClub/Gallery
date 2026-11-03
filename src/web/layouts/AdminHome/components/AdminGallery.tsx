@@ -1,10 +1,10 @@
 import React, { useEffect, useId, useMemo, useState } from 'react'
 import type { AdminGalleryDTO, MemberDTO } from '@shared/dto'
-import { getGalleryLayout } from '../../../components/Gallery'
+import { getGalleryLayout, PhotoCardCell, scatterFor } from '../../../components/Gallery'
 import Waterfall, { type WaterfallItem } from '../../../components/Waterfall'
 import GalleryHeader from './GalleryHeader'
 import GalleryManagePanel, { type MemberHistory } from './GalleryManagePanel'
-import AdminPhotoBox from './AdminPhotoBox'
+import AdminPhotoCard from './AdminPhotoCard'
 import { VoteMagnetLegend } from './VoteMagnets'
 import { sortPhotos } from '../../../admin/api/photo'
 import { EMPTY_PHOTO_VOTES, indexPhotoVotes, sortGalleryPhotos, type PhotoSortBy, type PhotoSortDirection } from './photo-votes'
@@ -55,9 +55,8 @@ export default function AdminGallery({
   }, [])
   const layout = useMemo(() => {
     void viewport_width
-    return getGalleryLayout(gallery)
-  }, [gallery, viewport_width])
-  const box_width = (layout.gallery_width - layout.column_gutter * (layout.column_count - 1)) / layout.column_count
+    return getGalleryLayout()
+  }, [viewport_width])
   const votes_by_photo = useMemo(
     () => indexPhotoVotes(gallery.id, gallery.vote_records, members),
     [gallery.id, gallery.vote_records, members],
@@ -68,20 +67,25 @@ export default function AdminGallery({
     [gallery.photos, votes_by_photo, photo_sort_by, photo_sort_direction],
   )
 
-  const items: WaterfallItem[] = useMemo(() => show_expanded ? sorted_photos.map(photo => ({
-    id: String(photo.id),
-    node: (
-      <AdminPhotoBox
-        gallery={gallery}
-        photo={photo}
-        votes={votes_by_photo.get(photo.id) ?? EMPTY_PHOTO_VOTES}
-        box_width={box_width}
-        box_type={layout.box_type}
-        memberCanDelete={memberCanDelete}
-        onChanged={onChanged}
-      />
-    ),
-  })) : [], [box_width, show_expanded, gallery, layout.box_type, memberCanDelete, onChanged, votes_by_photo, sorted_photos])
+  // 与公开页同一套散落摆放（同一张相片在两边的大小、倾角、位移完全一致）
+  const items: WaterfallItem[] = useMemo(() => show_expanded ? sorted_photos.map(photo => {
+    const scatter = scatterFor(layout, photo)
+    return {
+      id: String(photo.id),
+      node: (
+        <PhotoCardCell scatter={scatter}>
+          <AdminPhotoCard
+            gallery={gallery}
+            photo={photo}
+            votes={votes_by_photo.get(photo.id) ?? EMPTY_PHOTO_VOTES}
+            scatter={scatter}
+            memberCanDelete={memberCanDelete}
+            onChanged={onChanged}
+          />
+        </PhotoCardCell>
+      ),
+    }
+  }) : [], [show_expanded, gallery, layout, memberCanDelete, onChanged, votes_by_photo, sorted_photos])
 
   return (
     <div className='gallery-wrapper' data-gallery-sort-id={gallery.id}>

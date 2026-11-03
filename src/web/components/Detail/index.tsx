@@ -2,13 +2,13 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import useDisableScroll from 'hooks/useDisableScroll'
 import Spinner from '../Spinner'
-import { fitImage, INITIAL_VIEW, thumbnailTransform, viewTransform, type ImageRect, type View } from './geometry'
+import { fitImage, INITIAL_VIEW, thumbnailTransform, viewTransform, type ThumbRect, type View } from './geometry'
 import { createGestures } from './gestures'
 import { downloadImage, prepareImage, type ImageDownload } from './image-loading'
 import './style.scss'
 
 type DetailInput = {
-  from: ImageRect
+  from: ThumbRect
   thumb: string
   src: string
   height: number

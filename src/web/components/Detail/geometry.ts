@@ -1,6 +1,8 @@
 export type Point = { x: number; y: number }
 export type Size = { width: number; height: number }
 export type ImageRect = Size & { left: number; top: number }
+/** 瀑布流里的相片：未旋转的矩形 + 它在屏幕上的倾角（度） */
+export type ThumbRect = ImageRect & { rotate?: number }
 export type View = Point & { scale: number }
 
 export const INITIAL_VIEW: View = { x: 0, y: 0, scale: 1 }
@@ -54,12 +56,14 @@ export function shouldDismiss(start: Point, end: Point): boolean {
   return dy > DISMISS_DISTANCE && dy > dx
 }
 
+// 大图和缩略图两头用同一串变换函数（translate3d → rotate → scale），
+// 动画才会逐项插值：倾斜的缩略图一边放大一边转正，退出时倒回去。
 export function viewTransform(view: View): string {
-  return `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale})`
+  return `translate3d(${view.x}px, ${view.y}px, 0) rotate(0deg) scale(${view.scale})`
 }
 
-export function thumbnailTransform(from: ImageRect, to: ImageRect): string {
+export function thumbnailTransform(from: ThumbRect, to: ImageRect): string {
   const x = from.left + from.width / 2 - to.left - to.width / 2
   const y = from.top + from.height / 2 - to.top - to.height / 2
-  return `translate3d(${x}px, ${y}px, 0) scale(${from.width / to.width}, ${from.height / to.height})`
+  return `translate3d(${x}px, ${y}px, 0) rotate(${from.rotate ?? 0}deg) scale(${from.width / to.width}, ${from.height / to.height})`
 }

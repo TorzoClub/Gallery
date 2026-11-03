@@ -60,7 +60,7 @@ export function createMagnetOffset(random: () => number = Math.random) {
   return { x: 1 + random(), y: 2 + random() }
 }
 
-// Match PhotoBox's rounded aspect ratio. Only the image area is available,
+// Match PhotoCard's cover area (inside the polaroid frame). Only the image area is available,
 // never the card's member/description block below it.
 export function getVoteMagnetLayout(
   magnet_count: number,

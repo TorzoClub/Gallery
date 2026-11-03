@@ -1,7 +1,9 @@
-import React, { useRef, useState, type CSSProperties } from 'react'
+import React, { useEffect, useRef, useState, type CSSProperties } from 'react'
 import Popover from '../../../components/Popover'
+import { Magnet as MagnetDot } from '../../../components/Magnet'
 import { formatDateTime } from '../../../admin/utils/date'
 import { getApiErrorMessage } from '../../../admin/utils/errors'
+import { signal_critical_error } from '../../../signals'
 import {
   createMagnetOffset,
   type PhotoSortBy,
@@ -44,13 +46,7 @@ function Magnet({ value, scattered = false, offsetScale = 1 }: {
     element.current.style.transform = `translate(${offset.current.x * offsetScale}px, ${offset.current.y * offsetScale}px)`
   }, [scattered, offsetScale])
 
-  return (
-    <span
-      ref={element}
-      className={`${styles.magnet} ${value === 5 ? styles.five : styles.one}`}
-      aria-hidden='true'
-    />
-  )
+  return <MagnetDot ref={element} value={value} className={styles.dot} />
 }
 
 type LegendProps = {
@@ -62,60 +58,82 @@ type LegendProps = {
   onFreeze(): Promise<void>
 }
 
+/** “固化成功”在按钮上停留的时间，之后瞬时回到“固化这个排序” */
+const FREEZE_DONE_MS = 2000
+
+type FreezePhase = 'idle' | 'busy' | 'done'
+
+const FREEZE_LABELS: Record<FreezePhase, string> = {
+  idle: '固化这个排序',
+  busy: '固化中…',
+  done: '固化成功',
+}
+
+const FREEZE_PHASES = Object.keys(FREEZE_LABELS) as FreezePhase[]
+
 function FreezeSort({ sort_by, direction, onFreeze }: Pick<LegendProps, 'sort_by' | 'direction' | 'onFreeze'>) {
   const [open, setOpen] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [phase, setPhase] = useState<FreezePhase>('idle')
+  const done_timer = useRef<number | undefined>(undefined)
   const by_label = PHOTO_SORT_OPTIONS.find(option => option.value === sort_by)?.label ?? ''
   const dir_label = direction === 'asc' ? '升序' : '降序'
 
+  useEffect(() => () => window.clearTimeout(done_timer.current), [])
+
   const freeze = async () => {
-    if (busy) {
+    if (phase === 'busy') {
       return
     }
-    setBusy(true)
-    setError('')
+    window.clearTimeout(done_timer.current)
+    // 确认后立即关掉弹层，进度和结果写在按钮上
+    setOpen(false)
+    setPhase('busy')
     try {
       await onFreeze()
-      setOpen(false)
+      setPhase('done')
+      done_timer.current = window.setTimeout(() => setPhase('idle'), FREEZE_DONE_MS)
     } catch (err) {
-      setError(getApiErrorMessage(err, '固化排序失败'))
-    } finally {
-      setBusy(false)
+      setPhase('idle')
+      signal_critical_error.trigger(`固化排序失败：${getApiErrorMessage(err, '未知错误')}`)
     }
   }
 
   return (
     <Popover
       open={open}
-      onOpenChange={next => {
-        // 保存中不让点外面关掉，结果要留在弹层里给人看
-        if (busy) {
-          return
-        }
-        setOpen(next)
-        if (next) {
-          setError('')
-        }
-      }}
+      onOpenChange={setOpen}
       label='确认固化排序'
       trigger={(
-        <button type='button' className={styles.freezeButton} disabled={busy}>
-          固化这个排序
+        // 三种文案叠在同一个格子里，按钮宽度始终取最宽的那一个，切换时不跳动
+        <button
+          type='button'
+          className={styles.freezeButton}
+          disabled={phase === 'busy'}
+          aria-live='polite'
+        >
+          {FREEZE_PHASES.map(item => (
+            <span
+              key={item}
+              className={styles.freezeLabel}
+              aria-hidden={item !== phase}
+              style={item === phase ? undefined : { visibility: 'hidden' }}
+            >
+              {FREEZE_LABELS[item]}
+            </span>
+          ))}
         </button>
       )}
-      content={(
+      content={close => (
         <div className={styles.freezeConfirm}>
           <div className={styles.freezeConfirmText}>
             要把相片固化为「{by_label}·{dir_label}」的顺序吗？固化后公开页的相片按这个顺序展示。
           </div>
-          {error !== '' && <div className={styles.freezeError} role='alert'>{error}</div>}
           <div className={styles.freezeConfirmActions}>
-            <button type='button' className={styles.close} disabled={busy} onClick={() => setOpen(false)}>
+            <button type='button' className={styles.close} onClick={close}>
               取消
             </button>
-            <button type='button' className={styles.freezePrimary} disabled={busy} onClick={() => void freeze()}>
-              {busy ? '固化中…' : '固化'}
+            <button type='button' className={styles.freezePrimary} onClick={() => void freeze()}>
+              固化
             </button>
           </div>
         </div>

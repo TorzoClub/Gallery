@@ -234,6 +234,49 @@
     }
   }
 
+  /* 最宽布局：头像 81px（3 行横线）在左，右边是 QQ 号和昵称两行（共 108px = 4 行）。头像本身就是选图按钮 */
+  .besideRow {
+    display: grid;
+    grid-template-columns: 81px minmax(0, 1fr);
+    align-items: start;
+    gap: 22px;
+    padding-top: 14px;
+  }
+
+  .besideFields {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin-top: -14px; /* 与 .besideRow 的 padding-top 抵消，两行字段仍压在横线上 */
+  }
+
+  .avatarPick {
+    width: 81px;
+    height: 81px;
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .avatarPick:disabled {
+    cursor: default;
+  }
+
+  .avatarPick:hover:not(:disabled) {
+    box-shadow: 0 0 0 1.5px #e8571f, 0 4px 8px -4px rgb(40 30 10 / .45);
+  }
+
+  .avatarPick:focus-visible {
+    outline: 2px solid #e8571f;
+    outline-offset: 3px;
+  }
+
+  .avatarPick .avatarFallback {
+    color: #9a9078;
+    font-size: 30px;
+    font-weight: 400;
+  }
+
   .fieldError {
     padding-left: 68px; /* 标签列 64 + 输入框内边距 4，与输入的字对齐 */
   }

@@ -25,15 +25,18 @@ export type MemberFormProps = {
   draft?: MemberFormDraft
   onDraftChange?(draft: MemberFormDraft): void
   onBusyChange?(busy: boolean): void
+  /** 头像和“QQ 号 + 昵称”并排（名单簿最宽布局）。没有说明文字和“更换头像”按钮，点头像本身选图 */
+  avatarBeside?: boolean
   onClose(): void
-  onSaved(): void | Promise<void>
+  /** 新建成功时带上新成员（至少有 id），修改时不带 */
+  onSaved(saved?: { id: number | string }): void | Promise<void>
 }
 
 type ErrorAt = 'avatar' | 'qq' | 'nickname' | 'form'
 
 export function MemberForm({
   mode, member, canDelete, showHeading = true, embedded = false, formId,
-  draft, onDraftChange, onBusyChange, onClose, onSaved,
+  draft, onDraftChange, onBusyChange, avatarBeside = false, onClose, onSaved,
 }: MemberFormProps) {
   const [qq, setQQ] = useState(draft?.qq ?? (mode === 'edit' ? member?.qq ?? '' : ''))
   const [nickname, setNickname] = useState(draft?.nickname ?? member?.nickname ?? '')
@@ -144,19 +147,20 @@ export function MemberForm({
         if (avatar_temp_id === undefined) {
           throw new Error('头像上传失败')
         }
-        await createMember({
+        const created = await createMember({
           qq_num,
           name,
           avatar_temp_id,
         })
+        await onSaved({ id: created.id })
       } else if (member !== undefined) {
         await updateMember(Number(member.id), {
           name,
           ...(avatar_temp_id === undefined ? {} : { avatar_temp_id }),
         })
+        await onSaved()
       }
 
-      await onSaved()
       onClose()
     } catch (err) {
       setError(getApiErrorMessage(err, mode === 'create' ? '新增成员失败' : '修改成员失败'))
@@ -175,47 +179,9 @@ export function MemberForm({
       : null
   )
 
-  return (
-    <form id={formId} className={embedded ? `${styles.form} ${styles.ruled}` : styles.form} onSubmit={handleSubmit}>
-      {showHeading && (
-        <div className={styles.heading}>
-          {mode === 'create' ? '新增成员' : `修改成员 · ${member?.nickname ?? ''}`}
-        </div>
-      )}
-
-      <div className={styles.avatarRow}>
-        <div className={styles.avatarPreview}>
-          {avatar_preview === null
-            ? <span className={styles.avatarFallback}>{nickname.slice(0, 1) || '?'}</span>
-            : <img src={avatar_preview} alt="" />}
-        </div>
-        <div className={styles.avatarCopy}>
-          <span>{mode === 'create' ? '需要一张头像' : '可以保留当前头像'}</span>
-          <button
-            type="button"
-            className={styles.secondaryButton}
-            disabled={busy}
-            onClick={() => file_ref.current?.click()}
-          >
-            {avatar_preview === null ? '选择头像' : '更换头像'}
-          </button>
-        </div>
-        <input
-          ref={file_ref}
-          className={styles.fileInput}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(event) => {
-            const file = event.target.files?.[0]
-            if (file !== undefined) {
-              selectFile(file)
-            }
-          }}
-        />
-      </div>
-      {fieldError('avatar')}
-
+  // QQ 号和昵称两行；并排布局时放在头像右边
+  const fields = (
+    <>
       <label className={styles.field}>
         <span>QQ 号</span>
         <input
@@ -247,6 +213,73 @@ export function MemberForm({
         />
       </label>
       {fieldError('nickname')}
+    </>
+  )
+
+  return (
+    <form id={formId} className={embedded ? `${styles.form} ${styles.ruled}` : styles.form} onSubmit={handleSubmit}>
+      {showHeading && (
+        <div className={styles.heading}>
+          {mode === 'create' ? '新增成员' : `修改成员 · ${member?.nickname ?? ''}`}
+        </div>
+      )}
+
+      {avatarBeside ? (
+        <>
+          <div className={styles.besideRow}>
+            <button
+              type="button"
+              className={`${styles.avatarPreview} ${styles.avatarPick}`}
+              disabled={busy}
+              aria-label={avatar_preview === null ? '选择头像' : '更换头像'}
+              title={avatar_preview === null ? '选择头像' : '更换头像'}
+              onClick={() => file_ref.current?.click()}
+            >
+              {avatar_preview === null
+                ? <span className={styles.avatarFallback}>＋</span>
+                : <img src={avatar_preview} alt="" />}
+            </button>
+            <div className={styles.besideFields}>{fields}</div>
+          </div>
+          {fieldError('avatar')}
+        </>
+      ) : (
+        <>
+          <div className={styles.avatarRow}>
+            <div className={styles.avatarPreview}>
+              {avatar_preview === null
+                ? <span className={styles.avatarFallback}>{nickname.slice(0, 1) || '?'}</span>
+                : <img src={avatar_preview} alt="" />}
+            </div>
+            <div className={styles.avatarCopy}>
+              <span>{mode === 'create' ? '需要一张头像' : '可以保留当前头像'}</span>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                disabled={busy}
+                onClick={() => file_ref.current?.click()}
+              >
+                {avatar_preview === null ? '选择头像' : '更换头像'}
+              </button>
+            </div>
+          </div>
+          {fieldError('avatar')}
+          {fields}
+        </>
+      )}
+      <input
+        ref={file_ref}
+        className={styles.fileInput}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0]
+          if (file !== undefined) {
+            selectFile(file)
+          }
+        }}
+      />
 
       {error !== '' && error_at === 'form' && <div className={styles.error} role="alert">{error}</div>}
 

@@ -179,13 +179,15 @@ type ListPageProps = {
   perPage: number
   columns: number
   focusId: string | null
+  /** 本次打开名单簿后新建的成员：序号位置换成“new”角标 */
+  newIds: ReadonlySet<string>
   search: Search
   onOpen(member: Member): void
   onCreate(): void
   onFlip(dir: 1 | -1): void
 }
 
-function ListPage({ members, total, page, perPage, columns, focusId, search, onOpen, onCreate, onFlip }: ListPageProps) {
+function ListPage({ members, total, page, perPage, columns, focusId, newIds, search, onOpen, onCreate, onFlip }: ListPageProps) {
   const root = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const start = page * perPage
@@ -273,7 +275,9 @@ function ListPage({ members, total, page, perPage, columns, focusId, search, onO
                 aria-label={`打开成员 ${m.nickname}`}
                 onClick={() => onOpen(m)}
               >
-                <span className={styles.no}>{String(start + i + 1).padStart(2, '0')}</span>
+                {newIds.has(String(m.id))
+                  ? <span className={cn(styles.no, styles.noNew)} aria-label="新成员">new</span>
+                  : <span className={styles.no}>{String(start + i + 1).padStart(2, '0')}</span>}
                 <MemberAvatar member={m} />
                 <span className={styles.who}>
                   <span className={styles.nick}>{m.nickname}</span>
@@ -508,13 +512,15 @@ type DetailPageProps = {
   draft?: MemberFormDraft
   onDraftChange(draft: MemberFormDraft): void
   onBack(): void
-  onSaved(): void | Promise<void>
+  onSaved(saved?: { id: number | string }): void | Promise<void>
+  /** 最宽布局：头像和“QQ 号 + 昵称”并排 */
+  avatarBeside: boolean
   /** 删除请求已经成功：撕下这一页，回到名单 */
   onDeleted(member: Member): void
   onFlip(dir: 1 | -1): void
 }
 
-function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDraftChange, onBack, onSaved, onDeleted, onFlip }: DetailPageProps) {
+function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDraftChange, onBack, onSaved, avatarBeside, onDeleted, onFlip }: DetailPageProps) {
   const title = useFocusOnMount()
   const form_id = useId()
   const [busy, setBusy] = useState(false)
@@ -552,6 +558,7 @@ function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDra
             canDelete={canDelete}
             showHeading={false}
             embedded
+            avatarBeside={avatarBeside}
             formId={form_id}
             draft={draft}
             onDraftChange={onDraftChange}
@@ -656,6 +663,12 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
   const search_focus_ref = useRef(false)
   // 刚删掉的成员：撕下来的那一页在动画期间还要画出他的内容，而 adminPool 刷新后他已经不在 members 里了
   const torn_ref = useRef<{ member: Member } | null>(null)
+  // 每张名单纸最后一次作为当前页时画的页码。翻走中的纸按它来画，不按 key 里翻页那一刻的页码：
+  // 搜索、从成员页返回、删除成员都会改页码但不换纸，key 里的页码那时已经过期（甚至超出页数，画出来就是空页）
+  const list_shown_ref = useRef(new Map<string, number>())
+  // 本次打开名单簿后新建的成员（显示“new”角标），和刚建好、等 adminPool 刷新后要翻到的那一位
+  const [new_ids, setNewIds] = useState<ReadonlySet<string>>(() => new Set())
+  const [pending_new, setPendingNew] = useState<string | null>(null)
   // 成员页没保存的输入。翻到续页时成员页会卸载，翻回来用它恢复
   const draft_ref = useRef<{ key: string; draft: MemberFormDraft } | null>(null)
 
@@ -677,6 +690,16 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
     if (view.kind === 'edit' && view.sheet > 0) {
       setDir('none')
       setView({ ...view, sheet: sheetOfPhoto(sheetStart(view.sheet, { ...paging, rest: last_rest }), paging) })
+    }
+  }
+
+  // 新建的成员出现在名单里了：名单页码定到他那一页，返回时焦点也落在他那一行
+  if (pending_new !== null) {
+    const idx = listed.findIndex(m => String(m.id) === pending_new)
+    if (idx >= 0) {
+      setPendingNew(null)
+      setListPage(Math.floor(idx / per_page))
+      setFocusId(pending_new)
     }
   }
 
@@ -815,7 +838,16 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
           const [kind, a, b, c] = key.split(':')
           if (kind === 'list') {
             // 当前这张纸按最新的页码画（搜索会改页码但不换纸）；翻走中的纸按它自己 key 里的页码画
-            const page = key === page_key ? current_page : Number(c)
+            const shown = list_shown_ref.current
+            let page: number
+            if (key === page_key) {
+              page = current_page
+              shown.delete(key)
+              shown.set(key, page)
+              if (shown.size > 8) shown.delete(shown.keys().next().value as string)
+            } else {
+              page = clampPage(shown.get(key) ?? Number(c), listed.length, Number(a))
+            }
             return (
               <ListPage
                 members={listed}
@@ -824,6 +856,7 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
                 perPage={Number(a)}
                 columns={columns}
                 focusId={focus_id}
+                newIds={new_ids}
                 search={search}
                 onOpen={openMember}
                 onCreate={openCreate}
@@ -863,7 +896,18 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
               draft={draft_ref.current?.key === draft_key ? draft_ref.current.draft : undefined}
               onDraftChange={saveDraft(draft_key)}
               onBack={backToList}
-              onSaved={onMembersChanged ?? (() => {})}
+              onSaved={async (saved) => {
+                if (kind === 'create' && saved !== undefined) {
+                  const id = String(saved.id)
+                  setNewIds(prev => new Set(prev).add(id))
+                  setPendingNew(id)
+                  // 新成员不一定符合当前的搜索：收起搜索，回到完整名单里找他
+                  setQuery('')
+                  setSearchOpen(false)
+                }
+                await onMembersChanged?.()
+              }}
+              avatarBeside={layout === 'L'}
               onDeleted={tearOff}
               onFlip={flipSheet}
             />

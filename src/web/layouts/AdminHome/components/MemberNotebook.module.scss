@@ -504,6 +504,20 @@ $margin-x: 44px;
   text-align: center;
 }
 
+/* 新建成员的角标：占在序号的位置上，一枚斜贴的小红签 */
+.noNew {
+  justify-self: center;
+  padding: 1px 4px 2px;
+  font: 700 10px/1 var(--mono);
+  letter-spacing: 0.04em;
+  color: #fffdf6;
+  text-transform: lowercase;
+  background: #d9412b;
+  border-radius: 2px;
+  box-shadow: 0 1px 1px rgb(80 20 10 / 0.35);
+  transform: rotate(-8deg);
+}
+
 .avatar {
   display: flex;
   align-items: center;

@@ -112,7 +112,7 @@ const PhotoBox = (props: Props) => {
         >
           <img
             className="cover"
-            alt="img"
+            alt={[props.name, desc.trim()].filter(Boolean).join('：')}
             src={thumb || undefined}
             style={{ opacity: thumb_status === 'LOADED' ? 100 : 0 }}
           />

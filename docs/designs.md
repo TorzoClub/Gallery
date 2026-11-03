@@ -65,7 +65,7 @@
 
 ### 致命错误 CRT
 
-`FailureLayoutContainer` 收到错误后：
+`FailureLayoutContainer` 收到错误后（来源：根组件渲染异常，或 `signal_critical_error`，例如公开页获取相册数据失败）：
 
 - 等待 1000ms，原页面执行 550ms 的关屏：先压成一条亮线，再缩成一点，最高亮度为 50 倍，背景变黑。
 - 再等 1500ms，错误页执行 4s 的开屏：先过曝闪动，再从黑场恢复。

@@ -20,6 +20,7 @@ import { toGalleryViews, type GalleryView } from 'pool/view'
 import { canUseCacheWorker, transformCacheWorkerURL } from 'pool/media'
 import { useSubmissionEvent } from 'components/Submission'
 import { PaperShredder } from '@/components/uibrik/paper-shredder/paper-shredder'
+import { signal_critical_error } from 'signals'
 
 const watterfall_refreshed = Signal()
 
@@ -201,16 +202,19 @@ export default function ExplorePage() {
     ))
   ), [handleClickCover, past])
 
+  const pool_error_message = pool_state.status === 'error' ? pool_state.error.message : null
+  useEffect(() => {
+    if (pool_error_message !== null) {
+      signal_critical_error.trigger(`获取相册数据失败：${pool_error_message}`)
+    }
+  }, [pool_error_message])
+
   if (pool_state.status === 'loading') {
     return <LoadingLayout />
   }
 
   if (pool_state.status === 'error') {
-    return (
-      <div className='explore-error'>
-        <p>获取相册数据失败：{pool_state.error.message}</p>
-      </div>
-    )
+    return null
   }
 
   if (active === null && past.length === 0) {

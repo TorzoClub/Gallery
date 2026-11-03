@@ -5,6 +5,8 @@ import Waterfall, { type WaterfallItem } from '../../../components/Waterfall'
 import GalleryHeader from './GalleryHeader'
 import GalleryManagePanel, { type MemberHistory } from './GalleryManagePanel'
 import AdminPhotoBox from './AdminPhotoBox'
+import { VoteMagnetLegend } from './VoteMagnets'
+import { EMPTY_PHOTO_VOTES, indexPhotoVotes, sortGalleryPhotos, type PhotoSortBy, type PhotoSortDirection } from './photo-votes'
 import type { MemberCanDelete } from './AdminConsole'
 
 type Props = {
@@ -35,6 +37,8 @@ export default function AdminGallery({
   onDragPointerDown,
 }: Props) {
   const [expanded, setExpanded] = useState(false)
+  const [photo_sort_by, setPhotoSortBy] = useState<PhotoSortBy>('created_at')
+  const [photo_sort_direction, setPhotoSortDirection] = useState<PhotoSortDirection>('asc')
   useEffect(() => {
     if (sorting) {
       setExpanded(false)
@@ -53,20 +57,30 @@ export default function AdminGallery({
     return getGalleryLayout(gallery)
   }, [gallery, viewport_width])
   const box_width = (layout.gallery_width - layout.column_gutter * (layout.column_count - 1)) / layout.column_count
+  const votes_by_photo = useMemo(
+    () => indexPhotoVotes(gallery.id, gallery.vote_records, members),
+    [gallery.id, gallery.vote_records, members],
+  )
 
-  const items: WaterfallItem[] = useMemo(() => show_expanded ? gallery.photos.map(photo => ({
+  const sorted_photos = useMemo(
+    () => sortGalleryPhotos(gallery.photos, votes_by_photo, photo_sort_by, photo_sort_direction),
+    [gallery.photos, votes_by_photo, photo_sort_by, photo_sort_direction],
+  )
+
+  const items: WaterfallItem[] = useMemo(() => show_expanded ? sorted_photos.map(photo => ({
     id: String(photo.id),
     node: (
       <AdminPhotoBox
         gallery={gallery}
         photo={photo}
+        votes={votes_by_photo.get(photo.id) ?? EMPTY_PHOTO_VOTES}
         box_width={box_width}
         box_type={layout.box_type}
         memberCanDelete={memberCanDelete}
         onChanged={onChanged}
       />
     ),
-  })) : [], [box_width, show_expanded, gallery, layout.box_type, memberCanDelete, onChanged])
+  })) : [], [box_width, show_expanded, gallery, layout.box_type, memberCanDelete, onChanged, votes_by_photo, sorted_photos])
 
   return (
     <div className='gallery-wrapper' data-gallery-sort-id={gallery.id}>
@@ -94,11 +108,20 @@ export default function AdminGallery({
               {items.length === 0
                 ? <div style={{ textAlign: 'center', color: 'grey' }} >此相册为空</div>
                 : (
-                  <Waterfall
-                    layout={layout}
-                    items={items}
-                    onWatterfallRefreshed={onWatterfallRefreshed}
-                  />
+                  <>
+                    <VoteMagnetLegend
+                      sort_by={photo_sort_by}
+                      direction={photo_sort_direction}
+                      onSortByChange={setPhotoSortBy}
+                      onDirectionChange={setPhotoSortDirection}
+                    />
+                    <Waterfall
+                      preservePositions={false}
+                      layout={layout}
+                      items={items}
+                      onWatterfallRefreshed={onWatterfallRefreshed}
+                    />
+                  </>
                 )}
             </>
           )}

@@ -2,12 +2,15 @@ import React, { type ReactNode } from 'react'
 import PhotoBox from '../../../components/PhotoBox'
 import MemberPopover from './MemberPopover'
 import PhotoPopover from './PhotoPopover'
+import VoteMagnets from './VoteMagnets'
+import type { PhotoVoteRecord } from './photo-votes'
 import type { AdminGalleryDTO } from '@shared/dto'
 import type { MemberCanDelete } from './AdminConsole'
 
 type Props = {
   gallery: AdminGalleryDTO
   photo: AdminGalleryDTO['photos'][number]
+  votes: readonly PhotoVoteRecord[]
   box_width: number
   box_type: 'normal' | 'compact'
   memberCanDelete?: MemberCanDelete
@@ -17,6 +20,7 @@ type Props = {
 export default function AdminPhotoBox({
   gallery,
   photo,
+  votes,
   box_width,
   box_type,
   memberCanDelete,
@@ -75,6 +79,14 @@ export default function AdminPhotoBox({
             thumb: member.avatar_thumb_url,
             src: member.avatar_thumb_url,
           }}
+          coverOverlay={(
+            <VoteMagnets
+              photo_id={photo.id}
+              records={votes}
+              cover_width={box_width}
+              cover_height={box_width * Number((photo.height / photo.width).toFixed(4))}
+            />
+          )}
           renderAvatar={(avatar) => with_member_popover(
             <button type='button' className='admin-avatar-trigger'>
               {avatar}

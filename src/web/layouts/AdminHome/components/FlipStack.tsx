@@ -68,7 +68,8 @@ export function FlipStack({ pageKey, dir, className, sheetClassName, renderPage 
   }, [leaving])
 
   const finish = (event: React.AnimationEvent<HTMLDivElement>) => {
-    if (event.target !== event.currentTarget || leaving === null) {
+    // 纸页背面（::after）的动画也在这个元素上触发 animationend，只认纸页本身的翻页动画
+    if (event.target !== event.currentTarget || event.pseudoElement !== '' || leaving === null) {
       return
     }
     const id = leaving.id

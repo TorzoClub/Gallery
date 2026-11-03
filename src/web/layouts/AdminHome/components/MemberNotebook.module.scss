@@ -113,6 +113,42 @@ $icon-button-w: 24px; /* 页眉图标按钮（放大镜、X、‹、+）的宽�
   animation: notebook-flip 440ms reverse both;
 }
 
+/* 纸页背面：rotateX 过了 90° 看到的是纸的背面，要是一张空白的纸，不能透出（倒过来的）正面内容。
+ * 盖一层与纸同色的空白层，翻到 90°（63.6%）那一帧瞬间显示，前半段完全不显示；
+ * .flipBack 是倒放，同一个关键帧倒过来正好是“从背面转回 90° 时撤掉”。
+ * 线圈孔（::before）在空白层上面，背面也看得到孔 */
+.flipAway::after,
+.flipBack::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5; /* 高过纸面内容里的纸胶带、聚焦的选单（z-index 1） */
+  background: #fffef9;
+  border-radius: inherit;
+  opacity: 0;
+  animation: notebook-flip-backside 440ms step-end both;
+}
+
+.flipBack::after {
+  animation-direction: reverse;
+}
+
+.pages > .flipAway::before,
+.pages > .flipBack::before {
+  z-index: 6;
+}
+
+@keyframes notebook-flip-backside {
+  0%,
+  63.6% {
+    opacity: 0;
+  }
+  63.7%,
+  100% {
+    opacity: 1;
+  }
+}
+
 /* 280 / 440 = 63.6% */
 @keyframes notebook-flip {
   0% {
@@ -134,7 +170,9 @@ $icon-button-w: 24px; /* 页眉图标按钮（放大镜、X、‹、+）的宽�
 @media (prefers-reduced-motion: reduce) {
   .flipAway,
   .flipBack,
-  .tearAway {
+  .tearAway,
+  .flipAway::after,
+  .flipBack::after {
     animation: none;
   }
 }
@@ -172,12 +210,13 @@ $icon-button-w: 24px; /* 页眉图标按钮（放大镜、X、‹、+）的宽�
 
 /* ============================== 纸页 ============================== */
 
-/* 横线每 27px 一条（名单行高 54 的一半），与名单区顶边对齐；左边一条红色页边线 */
+/* 横线每 27px 一条（名单行高 54 的一半），与名单区顶边对齐；左边一条红色页边线。
+ * 页边线从页眉的红色双线下沿开始画：线圈留白（$coil-pad）那一段不画，否则纸的左上角会冒出一截小竖线 */
 .pages > .sheet {
   box-sizing: border-box;
   overflow: hidden;
   background:
-    linear-gradient(90deg, transparent #{$margin-x - 1px}, #e9aaa5 #{$margin-x - 1px} $margin-x, transparent $margin-x),
+    linear-gradient(90deg, transparent #{$margin-x - 1px}, #e9aaa5 #{$margin-x - 1px} $margin-x, transparent $margin-x) 0 #{$coil-pad + $head-h} / 100% 100% no-repeat,
     repeating-linear-gradient(180deg, transparent 0 26px, #d4e0ec 26px 27px) 0 #{($coil-pad + $head-h) - 27px} / 100% 27px,
     #fffef9;
   border: 1px solid #d6d0c0;

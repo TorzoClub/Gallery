@@ -22,6 +22,7 @@ $head-h: 46px;
 $pager-h: 40px;
 $row-h: 54px;
 $margin-x: 44px;
+$icon-button-w: 24px; /* 页眉图标按钮（放大镜、X、‹、+）的宽度 */
 
 /* ============================== 本子 ============================== */
 
@@ -225,6 +226,12 @@ $margin-x: 44px;
 
 /* 页眉最左边的小按钮放在页边线左侧那一列（宽 = 页边线位置），与名单的序号同列居中；
  * 后面的标题因此从 44 + 12 = 56px 开始，与名单的头像左缘对齐 */
+/* 名单页右上角“+”到纸右边的留白 = 放大镜到纸左边的留白：
+ * 放大镜在 $margin-x 宽的左列里居中，左侧留白 = ($margin-x - 图标按钮宽) / 2 = 10px */
+.listHead {
+  padding-right: calc((#{$margin-x} - #{$icon-button-w}) / 2);
+}
+
 .marginSlot {
   display: flex;
   flex: 0 0 $margin-x;
@@ -276,7 +283,7 @@ $margin-x: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
+  width: $icon-button-w;
   height: 22px;
   padding: 0;
 }

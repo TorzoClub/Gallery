@@ -159,6 +159,15 @@ function SearchIcon() {
   )
 }
 
+/** 与放大镜同尺寸（13px），笔画粗细同放大镜手柄 */
+function PlusIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden>
+      <path d="M8 2.5v11M2.5 8h11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 /* ============================== 名单页 ============================== */
 
 type Search = {
@@ -255,7 +264,7 @@ function ListPage({ members, total, page, perPage, columns, focusId, newIds, sor
 
   return (
     <div ref={root} className={styles.page}>
-      <div className={styles.pageHead}>
+      <div className={cn(styles.pageHead, styles.listHead)}>
         <div className={styles.headLead}>
           {search.open ? (
             <MarginButton
@@ -307,7 +316,15 @@ function ListPage({ members, total, page, perPage, columns, focusId, newIds, sor
             onChange={sort.onChange}
             onDirectionChange={sort.onDirectionChange}
           />
-          <button type="button" className={styles.headButton} onClick={onCreate}>新增</button>
+          <button
+            type="button"
+            className={cn(styles.headButton, styles.iconButton)}
+            aria-label="新增成员"
+            title="新增成员"
+            onClick={onCreate}
+          >
+            <PlusIcon />
+          </button>
         </div>
       </div>
       <div className={styles.listArea}>

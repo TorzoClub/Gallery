@@ -7,7 +7,7 @@ import LoadingLayout from '../GalleryHome/components/LoadingLayout'
 import useConfirmQQ from '../GalleryHome/useConfirmQQ'
 
 import Gallery from 'components/Gallery'
-import PhotoDetail, { type Detail } from 'components/Detail'
+import PhotoDetail, { prepareDetail, type Detail } from 'components/Detail'
 import ConfirmVote from 'components/ConfirmVote'
 import SkeuomorphismButton from 'components/SkeuomorphismButton'
 import type { CoverClickEvent } from 'components/PhotoBox'
@@ -177,13 +177,13 @@ export default function ExplorePage() {
       if (photo === undefined) {
         return
       }
-      setDetail({
+      setDetail(prepareDetail({
         from: click_info.from,
         thumb: click_info.thumbBlobUrl,
         src: cachedImageUrl(photo.src_optimized),
         height: photo.height,
         width: photo.width,
-      })
+      }))
     }
   ), [])
 

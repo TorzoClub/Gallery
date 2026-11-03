@@ -8,10 +8,10 @@ import styles from './MemberNotebook.module.scss'
 
 /* ============================== 布局 ==============================
  * 三种布局的断点与 AdminConsole.module.css / MemberNotebook.module.scss 完全一致：
- *   S  ≤ 640px   单面板，名单 1 列，拼贴每卡 2 张
- *   M  641–1439  控制台下方整行，名单 2 列，拼贴每卡 3 张
- *   L  ≥ 1440px  右侧常驻侧栏，名单 2 列，拼贴每卡 3 张
- * 名单每页行数、投稿续页的卡数都由线圈本的实际高度算出（S、M 高度固定，所以也固定；L 随侧栏高度变化）。 */
+ *   S  ≤ 640px   单面板，名单 1 列，拼贴每排 2 张
+ *   M  641–1439  控制台下方整行，名单 2 列，拼贴每排 3 张
+ *   L  ≥ 1440px  右侧常驻侧栏，名单 2 列，拼贴每排 3 张
+ * 名单每页行数、投稿续页的排数和相片大小都由线圈本的实际尺寸算出（S、M 高度固定；L 随侧栏高度变化）。 */
 
 type Layout = 'S' | 'M' | 'L'
 
@@ -19,9 +19,9 @@ const MQ_M = '(min-width: 641px)'
 const MQ_L = '(min-width: 1440px)'
 
 const LIST_COLUMNS: Record<Layout, number> = { S: 1, M: 2, L: 2 }
-const PRINTS_PER_PAGE: Record<Layout, number> = { S: 2, M: 3, L: 3 }
+const PRINTS_PER_ROW: Record<Layout, number> = { S: 2, M: 3, L: 3 }
 
-/** 名单行高；纸上的横线也是这个间距 */
+/** 名单行高；纸上的横线也是这个间距的一半 */
 const ROW_PX = 54
 /** 名单页里横线以外的固定高度：纸面上沿 10 + 线圈留白 18 + 页眉 46 + 翻页条 40 + 下沿 8。与 .sheet / .pageHead / .pager 的尺寸一致 */
 const LIST_CHROME_PX = 122
@@ -47,18 +47,21 @@ function useNotebookLayout(): Layout {
   return layout
 }
 
-function useElementHeight(ref: React.RefObject<HTMLElement | null>) {
-  const [height, setHeight] = useState(0)
+function useElementSize(ref: React.RefObject<HTMLElement | null>) {
+  const [size, setSize] = useState({ width: 0, height: 0 })
   useLayoutEffect(() => {
     const el = ref.current
     if (el === null) return
-    setHeight(el.clientHeight)
+    const read = () => setSize(s => (
+      s.width === el.clientWidth && s.height === el.clientHeight ? s : { width: el.clientWidth, height: el.clientHeight }
+    ))
+    read()
     if (typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(() => setHeight(el.clientHeight))
+    const ro = new ResizeObserver(read)
     ro.observe(el)
     return () => ro.disconnect()
   }, [ref])
-  return height
+  return size
 }
 
 function pageCount(total: number, per_page: number) {
@@ -67,6 +70,11 @@ function pageCount(total: number, per_page: number) {
 
 function clampPage(page: number, total: number, per_page: number) {
   return Math.min(Math.max(page, 0), pageCount(total, per_page) - 1)
+}
+
+function matchMember(member: Member, query: string) {
+  const q = query.trim().toLowerCase()
+  return q === '' || member.qq.includes(q) || member.nickname.toLowerCase().includes(q)
 }
 
 /* ============================== 翻页条 ============================== */
@@ -98,24 +106,88 @@ function MemberAvatar({ member }: { member: Member }) {
   )
 }
 
+function CloseIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden>
+      <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function BackIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden>
+      <path d="M10.5 2.5L5 8l5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+/** 页眉最左边、写在页边线左侧的那个小按钮，与名单的序号同一列居中 */
+function MarginButton({ label, onClick, onMouseDown, children }: {
+  label: string
+  onClick(): void
+  onMouseDown?(event: React.MouseEvent): void
+  children: React.ReactNode
+}) {
+  return (
+    <span className={styles.marginSlot}>
+      <button
+        type="button"
+        className={cn(styles.headButton, styles.iconButton)}
+        aria-label={label}
+        title={label}
+        onMouseDown={onMouseDown}
+        onClick={onClick}
+      >
+        {children}
+      </button>
+    </span>
+  )
+}
+
+function SearchIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden>
+      <circle cx="6.5" cy="6.5" r="4.75" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M10 10l4.25 4.25" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 /* ============================== 名单页 ============================== */
+
+type Search = {
+  open: boolean
+  query: string
+  onOpen(): void
+  onChange(query: string): void
+  onClose(): void
+  /** 点“X”：清空并收起，不管输入框里有没有字 */
+  onClear(): void
+  /** 只有刚点开放大镜时才把焦点放进输入框；翻页后重新挂载不抢焦点 */
+  takeFocus(): boolean
+}
 
 type ListPageProps = {
   members: Member[]
+  total: number
   page: number
   perPage: number
   columns: number
   focusId: string | null
+  search: Search
   onOpen(member: Member): void
   onCreate(): void
   onFlip(dir: 1 | -1): void
 }
 
-function ListPage({ members, page, perPage, columns, focusId, onOpen, onCreate, onFlip }: ListPageProps) {
+function ListPage({ members, total, page, perPage, columns, focusId, search, onOpen, onCreate, onFlip }: ListPageProps) {
   const root = useRef<HTMLDivElement>(null)
+  const input = useRef<HTMLInputElement>(null)
   const start = page * perPage
   const shown = members.slice(start, start + perPage)
   const pages = pageCount(members.length, perPage)
+  const searching = search.query.trim() !== ''
 
   // 从成员页翻回来时，焦点回到刚才打开的那一行
   useEffect(() => {
@@ -125,17 +197,64 @@ function ListPage({ members, page, perPage, columns, focusId, onOpen, onCreate, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    if (search.open && search.takeFocus()) {
+      input.current?.focus({ preventScroll: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search.open])
+
   return (
     <div ref={root} className={styles.page}>
       <div className={styles.pageHead}>
-        <span className={styles.bookTitle}>名单簿</span>
+        <div className={styles.headLead}>
+          {search.open ? (
+            <MarginButton
+              label="清空搜索"
+              // 按下时不让输入框失焦，否则空输入会先收起，这次点击就落到了放大镜上
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                input.current?.blur()
+                search.onClear()
+              }}
+            >
+              <CloseIcon />
+            </MarginButton>
+          ) : (
+            <MarginButton label="搜索成员" onClick={search.onOpen}>
+              <SearchIcon />
+            </MarginButton>
+          )}
+          {search.open ? (
+            <input
+              ref={input}
+              className={styles.searchInput}
+              type="search"
+              value={search.query}
+              placeholder="QQ 号或昵称"
+              aria-label="搜索成员（QQ 号或昵称）"
+              onChange={(event) => search.onChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  search.onChange('')
+                  event.currentTarget.blur()
+                }
+              }}
+              onBlur={(event) => {
+                if (event.currentTarget.value.trim() === '') search.onClose()
+              }}
+            />
+          ) : (
+            <span className={styles.bookTitle}>名单簿</span>
+          )}
+        </div>
         <div className={styles.headActions}>
-          <span className={styles.count}>共 {members.length} 人</span>
+          <span className={styles.count}>{searching ? `找到 ${members.length} / ${total} 人` : `共 ${total} 人`}</span>
           <button type="button" className={styles.headButton} onClick={onCreate}>新增成员</button>
         </div>
       </div>
       <div className={styles.listArea}>
-        {members.length === 0 && <div className={styles.empty}>还没有成员。</div>}
+        {members.length === 0 && <div className={styles.empty}>{searching ? '没有找到这个成员。' : '还没有成员。'}</div>}
         <ol
           className={styles.memberList}
           start={start + 1}
@@ -166,20 +285,51 @@ function ListPage({ members, page, perPage, columns, focusId, onOpen, onCreate, 
   )
 }
 
-/* ============================== 拼贴的相片 ============================== */
+/* ============================== 拼贴的相片 ==============================
+ * 每个相片槽是正方形，下面跟一行 26px 的手写说明（margin 8 + 行高 18）。
+ * 一张拼贴卡的高度 = 上内边距 14 + (槽宽 + 26) × (1 + 最大错落)，与 .collage / .printSlot / .printCaption 一致。 */
 
-/** 每个槽位的倾角（度）和纵向错落（槽宽的百分比），像随手贴上去 */
+/** 每个槽位的倾角（度）和纵向错落（相片连说明高度的百分比），像随手贴上去 */
 const SLOTS: Record<number, Array<{ rotate: number; drop: number }>> = {
   2: [{ rotate: -3, drop: 0 }, { rotate: 2.5, drop: 12 }],
   3: [{ rotate: -4, drop: 4 }, { rotate: 3, drop: 16 }, { rotate: -1.5, drop: 0 }],
 }
+const MAX_DROP: Record<number, number> = { 2: 0.12, 3: 0.16 }
 
-/** 一张拼贴卡的高度，与 MemberNotebook.module.scss 的 .card 一致 */
-const CARD_PX: Record<Layout, number> = { S: 184, M: 224, L: 224 }
-/** 三级页面里拼贴卡之间的间距，与 .cardRows 的 gap 一致 */
+const COLLAGE_TOP_PX = 14
+const CAPTION_PX = 26
+/** 相片槽之间的间距，与 .collage 的 gap 一致 */
+const PRINT_GAP_PX = 10
+/** 三级页面里拼贴卡之间的最小间距，与 .cardRows 的 gap 一致 */
 const CARD_GAP_PX = 12
-/** 三级页面里拼贴卡以外的固定高度：名单页的 122 + 正文上内边距 14 + “过去的投稿”小标题 22 + 8 */
-const PRINTS_CHROME_PX = LIST_CHROME_PX + 14 + 30
+/** 三级页面正文的左右内边距 14 × 2 + 纸边 2 + 给倾斜留的 12 */
+const PRINTS_SIDE_PX = 42
+/** 三级页面里拼贴卡以外的固定高度：名单页的 122 + 正文上内边距 14 */
+const PRINTS_CHROME_PX = LIST_CHROME_PX + 14
+/** 续页上的相片不小于这个尺寸；放不下就少排一排 */
+const MIN_SLOT_PX = 96
+
+function cardHeight(slot: number, per_row: number) {
+  return COLLAGE_TOP_PX + (slot + CAPTION_PX) * (1 + (MAX_DROP[per_row] ?? 0.16))
+}
+
+function slotForCardHeight(height: number, per_row: number) {
+  return (height - COLLAGE_TOP_PX) / (1 + (MAX_DROP[per_row] ?? 0.16)) - CAPTION_PX
+}
+
+/**
+ * 续页铺满整张纸：先按纸宽算出最大的相片，再看纸高能排几排。
+ * 余下的高度超过半排就多排一排，相片按高度等比缩小（不小于 MIN_SLOT_PX），剩下的空白均匀分到排与排之间。
+ */
+function printGrid(width: number, height: number, per_row: number) {
+  const area_w = Math.max(0, width - PRINTS_SIDE_PX)
+  const area_h = Math.max(0, height - PRINTS_CHROME_PX)
+  const by_width = (area_w - PRINT_GAP_PX * (per_row - 1)) / per_row
+  let rows = Math.max(1, Math.round((area_h + CARD_GAP_PX) / (cardHeight(by_width, per_row) + CARD_GAP_PX)))
+  const slotFor = (n: number) => Math.min(by_width, slotForCardHeight((area_h - CARD_GAP_PX * (n - 1)) / n, per_row))
+  while (rows > 1 && slotFor(rows) < MIN_SLOT_PX) rows -= 1
+  return { rows, slot: Math.max(MIN_SLOT_PX, Math.floor(slotFor(rows))) }
+}
 
 function jitter(id: number) {
   // 同一张相片每次的微小倾角都一样：-1 ~ +1 度
@@ -208,16 +358,22 @@ function Print({ photo, slot }: { photo: MemberSubmission; slot: { rotate: numbe
           )}
         </div>
       </div>
-      <figcaption className={styles.printCaption} title={photo.desc || undefined}>{photo.galleryName}</figcaption>
+      <figcaption className={styles.printCaption} title={photo.desc || undefined}>来自「{photo.galleryName}」</figcaption>
     </figure>
   )
 }
 
-/** 一张拼贴卡：一行 2～3 张。只有它所在的纸页被渲染时，里面的相片才会进 queue-load */
-function CollageCard({ photos, perRow }: { photos: MemberSubmission[]; perRow: number }) {
+/**
+ * 一张拼贴卡：一排 2～3 张。只有它所在的纸页被渲染时，里面的相片才会进 queue-load。
+ * 传了 slot 就按它定相片和卡的大小（续页）；没传就用 CSS 的默认尺寸（成员页）。
+ */
+function CollageCard({ photos, perRow, slot }: { photos: MemberSubmission[]; perRow: number; slot?: number }) {
   const slots = SLOTS[perRow] ?? SLOTS[3]
+  const style = slot === undefined
+    ? undefined
+    : { '--slot': `${slot}px`, height: `${Math.ceil(cardHeight(slot, perRow))}px` } as React.CSSProperties
   return (
-    <div className={styles.card}>
+    <div className={styles.card} style={style}>
       <div className={styles.collage} style={{ '--slots': perRow } as React.CSSProperties}>
         {photos.map((p, i) => <Print key={p.id} photo={p} slot={slots[i % slots.length]} />)}
       </div>
@@ -228,9 +384,9 @@ function CollageCard({ photos, perRow }: { photos: MemberSubmission[]; perRow: n
 /**
  * 投稿怎么分到纸页上：
  *   第 0 张纸是成员页（二级页面），表单下面放一张拼贴卡，共 first 张；
- *   之后每张纸是三级页面，整页都是拼贴卡，每张纸放 rest 张（= 放得下的卡数 × 每卡张数）。
+ *   之后每张纸是三级页面，整页都是拼贴卡，每张纸放 rest 张（= 排数 × 每排张数）。
  */
-type Paging = { first: number; rest: number; perRow: number }
+type Paging = { first: number; rest: number; perRow: number; slot: number }
 
 function sheetCount(total: number, paging: Paging) {
   return 1 + Math.ceil(Math.max(0, total - paging.first) / paging.rest)
@@ -250,15 +406,6 @@ function sheetOfPhoto(index: number, paging: Paging) {
 
 function clampSheet(sheet: number, total: number, paging: Paging) {
   return Math.min(Math.max(sheet, 0), sheetCount(total, paging) - 1)
-}
-
-function SubmissionsHead({ total }: { total: number | null }) {
-  return (
-    <div className={styles.sectionHead}>
-      <span>过去的投稿</span>
-      {total !== null && <span className={styles.count}>{total} 张</span>}
-    </div>
-  )
 }
 
 function useFocusOnMount() {
@@ -293,15 +440,15 @@ function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDra
   return (
     <div className={cn(styles.page, styles.detail)}>
       <div className={styles.pageHead}>
-        <div className={styles.headActions}>
-          <button type="button" className={styles.backButton} onClick={onBack}>‹ 名单簿</button>
-          <button type="submit" form={form_id} className={styles.saveButton} disabled={busy}>
-            {busy ? '保存中…' : mode === 'create' ? '创建成员' : '保存修改'}
-          </button>
+        <div className={styles.headLead}>
+          <MarginButton label="返回名单簿" onClick={onBack}><BackIcon /></MarginButton>
+          <h3 ref={title} className={styles.detailTitle} tabIndex={-1}>
+            {mode === 'create' ? '新增成员' : `member_id=${member?.id}`}
+          </h3>
         </div>
-        <h3 ref={title} className={styles.detailTitle} tabIndex={-1}>
-          {mode === 'create' ? '新增成员' : `member_id=${member?.id}`}
-        </h3>
+        <button type="submit" form={form_id} className={styles.saveButton} disabled={busy}>
+          {busy ? '保存中…' : mode === 'create' ? '创建成员' : '保存修改'}
+        </button>
       </div>
       <div className={styles.detailBody}>
         <div className={styles.formColumn}>
@@ -320,7 +467,10 @@ function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDra
           />
         </div>
         <section className={styles.submissions} aria-label="过去的投稿">
-          <SubmissionsHead total={submissions === null ? null : total} />
+          <div className={styles.sectionHead}>
+            <span>过去的投稿</span>
+            {submissions !== null && <span className={styles.count}>{total} 张</span>}
+          </div>
           {submissions === null && <div className={cn(styles.card, styles.cardEmpty)}>新成员还没有投稿。</div>}
           {submissions !== null && total === 0 && <div className={cn(styles.card, styles.cardEmpty)}>还没有投稿。</div>}
           {total > 0 && submissions !== null && (
@@ -355,18 +505,15 @@ function PrintsPage({ member, submissions, sheet, paging, onBack, onFlip }: Prin
   return (
     <div className={cn(styles.page, styles.detail)}>
       <div className={styles.pageHead}>
-        <div className={styles.headActions}>
+        <div className={styles.headLead}>
           {/* 不管翻到第几张续页，都直接回到成员页 */}
-          <button type="button" className={styles.backButton} onClick={onBack}>‹ 返回</button>
+          <MarginButton label="返回成员页" onClick={onBack}><BackIcon /></MarginButton>
+          <h3 ref={title} className={styles.detailTitle} tabIndex={-1}>member_id={member.id}</h3>
         </div>
-        <h3 ref={title} className={styles.detailTitle} tabIndex={-1}>member_id={member.id}</h3>
       </div>
       <div className={styles.printsBody}>
-        <section className={styles.submissions} aria-label="过去的投稿">
-          <SubmissionsHead total={submissions.length} />
-          <div className={styles.cardRows}>
-            {rows.map(row => <CollageCard key={row[0].id} photos={row} perRow={paging.perRow} />)}
-          </div>
+        <section className={styles.cardRows} aria-label={`过去的投稿，共 ${submissions.length} 张`}>
+          {rows.map(row => <CollageCard key={row[0].id} photos={row} perRow={paging.perRow} slot={paging.slot} />)}
         </section>
       </div>
       <Pager page={sheet} pages={sheetCount(submissions.length, paging)} label="投稿翻页" onFlip={onFlip} />
@@ -392,43 +539,52 @@ export type MemberNotebookProps = {
 export function MemberNotebook({ members, memberCanDelete, memberSubmissions, onMembersChanged }: MemberNotebookProps) {
   const layout = useNotebookLayout()
   const root = useRef<HTMLDivElement>(null)
-  const height = useElementHeight(root)
+  const { width, height } = useElementSize(root)
 
   const columns = LIST_COLUMNS[layout]
   const rows = Math.max(1, Math.floor((height - LIST_CHROME_PX) / ROW_PX))
   const per_page = rows * columns
 
-  const per_row = PRINTS_PER_PAGE[layout]
-  const card_rows = Math.max(1, Math.floor((height - PRINTS_CHROME_PX + CARD_GAP_PX) / (CARD_PX[layout] + CARD_GAP_PX)))
-  const paging: Paging = { first: per_row, rest: card_rows * per_row, perRow: per_row }
+  const per_row = PRINTS_PER_ROW[layout]
+  const grid = printGrid(width, height, per_row)
+  const paging: Paging = { first: per_row, rest: grid.rows * per_row, perRow: per_row, slot: grid.slot }
 
   const [view, setView] = useState<View>({ kind: 'list' })
   const [list_page, setListPage] = useState(0)
+  // 名单页的身份只在真正翻页时变（翻页次数 + 翻页时的页码）；搜索导致的回到第 1 页不换纸，输入框也就不会被重新挂载
+  const [list_flip, setListFlip] = useState({ n: 0, page: 0 })
   const [dir, setDir] = useState<FlipDir>('none')
   const [focus_id, setFocusId] = useState<string | null>(null)
   const [last_per_page, setLastPerPage] = useState(per_page)
-  const [last_paging, setLastPaging] = useState(paging)
+  const [last_rest, setLastRest] = useState(paging.rest)
+  const [search_open, setSearchOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const search_focus_ref = useRef(false)
   // 成员页没保存的输入。翻到续页时成员页会卸载，翻回来用它恢复
   const draft_ref = useRef<{ key: string; draft: MemberFormDraft } | null>(null)
+
+  const listed = query.trim() === '' ? members : members.filter(m => matchMember(m, query))
 
   // 每页行数变了（换布局、侧栏变高）：按本页第一行换算页码，不播翻页
   if (last_per_page !== per_page) {
     const first = list_page * last_per_page
+    const next = clampPage(Math.floor(first / per_page), listed.length, per_page)
     setLastPerPage(per_page)
     setDir('none')
-    setListPage(clampPage(Math.floor(first / per_page), members.length, per_page))
+    setListPage(next)
+    setListFlip(f => ({ n: f.n + 1, page: next }))
   }
 
-  // 投稿每页张数变了：按当前续页第一张换算到新的纸页，不播翻页
-  if (last_paging.first !== paging.first || last_paging.rest !== paging.rest) {
-    setLastPaging(paging)
+  // 续页每页张数变了：按当前续页第一张换算到新的纸页，不播翻页
+  if (last_rest !== paging.rest) {
+    setLastRest(paging.rest)
     if (view.kind === 'edit' && view.sheet > 0) {
       setDir('none')
-      setView({ ...view, sheet: sheetOfPhoto(sheetStart(view.sheet, last_paging), paging) })
+      setView({ ...view, sheet: sheetOfPhoto(sheetStart(view.sheet, { ...paging, rest: last_rest }), paging) })
     }
   }
 
-  const current_page = clampPage(list_page, members.length, per_page)
+  const current_page = clampPage(list_page, listed.length, per_page)
   const member = view.kind === 'edit' ? members.find(m => String(m.id) === view.id) : undefined
   const submissions = member === undefined ? null : memberSubmissions?.(member) ?? []
   // 正在看的成员被删掉了（或刷新后不存在了）：翻回名单
@@ -438,6 +594,33 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
     : view.kind === 'edit'
       ? { ...view, sheet: clampSheet(view.sheet, submissions?.length ?? 0, paging) }
       : view
+
+  const search: Search = {
+    open: search_open,
+    query,
+    onOpen: () => {
+      search_focus_ref.current = true
+      setSearchOpen(true)
+    },
+    onChange: (q) => {
+      setQuery(q)
+      setListPage(0)
+    },
+    onClose: () => {
+      setQuery('')
+      setSearchOpen(false)
+    },
+    onClear: () => {
+      setQuery('')
+      setListPage(0)
+      setSearchOpen(false)
+    },
+    takeFocus: () => {
+      const take = search_focus_ref.current
+      search_focus_ref.current = false
+      return take
+    },
+  }
 
   const openMember = (m: Member) => {
     draft_ref.current = null
@@ -455,9 +638,9 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
 
   const backToList = () => {
     draft_ref.current = null
-    // 回到刚才那个成员所在的那一页
+    // 回到刚才那个成员所在的那一页（搜索中就是搜索结果里的那一页）
     if (view.kind === 'edit') {
-      const idx = members.findIndex(m => String(m.id) === view.id)
+      const idx = listed.findIndex(m => String(m.id) === view.id)
       if (idx >= 0) {
         setListPage(Math.floor(idx / per_page))
         setFocusId(view.id)
@@ -468,9 +651,11 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
   }
 
   const flipList = (step: 1 | -1) => {
+    const next = clampPage(current_page + step, listed.length, per_page)
     setDir(step > 0 ? 'forward' : 'backward')
     setFocusId(null)
-    setListPage(clampPage(current_page + step, members.length, per_page))
+    setListPage(next)
+    setListFlip(f => ({ n: f.n + 1, page: next }))
   }
 
   const flipSheet = (step: 1 | -1) => {
@@ -489,10 +674,10 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
     draft_ref.current = { key, draft }
   }
 
-  // 页的身份：list:每页人数:页码 / create / edit:成员 id:0 / edit:成员 id:续页号:每页张数
+  // 页的身份：list:每页人数:翻页次数:翻页时的页码 / create / edit:成员 id:0 / edit:成员 id:续页号:每页张数
   // 成员页（sheet 0）不带每页张数，换布局时表单不会被重新挂载
   const page_key = shown_view.kind === 'list'
-    ? `list:${per_page}:${current_page}`
+    ? `list:${per_page}:${list_flip.n}:${list_flip.page}`
     : shown_view.kind === 'create'
       ? 'create'
       : shown_view.sheet === 0
@@ -507,15 +692,19 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
         pageKey={page_key}
         dir={member_gone ? 'backward' : dir}
         renderPage={(key) => {
-          const [kind, a, b] = key.split(':')
+          const [kind, a, b, c] = key.split(':')
           if (kind === 'list') {
+            // 当前这张纸按最新的页码画（搜索会改页码但不换纸）；翻走中的纸按它自己 key 里的页码画
+            const page = key === page_key ? current_page : Number(c)
             return (
               <ListPage
-                members={members}
-                page={Number(b)}
+                members={listed}
+                total={members.length}
+                page={page}
                 perPage={Number(a)}
                 columns={columns}
                 focusId={focus_id}
+                search={search}
                 onOpen={openMember}
                 onCreate={openCreate}
                 onFlip={flipList}

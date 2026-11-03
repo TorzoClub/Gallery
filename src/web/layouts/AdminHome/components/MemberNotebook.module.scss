@@ -9,7 +9,7 @@
  * 名单行数 = floor((本子高度 − 122) / 54)，122 与 54 写在 MemberNotebook.tsx 的
  * LIST_CHROME_PX / ROW_PX 里，改这里的尺寸时必须同步：
  *   纸面距本子上沿 10 + 线圈留白 18 + 页眉 46 + 翻页条 40 + 下沿 8 = 122
- * 续页卡数 = floor((本子高度 − 166 + 12) / (卡高 + 12))，166 = 122 + 正文上内边距 14 + 小标题 30，
+ * 续页卡数 = floor((本子高度 − 136 + 12) / (卡高 + 12))，136 = 122 + 正文上内边距 14（续页没有小标题），
  * 卡高 / 卡间距写在 CARD_PX / CARD_GAP_PX 里，与 .card / .cardRows 同步。
  *
  * 翻页（叙事动效）：纸页绕上沿的线圈翻起，0 → 90° 用 280ms，之后 90° → 100° 并在 160ms 内淡出，共 440ms。
@@ -26,6 +26,9 @@ $margin-x: 44px;
 /* ============================== 本子 ============================== */
 
 .notebook {
+  /* 手写体：先用 macOS 的手札体 / 翩翩体，再退到各系统的楷体，最后是西文手写体 */
+  --hand: 'Hannotate SC', 'HanziPen SC', 'Kaiti SC', STKaiti, KaiTi, 'BiauKai', 'AR PL UKai CN', 'Segoe Print', 'Bradley Hand', cursive;
+
   position: relative;
   height: 600px;
   user-select: none;
@@ -175,9 +178,25 @@ $margin-x: 44px;
   gap: 12px;
   box-sizing: border-box;
   height: $head-h;
-  padding: 0 14px 0 #{$margin-x + 12px};
+  padding: 0 14px 0 0;
   background: #fffef9;
   border-bottom: 3px double #c0504a; /* 账本式红色双线 */
+}
+
+.headLead {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* 页眉最左边的小按钮放在页边线左侧那一列（宽 = 页边线位置），与名单的序号同列居中；
+ * 后面的标题因此从 44 + 12 = 56px 开始，与名单的头像左缘对齐 */
+.marginSlot {
+  display: flex;
+  flex: 0 0 $margin-x;
+  justify-content: center;
 }
 
 .bookTitle {
@@ -216,6 +235,46 @@ $margin-x: 44px;
   border: 1px solid #9ba3a7;
   border-radius: 3px;
   box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(0 0 0 / 0.16);
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  padding: 0;
+}
+
+/* 搜索框：写在页眉横线上的一行字 */
+.searchInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 220px;
+  height: 26px;
+  box-sizing: border-box;
+  padding: 0 4px;
+  font: 400 16px/26px var(--hand);
+  color: #1f3a66;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #c9c2ae;
+  border-radius: 0;
+  outline: none;
+  appearance: none;
+}
+
+.searchInput::placeholder {
+  color: #aaa08a;
+}
+
+.searchInput:focus-visible {
+  background: rgb(255 236 170 / 0.45);
+  border-bottom-color: var(--accent);
+}
+
+.searchInput::-webkit-search-cancel-button {
+  display: none;
 }
 
 .headButton:hover,
@@ -295,8 +354,10 @@ $margin-x: 44px;
 }
 
 .empty {
-  padding: 18px 0 0 #{$margin-x + 12px};
-  color: var(--ink-soft);
+  height: $row-h;
+  padding-left: #{$margin-x + 12px};
+  font: 400 16px/#{$row-h} var(--hand);
+  color: #6b7a92;
 }
 
 .memberList {
@@ -399,23 +460,37 @@ $margin-x: 44px;
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  font: 600 13px var(--mono);
+  letter-spacing: 0.02em;
+  color: #8b9097;
   text-overflow: ellipsis;
   white-space: nowrap;
   outline: none;
 }
 
+/* 正文顶边正好压在一条横线上（纸面横线在 64、91、118…）。正文可能在纸内滚动，所以自己也画同一套横线和页边线，
+ * background-attachment: local 让横线跟着内容滚，表单的每一行（27 的整数倍）始终落在横线上 */
 .detailBody {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 16px;
   min-height: 0;
-  padding: 14px 14px 0 #{$margin-x + 12px};
+  padding: 0 14px 0 #{$margin-x + 12px};
   overflow-y: auto;
   user-select: text;
+  background:
+    linear-gradient(90deg, transparent #{$margin-x - 1px}, #e9aaa5 #{$margin-x - 1px} $margin-x, transparent $margin-x),
+    repeating-linear-gradient(180deg, transparent 0 26px, #d4e0ec 26px 27px),
+    #fffef9;
+  background-attachment: local;
+}
+
+.detailBody .submissions {
+  margin-top: 27px;
+}
+
+.notebook[data-layout='M'] .detailBody .submissions {
+  margin-top: 0;
 }
 
 .notebook[data-layout='M'] .detailBody {
@@ -431,13 +506,13 @@ $margin-x: 44px;
   min-width: 0;
 }
 
-/* 三级页面：只有拼贴卡，三种布局都上下排 */
+/* 三级页面：只有拼贴卡，三种布局都上下排。整页都是相片，所以不让出页边线左侧的位置 */
 .printsBody {
   display: flex;
   flex: 1;
   flex-direction: column;
   min-height: 0;
-  padding: 14px 14px 0 #{$margin-x + 12px};
+  padding: 14px 14px 0;
   overflow: hidden;
 }
 
@@ -448,63 +523,69 @@ $margin-x: 44px;
   min-width: 0;
 }
 
+/* 小标题占一整行横线，字落在线上 */
 .sectionHead {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
-  height: 22px;
-  margin-bottom: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #59616b;
+  box-sizing: border-box;
+  height: 27px;
+  padding-bottom: 2px;
+  font: 400 15px var(--hand);
+  color: #8a7f68;
 }
 
-/* ============================== 拼贴 ============================== */
+/* ============================== 拼贴 ==============================
+ * 像收藏辑：相片直接贴在纸上，不加底卡；白边相片 + 纸胶带，下面一行手写的“来自「相册名」”。
+ * 卡高与 MemberNotebook.tsx 的 CARD_PX 一致：S 226，M / L 270；三级页面卡间距 12 = CARD_GAP_PX。
+ * 相片槽宽 = min(--slot-max, 平分卡宽)，--slot-max 按卡高留出错落和手写说明：S 160px，M / L 188px。 */
 
-/* 卡高与 MemberNotebook.tsx 的 CARD_PX 一致：S 184，M / L 224；三级页面卡间距 12 = CARD_GAP_PX */
 .card {
   flex: 0 0 auto;
   box-sizing: border-box;
-  height: 184px;
-  background: #f3ecdc;
-  border: 1px solid #d8ccb0;
-  border-top: 6px solid #e2d6b9;
-  border-radius: 3px;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.15);
+  height: 226px;
+  --slot-max: 160px;
 }
 
 .notebook:not([data-layout='S']) .card {
-  height: 224px;
+  height: 270px;
+  --slot-max: 188px;
 }
 
+/* 续页：排数和相片大小由 JS（printGrid）按纸面算好，余下的高度均匀分到排与排之间 */
 .cardRows {
   display: flex;
+  flex: 1;
   flex-direction: column;
+  justify-content: space-evenly;
   gap: 12px;
+  min-height: 0;
 }
 
 .cardEmpty {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  font-size: 12px;
-  color: #8a7f68;
+  font-family: var(--hand);
+  font-size: 15px;
+  color: #6b7a92;
 }
 
 .collage {
   display: flex;
   align-items: flex-start;
   justify-content: center;
+  gap: 10px;
   box-sizing: border-box;
   height: 100%;
-  padding: 18px 10px 0;
+  padding-top: 14px;
 }
 
 .printSlot {
   flex: 0 0 auto;
-  width: min(150px, calc(94% / var(--slots, 3)));
-  margin: 0 -1.5%;
+  width: var(--slot, min(var(--slot-max), calc((100% - 10px * (var(--slots, 3) - 1)) / var(--slots, 3))));
+  margin: 0;
   transform: translateY(var(--drop, 0)) rotate(var(--rotate, 0deg));
 }
 
@@ -518,9 +599,12 @@ $margin-x: 44px;
   top: 50%;
   left: 50%;
   box-sizing: border-box;
-  padding: 5px;
-  background: linear-gradient(#e4e0d6, #e4e0d6) content-box, #fff;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+  padding: 6px;
+  background: linear-gradient(#e7e3da, #e7e3da) content-box, #fffefb;
+  box-shadow:
+    0 0 0 0.5px rgb(0 0 0 / 0.12),
+    0 1px 1px rgb(0 0 0 / 0.14),
+    0 8px 14px -8px rgb(40 30 10 / 0.4);
   transform: translate(-50%, -50%);
 
   img {
@@ -534,15 +618,15 @@ $margin-x: 44px;
 /* 一截半透明的纸胶带 */
 .tape {
   position: absolute;
-  top: -8px;
+  top: -9px;
   left: 50%;
   z-index: 1;
-  width: 44%;
-  min-width: 34px;
-  height: 15px;
-  background: rgb(238 226 186 / 0.78);
-  border-right: 1px dashed rgb(160 140 90 / 0.25);
-  border-left: 1px dashed rgb(160 140 90 / 0.25);
+  width: 40%;
+  min-width: 38px;
+  height: 17px;
+  background: rgb(238 226 186 / 0.72);
+  border-right: 1px dashed rgb(160 140 90 / 0.22);
+  border-left: 1px dashed rgb(160 140 90 / 0.22);
   transform: translateX(-50%) rotate(-3deg);
 }
 
@@ -561,12 +645,15 @@ $margin-x: 44px;
   border-radius: 3px;
 }
 
+/* 手写说明：楷体、墨水蓝，跟着相片一起倾斜 */
 .printCaption {
-  margin-top: 6px;
+  margin-top: 8px;
   overflow: hidden;
-  font-size: 11px;
-  font-style: italic;
-  color: #6b6252;
+  font-family: var(--hand);
+  font-size: 14px;
+  line-height: 18px;
+  letter-spacing: 0.04em;
+  color: #2f4a72;
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;

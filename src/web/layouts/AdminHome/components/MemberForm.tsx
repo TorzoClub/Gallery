@@ -29,6 +29,8 @@ export type MemberFormProps = {
   onSaved(): void | Promise<void>
 }
 
+type ErrorAt = 'avatar' | 'qq' | 'nickname' | 'form'
+
 export function MemberForm({
   mode, member, canDelete, showHeading = true, embedded = false, formId,
   draft, onDraftChange, onBusyChange, onClose, onSaved,
@@ -38,7 +40,13 @@ export function MemberForm({
   const [avatar_file, setAvatarFile] = useState<File | null>(draft?.avatarFile ?? null)
   const [avatar_preview, setAvatarPreview] = useState<string | null>(member?.avatarUrl ?? null)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setErrorText] = useState('')
+  // 出错提示挂在哪个输入项下面；form 表示整张表单的错误（接口失败等），放在最后
+  const [error_at, setErrorAt] = useState<ErrorAt>('form')
+  const setError = (text: string, at: ErrorAt = 'form') => {
+    setErrorText(text)
+    setErrorAt(at)
+  }
   const file_ref = useRef<HTMLInputElement>(null)
   const object_url_ref = useRef<string | null>(null)
 
@@ -108,7 +116,7 @@ export function MemberForm({
 
     const name = nickname.trim()
     if (name === '') {
-      setError('请填写昵称')
+      setError('请填写昵称', 'nickname')
       return
     }
 
@@ -116,11 +124,11 @@ export function MemberForm({
     if (mode === 'create') {
       qq_num = Number(qq.trim())
       if (!Number.isSafeInteger(qq_num) || qq_num <= 0) {
-        setError('请填写有效的 QQ 号')
+        setError('请填写有效的 QQ 号', 'qq')
         return
       }
       if (avatar_file === null) {
-        setError('请选择头像')
+        setError('请选择头像', 'avatar')
         return
       }
     }
@@ -160,8 +168,15 @@ export function MemberForm({
     }
   }
 
+  // 某一项的出错提示：紧贴在该项下面，用上箭头指向它
+  const fieldError = (at: Exclude<ErrorAt, 'form'>) => (
+    error !== '' && error_at === at
+      ? <div className={`${styles.error} ${styles.fieldError}`} role="alert">{error}</div>
+      : null
+  )
+
   return (
-    <form id={formId} className={styles.form} onSubmit={handleSubmit}>
+    <form id={formId} className={embedded ? `${styles.form} ${styles.ruled}` : styles.form} onSubmit={handleSubmit}>
       {showHeading && (
         <div className={styles.heading}>
           {mode === 'create' ? '新增成员' : `修改成员 · ${member?.nickname ?? ''}`}
@@ -199,6 +214,7 @@ export function MemberForm({
           }}
         />
       </div>
+      {fieldError('avatar')}
 
       <label className={styles.field}>
         <span>QQ 号</span>
@@ -206,6 +222,8 @@ export function MemberForm({
           value={qq}
           readOnly={mode === 'edit'}
           inputMode="numeric"
+          placeholder={mode === 'create' ? '输入QQ号码' : undefined}
+          aria-invalid={error !== '' && error_at === 'qq' ? true : undefined}
           data-autofocus={mode === 'create' ? true : undefined}
           onChange={(event) => {
             setQQ(event.target.value)
@@ -213,11 +231,14 @@ export function MemberForm({
           }}
         />
       </label>
+      {fieldError('qq')}
 
       <label className={styles.field}>
         <span>昵称</span>
         <input
           value={nickname}
+          placeholder="输入昵称"
+          aria-invalid={error !== '' && error_at === 'nickname' ? true : undefined}
           data-autofocus={mode === 'edit' ? true : undefined}
           onChange={(event) => {
             setNickname(event.target.value)
@@ -225,8 +246,9 @@ export function MemberForm({
           }}
         />
       </label>
+      {fieldError('nickname')}
 
-      {error !== '' && <div className={styles.error} role="alert">{error}</div>}
+      {error !== '' && error_at === 'form' && <div className={styles.error} role="alert">{error}</div>}
 
       {(!embedded || (mode === 'edit' && canDelete)) && (
         <div className={styles.actions}>

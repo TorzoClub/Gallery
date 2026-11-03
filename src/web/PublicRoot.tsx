@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Navigate, useLocation } from 'react-router-dom'
 
 import BehindApp from './BehindApp'
@@ -63,11 +64,13 @@ export default function PublicRoot() {
   const homeStageRef = useRef<HTMLDivElement>(null)
   const behindStageRef = useRef<HTMLDivElement>(null)
   const adminStageRef = useRef<HTMLDivElement>(null)
+  const cancelStageRef = useRef<HTMLDivElement>(null)
   const stage_targets = useMemo(
     () => [homeStageRef, behindStageRef, adminStageRef],
     [],
   )
-  const home_targets = useMemo(() => [homeStageRef], [])
+  // 碎纸机页挂在 body 上，但换台时要和 Explore 一起抖
+  const home_targets = useMemo(() => [homeStageRef, cancelStageRef], [])
   const [activeChannel, setActiveChannel] = useState<Channel>(routeChannel ?? 'explore')
   const [channel_transition, setChannelTransition] = useState<ChannelTransitionState | null>(null)
   const previous_cancel_visible = useRef(false)
@@ -173,8 +176,14 @@ export default function PublicRoot() {
           style={activeStageStyle}
         >
           <HomeApp />
-          {cancel_visible && <CancelSubmissionApp thisIsDisplay />}
         </div>
+      )}
+      {/* 舞台带常驻 transform，会让内部的 fixed 相对舞台定位、随滚动错位；所以碎纸机页挂到 body 上，直接盖住整个视口 */}
+      {activeChannel === 'explore' && cancel_visible && createPortal(
+        <div ref={cancelStageRef} className={styles.cancelStage}>
+          <CancelSubmissionApp thisIsDisplay />
+        </div>,
+        document.body,
       )}
       {activeChannel === 'admin' && (
         <div

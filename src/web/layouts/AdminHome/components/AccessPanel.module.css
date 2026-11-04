@@ -1,13 +1,16 @@
 /*
  * 门禁面板（AccessPanel）：后台登录。
  * 竖长的拉丝金属门禁机，四角螺丝；与控制台同一套拟物语汇（缩略图重建的金属壳、数码屏、LED 小灯）。
- * 不加 transition / animation：状态变化是瞬时的。
+ * 状态变化是瞬时的；动画只有：等待输入的点（在 tsx 里）、拒绝类（ACCESS DENIED / INVALID TOKEN / EXPIRED TOKEN）
+ * 和通过类（LOGIN SUCCESS / IS LOGINED）各闪 3 次。
  */
 
 .panel {
   --lcd-bg: #9eb492;
   --lcd-on: #182015;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  /* 液晶屏的点阵字（index.html 内联的子集）：屏上的字只用 A-Z、a-z、0-9 和空格；点用 .lcdDot 画 */
+  --lcd-font: 'guanzhi 8x8 base', var(--mono);
 
   position: relative;
   box-sizing: border-box;
@@ -86,24 +89,64 @@
     0 -1px 0 rgb(0 0 0 / .25);
 }
 
+/*
+ * 点阵字一格 = 1/16em：16px 时一个点正好 1px，每个字 8px 宽。
+ * 状态行用 32px（一个点 2px），提示行用 16px；都保持整数倍，点不会糊。
+ */
 .screenStatus {
-  font: 800 16px/1.2 var(--mono);
-  letter-spacing: .14em;
+  font: 400 32px/1 var(--lcd-font);
+  letter-spacing: 0;
+  white-space: nowrap;
+  -webkit-font-smoothing: none;
 }
 
 /* 拒绝时字不换色（液晶只有一种墨色），用反白强调 */
-.screenStatus[data-phase='denied'] {
+.screenStatus[data-phase='denied'],
+.screenStatus[data-phase='rejected'] {
   display: inline-block;
   padding: 0 4px;
   margin-left: -4px;
   color: var(--lcd-bg);
   background: var(--lcd-on);
+  /* 被拒时立刻闪 3 次（与拒绝的蜂鸣同时开始），闪完反白常亮 */
+  animation: lcd-blink 400ms step-end 3;
+}
+
+/*
+ * 登录成功：成功音放完（260ms）后闪 3 次，每次灭 180ms、亮 220ms，闪完常亮。
+ * 与 AccessPanel.tsx 里的 GRANTED_* 常量对应，两边要一起改。
+ */
+.screenStatus[data-phase='granted'] {
+  animation: lcd-blink 400ms step-end 260ms 3;
+}
+
+@keyframes lcd-blink {
+  0% { visibility: hidden; }
+  45% { visibility: visible; }
 }
 
 .screenHint {
-  margin-top: 6px;
-  font: 600 12px/1.4 var(--mono);
-  word-break: break-all;
+  margin-top: 8px;
+  font: 400 16px/1.25 var(--lcd-font);
+  /* 不换行：“。”一个个加时不会把行挤断；所有提示都短于屏宽 */
+  white-space: nowrap;
+  /* 很窄的屏上点到 6、7 个时可能超出屏宽，超出的直接被屏框遮住，不撑开门禁 */
+  overflow: hidden;
+  -webkit-font-smoothing: none;
+}
+
+/*
+ * 等待输入时的点（AccessPanel.tsx 的 LcdDot）：半角宽（0.5em），高度等于提示行的 line-height（1.25em），
+ * vertical-align: top 让它正好占满一整行，2×2 的方点画在 SVG 正中 → 点落在行高的垂直中线上，水平也居中。
+ * 改 .screenHint 的 line-height 时，这里的 height 和 SVG 的 viewBox 要跟着改。
+ */
+.lcdDot {
+  display: inline-block;
+  width: .5em;
+  height: 1.25em;
+  vertical-align: top;
+  fill: currentColor;
+  shape-rendering: crispEdges;
 }
 
 /* 密码框 + 开锁键 */
@@ -168,9 +211,11 @@
 }
 
 .grille {
+  /* 宽度由 AccessPanel.tsx 量右边 .lamps 后写到 style 上，与灯组等长；58px 只是量到之前的兜底 */
   width: 58px;
   height: 22px;
-  background: radial-gradient(circle, #3a4045 1.3px, transparent 1.8px) 0 0 / 6px 6px;
+  /* 横向 space：孔在任意宽度里均匀铺满，两端不会出现被切掉的半个孔 */
+  background: radial-gradient(circle, #3a4045 1.3px, transparent 1.8px) 0 0 / 6px 6px space repeat;
   filter: drop-shadow(0 1px 0 rgb(255 255 255 / .8));
   opacity: .75;
 }

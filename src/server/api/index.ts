@@ -215,6 +215,13 @@ export function constructApi(deps: Deps): Hono {
     onError: bodyLimitError,
   }), login)
 
+  // 只校验 token、不返回任何后台数据：/admin 门禁用它判断本地已有的 token 还能不能用。
+  // 过期 401 `Token 已过期`，签名不对 / 不是 admin 403，与 admin dispatch 的鉴权完全同一套。
+  app.get('/auth/check', auth, (c) => c.json({
+    success: true,
+    data: { ok: true },
+  }))
+
   app.use('/admin/query/*', auth)
   app.use('/admin/mutate/*', auth)
 
@@ -265,6 +272,7 @@ export function constructApi(deps: Deps): Hono {
           admin_query: '/admin/query/:name',
           admin_mutation: '/admin/mutate/:name',
           login: '/auth/login',
+          check: '/auth/check',
         },
       },
     }))

@@ -155,6 +155,10 @@
 | 撕下一页 | `utils/paper-audio.ts` | 9 个越来越密的 1800–3400Hz 高通噪声颗粒（约 300ms，纸在孔眼间一格格断开），接着 1200→4500Hz 带通“嘶啦”220ms + 低通闷响。删除成员时响；删除请求完成后才播，所以点“删除”时先预热音频上下文 |
 | Spinner 滴答 | `components/Spinner` | 每走一格一次，带通噪声在 2450Hz 和 1750Hz 之间交替，30ms |
 | 磁粒落地“ta～” | `utils/magnet-audio.ts` | 2600Hz 高通噪声“t”起音（约 30ms）+ 460→150Hz 正弦“a”在 80ms 内下沉衰减，共约 90ms。公开页放磁粒时，在落下的磁粒磕到纸面那一刻响；点磁粒位时先预热音频上下文 |
+| 门禁按键 | `utils/access-audio.ts` | 1760Hz 方波经 3600Hz 低通，45ms，峰值 0.07。每个键同一个音高，像真门禁键盘；密码框每输入 / 删除一次响一声 |
+| 门禁开锁 | `utils/access-audio.ts` | 两声上行方波 1046.5Hz（C6）→ 1568Hz（G6），各 110ms，间隔 40ms，经 3200Hz 低通，峰值 0.09，共 260ms |
+| 门禁拒绝 | `utils/access-audio.ts` | 两声 196Hz 方波蜂鸣，各 150ms，间隔 60ms，经 1400Hz 低通，峰值 0.12，共约 360ms。密码错时响 |
+| 门禁报警 | `utils/access-audio.ts` | 988Hz（B5）/ 740Hz（F#5）方波各 100ms、每 110ms 交替一次共 4 声，经 3000Hz 低通，峰值 0.1，约 440ms。本地 token 无效 / 过期时响，比拒绝更尖、更急 |
 | 碎纸机 | `PaperShredder` | 92Hz 锯齿波马达经 380Hz 低通 + 循环白噪声经带通；纸被咬住时带通频率在 1000–2200Hz 间游走 |
 
 Zelda 风格横幅（`ZeldaQuestBanner`）也是合成音。它原来在 Behind 页有个“触发同装摄影活动 banner”的试验按钮，现已移除，组件保留但目前没有页面使用。
@@ -274,7 +278,15 @@ Zelda 风格横幅（`ZeldaQuestBanner`）也是合成音。它原来在 Behind 
 
 - **基础**：所见即所得编辑器，复用公开页的 Navigator、照片卡片、圆角、pinstripe 底色和轻拟物语言，管理者看到的就是公开页的样子。
 - **琴键**：面板切换是一排录音机式琴键（`role="radiogroup"`）。按下的键立即切换面板，旧键同时弹起，并配按下声和 45ms 后的回弹声；方向键可以切换。大屏时所有面板平铺，琴键只负责定位。
-- **门禁（登录）**：没有 token 时，`/admin` 只显示 Navigator 和控制台外壳（`AdminConsoleShell`）：琴键照常摆着但一个都不按下、不可按，主面板里是一台门禁机（`AccessPanel`）：四角螺丝的拉丝铝面板，压印铭牌 `ACCESS CONTROL`，绿色液晶屏写状态（`LOCKED` / `VERIFYING…` / `ACCESS DENIED`，拒绝时反白）和提示 / 报错，下面是密码框 + “开锁”键，底部喇叭孔和“核对”（琥珀）、“拒绝”（红）两颗灯。状态变化全部瞬时，没有动画和声音。登录前不发任何后台请求、不挂任何需要后台数据的面板。
+- **门禁（登录）**：每次进 `/admin` 都先过门禁，本地已有 token 也一样。门禁通过之前，`/admin` 只显示 Navigator 和控制台外壳（`AdminConsoleShell`）：琴键照常摆着但一个都不按下、不可按，主面板里是一台门禁机（`AccessPanel`）：四角螺丝的拉丝铝面板，压印铭牌 `ACCESS CONTROL` / `ONLY ADMIN`，绿色液晶屏写状态和提示，下面是密码框 + “开锁”键，底部喇叭孔和“核对”（琥珀）、“拒绝”（红）两颗灯。喇叭孔与右边灯组（含字）等长：宽度运行时量灯组得到，孔横向均匀铺开，不出现半个孔。
+  - 液晶屏字体是 `guanzhi 8x8 base`（`index.html` 内联的子集），屏上的字只用 A-Z、a-z、0-9 和空格，不写中文和标点。状态行 32px、提示行 16px，保持点阵整数倍（字体 1/16em 一个像素，16px 时 1 像素 = 1px）。
+  - 屏上文案：`Locked` / `ENTER PASSWORD...`；核对本地 token 时 `VERIFYING` / `CHECKING TOKEN`；密码登录时 `VERIFYING` / `PLEASE WAIT`；本地 token 被拒时 `INVALID TOKEN` 或 `EXPIRED TOKEN`（反白，闪法同 `ACCESS DENIED`）/ `ENTER PASSWORD...`；`ACCESS DENIED`（反白，立刻闪 3 次：灭 180ms、亮 220ms，闪完常亮；连续被拒每次都重新闪）/ 原因；`LOGIN SUCCESS` 或 `IS LOGINED` / `WELCOME`。服务端报错是中文，前端按状态码换成英文：401 `WRONG PASSWORD`、429 `TOO MANY TRIES`、连不上 `NO CONNECTION`、其他 `ERROR <状态码>`；空密码是 `ENTER PASSWORD`。
+  - 等待输入（`Locked`，以及 token 被拒之后）时 `ENTER PASSWORD` 后面的点照 `index.html` 的 Loading 做法：每 382ms 加一个，加到第 8 个时清空，屏上循环显示 1～7 个、0 个。离开等待状态就清零。
+  - 点不是字符：字体里没有半角 `.`，`。` 又是全角太宽，所以每个点是一个 SVG（`LcdDot`）：宽 0.5em（半角字宽）、高 1.25em（= 提示行 line-height）、`vertical-align: top` 占满整行，2×2 字体像素的方点画在 SVG 正中，所以点落在行高的垂直中线上、水平也居中，不贴行底。改提示行字号或 line-height 时 `.lcdDot` 和 viewBox 要一起改。
+  - 本地已有 token：门禁一出现就锁住输入框，向 `GET /auth/check` 核对（只验 token，不读后台数据）。通过 → 走和密码登录完全一样的成功流程，只是写 `IS LOGINED`；`401`（过期）→ `EXPIRED TOKEN`，`403`（签名不对、不是 JWT、不是 admin）→ `INVALID TOKEN`，两种都清掉本地 token、响报警声，等待重新输入密码；连不上等其他错误 → `ACCESS DENIED` / `NO CONNECTION` 等，token 留着，可以直接输密码。
+  - 用着用着后台请求被 401 / token 类 403 拒绝时，丢掉已读数据回到门禁，一进来就报警并显示 `EXPIRED TOKEN` / `INVALID TOKEN`。
+  - 声音：密码框每输入或删除一次“哔”一声；密码被拒时两声低沉蜂鸣；token 无效 / 过期时高低交替的报警；通过时两声上行“哔—哔”。直接打开或刷新 `/admin` 时页面还没有用户手势，浏览器不让出声，核对 token 的成功音 / 报警会静音（闪烁照常）；从“A”按钮换台进来有手势，能响。
+  - 通过后不立刻进去：放成功音（260ms），然后 `LOGIN SUCCESS` / `IS LOGINED` 闪 3 次（灭 180ms、亮 220ms），常亮再停 240ms，共约 1.7s 后才进入管理界面；期间密码框和开锁键锁住。门禁的动效只有这三处（等待的点、拒绝类闪烁、通过类闪烁），其余状态变化都是瞬时的。登录前不发任何后台请求、不挂任何需要后台数据的面板。
 - **“登录”灯**：琴键组右侧一颗 `LedIndicator`，标签“登录”：未登录黄灯，已登录绿灯（包括登录后读取 AdminPool 期间）。大屏（≥ 641px）琴键组隐藏时，这颗灯跟着一起隐藏，改到 Navigator 里显示：在“换台”按钮左边、与按钮之间多空 4px（Navigator 的 `indicator` 灯位），颜色规则不变。640px 以内反过来，Navigator 里不显示。任何宽度下屏上只有一颗“登录”灯。
 - **指示灯**：LED 有常亮和脉冲两种模式。常亮模式切换用 150ms；脉冲先保持高亮，再按 RC 放电曲线衰减。
 - **热敏打印机**：只有出错才吐纸。纸是平的，从槽口直接伸出，不做弯曲和透视；新的一行贴着槽口，用 240ms、6 级阶梯推进，把旧行往下推，最多 14 行。

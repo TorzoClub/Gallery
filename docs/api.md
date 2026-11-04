@@ -32,6 +32,7 @@
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | `POST` | `/auth/login` | 后台登录，返回 JWT |
+| `GET` | `/auth/check` | 校验 Bearer token，通过返回 `{ ok: true }`，不返回后台数据；过期 401，无效 403 |
 | `POST` | `/query/:name` | 公开 query |
 | `POST` | `/mutate/:name` | 公开 mutation |
 | `POST` | `/admin/query/:name` | admin query，需要 Bearer token |
@@ -371,6 +372,9 @@ curl -X POST http://localhost:7001/query/listGalleries \
 curl -X POST http://localhost:7001/auth/login \
   -H 'content-type: application/json' \
   -d '{"password":"your-password"}'
+
+curl http://localhost:7001/auth/check \
+  -H "authorization: Bearer $TOKEN"
 
 curl -X POST http://localhost:7001/admin/query/adminFetchPool \
   -H 'content-type: application/json' \

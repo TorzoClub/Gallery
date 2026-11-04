@@ -3,12 +3,12 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Signal } from 'vait'
 import type { AdminGalleryDTO, AdminPoolDTO } from '@shared/dto'
 import { ApiError } from '../../api/dispatch'
-import { adminMutate, UNAUTHORIZED_EVENT } from '../../admin/api/client'
+import { adminMutate, type TokenRejection, tokenRejectionOf, UNAUTHORIZED_EVENT } from '../../admin/api/client'
 import { updateInstanceConfig } from '../../admin/api/config'
 import { createGallery } from '../../admin/api/gallery'
 import { refreshAvatar, refreshThumb } from '../../admin/api/image'
 import { fetchAdminPool } from '../../admin/api/pool'
-import { getToken, removeToken, setToken } from '../../admin/auth/token'
+import { removeToken, setToken } from '../../admin/auth/token'
 import { getApiErrorMessage } from '../../admin/utils/errors'
 import { global_queue } from '../../utils/queue-load'
 import Navigator from '@/components/Navigator'
@@ -83,9 +83,11 @@ function consoleMembersFromPool(pool: AdminPoolDTO): ConsoleMember[] {
 
 export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean }) {
   const navigate = useNavigate()
-  // 没有 token 时显示门禁（AccessPanel），不读取任何后台数据；登录成功后才开始读 AdminPool
-  const [token, setTokenState] = useState(getToken)
-  const [login_notice, setLoginNotice] = useState<string | undefined>(undefined)
+  // 每次进 /admin 都先过门禁（AccessPanel）：本地已有 token 也要在门禁里核对一遍（IS LOGINED）。
+  // 这里的 token 是“已经过了门禁”的 token；为空时显示门禁，不读取任何后台数据
+  const [token, setTokenState] = useState('')
+  // 用着用着 token 失效被踢回门禁时的原因，门禁一进来就报警并显示 INVALID TOKEN / EXPIRED TOKEN
+  const [token_rejection, setTokenRejection] = useState<TokenRejection | undefined>(undefined)
   const watterfall_refreshed = useMemo(() => Signal(), [])
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [settings, setSettings] = useState<AdminSettings | null>(null)
@@ -127,7 +129,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         removeToken()
-        setLoginNotice('登录已失效，请重新输入密码')
+        setTokenRejection(tokenRejectionOf(error.status))
         setTokenState('')
         return
       }
@@ -135,10 +137,11 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     }
   }, [token])
 
-  // 任何后台请求遇到 401（client.ts 已清掉 token）：回到门禁，丢掉已读到的后台数据
+  // 任何后台请求遇到 401 / token 类 403（client.ts 已清掉 token）：回到门禁，丢掉已读到的后台数据
   useEffect(() => {
-    const handle = () => {
-      setLoginNotice('登录已失效，请重新输入密码')
+    const handle = (event: Event) => {
+      const reason = (event as CustomEvent<TokenRejection | undefined>).detail
+      setTokenRejection(reason ?? 'expired')
       setTokenState('')
       setState({ status: 'loading' })
       setSettings(null)
@@ -149,7 +152,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
 
   const handleGranted = useCallback((next_token: string) => {
     setToken(next_token)
-    setLoginNotice(undefined)
+    setTokenRejection(undefined)
     setState({ status: 'loading' })
     setTokenState(next_token)
   }, [])
@@ -544,7 +547,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
       <main className={styles.page}>
         <Navigator scene='admin' onClickPushButton={back_to_explore} indicator={nav_login_led} />
         <AdminConsoleShell loggedIn={false}>
-          <AccessPanel notice={login_notice} onGranted={handleGranted} />
+          <AccessPanel rejected={token_rejection} onGranted={handleGranted} />
         </AdminConsoleShell>
       </main>
     )

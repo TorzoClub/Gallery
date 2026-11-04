@@ -7,6 +7,10 @@ import {
   PHOTO_CARD_TAPE_ROOM,
   SCATTER_ROTATE_MAX,
   SCATTER_ROTATE_MIN,
+  TALL_FROM,
+  TALL_ROTATE,
+  TALL_UPRIGHT,
+  uprightFor,
 } from '../../src/web/components/PhotoCard/scatter'
 
 /** 与 Gallery 的断点一致：[列宽, 列间距, tight] */
@@ -59,14 +63,44 @@ describe('PhotoCard scatter', () => {
     }
   })
 
-  it('keeps tilt within ±0.8°～3° and leaves room for the tape', () => {
+  it('keeps tilt within ±0.8°～3° for cards that are not tall, and leaves room for the tape', () => {
+    const not_tall = [PHOTOS[0]!, PHOTOS[3]!, PHOTOS[4]!]
     for (let id = 1; id <= 500; id += 1) {
-      const s = getPhotoCardScatter({ id, column_width: 270, column_gutter: 32, photo: PHOTOS[id % PHOTOS.length]!, desc_length: 0, has_member: true, tight: false })
+      const s = getPhotoCardScatter({ id, column_width: 270, column_gutter: 32, photo: not_tall[id % not_tall.length]!, desc_length: 0, has_member: true, tight: false })
       expect(Math.abs(s.rotate)).toBeGreaterThanOrEqual(SCATTER_ROTATE_MIN - 0.01)
       expect(Math.abs(s.rotate)).toBeLessThanOrEqual(SCATTER_ROTATE_MAX + 0.01)
       expect(s.pad_top).toBeGreaterThanOrEqual(PHOTO_CARD_TAPE_ROOM)
       expect(s.pad_bottom).toBeGreaterThanOrEqual(0)
     }
+  })
+
+  it('stands tall cards (tall photo or long description) almost upright', () => {
+    const cases = [
+      { photo: { width: 1000, height: 3000 }, desc_length: 0, has_member: true },
+      { photo: { width: 4000, height: 3000 }, desc_length: 400, has_member: false },
+    ]
+    for (const [column_width, column_gutter, tight] of LAYOUTS) {
+      for (const c of cases) {
+        for (let id = 1; id <= 200; id += 1) {
+          const s = getPhotoCardScatter({ id, column_width, column_gutter, tight, ...c })
+          const aspect = estimatePhotoCardHeight(s.card_width, c.photo, c.desc_length, c.has_member) / s.card_width
+          if (aspect >= TALL_UPRIGHT + 0.05) {
+            expect(Math.abs(s.rotate)).toBeLessThanOrEqual(TALL_ROTATE + 0.01)
+            expect(Math.abs(s.rotate)).toBeGreaterThan(0)
+          }
+        }
+      }
+    }
+  })
+
+  it('eases the tilt toward upright between the tall thresholds', () => {
+    expect(uprightFor(2.5, TALL_FROM)).toBe(2.5)
+    expect(uprightFor(2.5, 1)).toBe(2.5)
+    expect(uprightFor(2.5, TALL_UPRIGHT)).toBeCloseTo(TALL_ROTATE)
+    expect(uprightFor(2.5, 10)).toBeCloseTo(TALL_ROTATE)
+    const mid = uprightFor(2.5, (TALL_FROM + TALL_UPRIGHT) / 2)
+    expect(mid).toBeLessThan(2.5)
+    expect(mid).toBeGreaterThan(TALL_ROTATE)
   })
 
   it('drops the writing area when an in-event photo has no description', () => {

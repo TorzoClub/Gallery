@@ -3,6 +3,7 @@
  *
  * - 全部由相片 id 决定（不用 Math.random），刷新、缩放窗口、换列数后同一张相片的摆放不变。
  * - 瀑布流量的是外层格子；倾角和横向位移是卡片自身的 transform，不改变格子尺寸。
+ * - 竖长的卡片（相片竖长或描述很长）尽量摆正，见 uprightFor。
  * - 不碰撞：卡片转过之后的外接框，横向始终落在“本列 + 两侧各半个列间距 − 2px”之内，
  *   相邻两列各占一半列间距，所以永远不会压到隔壁；放不下就把卡片缩小，而不是减小倾角。
  * - 纵向：倾斜多出来的上下高度、纸胶带探出卡片顶边的部分，都折进格子的上下留白，参与瀑布流排布。
@@ -38,6 +39,16 @@ export const PHOTO_CARD_TAPE_ROOM = 9
 
 export const SCATTER_ROTATE_MIN = 0.8
 export const SCATTER_ROTATE_MAX = 3
+
+/**
+ * 竖长的卡片尽量摆正：同样的倾角，卡片越高，底边相对顶边横移得越多
+ * （1300px 高的卡片斜 2°，底边就偏出去约 45px），看上去像要滑下来。
+ * 卡片高宽比 ≤ TALL_FROM 时倾角不变；≥ TALL_UPRIGHT 时只留 ±TALL_ROTATE，几乎是正的；中间线性过渡。
+ * 倾斜方向仍由相片 id 决定，所以摆正之后也还是“随手贴的”。
+ */
+export const TALL_FROM = 1.4
+export const TALL_UPRIGHT = 2.4
+export const TALL_ROTATE = 0.3
 
 type ScatterInput = {
   id: number
@@ -95,6 +106,12 @@ export function estimatePhotoCardHeight(
   return frame + cover_height + Math.max(photoCardBottomMin(card_width), content)
 }
 
+/** 按卡片高宽比把倾角往正里收：见 TALL_FROM / TALL_UPRIGHT */
+export function uprightFor(angle: number, aspect: number): number {
+  const t = Math.min(1, Math.max(0, (aspect - TALL_FROM) / (TALL_UPRIGHT - TALL_FROM)))
+  return angle + (Math.min(angle, TALL_ROTATE) - angle) * t
+}
+
 function rotatedBox(width: number, height: number, rotate: number) {
   const rad = (Math.abs(rotate) * Math.PI) / 180
   const cos = Math.cos(rad)
@@ -115,11 +132,14 @@ export function getPhotoCardScatter(input: ScatterInput): PhotoCardScatter {
   const tape_rotate_r = random()
 
   const size = tight ? 0.78 + 0.14 * size_r : 0.84 + 0.16 * size_r
-  const rotate = sign * (SCATTER_ROTATE_MIN + (SCATTER_ROTATE_MAX - SCATTER_ROTATE_MIN) * angle_r)
   const allowed = column_width + column_gutter - 4
 
   const heightOf = (w: number) => estimatePhotoCardHeight(w, photo, desc_length, has_member)
   let card_width = Math.floor(column_width * size)
+
+  // 高宽比按缩小之前的卡片算（缩小只会让它更瘦高一点点），倾角定下来之后不再随宽度变
+  const angle = SCATTER_ROTATE_MIN + (SCATTER_ROTATE_MAX - SCATTER_ROTATE_MIN) * angle_r
+  const rotate = sign * uprightFor(angle, heightOf(card_width) / Math.max(1, card_width))
   while (card_width > 40 && rotatedBox(card_width, heightOf(card_width), rotate).width > allowed) {
     card_width -= 2
   }

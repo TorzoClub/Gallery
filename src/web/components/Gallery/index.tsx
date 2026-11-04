@@ -4,10 +4,10 @@ import { useNavigate } from 'react-router-dom'
 import './index.scss'
 
 import Title from 'components/Title'
-import Waterfall, { WATERFALL_SHIFT_MS, WaterfallLayout } from 'components/Waterfall'
+import Waterfall, { WaterfallLayout } from 'components/Waterfall'
 import type { GalleryView, PhotoView } from 'pool/view'
 import PhotoCard, { getPhotoCardScatter, type CoverClickEvent, type PhotoCardScatter } from 'components/PhotoCard'
-import Submission, { _EVENT_ as SUBMISSION_EVENT } from 'components/Submission'
+import Submission from 'components/Submission'
 import useSafeState from 'hooks/useSafeState'
 import { dateDiffInDays } from 'utils/date'
 import TextPlaceholder from './TextPlaceholder'
@@ -17,6 +17,7 @@ import { PinchMagnet, type MagnetPickup } from './PinchMagnet'
 import { playMagnetDropSound, primeMagnetAudio } from 'utils/magnet-audio'
 import { pickSaveFile, writeSaveFile } from 'utils/save-file'
 import { memberPath } from '../../routes'
+import { TAPE_DONE_MS, usePhotoPresence } from './usePhotoPresence'
 
 export type GalleryLayout = WaterfallLayout & {
   /** ≤ 900px 的紧凑布局：PhotoCard 散落得更小、更浅 */
@@ -167,55 +168,6 @@ export function scatterFor(layout: GalleryLayout, photo: {
   })
 }
 
-/*
- * 贴纸胶带（新投稿、复印后贴回、取消保存后贴回都一样，与 index.scss 的 $enter-tape / $hand-* 一致）：
- *   0–380ms       纸胶带从上方落下、贴平
- *   380–762ms     贴好后停 382ms
- *   762–982ms     🤚 出现在胶带左端：上移、淡入
- *   982–1364ms    手按着停 382ms
- *   1364–1924ms   手从左端划到右端，把胶带抹平
- *   1924–2306ms   手按着停 382ms
- *   2306–2526ms   放手：下移、淡出
- */
-const TAPE_STICK_MS = 380
-const HAND_HOLD_MS = 382
-/** 胶带贴好、再停 382ms，手才出现 */
-const HAND_AT_MS = TAPE_STICK_MS + HAND_HOLD_MS
-const HAND_IN_MS = 220
-const HAND_SWEEP_MS = 560
-const HAND_OUT_MS = 220
-/** 从开始贴胶带到放手 */
-const TAPE_DONE_MS = HAND_AT_MS + HAND_IN_MS + HAND_HOLD_MS + HAND_SWEEP_MS + HAND_HOLD_MS + HAND_OUT_MS
-
-/**
- * 新投稿贴上瀑布流的时间线（与 index.scss 的 .photo-card-entering 一致）：
- * 某列往下挪 WATERFALL_SHIFT_MS → 停顿 300ms → 相片落下、压平 900ms → 贴纸胶带（含手抹）TAPE_DONE_MS
- */
-const ENTER_PAUSE_MS = 300
-const ENTER_CARD_MS = 900
-const ENTER_TOTAL_MS = WATERFALL_SHIFT_MS + ENTER_PAUSE_MS + ENTER_CARD_MS + TAPE_DONE_MS
-
-const NO_ENTERING: ReadonlySet<string> = new Set()
-
-/** 刚投稿成功的相片：在它出现在 gallery.photos 里时播放入场，播完后清掉 */
-function useEnteringPhotos(): ReadonlySet<string> {
-  const [entering, setEntering] = useState<ReadonlySet<string>>(NO_ENTERING)
-
-  useEffect(() => SUBMISSION_EVENT.created.receive((photo) => {
-    setEntering(new Set([String(photo.id)]))
-  }), [])
-
-  useEffect(() => {
-    if (entering.size === 0) {
-      return
-    }
-    const handler = setTimeout(() => setEntering(NO_ENTERING), ENTER_TOTAL_MS + 120)
-    return () => clearTimeout(handler)
-  }, [entering])
-
-  return entering
-}
-
 function centerOf(el: Element): { x: number; y: number } {
   const rect = el.getBoundingClientRect()
   return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
@@ -352,7 +304,9 @@ export default ({
   onWatterfallRefreshed,
 }: Props) => {
   const layout = useWaterfallLayout()
-  const entering_ids = useEnteringPhotos()
+  // 相片的出入场由数据变化驱动（SSE 推来新相片 / 删掉相片），时间线见 usePhotoPresence
+  const presence = usePhotoPresence(gallery.photos)
+  const entering_ids = presence.entering
   const root = useRef<HTMLDivElement>(null)
   const { tapes, loose_id, fallen, falling, pull, landed, loosen } = useTape(root, loose_tape, gallery.photos.length > 0, entering_ids)
 
@@ -446,7 +400,7 @@ export default ({
 
   const waterfall_layout_node = useMemo(() => {
     const day_diff = dateDiffInDays(new Date(gallery.event_start), new Date)
-    const items = gallery.photos.map(photo => {
+    const items = presence.list.map(photo => {
       const scatter = scatterFor(layout, photo)
       const selected = selected_id_list.includes(photo.id)
       const card: FallingCard['card'] = {
@@ -470,14 +424,17 @@ export default ({
       const is_fallen = fallen.has(photo.id)
       const busy = tapes.get(photo.id)
       const is_entering = entering_ids.has(String(photo.id))
+      const is_leaving = presence.leaving.has(String(photo.id))
       const with_magnet = show_vote_button && selected
-      const cell_class = is_entering
+      const cell_class = is_leaving
+        ? 'photo-card-leaving'
+        : is_entering
         ? 'photo-card-entering'
         : busy !== undefined
           ? [`photo-card-${busy.phase}`, busy.with_magnet ? 'with-magnet' : ''].filter(Boolean).join(' ')
           : undefined
       // 贴胶带的时候胶带是普通的一截（在播贴上去的动画），贴好了才又能撕
-      const pullable = !is_entering && (busy === undefined || busy.phase === 'tearing' || busy.phase === 'asking')
+      const pullable = !is_entering && !is_leaving && (busy === undefined || busy.phase === 'tearing' || busy.phase === 'asking')
       return {
         id: String(photo.id),
         node: (
@@ -525,7 +482,7 @@ export default ({
                 landing: dropping.has(photo.id),
                 lifting: lifting.has(photo.id),
                 // 撕胶带的整个过程里磁粒悬在半空 / 卡片在忙，不能点
-                interactive: vote_interactive && busy === undefined,
+                interactive: vote_interactive && busy === undefined && !is_leaving,
                 onToggle: () => handleToggleVote(photo.id),
               } : undefined}
             />
@@ -539,18 +496,19 @@ export default ({
         layout={layout}
         items={items}
         enteringIds={entering_ids}
+        shifting={presence.shifting}
         onWatterfallRefreshed={handleRefreshed}
       />
     )
 
     if (gallery.in_event) {
-      if (gallery.can_submission && (gallery.photos.length === 0)) {
+      if (gallery.can_submission && (presence.list.length === 0)) {
         return <TextPlaceholder>提交你的投稿</TextPlaceholder>
       } else {
         return waterfall()
       }
     } else {
-      if (gallery.photos.length === 0) {
+      if (presence.list.length === 0) {
         if ((day_diff < 30) && day_diff > 0) {
           return (
             <TextPlaceholder>
@@ -564,7 +522,7 @@ export default ({
         return waterfall()
       }
     }
-  }, [entering_ids, fallen, loose_id, pull, tapes, gallery.can_submission, gallery.event_start, gallery.in_event, gallery.photos, layout, onClickCover, handleToggleVote, dropping, lifting, handleRefreshed, selected_id_list, show_vote_button, vote_interactive, openMember])
+  }, [entering_ids, presence.leaving, presence.list, presence.shifting, fallen, loose_id, pull, tapes, gallery.can_submission, gallery.event_start, gallery.in_event, layout, onClickCover, handleToggleVote, dropping, lifting, handleRefreshed, selected_id_list, show_vote_button, vote_interactive, openMember])
 
   return (
     <div className="gallery" ref={root}>

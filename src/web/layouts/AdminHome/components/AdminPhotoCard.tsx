@@ -13,6 +13,8 @@ type Props = {
   votes: readonly PhotoVoteRecord[]
   scatter: PhotoCardScatter
   memberCanDelete?: MemberCanDelete
+  /** 正在贴纸胶带（新相片贴上来）：放一只 🤚 抹胶带，见 Gallery 的 .photo-card-entering */
+  hand?: boolean
   onChanged(): Promise<void>
 }
 
@@ -22,6 +24,7 @@ export default function AdminPhotoCard({
   votes,
   scatter,
   memberCanDelete,
+  hand = false,
   onChanged,
 }: Props) {
   const member = photo.member
@@ -65,6 +68,7 @@ export default function AdminPhotoCard({
           width={scatter.card_width}
           tilt={{ rotate: scatter.rotate, x: scatter.offset_x }}
           tape={{ x: scatter.tape_x, rotate: scatter.tape_rotate }}
+          hand={hand}
           hideMember={false}
           name={member?.name ?? null}
           desc={photo.desc}

@@ -59,7 +59,7 @@ sharp（libheif）输出 AVIF 时每条边最多 16384px，超过会在编码时
 
 ## 前端：贴上墙
 
-代码在 `src/web/components/PhotoCard/scatter.ts`（全部尺寸和摆放计算）、`PhotoCard/index.tsx`（渲染）、`Gallery/index.tsx`（瀑布流、入场、撕胶带）。
+代码在 `src/web/components/PhotoCard/scatter.ts`（全部尺寸和摆放计算）、`PhotoCard/index.tsx`（渲染）、`Gallery/index.tsx`（瀑布流、撕胶带）、`Gallery/usePhotoPresence.ts`（相片贴上来 / 撕下去）。
 
 ### 瀑布流只用 thumb
 

@@ -17,7 +17,7 @@ import { vote } from 'api/client-pool'
 import { useClientPool } from 'pool/store'
 import { useMemberView } from 'pool/member-view'
 import { activeGallery, normalGalleries } from 'pool/selectors'
-import { toGalleryViews, type GalleryView } from 'pool/view'
+import { shufflePhotosForEvent, toGalleryViews, type GalleryView } from 'pool/view'
 import { canUseCacheWorker, transformCacheWorkerURL } from 'pool/media'
 import { PaperShredder } from '@/components/uibrik/paper-shredder/paper-shredder'
 import { signal_critical_error } from 'signals'
@@ -49,7 +49,9 @@ export default function ExplorePage() {
     if (active_client === null) {
       return null
     }
-    return gallery_views.find(gallery => gallery.id === active_client.id) ?? null
+    const view = gallery_views.find(gallery => gallery.id === active_client.id)
+    // 活动期的相册乱序展示，不按 index（后台仍按 index / 所选排序）
+    return view === undefined ? null : { ...view, photos: shufflePhotosForEvent(view.photos) }
   }, [active_client, gallery_views])
 
   const past = useMemo(() => {

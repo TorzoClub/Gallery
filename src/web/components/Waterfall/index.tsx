@@ -44,10 +44,17 @@ export type Props = {
   items: WaterfallItem[]
   preservePositions?: boolean
   /**
+   * 布局键：变了就丢掉已有位置、按 items 顺序从头排一遍（例如后台换了排序方式）；
+   * 不变时照 preservePositions 保留位置，新条目贴到最矮那列顶部、被拿掉的条目由下面的顶上去。
+   */
+  layoutKey?: string
+  /**
    * 正在“贴上来”的条目：第一次出现时插到当前最矮那一列的顶部（而不是追加到底部），
    * 并且这段时间里各条目的 top 变化带过渡，看得见那一列往下挪出空位。
    */
   enteringIds?: ReadonlySet<string>
+  /** 各条目的 top 变化带过渡：相片贴上来时那一列往下挪、相片被拿掉后下面的往上顶。缺省时有 enteringIds 就带 */
+  shifting?: boolean
   onWatterfallRefreshed?(): void
 }
 
@@ -61,14 +68,14 @@ function prefersReducedMotion(): boolean {
 }
 
 export default (props: Props) => {
-  const { layout, items, onWatterfallRefreshed, preservePositions = true, enteringIds = NO_ENTERING } = props
+  const { layout, items, onWatterfallRefreshed, preservePositions = true, layoutKey, enteringIds = NO_ENTERING, shifting: shifting_prop } = props
   const { gallery_width, vertical_gutter } = layout
   const [ box_width ] = calcTotalBoxWidth(layout)
 
   const { refFn, columns, waterfall_height, pos_map, refresh_signal } = useLayout({
-    items, box_width, layout, preservePositions, enteringIds
+    items, box_width, layout, preservePositions, layoutKey, enteringIds
   })
-  const shifting = enteringIds.size > 0 && !prefersReducedMotion()
+  const shifting = (shifting_prop ?? enteringIds.size > 0) && !prefersReducedMotion()
 
   useEffect(() => {
     let handler: ReturnType<typeof setTimeout>
@@ -90,7 +97,7 @@ export default (props: Props) => {
         left: `calc(${pos.left})`,
         zIndex: `calc(${pos.zIndex})`,
         opacity: pos.col_count >= layout.column_count ? 0 : 1,
-        // 平时排布是瞬时的；只有新相片贴上来时，让那一列往下挪
+        // 平时排布是瞬时的；只有相片贴上来 / 被拿掉时，让那一列挪动
         transition: shifting ? `top ${WATERFALL_SHIFT_MS}ms cubic-bezier(0.2, 0.7, 0.2, 1)` : undefined,
       }
     } else {
@@ -550,6 +557,7 @@ function useLayout({
   items,
   box_width,
   preservePositions,
+  layoutKey,
   enteringIds,
   layout: {
     column_count,
@@ -560,6 +568,7 @@ function useLayout({
   box_width: number
   items: WaterfallItem[]
   preservePositions: boolean
+  layoutKey: string | undefined
   enteringIds: ReadonlySet<string>
 }) {
   const refresh_signal = useMemo(() => Signal(), [])
@@ -630,6 +639,7 @@ function useLayout({
   const columns_cache = useRef<Map<string, Columns> | undefined>(undefined)
 
   const prev_columns = useRef<{ id: string; cols: Columns } | undefined>(undefined)
+  const prev_layout_key = useRef(layoutKey)
 
   const applyNewLayout = useCallback((new_cols: Columns) => {
     prev_columns.current = {
@@ -644,6 +654,10 @@ function useLayout({
     if (!preservePositions) {
       applyNewLayout(generateWaterfallColumns(items, column_count, getDimMap()))
       return
+    }
+    if (prev_layout_key.current !== layoutKey) {
+      prev_layout_key.current = layoutKey
+      prev_columns.current = undefined
     }
     if (prev_columns.current === undefined) {
       applyNewLayout(
@@ -680,7 +694,7 @@ function useLayout({
         )
       )
     }
-  }, [applyNewLayout, column_count, enteringIds, generateWaterfallColumns, getDimMap, items, preservePositions])
+  }, [applyNewLayout, column_count, enteringIds, generateWaterfallColumns, getDimMap, items, layoutKey, preservePositions])
 
   useEffect(() => {
     if (columns_cache.current === undefined) {

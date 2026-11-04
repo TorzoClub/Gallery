@@ -9,7 +9,7 @@
 }
 
 /*
- * 新投稿贴上瀑布流（叙事时刻）。时间线与 index.tsx 的 ENTER_* 常量一致：
+ * 新相片贴上瀑布流（叙事时刻，SSE 推来新相片时播；公开页和后台都一样）。时间线与 usePhotoPresence.ts 的 ENTER_* 常量一致：
  *   0–420ms      某列往下挪出空位（Waterfall 给 top 加过渡）
  *   420–720ms    停顿，空位先露出来
  *   720–1620ms   相片落下：translateY(-10px)→0、opacity 0→1；
@@ -311,6 +311,46 @@ $magnet-drop: 220ms;
     .photo-card-vote,
     .photo-card-tape,
     .photo-card-scan::before {
+      animation: none;
+    }
+  }
+}
+
+/*
+ * 相片被删掉、从瀑布流里撕下去（SSE 推来删除时播；公开页和后台都一样）。时间线与 usePhotoPresence.ts 的 LEAVE_* 常量一致：
+ *   0–180ms      纸胶带从左端撕起、消失（同 .photo-card-tearing）
+ *   180–562ms    停 382ms
+ *   562–882ms    相片自身下移 24px、淡出（停在淡出后的样子）
+ *   882–1264ms   停 382ms
+ * 之后这一格从列表里拿掉，同一列下面的相片往上顶（Waterfall 的 top 过渡）。
+ */
+$leave-hold: 382ms;
+$leave-out: 320ms;
+
+@keyframes photo-card-leave {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+
+.photo-card-leaving {
+  pointer-events: none;
+  animation: photo-card-leave $leave-out cubic-bezier(0.5, 0, 0.8, 0.4) ($tear + $leave-hold) both;
+
+  .photo-card-tape {
+    transform-origin: 12% 50%;
+    animation: photo-card-tape-tear $tear cubic-bezier(0.4, 0, 0.7, 0.4) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &,
+    .photo-card-tape {
       animation: none;
     }
   }

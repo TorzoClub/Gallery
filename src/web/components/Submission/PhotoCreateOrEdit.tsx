@@ -5,14 +5,12 @@ import { useSubmissionStore } from '.'
 import { fetchClientPool, fetchMemberView, submitPhoto, updateSubmission } from 'api/client-pool'
 import { uploadImage } from 'api/upload'
 import { submittedPhotoView, type PhotoView } from 'pool/view'
-import { holdPoolEvents, releasePoolEvents } from 'pool/store'
 
 import s from './PhotoCreateOrEdit.module.scss'
 import { LoadingMask } from 'components/LoadingMask'
 import { global_queue, useQueueload } from 'utils/queue-load'
 import SkeuomorphismButton from 'components/SkeuomorphismButton'
 import { PhotoCardPaper, photoCardBottomMin, photoCardCover, photoCardFrame } from 'components/PhotoCard'
-import type { ClientPool } from '@shared/client-pool'
 
 // Vite's CJS interop for this package can expose the module exports object as
 // the default import. Normalize both the CJS and ESM shapes to the component.
@@ -38,15 +36,12 @@ function readImageSize(url: string): Promise<ImageSize> {
   })
 }
 
-/** 投稿 / 修改期间暂缓 SSE 用的 key，scripts.tsx 的“大感谢”发布时解除 */
-export const SUBMISSION_POOL_HOLD = 'submission'
-
 type Props = {
   /**
-   * 投稿 / 修改成功。pool 是已经拉回来、但还没有发布到页面的新数据：
-   * 要等“大感谢”完整出现之后再发布，新相片才会在那之后贴上瀑布流。
+   * 投稿 / 修改成功。瀑布流里的相片由 SSE 推送更新（新相片贴上来的动画也由它触发），这里不发布数据；
+   * 拉回来的数据只用来更新投稿剧本自己记着的那张相片。
    */
-  onUpdateDone(data: PhotoView, pool: ClientPool): void
+  onUpdateDone(data: PhotoView): void
 }
 export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
   const [ isProcessing, setProcessing ] = useState(false)
@@ -77,8 +72,6 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
         temp_id = (await uploadImage(file)).temp_id
       }
 
-      // 从提交起暂缓 SSE，直到“大感谢”放完由剧本发布新数据时解除（见 scripts.tsx 的 publish）
-      holdPoolEvents(SUBMISSION_POOL_HOLD)
       const current_photo_id = photo?.id
       if (is_edit_mode && current_photo_id !== undefined) {
         await updateSubmission({
@@ -111,9 +104,8 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
         throw new Error('投稿成功，但无法读取投稿数据')
       }
       useSubmissionStore.setState({ photo: updated_photo })
-      onUpdateDone(updated_photo, pool)
+      onUpdateDone(updated_photo)
     } catch (err) {
-      releasePoolEvents(SUBMISSION_POOL_HOLD)
       alert(`错误: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setProcessing(false)

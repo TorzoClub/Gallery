@@ -40,6 +40,7 @@ $icon-button-w: 24px; /* 页眉图标按钮（放大镜、X、‹、+）的宽�
   position: relative;
   height: 600px;
   user-select: none;
+  transform: translate3D(0,0,0); /* 不这样做的话，iOS Safari 会因为 <BehindPhotoStack /> 的相片下落而闪烁 */
 }
 
 .notebook[data-layout='M'] {

@@ -238,7 +238,8 @@ export default function PublicRoot() {
   const stageContent = (channel: Channel): React.ReactNode => {
     switch (channel) {
       case 'behind':
-        return <BehindApp thisIsDisplay />
+        // 只有当前频道才是 true：BehindApp 靠它在离开时卸掉 System Reports、回来再晚 500ms 挂上
+        return <BehindApp thisIsDisplay={activeChannel === 'behind'} />
       case 'explore':
         return <HomeApp />
       case 'admin':

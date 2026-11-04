@@ -58,7 +58,7 @@
 - 换台只藏不卸（`PublicRoot` 的 `ChannelStage`）：频道第一次换台进来才挂载，之后一直留着，离开时用 React 的 `<Activity mode="hidden">` 藏起来。藏起来时 `display: none`、effect 全部清理（计时器、rAF、监听都停），组件状态和 DOM 保留；换回来时 effect 重新跑，页面是离开时的样子（展开的成员页、排序、已叠好的相片、后台面板等）。
   - 每个舞台读的路由是冻结的：本频道是当前路由时读当前的，离开后一直读离开时那一条。否则藏起来的页面会读到别的频道的路由（比如成员页读到 `/explore` 会把自己渲染成跳转），状态照样丢。
   - 滚动位置按频道记，换回来在绘制前还原；第一次来，或路由变了（比如 `/member/3` 换成 `/member/5`，成员本子会按成员 id 重新开），回到顶部。
-  - 例外：碎纸机页（`/explore/cancelSubmission`）仍跟着 Explore 的显示走，离开 Explore 就卸掉；System Reports 每次离开 Behind 都会先卸掉，回来再晚 500ms 挂上（首帧太重，见 `BehindApp.tsx` 的说明）。
+  - 例外：碎纸机页（`/explore/cancelSubmission`）仍跟着 Explore 的显示走，离开 Explore 就卸掉；System Reports 每次离开 Behind 都会卸掉，回来再晚 500ms 挂上（首帧太重，移动端会卡一下，见 `BehindApp.tsx` 的说明）：`PublicRoot` 给 `BehindApp` 传 `thisIsDisplay={activeChannel === 'behind'}`，卡片的渲染条件带上它（藏起来的子树里 effect 不会再跑，不能只靠 effect 卸载），effect 清理时把计时状态复位，回来那一帧卡片不会跟页面一起挂上。
   - 页面里的 effect 必须经得起“清理后再跑一遍”：挂载时只该做一次的事要自己用 ref 记下是不是已经做过。已经这样处理的：后台读 AdminPool（回来时静默重读）；剧本里“是，取消掉吧”和碎纸机测试跳进 `/explore/cancelSubmission`（只跳一次，否则从成员页等频道回到 Explore 时会带着已删的相片再进一次碎纸机）。
 
 ### 碎纸机

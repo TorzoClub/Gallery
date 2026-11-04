@@ -132,11 +132,14 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
   }
 
   // WARNING: 为什么要采纳这种设计？
-  // ReportCard 的首帧渲染很重，直接和页面一起挂载会让切页明显卡顿。
-  // PublicRoot 只在 CRT 换台动画结束后才把 thisIsDisplay 置为 true，
-  // 因此这里的 500ms 是从真正显示 Behind 之后开始算的；
-  // 换台动画本身不会触发 ReportCard 的副作用。
-  // 离开 Behind 时 thisIsDisplay 变回 false，立即卸载卡片并取消计时。
+  // ReportCard 的首帧渲染很重，直接和页面一起挂载会让切页明显卡顿（移动端尤其明显）。
+  // thisIsDisplay 是“Behind 是当前频道”：PublicRoot 在换台切到 Behind 时置 true、离开时置 false，
+  // 所以这里的 500ms 是从真正显示 Behind 之后开始算的。
+  // Behind 离开后只是被 <Activity> 藏起来、不卸载，但卡片必须每次离开都卸掉、回来再等 500ms：
+  // - 渲染条件带上 thisIsDisplay：离开时那次（藏起来的）渲染直接把卡片拿掉，不靠 effect
+  //   （藏起来的子树里 effect 不会再跑）
+  // - effect 清理时把 show_card 复位：Activity 藏起来会执行清理，回来那一帧 show_card 已是 false，
+  //   卡片不会跟着页面同一帧挂上
   // 这是用显示生命周期换首帧流畅度的妥协；如果未来显著优化了 ReportCard，
   // 应该移除这层延迟，恢复普通的声明式挂载。
   useEffect(() => {
@@ -146,7 +149,10 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
     }
 
     const h = window.setTimeout(() => setShowCard(true), 500)
-    return () => window.clearTimeout(h)
+    return () => {
+      window.clearTimeout(h)
+      setShowCard(false)
+    }
   }, [thisIsDisplay])
 
   return (
@@ -184,7 +190,7 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
           )}
           {/* 外壳常驻、≥ 800px 预留卡片高度：卡片晚 500ms 出现时，下面的名单簿不会往下跳 */}
           <div className='behind-app__card-wrapper'>
-            {show_card && (
+            {show_card && thisIsDisplay && (
               <ReportCard
                 className='behind-app__report'
                 config={report_config}

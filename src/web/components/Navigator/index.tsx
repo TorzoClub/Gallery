@@ -43,7 +43,7 @@ export default function Navigator({ scene, onClickPushButton, onClickAdmin, onCl
             className='navigator-staff-button'
             diameter={34}
             capDiameter={28}
-            label='D'
+            label='S'
             aria-label='Staff 留言'
             title='Staff 留言'
             onClick={onClickStaff}

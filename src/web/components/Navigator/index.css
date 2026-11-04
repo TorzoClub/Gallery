@@ -37,7 +37,7 @@
 }
 
 /*
- * “A”：后台入口。颜色取 .navigator-title-admin-word 的 rgb(133 48 106)、同一套 Impact 斜体，
+ * “A”：后台入口。颜色取 .navigator-title-admin-word 的 rgb(133 48 106)
  * 但印在米白按钮面上：字号收到 15px，下沿一道白、上沿一道暗，像丝印压进塑料里；
  * 颜色略压暗一点（与按钮面的暖灰相配），按下时再暗一档。
  */
@@ -46,7 +46,6 @@
   color: rgb(122 40 96);
   font-family: Impact, Haettenschweiler, "Arial Narrow", "Liberation Sans Narrow", sans-serif;
   font-size: 15px;
-  font-style: italic;
   font-weight: 700;
   font-stretch: condensed;
   text-shadow:
@@ -60,15 +59,14 @@
 }
 
 /*
- * “D”：Staff 页入口。与“A”同一套 Impact 斜体、同样的丝印处理，
+ * “S”：Staff 页入口。
  * 颜色取 .navigator-title 的 rgb(48 103 133)，压暗到 rgb(38 86 114) 以配米白按钮面，按下时再暗一档。
  */
 .navigator-staff-button .pb__label {
   padding-right: 1px;
   color: rgb(38 86 114);
-  font-family: Impact, Haettenschweiler, "Arial Narrow", "Liberation Sans Narrow", sans-serif;
+  font-family: Didot, "Bodoni 72", "Bodoni MT", "Playfair Display", "Hoefler Text", Georgia, serif;
   font-size: 15px;
-  font-style: italic;
   font-weight: 700;
   font-stretch: condensed;
   text-shadow:

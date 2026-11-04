@@ -11,6 +11,7 @@
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
   /* 液晶屏的点阵字（index.html 内联的子集）：屏上的字只用 A-Z、a-z、0-9 和空格；点用 .lcdDot 画 */
   --lcd-font: 'guanzhi 8x8 base', var(--mono);
+  --lcd-font-pixel-size: calc((1em / 8) * 1);
 
   position: relative;
   box-sizing: border-box;
@@ -28,7 +29,6 @@
     inset 0 1px 0 rgb(255 255 255 / .9),
     inset 0 -1px 0 rgb(0 0 0 / .12),
     inset 0 0 0 1px #9da5aa,
-    0 1px 0 rgb(255 255 255 / .6),
     0 10px 16px -8px rgb(0 0 0 / .45),
     0 2px 3px rgb(0 0 0 / .18);
   user-select: none;
@@ -45,10 +45,10 @@
   box-shadow: 0 0 0 1px rgb(0 0 0 / .45), 0 1px 0 rgb(255 255 255 / .7);
 }
 
-.screw0 { top: 8px; left: 8px; }
-.screw1 { top: 8px; right: 8px; }
-.screw2 { bottom: 8px; left: 8px; }
-.screw3 { bottom: 8px; right: 8px; }
+.screw0 { transform: rotate(0deg); top: 8px; left: 8px; }
+.screw1 { transform: rotate(27deg); top: 8px; right: 8px; }
+.screw2 { transform: rotate(122deg); bottom: 8px; left: 8px; }
+.screw3 { transform: rotate(275deg); bottom: 8px; right: 8px; }
 
 /* 铭牌：压印字 */
 .plate {
@@ -81,7 +81,7 @@
   padding: 9px 12px;
   color: var(--lcd-on);
   background: var(--lcd-bg);
-  border: 4px solid #2b2f33;
+  border: 8px solid #2b2f33;
   border-radius: 5px;
   box-shadow:
     inset 0 3px 6px rgb(0 0 0 / .45),
@@ -94,18 +94,18 @@
  * 状态行用 32px（一个点 2px），提示行用 16px；都保持整数倍，点不会糊。
  */
 .screenStatus {
+  display: inline-block;
   font: 400 32px/1 var(--lcd-font);
   letter-spacing: 0;
   white-space: nowrap;
   -webkit-font-smoothing: none;
+  padding: var(--lcd-font-pixel-size) var(--lcd-font-pixel-size) 0 var(--lcd-font-pixel-size);
 }
 
 /* 拒绝时字不换色（液晶只有一种墨色），用反白强调 */
 .screenStatus[data-phase='denied'],
 .screenStatus[data-phase='rejected'] {
-  display: inline-block;
-  padding: 0 4px;
-  margin-left: -4px;
+  margin-left: calc(-1 * var(--lcd-font-pixel-size));
   color: var(--lcd-bg);
   background: var(--lcd-on);
   /* 被拒时立刻闪 3 次（与拒绝的蜂鸣同时开始），闪完反白常亮 */
@@ -143,7 +143,7 @@
 .lcdDot {
   display: inline-block;
   width: .5em;
-  height: 1.25em;
+  height: 100%;
   vertical-align: top;
   fill: currentColor;
   shape-rendering: crispEdges;
@@ -159,8 +159,7 @@
 
 .field {
   box-sizing: border-box;
-  flex: 1 1 auto;
-  min-width: 0;
+  width: 100%;
   height: 38px;
   padding: 0 12px;
   color: #2d3d47;
@@ -196,7 +195,7 @@
 
 .unlock {
   display: inline-block;
-  min-width: 44px;
+  min-width: 60px;
   letter-spacing: .2em;
   text-indent: .2em;
 }
@@ -211,11 +210,10 @@
 }
 
 .grille {
-  /* 宽度由 AccessPanel.tsx 量右边 .lamps 后写到 style 上，与灯组等长；58px 只是量到之前的兜底 */
-  width: 58px;
+  width: 111.2px;
   height: 22px;
   /* 横向 space：孔在任意宽度里均匀铺满，两端不会出现被切掉的半个孔 */
-  background: radial-gradient(circle, #3a4045 1.3px, transparent 1.8px) 0 0 / 6px 6px space repeat;
+  background: radial-gradient(circle, #3a4045 1.3px, transparent 1.8px) 0 0 / 5.8px 7px space repeat;
   filter: drop-shadow(0 1px 0 rgb(255 255 255 / .8));
   opacity: .75;
 }

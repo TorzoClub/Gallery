@@ -110,23 +110,7 @@ export function AccessPanel({ rejected, onGranted }: {
   const [message, setMessage] = useState('')
   const busy = useRef(false)
   const input_ref = useRef<HTMLInputElement>(null)
-  const lamps_ref = useRef<HTMLDivElement>(null)
-  // 喇叭孔与右边两颗灯（含字）等长。灯的宽度取决于字体渲染和字体加载，所以量出来而不是写死
-  const [grille_width, setGrilleWidth] = useState<number | null>(null)
-  useLayoutEffect(() => {
-    const lamps = lamps_ref.current
-    if (lamps === null) {
-      return
-    }
-    const measure = () => setGrilleWidth(lamps.getBoundingClientRect().width)
-    measure()
-    if (typeof ResizeObserver === 'undefined') {
-      return
-    }
-    const observer = new ResizeObserver(measure)
-    observer.observe(lamps)
-    return () => observer.disconnect()
-  }, [])
+
   const granted_timer = useRef<number | null>(null)
   const [dots, setDots] = useState(0)
   // 每次拒绝都加一，作为状态行的 key：连续两次被拒（比如连点两次空密码）也会重新闪
@@ -227,25 +211,24 @@ export function AccessPanel({ rejected, onGranted }: {
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
-    if (busy.current) {
-      return
-    }
-    if (password.length === 0) {
-      deny('ENTER PASSWORD')
-      input_ref.current?.focus()
-      return
-    }
-    busy.current = true
-    setPhase('verifying')
-    setMessage('')
-    try {
-      const result = await adminLogin(password)
-      grant(result.token, 'LOGIN SUCCESS')
-    } catch (error) {
-      busy.current = false
-      deny(deniedReason(error))
-      setPassword('')
-      input_ref.current?.focus()
+    if (!busy.current) {
+      if (password.length === 0) {
+        deny('ENTER PASSWORD')
+        input_ref.current?.focus()
+      } else {
+        busy.current = true
+        setPhase('verifying')
+        setMessage('')
+        try {
+          const result = await adminLogin(password)
+          grant(result.token, 'LOGIN SUCCESS')
+        } catch (error) {
+          busy.current = false
+          deny(deniedReason(error))
+          setPassword('')
+          input_ref.current?.focus()
+        }
+      }
     }
   }
 
@@ -320,11 +303,11 @@ export function AccessPanel({ rejected, onGranted }: {
       <div className={styles.foot}>
         <span
           className={styles.grille}
-          style={grille_width === null ? undefined : { width: grille_width }}
           aria-hidden='true'
         />
-        <div ref={lamps_ref} className={styles.lamps}>
+        <div className={styles.lamps}>
           <LedIndicator color={phase === 'verifying' || phase === 'checking' ? 'amber' : null} label='核对' />
+          <div style={{ width: '0px' }}></div>
           <LedIndicator color={phase === 'denied' || phase === 'rejected' ? 'red' : null} label='拒绝' />
         </div>
       </div>

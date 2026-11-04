@@ -19,6 +19,8 @@ import { pickSaveFile, writeSaveFile } from 'utils/save-file'
 export type GalleryLayout = WaterfallLayout & {
   /** ≤ 900px 的紧凑布局：PhotoCard 散落得更小、更浅 */
   tight: boolean
+  /** ≤ 640px 的双列布局：留白和列间距收窄、卡片放大，小屏尽量把相片放大 */
+  duo: boolean
 }
 
 function getViewportWidth() {
@@ -30,14 +32,19 @@ function getViewportWidth() {
 const WIDE_GUTTER = 32
 /** ≤ 900px 的列间距 */
 const TIGHT_GUTTER = 20
+/** ≤ 640px 双列：瀑布流左右留白、列间距。外侧卡片最多越过列边半个列间距（5px），仍留在屏幕里 */
+const DUO_SIDE = 8
+const DUO_GUTTER = 10
 
 const fixedLayout = ({
   column_count,
   gallery_width,
   column_gutter,
   tight,
-}: Pick<GalleryLayout, 'column_count' | 'gallery_width' | 'column_gutter' | 'tight'>): GalleryLayout => ({
+  duo = false,
+}: Pick<GalleryLayout, 'column_count' | 'gallery_width' | 'column_gutter' | 'tight'> & { duo?: boolean }): GalleryLayout => ({
   tight,
+  duo,
   column_count,
   gallery_width,
   column_gutter,
@@ -105,9 +112,10 @@ const getLayoutConfigure = (): GalleryLayout => {
   } else {
     return fixedLayout({
       tight: true,
-      gallery_width: viewport_width - TIGHT_GUTTER * 2,
+      duo: true,
+      gallery_width: viewport_width - DUO_SIDE * 2,
       column_count: 2,
-      column_gutter: TIGHT_GUTTER,
+      column_gutter: DUO_GUTTER,
     })
   }
 }
@@ -150,9 +158,10 @@ export function scatterFor(layout: GalleryLayout, photo: {
     column_width: galleryColumnWidth(layout),
     column_gutter: layout.column_gutter,
     photo,
-    desc_length: photo.desc.trim().length,
+    desc: photo.desc.trim(),
     has_member: Boolean(photo.member),
     tight: layout.tight,
+    duo: layout.duo,
   })
 }
 

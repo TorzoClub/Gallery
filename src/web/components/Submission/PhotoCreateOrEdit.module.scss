@@ -5,6 +5,8 @@
 }
 
 .CoverButton {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -50,6 +52,15 @@
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* 横长图竖着放，与 PhotoCard 的 .cover-sideways 相同：宽高在行内样式里对调，居中后顺时针转 90° */
+.CoverImageSideways {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  transform: translate(-50%, -50%) rotate(90deg);
 }
 
 .Desc {

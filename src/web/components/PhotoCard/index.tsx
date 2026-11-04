@@ -6,7 +6,7 @@ import { Magnet, MagnetSlot } from 'components/Magnet'
 import LoadFailure from './LoadFailure'
 import { photoCardBottomMin, photoCardCover, photoCardHasBottom } from './scatter'
 
-export { getPhotoCardScatter, photoCardBottomMin, photoCardCover, photoCardFrame, type PhotoCardScatter } from './scatter'
+export { getPhotoCardScatter, photoCardBottomMin, photoCardCover, photoCardFrame, photoIsSideways, type PhotoCardScatter } from './scatter'
 
 export type PhotoCardPaperProps = {
   id?: string
@@ -172,7 +172,7 @@ const PhotoCard = (props: Props) => {
 
   const coverFrameEl = useRef<HTMLDivElement>(null)
 
-  const { frame, cover_height } = photoCardCover(width, photo)
+  const { frame, cover_width, cover_height, sideways } = photoCardCover(width, photo)
   const rotate = tilt?.rotate ?? 0
 
   const show_desc = Boolean(desc.trim().length)
@@ -216,25 +216,29 @@ const PhotoCard = (props: Props) => {
           const el = coverFrameEl.current
           // 卡片是斜的：getBoundingClientRect 是外接框。中心点不随旋转改变，宽高取未变换的布局尺寸
           const rect = el.getBoundingClientRect()
-          const w = el.offsetWidth
-          const h = el.offsetHeight
+          // 横长图竖着贴：起点是那张躺着的原图（宽高对调、多转 90°），放大时一边转回横向一边放大，退出时倒回去
+          const w = sideways ? el.offsetHeight : el.offsetWidth
+          const h = sideways ? el.offsetWidth : el.offsetHeight
           props.onClickCover?.({
             from: {
               width: w,
               height: h,
               left: rect.left + rect.width / 2 - w / 2,
               top: rect.top + rect.height / 2 - h / 2,
-              rotate,
+              rotate: rotate + (sideways ? 90 : 0),
             },
             thumbBlobUrl: thumb,
           })
         }}
       >
         <img
-          className="cover"
+          className={sideways ? 'cover cover-sideways' : 'cover'}
           alt={[props.name, desc.trim()].filter(Boolean).join('：')}
           src={thumb || undefined}
-          style={{ opacity: thumb_status === 'LOADED' ? 1 : 0 }}
+          style={sideways
+            // 横长图：<img> 按原图方向排（宽高对调），转 90° 后正好填满竖着的 .cover-area
+            ? { opacity: thumb_status === 'LOADED' ? 1 : 0, width: `${cover_height}px`, height: `${cover_width}px` }
+            : { opacity: thumb_status === 'LOADED' ? 1 : 0 }}
         />
         {thumb_status === 'FAILURE' && <LoadFailure onClick={retryLoadPhotoThumb} />}
         {props.coverOverlay}

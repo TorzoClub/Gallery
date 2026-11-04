@@ -210,7 +210,7 @@ payload: {}
 | `adminUpdatePhoto` | `{ photo_id, gallery_id?, member_id?, desc?, index?, temp_id? }` | 更新相片 |
 | `adminRemovePhoto` | `{ photo_id }` | 删除相片 |
 | `adminSortPhotos` | `{ gallery_id, photo_ids }` | 一次性重排整个相册：`photo_ids[i]` 的 `index` 写成 `i`，公开页按 `index` 升序展示。`photo_ids` 必须恰好是该相册的全部相片，缺漏或重复返回 `400`，含其他相册的相片返回 `404`，整体拒绝、不改任何一张；`index` 未变的相片不刷新 `updated_at`。返回更新后的相册 |
-| `adminRefreshThumb` | `{ photo_id }` | 重建 SDR optimized 和缩略图 |
+| `adminRefreshThumb` | `{ photo_id }` | 重建 SDR optimized 和缩略图；按当前配置生成的图超过 AVIF 每边 16384px 时返回 400 |
 | `adminRefreshAvatar` | `{ member_id }` | 重建头像缩略图 |
 
 日期字段使用 ISO 8601，例如 `2026-10-01T00:00:00.000Z`。
@@ -277,6 +277,7 @@ right.event_start <= left.event_end
 限制：
 
 - 文件大小不能超过当前 instance 配置的 `max_upload_bytes`，也不能超过进程的 `HTTP_BODY_HARD_LIMIT_BYTES`。
+- 图片不能太长：按当前配置生成的相片缩略图、相片 optimized、头像缩略图，任何一边超过 16384px（AVIF 上限）就返回 400 “图片太长了……”。规则见 [configure.md](configure.md)“过长图片在上传时拒绝”。
 - 无法解析的图片返回 `BAD_REQUEST`。
 - 临时文件由服务端在启动和清理流程中回收。
 

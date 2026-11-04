@@ -158,7 +158,7 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
     ? will_upload_image.size
     : (photo ? { width: photo.width, height: photo.height } : EMPTY_COVER)
   const frame = photoCardFrame(CARD_WIDTH)
-  const { cover_height } = photoCardCover(CARD_WIDTH, cover_size)
+  const { cover_width, cover_height, sideways } = photoCardCover(CARD_WIDTH, cover_size)
 
   return (
     <div>
@@ -192,7 +192,12 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
               onClick={onImageUpload}
               {...dragProps}
             >
-              <FormCover previewURL={preview_url} isDragging={isDragging} />
+              <FormCover
+                previewURL={preview_url}
+                isDragging={isDragging}
+                // 横长图和瀑布流里一样转 90° 竖着放：<img> 按原图方向排（宽高对调），再转过来填满相片区域
+                sideways={sideways ? { width: cover_height, height: cover_width } : null}
+              />
             </button>
             <div className="bottom-area" style={{ minHeight: `${photoCardBottomMin(CARD_WIDTH)}px` }}>
               <textarea
@@ -222,7 +227,11 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
 }
 
 /** 拍立得上的相片位：没选图时是提示语，选了图就是预览 */
-function FormCover({ previewURL, isDragging }: { previewURL: string | null, isDragging: boolean }) {
+function FormCover({ previewURL, isDragging, sideways }: {
+  previewURL: string | null
+  isDragging: boolean
+  sideways: { width: number, height: number } | null
+}) {
   useEffect(() => {
     global_queue.startWorking()
   }, [previewURL])
@@ -236,7 +245,16 @@ function FormCover({ previewURL, isDragging }: { previewURL: string | null, isDr
       </span>
     )
   } else if (load_status === 'LOADED') {
-    return <img className={s.CoverImage} src={blob_url} alt="投稿相片预览" />
+    return sideways === null
+      ? <img className={s.CoverImage} src={blob_url} alt="投稿相片预览" />
+      : (
+        <img
+          className={`${s.CoverImage} ${s.CoverImageSideways}`}
+          src={blob_url}
+          alt="投稿相片预览"
+          style={{ width: `${sideways.width}px`, height: `${sideways.height}px` }}
+        />
+      )
   } else if (load_status === 'FAILURE') {
     return <span className={s.CoverTips}>图片读取失败</span>
   } else {

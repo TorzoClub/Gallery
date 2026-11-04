@@ -30,6 +30,19 @@
       height: 100%;
       transition: opacity 382ms;
     }
+
+    /*
+     * 横长图竖着贴（scatter.ts 的 SIDEWAYS_RATIO / photoCardCover）：
+     * <img> 的宽高在行内样式里对调成原图方向，这里居中后顺时针转 90°，原图顶边朝右。
+     * 只是显示上的旋转，图片文件本身不变；点开大图时转回横向（见 PhotoCard 的 onClickCover）。
+     */
+    .cover-sideways {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      max-width: none;
+      transform: translate(-50%, -50%) rotate(90deg);
+    }
   }
 
   .bottom-area {

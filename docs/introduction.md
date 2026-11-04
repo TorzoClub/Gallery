@@ -122,7 +122,7 @@ Node HTTP Server
 - 公开页和后台共用前端入口，后台整体异步加载；公开页入口是 `/explore`，`/` 重定向到它。
 - `/explore` 与 `/behind` 是同级页面；页面切换用隐藏 stage，而不是 fixed 覆盖。
 - `/explore/cancelSubmission` 是挂载在 Explore 页面上的固定全屏取消投稿覆盖层，不会卸载底层 Explore；进入和返回 Explore 时复用 `ChannelTransition` 播放 CRT 换台特效。旧 `/cancelSubmission` 与 `/removingSubmission` 会重定向到这里。
-- 图片分三类：`source` 原图、`optimized` 全尺寸 SDR AVIF、`thumb` SDR AVIF 缩略图；相片 optimized 固定为 `-sdr.avif`，thumb 为无后缀 `.avif`；头像 thumb 为 `.avif`。当前 Phase 0 只生成 SDR；HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
+- 图片分三类：`source` 原图、`optimized` 全尺寸 SDR AVIF、`thumb` SDR AVIF 缩略图；相片 optimized 固定为 `-sdr.avif`，thumb 为无后缀 `.avif`；头像 thumb 为 `.avif`。前后端的图片处理思路见 [images.md](images.md)。当前 Phase 0 只生成 SDR；HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
 - 后台保持轻依赖和工具化，不套用公开页视觉风格。
 - 后端通过 dispatch action 执行业务，admin action 只能从 admin 路由调用。
 - storage 是单实例 JSON + 图片池；同一 storage 只允许一个进程写。
@@ -145,6 +145,7 @@ Node HTTP Server
 | [docs/auth.md](auth.md) | 后台登录、JWT、权限边界 |
 | [docs/troubleshooting.md](troubleshooting.md) | 常见问题排查 |
 | [docs/designs.md](designs.md) | 设计原则与公开页 UI 风格 |
+| [docs/images.md](images.md) | 图片处理：后端派生图尺寸与上限、前端拍立得尺寸估算、横长图竖贴、竖长摆正 |
 | [docs/glossary.md](glossary.md) | 领域术语简表 |
 | [TODOS.md](../TODOS.md) | 当前状态、范围、后续待办 |
 | [AGENTS.md](../AGENTS.md) | AI agent 工作边界和验证要求 |

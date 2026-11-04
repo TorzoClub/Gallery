@@ -122,6 +122,10 @@ export type CoverClickEvent = {
 export type PhotoCardVote = {
   selected: boolean
   interactive: boolean
+  /** 磁粒正从天而降：这时先显示空位，等它落定再换成真正的那颗 */
+  landing?: boolean
+  /** 🤏 正把磁粒捏回托盘（PinchMagnet 盖在上面）：这里先换成空位，也先别点 */
+  lifting?: boolean
   onToggle(): void
 }
 
@@ -234,10 +238,9 @@ const PhotoCard = (props: Props) => {
         />
         {thumb_status === 'FAILURE' && <LoadFailure onClick={retryLoadPhotoThumb} />}
         {props.coverOverlay}
-        {vote !== undefined && <OwnVote vote={vote} />}
       </div>
 
-      {has_bottom && <div className="bottom-area" style={{ minHeight: `${photoCardBottomMin(width)}px` }}>
+      {has_bottom && <div className={vote === undefined ? 'bottom-area' : 'bottom-area has-vote'} style={{ minHeight: `${photoCardBottomMin(width)}px` }}>
         {show_member && (
           <div className="member-info">
             <div className="avatar-wrapper">
@@ -248,15 +251,21 @@ const PhotoCard = (props: Props) => {
         )}
         {show_desc && <pre className="desc-block">{desc}</pre>}
       </div>}
+
+      {/* 登录成员自己的那一票：吸在整张卡片的右下角（不在 cover-area 里，32px 的磁粒放不进相片角落，也会被 overflow 裁掉） */}
+      {vote !== undefined && <OwnVote vote={vote} />}
     </PhotoCardPaper>
   )
 }
 export default PhotoCard
 
-/** 相片右上角的那一颗：放上去就是磁粒，拿走了（且还能投）就是一个空位 */
+/** 相片右下角的那一颗：放上去就是磁粒，拿走了（且还能投）就是一个空位 */
 function OwnVote({ vote }: { vote: PhotoCardVote }) {
+  // 磁粒还在半空（position: fixed 的 FallingMagnet 盖在上面）：这里先留着空位，落定后再换成磁粒
+  // 磁粒正被 🤏 捏回托盘：飞着的那颗盖在这里，这里同样先留空位
+  const placed = vote.selected && vote.landing !== true && vote.lifting !== true
   if (!vote.interactive) {
-    return vote.selected
+    return placed
       ? <span className="photo-card-vote is-static"><Magnet /></span>
       : null
   }
@@ -264,6 +273,8 @@ function OwnVote({ vote }: { vote: PhotoCardVote }) {
     <button
       type="button"
       className="photo-card-vote"
+      // 磁粒还在半空：先占着位子，但先别点，等它落定
+      disabled={vote.landing === true || vote.lifting === true}
       aria-pressed={vote.selected}
       aria-label={vote.selected ? '收回磁粒' : '放一颗磁粒（投一票）'}
       title={vote.selected ? '收回磁粒' : '放一颗磁粒'}
@@ -273,7 +284,7 @@ function OwnVote({ vote }: { vote: PhotoCardVote }) {
         vote.onToggle()
       }}
     >
-      {vote.selected ? <Magnet /> : <MagnetSlot />}
+      {placed ? <Magnet /> : <MagnetSlot />}
     </button>
   )
 }

@@ -11,6 +11,9 @@ import useSafeState from 'hooks/useSafeState'
 import { dateDiffInDays } from 'utils/date'
 import TextPlaceholder from './TextPlaceholder'
 import { FallingPhotoCard, type FallingCard } from './FallingPhotoCard'
+import { FallingMagnet, type MagnetDrop } from './FallingMagnet'
+import { PinchMagnet, type MagnetPickup } from './PinchMagnet'
+import { playMagnetDropSound, primeMagnetAudio } from 'utils/magnet-audio'
 import { pickSaveFile, writeSaveFile } from 'utils/save-file'
 
 export type GalleryLayout = WaterfallLayout & {
@@ -202,6 +205,47 @@ function useEnteringPhotos(): ReadonlySet<string> {
   return entering
 }
 
+function centerOf(el: Element): { x: number; y: number } {
+  const rect = el.getBoundingClientRect()
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+}
+
+/** 托盘还没出现时（例如刚关掉提示弹层的那 2 秒）🤏 把磁粒带去哪：托盘将要出现的位置，屏幕底部居中 */
+function trayFallback(): { x: number; y: number } {
+  return { x: window.innerWidth / 2, y: window.innerHeight - 15 - 24 }
+}
+
+/**
+ * 放第 index 颗（从 0 数）磁粒时，它从托盘（MagnetTray）的哪里飞出来。
+ * 这时托盘已经按新票数重画（磁粒从右往左用掉）：一颗颗画出来的，第 index 格刚变成空位，就从那一格飞；
+ * “磁粒 × 剩余”的，从那一颗飞；不限票数（“磁粒 × ♾️”）或找不到托盘，返回 undefined，磁粒从天而降。
+ */
+function magnetSource(index: number): { x: number; y: number } | undefined {
+  const tray = document.querySelector<HTMLElement>('[data-magnet-tray]')
+  if (tray === null) {
+    return undefined
+  }
+  const mode = tray.dataset.magnetTray
+  if (mode === 'drawn') {
+    const slot = tray.querySelector(`[data-tray-slot="${index}"]`)
+    return slot === null ? undefined : centerOf(slot)
+  }
+  if (mode === 'count') {
+    const magnet = tray.querySelector('[data-tray-magnet]')
+    return magnet === null ? undefined : centerOf(magnet)
+  }
+  return undefined
+}
+
+/** 🤏 把收回的磁粒放回托盘哪里：一颗颗画出来的放回第 index 格；“× 剩余”“× ♾️”放回那一颗；找不到托盘就放到它将要出现的位置 */
+function magnetReturnTarget(index: number): { x: number; y: number } {
+  const tray = document.querySelector<HTMLElement>('[data-magnet-tray]')
+  const el = tray === null
+    ? null
+    : tray.querySelector(tray.dataset.magnetTray === 'drawn' ? `[data-tray-slot="${index}"]` : '[data-tray-magnet]')
+  return el === null ? trayFallback() : centerOf(el)
+}
+
 const NO_FALLEN: ReadonlySet<number> = new Set()
 
 /*
@@ -301,6 +345,81 @@ export default ({
   const root = useRef<HTMLDivElement>(null)
   const { tapes, loose_id, fallen, falling, pull, landed, loosen } = useTape(root, loose_tape, gallery.photos.length > 0, entering_ids)
 
+  // 刚放上去的磁粒：从托盘里那一格飞过去（不限票数时从磁粒位正上方落下来），落到纸面时响一声“ta～”，落定后真正的那颗才出现
+  const [magnet_drops, setMagnetDrops] = useState<MagnetDrop[]>([])
+  const dropping = useMemo(() => new Set(magnet_drops.map(drop => drop.photo_id)), [magnet_drops])
+  const prev_selected = useRef(selected_id_list)
+  useEffect(() => {
+    const prev = prev_selected.current
+    prev_selected.current = selected_id_list
+    const added = selected_id_list.filter(id => !prev.includes(id))
+    if (added.length === 0 || prefersReducedMotion() || root.current === null) {
+      return
+    }
+    const next: MagnetDrop[] = []
+    added.forEach((photo_id, order) => {
+      // 磁粒位一直都在（没放磁粒时是空位），所以这里一定能拿到它
+      const el = root.current?.querySelector<HTMLElement>(`.photo-card-cell[data-photo-id="${photo_id}"] .photo-card-vote`)
+      if (el === null || el === undefined) {
+        return
+      }
+      next.push({
+        key: `${photo_id}-${Date.now()}`,
+        photo_id,
+        to: centerOf(el),
+        // 托盘从右往左空：放完之后剩 remaining 颗，刚空出来的是第 remaining（+order）格
+        from: magnetSource(Math.max(0, gallery.vote_limit - selected_id_list.length) + order),
+      })
+    })
+    if (next.length > 0) {
+      setMagnetDrops(list => [...list, ...next])
+    }
+  }, [selected_id_list, gallery.vote_limit])
+
+  const magnetLanded = useCallback((key: string) => {
+    setMagnetDrops(list => list.filter(drop => drop.key !== key))
+  }, [])
+
+  // 正被 🤏 捏回托盘的磁粒：这一票等磁粒落进托盘（arrived）才真正收回，所以飞回去的途中托盘那一格还是空位
+  const [pickups, setPickups] = useState<(MagnetPickup & { arrived: boolean })[]>([])
+  const lifting = useMemo(() => new Set(pickups.filter(item => !item.arrived).map(item => item.photo_id)), [pickups])
+  const arrived_keys = useRef(new Set<string>())
+
+  const pickupArrived = useCallback((pickup: MagnetPickup) => {
+    // 只收回一次（StrictMode 等重复执行时不会把这一票又放回去）
+    if (arrived_keys.current.has(pickup.key)) {
+      return
+    }
+    arrived_keys.current.add(pickup.key)
+    setPickups(list => list.map(item => (item.key === pickup.key ? { ...item, arrived: true } : item)))
+    onClickVote?.(pickup.photo_id)
+  }, [onClickVote])
+
+  const pickupDone = useCallback((key: string) => {
+    setPickups(list => list.filter(item => item.key !== key))
+  }, [])
+
+  /** 点击磁粒是用户手势：在这里创建 / 恢复音频上下文，“ta～”才不会因为自动播放策略被吞掉 */
+  const handleToggleVote = useCallback((photo_id: number) => {
+    primeMagnetAudio()
+    const vote_el = root.current?.querySelector<HTMLElement>(`.photo-card-cell[data-photo-id="${photo_id}"] .photo-card-vote`)
+    if (!selected_id_list.includes(photo_id) || prefersReducedMotion() || vote_el === null || vote_el === undefined) {
+      // 放磁粒（飞过去的动画由 selected_id_list 的变化触发），或不播动画时直接收回
+      onClickVote?.(photo_id)
+      return
+    }
+    // 收回：🤏 从托盘飞来，把磁粒捏回托盘里最左边的那个空位（同时有几颗在路上，就依次往右排）
+    const in_flight = pickups.filter(item => !item.arrived).length
+    const slot = Math.max(0, gallery.vote_limit - selected_id_list.length) + in_flight
+    setPickups(list => [...list, {
+      key: `${photo_id}-${Date.now()}`,
+      photo_id,
+      from: centerOf(vote_el),
+      to: magnetReturnTarget(slot),
+      arrived: false,
+    }])
+  }, [onClickVote, selected_id_list, pickups, gallery.vote_limit])
+
   const title_node = useTitleNode(gallery)
 
   const handleRefreshed = useCallback(() => {
@@ -367,9 +486,11 @@ export default ({
               onClickCover={(click_info) => onClickCover(click_info, photo.id)}
               vote={show_vote_button ? {
                 selected,
+                landing: dropping.has(photo.id),
+                lifting: lifting.has(photo.id),
                 // 撕胶带的整个过程里磁粒悬在半空 / 卡片在忙，不能点
                 interactive: vote_interactive && busy === undefined,
-                onToggle: () => onClickVote?.(photo.id),
+                onToggle: () => handleToggleVote(photo.id),
               } : undefined}
             />
             </div>
@@ -407,7 +528,7 @@ export default ({
         return waterfall()
       }
     }
-  }, [entering_ids, fallen, loose_id, pull, tapes, gallery.can_submission, gallery.event_start, gallery.in_event, gallery.photos, layout, onClickCover, onClickVote, handleRefreshed, selected_id_list, show_vote_button, vote_interactive])
+  }, [entering_ids, fallen, loose_id, pull, tapes, gallery.can_submission, gallery.event_start, gallery.in_event, gallery.photos, layout, onClickCover, handleToggleVote, dropping, lifting, handleRefreshed, selected_id_list, show_vote_button, vote_interactive])
 
   return (
     <div className="gallery" ref={root}>
@@ -415,6 +536,22 @@ export default ({
       { waterfall_layout_node }
       {falling.map(item => (
         <FallingPhotoCard key={item.key} falling={item} onDone={() => landed(item.key)} />
+      ))}
+      {magnet_drops.map(drop => (
+        <FallingMagnet
+          key={drop.key}
+          drop={drop}
+          onImpact={playMagnetDropSound}
+          onLand={() => magnetLanded(drop.key)}
+        />
+      ))}
+      {pickups.map(pickup => (
+        <PinchMagnet
+          key={pickup.key}
+          pickup={pickup}
+          onArrive={() => pickupArrived(pickup)}
+          onDone={() => pickupDone(pickup.key)}
+        />
       ))}
     </div>
   )

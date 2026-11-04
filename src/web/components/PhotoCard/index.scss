@@ -37,6 +37,11 @@
     padding: 10px 2px 10px;
   }
 
+  /* 右下角的磁粒盖住写字区的最后一列：描述右侧让出一条，别写到底下 */
+  .bottom-area.has-vote .desc-block {
+    padding-right: 44px;
+  }
+
   .member-info {
     display: flex;
     align-items: center;
@@ -182,19 +187,19 @@
   }
 }
 
-/* 登录成员自己的那一票：贴在相片右上角，与后台磁粒的位置一致。点击区 28px，磁粒 16px */
+/* 登录成员自己的那一票：吸在整张卡片的右下角。直径 32px（后台统计磁粒 16px 的两倍），点击区 40px */
 .photo-card-vote {
-  --magnet-size: 16px;
+  --magnet-size: 32px;
 
   position: absolute;
-  top: 2px;
-  right: 2px;
-  z-index: 2;
+  right: 4px;
+  bottom: 4px;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   margin: 0;
   cursor: pointer;
@@ -206,6 +211,11 @@
   &.is-static {
     cursor: default;
     pointer-events: none;
+  }
+
+  /* 磁粒还在半空：占着位子，但先别点 */
+  &:disabled {
+    cursor: default;
   }
 
   /* 空位在相片上要看得见：底下垫一层半透明的白 */

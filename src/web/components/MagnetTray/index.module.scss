@@ -1,6 +1,6 @@
-/* 一条压在屏幕底部的小托盘，像冰箱贴的收纳条：米白底、细边、柔和投影 */
+/* 一条压在屏幕底部的小托盘，像冰箱贴的收纳条：米白底、细边、柔和投影。磁粒与相片上的一样大（32px） */
 .tray {
-  --magnet-size: 16px;
+  --magnet-size: 32px;
 
   position: fixed;
   bottom: 15px;
@@ -8,14 +8,14 @@
   z-index: 900; /* 低于大图（10010）和各种弹层 */
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   box-sizing: border-box;
   max-width: calc(100vw - 30px);
-  height: 32px;
-  padding: 0 12px;
+  height: 48px;
+  padding: 0 14px;
   background: linear-gradient(#fffef9, #f3f0e6);
   border: 1px solid rgb(0 0 0 / 0.14);
-  border-radius: 16px;
+  border-radius: 24px;
   box-shadow:
     inset 0 1px 0 #fff,
     0 1px 1px rgb(0 0 0 / 0.12),
@@ -33,14 +33,21 @@
 }
 
 .times {
-  font-size: 13px;
+  font-size: 16px;
   color: #6b6b6b;
 }
 
 .count {
   min-width: 1em;
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 700;
   color: #306785;
   font-variant-numeric: tabular-nums;
+}
+
+/* 每一格只是个定位用的壳（Gallery 按 data-tray-slot 找磁粒从哪飞出去） */
+.tray [data-tray-slot],
+.tray [data-tray-magnet] {
+  display: block;
+  flex: 0 0 auto;
 }

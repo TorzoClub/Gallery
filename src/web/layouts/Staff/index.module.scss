@@ -53,6 +53,23 @@
   letter-spacing: 2px;
 }
 
+/* 组标题：人类组 / AI 组，像刊物里的栏目分隔 */
+.group + .group {
+  margin-top: 96px;
+}
+
+.groupTitle {
+  width: min(100% - 32px, 640px);
+  margin: 0 auto 48px;
+  color: var(--ink-blue);
+  font-family: "Songti SC", "STSong", SimSun, Georgia, serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  text-align: center;
+  text-indent: 8px;
+}
+
 /* 纸从中间往两边排，一行放不下就换行；顶端对齐，纸长短不一也不会被拉高 */
 .board {
   display: flex;
@@ -78,7 +95,7 @@
   z-index: -1;
   bottom: 14px;
   width: 46%;
-  height: 22%;
+  height: 22px;
   box-shadow: 0 16px 12px rgb(0 0 0 / 38%);
 }
 
@@ -186,6 +203,25 @@
   & + & {
     margin-top: var(--rule);
   }
+
+  // Vec 的留言用 h3 做了一句标题；不要让它继承正文的段首缩进
+  h3 {
+    margin: 0px 0;
+    padding-top: var(--rule);
+    line-height: var(--rule);
+    color: var(--ink-blue);
+    font-family: "Songti SC", "STSong", SimSun, Georgia, serif;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: var(--rule);
+    letter-spacing: 2px;
+    text-align: center;
+    text-indent: 0;
+  }
+
+  strong {
+    color: var(--ink-blue);
+  }
 }
 
 .signoff {
@@ -193,6 +229,12 @@
   color: var(--ink-blue);
   font-style: italic;
   text-align: right;
+}
+
+@media (min-width: 1601px) {
+  .sheet {
+    width: min(100%, 640px);
+  }
 }
 
 @media (max-width: 400px) {

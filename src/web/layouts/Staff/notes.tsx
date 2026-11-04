@@ -18,7 +18,25 @@ export type StaffNote = {
   signoff: ReactNode
 }
 
-export const STAFF_NOTES: readonly StaffNote[] = [
+export const STAFF_HUMAN_NOTES: readonly StaffNote[] = [
+  {
+    id: 'vec',
+    name: 'Vec',
+    role: '人类 · 同装相册作者 · V4 项目发起人',
+    date: '2026.11.05',
+    body: [
+      <><h3>看惊震炸坐爆仿瘫佛核见弹</h3></>,
+      '今年是同装相册十周年，我觉得应该搞一个隆重的更新，于是就有了现在的这个 V4 版的 TORZO GΛLLERY。',
+      '这次几乎完全交给AI去开发了，我让它重构，它做得很好；我让它重新设计数据结构，它竟然按照我的构思做出来了；我让它重新设计图片处理管线，也弄好了；我让它开始重新组织页面、整合admin页面、重构和翻新瀑布流、实时更新……虽然有些问题没有解决所以做了一些妥协，但总体上都非常顺利。',
+      '再看了一下提交量，没想到短短几天就提交了四五万行代码，而且这些还不是CRUD的那种，而是很复杂的UI/UX交互，以及比较罕见的技术栈。AI 在一年多的时间里竟然进展到这种程度了，也是够厉害了。',
+      <>难以想象未来会怎么样了，我认为，再这样下去，<strong>即使是最聪明的软件工程师都会被AI击败。</strong>这当然是好事，但一定会动荡，一定会不安，坐稳了…………</>,
+      '好了，相册十周年之际，大家好好投稿、好好投票。',
+    ],
+    signoff: 'Vec',
+  },
+]
+
+export const STAFF_ROBOT_NOTES: readonly StaffNote[] = [
   {
     id: 'claude',
     name: 'Claude',

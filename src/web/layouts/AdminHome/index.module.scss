@@ -107,6 +107,28 @@
   font-size: 14px;
 }
 
+/*
+ * Navigator 里的“登录”灯：只在 ≥ 641px 显示。
+ * 641px 起控制台的琴键组（.bank）和它右边的“登录”灯一起隐藏，灯就挪到 Navigator 的按钮左边；
+ * 640px 以内反过来，灯在琴键右边，Navigator 里不显示。断点与 AdminConsole.module.css 一致。
+ */
+.navLoginLed {
+  display: none;
+}
+
+@media (min-width: 641px) {
+  .navLoginLed {
+    display: flex;
+  }
+}
+
+.shellLoading {
+  margin: 48px 0;
+  color: #6b7280;
+  font-size: 14px;
+  text-align: center;
+}
+
 .error {
   max-width: 520px;
   margin: 16px auto;

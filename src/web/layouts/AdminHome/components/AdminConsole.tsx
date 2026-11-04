@@ -538,6 +538,7 @@ export function AdminConsole({ stats, settings, onSettingsChange, members, membe
   // 所有面板常驻挂载。小屏用 .off 隐藏，大屏全部平铺；重建进行中切走再切回来，状态不会丢
   return (
     <div className={styles.root}>
+      <div className={styles.bankRow}>
       <div className={styles.bank} role="radiogroup" aria-label="面板" onKeyDown={onKeyDown}>
         {TABS.map((t, i) => (
           <button
@@ -582,6 +583,8 @@ export function AdminConsole({ stats, settings, onSettingsChange, members, membe
           </button>
         ))}
       </div>
+      <LedIndicator className={styles.loginLed} color="green" label="登录" />
+      </div>
 
       <div className={styles.console}>
         <div className={styles.inner}>
@@ -598,6 +601,33 @@ export function AdminConsole({ stats, settings, onSettingsChange, members, membe
           <MemberPanel members={members} memberCanDelete={memberCanDelete} memberSubmissions={memberSubmissions} onMembersChanged={onMembersChanged} />
         </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================== 未登录 / 读取中 ============================== */
+
+/**
+ * 登录前（和登录后、AdminPool 还没读回来时）的控制台外壳：
+ * 琴键照常摆着但一个都不按下、不可按；右侧“登录”灯未登录黄、已登录绿；
+ * 主面板里只放 children（门禁 / 读取提示），不挂任何需要后台数据的面板。
+ */
+export function AdminConsoleShell({ loggedIn, children }: { loggedIn: boolean; children: ReactNode }) {
+  return (
+    <div className={styles.root}>
+      <div className={styles.bankRow}>
+        <div className={styles.bank} role="group" aria-label="面板（登录后可用）">
+          {TABS.map((t) => (
+            <button key={t.id} type="button" className={styles.key} disabled>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <LedIndicator className={styles.loginLed} color={loggedIn ? 'green' : 'yellow'} label="登录" />
+      </div>
+      <div className={styles.console}>
+        <div className={styles.shellInner}>{children}</div>
       </div>
     </div>
   );

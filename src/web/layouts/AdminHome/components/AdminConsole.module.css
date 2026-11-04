@@ -28,13 +28,27 @@
   color: var(--ink);
 }
 
+/* ==================== 琴键组 + “登录”灯 ==================== */
+.bankRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 8px 10px 0;
+}
+
+/* “登录”灯：未登录黄、已登录绿（AdminConsoleShell / AdminConsole 传色） */
+.loginLed {
+  flex: 0 0 auto;
+}
+
 /* ==================== 单选按钮组：录音机式金属琴键 ==================== */
 .bank {
   display: flex;
+  flex: 0 0 auto;
   gap: 2px;
   box-sizing: border-box;
-  width: 320px;
-  margin: 8px auto 0 10px;
+  width: 300px;
+  margin: 0;
   padding: 0px 3px 2px;
   background:
     linear-gradient(180deg, #292e31 0%, #111517 35%, #171b1d 70%, #0b0e0f 100%);
@@ -191,6 +205,12 @@
   box-shadow: none;
 }
 
+/* 登录前：琴键全部弹起、不可按，字压暗一点 */
+.key:disabled {
+  color: #6b7276;
+  cursor: default;
+}
+
 .key:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -214,6 +234,13 @@
   background: var(--surface);
   border-radius: 0;
   box-shadow: var(--well-shadow);
+}
+
+/* 未登录 / 读取中：主面板里只放一块内容，居中 */
+.shellInner {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 20px;
 }
 
 /* 小屏：未选中的面板整块隐藏。不用 hidden 属性，因为项目里的全局 reset 常带 [hidden]{display:none!important}，会盖掉大屏的展开 */
@@ -810,6 +837,15 @@
 
   .bank {
     display: none;
+  }
+
+  /* 大屏没有琴键（面板全部平铺），整行连同“登录”灯一起隐藏；灯改由 Navigator 显示（AdminHome 的 .navLoginLed） */
+  .bankRow {
+    display: none;
+  }
+
+  .shellInner {
+    padding: 24px 0 40px;
   }
 
   .inner {

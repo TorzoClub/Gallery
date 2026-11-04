@@ -20,7 +20,9 @@
 | 磁粒托盘 | Magnet tray | 公开页投票期屏幕底部居中的托盘（HUD），显示手里还剩几颗磁粒，磁粒与卡片上的一样大；放磁粒时磁粒从托盘飞到相片上。不限票数时为“磁粒 × ♾️”，磁粒从天而降。 |
 | 公开页 | Public page | 普通访问者看到的相册页面，入口是 `/explore`；`/` 重定向到它。 |
 | 成员笔记本 | Member notebook (CH. Member) | `/member/<id>` 上单独的只读名单簿，直接打开该成员的成员页；数据只来自 ClientPool，不含 QQ 号。 |
-| 后台 | Admin | 后台入口是 `/admin`。 |
+| 后台 | Admin | 后台入口是 `/admin`，Behind 页 Navigator 上的“A”按钮换台进入。 |
+| 已弃用组件 | deprecated | `src/web/components/deprecated/` 里不再使用但保留参考的组件，例如后台登录抽屉 `AdminLoginDrawer`。 |
+| 门禁 | AccessPanel | `/admin` 未登录时的登录界面；登录前不读任何后台数据。 |
 | dispatch | Dispatch API | 通过 action 名称分发 query/mutation，而不是每个业务一个 REST 路径。 |
 | query | Query | 只读 action，走 `/query/:name` 或 `/admin/query/:name`。 |
 | mutation | Mutation | 写 action，走 `/mutate/:name` 或 `/admin/mutate/:name`。 |

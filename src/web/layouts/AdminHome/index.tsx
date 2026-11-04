@@ -1,22 +1,25 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Signal } from 'vait'
 import type { AdminGalleryDTO, AdminPoolDTO } from '@shared/dto'
 import { ApiError } from '../../api/dispatch'
-import { adminMutate } from '../../admin/api/client'
+import { adminMutate, UNAUTHORIZED_EVENT } from '../../admin/api/client'
 import { updateInstanceConfig } from '../../admin/api/config'
 import { createGallery } from '../../admin/api/gallery'
 import { refreshAvatar, refreshThumb } from '../../admin/api/image'
 import { fetchAdminPool } from '../../admin/api/pool'
-import { getToken, removeToken } from '../../admin/auth/token'
+import { getToken, removeToken, setToken } from '../../admin/auth/token'
 import { getApiErrorMessage } from '../../admin/utils/errors'
 import { global_queue } from '../../utils/queue-load'
 import Navigator from '@/components/Navigator'
 import { signal_critical_error } from '../../signals'
 import AdminGallery from './components/AdminGallery'
 import type { MemberHistory } from './components/GalleryManagePanel'
+import { AccessPanel } from './components/AccessPanel'
+import { LedIndicator } from './components/LedIndicator'
 import {
   AdminConsole,
+  AdminConsoleShell,
   type AdminSettings,
   type AdminStats,
   type Member as ConsoleMember,
@@ -80,7 +83,9 @@ function consoleMembersFromPool(pool: AdminPoolDTO): ConsoleMember[] {
 
 export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean }) {
   const navigate = useNavigate()
-  const token = getToken()
+  // 没有 token 时显示门禁（AccessPanel），不读取任何后台数据；登录成功后才开始读 AdminPool
+  const [token, setTokenState] = useState(getToken)
+  const [login_notice, setLoginNotice] = useState<string | undefined>(undefined)
   const watterfall_refreshed = useMemo(() => Signal(), [])
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [settings, setSettings] = useState<AdminSettings | null>(null)
@@ -122,12 +127,32 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         removeToken()
-        navigate('/behind', { replace: true })
+        setLoginNotice('登录已失效，请重新输入密码')
+        setTokenState('')
         return
       }
       setState({ status: 'error', message: getApiErrorMessage(error, '读取后台数据失败') })
     }
-  }, [navigate, token])
+  }, [token])
+
+  // 任何后台请求遇到 401（client.ts 已清掉 token）：回到门禁，丢掉已读到的后台数据
+  useEffect(() => {
+    const handle = () => {
+      setLoginNotice('登录已失效，请重新输入密码')
+      setTokenState('')
+      setState({ status: 'loading' })
+      setSettings(null)
+    }
+    window.addEventListener(UNAUTHORIZED_EVENT, handle)
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, handle)
+  }, [])
+
+  const handleGranted = useCallback((next_token: string) => {
+    setToken(next_token)
+    setLoginNotice(undefined)
+    setState({ status: 'loading' })
+    setTokenState(next_token)
+  }, [])
 
   useEffect(() => {
     if (thisIsDisplay) {
@@ -505,12 +530,35 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     return null
   }
 
+  const back_to_explore = () => navigate('/explore', { replace: true })
+
+  // 大屏（≥ 641px）琴键组隐藏时，“登录”灯放进 Navigator：未登录黄、已登录绿
+  const nav_login_led = (
+    <span className={styles.navLoginLed}>
+      <LedIndicator color={token === '' ? 'yellow' : 'green'} label='登录' />
+    </span>
+  )
+
   if (token === '') {
-    return <Navigate to="/behind" replace />
+    return (
+      <main className={styles.page}>
+        <Navigator scene='admin' onClickPushButton={back_to_explore} indicator={nav_login_led} />
+        <AdminConsoleShell loggedIn={false}>
+          <AccessPanel notice={login_notice} onGranted={handleGranted} />
+        </AdminConsoleShell>
+      </main>
+    )
   }
 
   if (state.status === 'loading') {
-    return <main className={styles.page}><div className={styles.loading}>正在读取完整 Pool…</div></main>
+    return (
+      <main className={styles.page}>
+        <Navigator scene='admin' onClickPushButton={back_to_explore} indicator={nav_login_led} />
+        <AdminConsoleShell loggedIn>
+          <div className={styles.shellLoading}>正在读取完整 Pool…</div>
+        </AdminConsoleShell>
+      </main>
+    )
   }
 
   if (state.status === 'error') {
@@ -527,10 +575,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
 
   return (
     <main className={styles.page}>
-      <Navigator
-        scene='admin'
-        onClickPushButton={() => navigate('/explore', { replace: true })}
-      />
+      <Navigator scene='admin' onClickPushButton={back_to_explore} indicator={nav_login_led} />
       <AdminConsole
         stats={statsFromPool(state.pool)}
         settings={console_settings}

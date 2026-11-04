@@ -16,7 +16,7 @@
 ## 当前事实
 
 - 根目录是单体 SPA + dispatch API：一个 Node HTTP Server 监听唯一端口；Hono 始终在后端最前面，development 的非 API 请求进入同进程 Vite middleware，production 由 Hono 提供前端静态文件。
-- 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。
+- 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。`src/web/components/deprecated/` 里是已弃用组件，不要在新页面里引用，除非用户要求复用。
 - 服务端测试在 `test/`；当前没有浏览器 UI 交互测试。
 - 前端 bundle 由 Vite 生成 hash 文件；HTML 弱缓存，assets/images 强缓存。
 - 旧 `server/`、`web/`、脚本和 CI 已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支，不参与当前分支的构建、测试、lint、CI 或部署。

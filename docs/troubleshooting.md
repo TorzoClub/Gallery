@@ -56,7 +56,7 @@ Vite middleware 和 production 的 Hono SPA fallback 都应在同一个端口处
 
 ## 登录页打不开或登录 404
 
-- 新后台入口：`GET /behind`，输入管理员密码后进入 `/admin`（SPA）。
+- 后台入口：`GET /admin`（SPA），没登录时页面就是门禁，输入管理员密码后读取后台数据。Behind 页 Navigator 上的“A”按钮也会换台到这里。
 - 登录接口：`POST /auth/login`（API）。
 
 不要把页面和接口混成同一个 POST 路径。`/auth/login` 是 API；后台页面由 SPA fallback 提供。

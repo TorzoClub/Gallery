@@ -157,11 +157,17 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     setTokenState(next_token)
   }, [])
 
+  // 换台离开后，后台页只是被 <Activity> 藏起来，回来时这个 effect 会再跑一遍。
+  // 同一个 token 已经读过就静默刷新（不切回“正在读取”），否则控制台会被卸掉，面板里的状态跟着丢
+  const loaded_token = useRef('')
   useEffect(() => {
-    if (thisIsDisplay) {
-      void load(true)
+    if (!thisIsDisplay) {
+      return
     }
-  }, [load, thisIsDisplay])
+    const silent = token !== '' && loaded_token.current === token
+    loaded_token.current = token
+    void load(!silent)
+  }, [load, thisIsDisplay, token])
 
   useEffect(() => {
     if (state.status !== 'ready') {

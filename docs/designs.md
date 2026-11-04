@@ -55,6 +55,11 @@
 - 频道 OSD 显示 3000ms，例如 `CH. Explore`：左上角 64px、字重 900 的白字黑描边；宽度不超过 640px 时不显示。
 - 切换完成后，一条白色余辉扫描线从视口 30–60vh 的随机位置向下扫过 30vh，持续 2400ms。
 - 同时播放换台音效，见“声音”。
+- 换台只藏不卸（`PublicRoot` 的 `ChannelStage`）：频道第一次换台进来才挂载，之后一直留着，离开时用 React 的 `<Activity mode="hidden">` 藏起来。藏起来时 `display: none`、effect 全部清理（计时器、rAF、监听都停），组件状态和 DOM 保留；换回来时 effect 重新跑，页面是离开时的样子（展开的成员页、排序、已叠好的相片、后台面板等）。
+  - 每个舞台读的路由是冻结的：本频道是当前路由时读当前的，离开后一直读离开时那一条。否则藏起来的页面会读到别的频道的路由（比如成员页读到 `/explore` 会把自己渲染成跳转），状态照样丢。
+  - 滚动位置按频道记，换回来在绘制前还原；第一次来，或路由变了（比如 `/member/3` 换成 `/member/5`，成员本子会按成员 id 重新开），回到顶部。
+  - 例外：碎纸机页（`/explore/cancelSubmission`）仍跟着 Explore 的显示走，离开 Explore 就卸掉；System Reports 每次离开 Behind 都会先卸掉，回来再晚 500ms 挂上（首帧太重，见 `BehindApp.tsx` 的说明）。
+  - 页面里的 effect 必须经得起“清理后再跑一遍”：挂载时只该做一次的事（比如后台读 AdminPool）要自己判断是不是已经做过。
 
 ### 碎纸机
 
@@ -279,7 +284,7 @@ Zelda 风格横幅（`ZeldaQuestBanner`）也是合成音。它原来在 Behind 
 
 - **基础**：所见即所得编辑器，复用公开页的 Navigator、照片卡片、圆角、pinstripe 底色和轻拟物语言，管理者看到的就是公开页的样子。
 - **琴键**：面板切换是一排录音机式琴键（`role="radiogroup"`）。按下的键立即切换面板，旧键同时弹起，并配按下声和 45ms 后的回弹声；方向键可以切换。大屏时所有面板平铺，琴键只负责定位。
-- **门禁（登录）**：每次进 `/admin` 都先过门禁，本地已有 token 也一样。门禁通过之前，`/admin` 只显示 Navigator 和控制台外壳（`AdminConsoleShell`）：琴键照常摆着但一个都不按下、不可按，主面板里是一台门禁机（`AccessPanel`）：四角螺丝的拉丝铝面板，压印铭牌 `ACCESS CONTROL` / `ONLY ADMIN`，绿色液晶屏写状态和提示，下面是密码框 + “开锁”键，底部喇叭孔和“核对”（琥珀）、“拒绝”（红）两颗灯。喇叭孔与右边灯组（含字）等长：宽度运行时量灯组得到，孔横向均匀铺开，不出现半个孔。
+- **门禁（登录）**：每次打开或刷新页面后第一次进 `/admin` 都先过门禁，本地已有 token 也一样。同一次打开里过了门禁、换台离开再回来，后台页是保留着的（见“CRT 换台”的“只藏不卸”），直接回到控制台、不再过门禁，并在后台静默重读一次 AdminPool（不切回“正在读取”）；这次重读遇到 token 失效，照常回到门禁报警。门禁通过之前，`/admin` 只显示 Navigator 和控制台外壳（`AdminConsoleShell`）：琴键照常摆着但一个都不按下、不可按，主面板里是一台门禁机（`AccessPanel`）：四角螺丝的拉丝铝面板，压印铭牌 `ACCESS CONTROL` / `ONLY ADMIN`，绿色液晶屏写状态和提示，下面是密码框 + “开锁”键，底部喇叭孔和“核对”（琥珀）、“拒绝”（红）两颗灯。喇叭孔与右边灯组（含字）等长：宽度运行时量灯组得到，孔横向均匀铺开，不出现半个孔。
   - 液晶屏字体是 `guanzhi 8x8 base`（`index.html` 内联的子集），屏上的字只用 A-Z、a-z、0-9 和空格，不写中文和标点。状态行 32px、提示行 16px，保持点阵整数倍（字体 1/16em 一个像素，16px 时 1 像素 = 1px）。
   - 屏上文案：`Locked` / `ENTER PASSWORD...`；核对本地 token 时 `VERIFYING` / `CHECKING TOKEN`；密码登录时 `VERIFYING` / `PLEASE WAIT`；本地 token 被拒时 `INVALID TOKEN` 或 `EXPIRED TOKEN`（反白，闪法同 `ACCESS DENIED`）/ `ENTER PASSWORD...`；`ACCESS DENIED`（反白，立刻闪 3 次：灭 180ms、亮 220ms，闪完常亮；连续被拒每次都重新闪）/ 原因；`LOGIN SUCCESS` 或 `IS LOGINED` / `WELCOME`。服务端报错是中文，前端按状态码换成英文：401 `WRONG PASSWORD`、429 `TOO MANY TRIES`、连不上 `NO CONNECTION`、其他 `ERROR <状态码>`；空密码是 `ENTER PASSWORD`。
   - 等待输入（`Locked`，以及 token 被拒之后）时 `ENTER PASSWORD` 后面的点照 `index.html` 的 Loading 做法：每 382ms 加一个，加到第 8 个时清空，屏上循环显示 1～7 个、0 个。离开等待状态就清零。

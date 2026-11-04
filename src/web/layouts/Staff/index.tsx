@@ -82,11 +82,11 @@ function StaffSheet({ note, index }: { note: StaffNote; index: number }) {
       <div className={styles.paper}>
         <span className={styles.tape} data-tint={tint} aria-hidden='true' />
         <header className={styles.head}>
-          <div>
+          <div className={styles.nameDate}>
             <h2 className={styles.name}>{note.name}</h2>
-            <div className={styles.role}>{note.role}</div>
+            <time className={styles.date}>{note.date}</time>
           </div>
-          <time className={styles.date}>{note.date}</time>
+          <div className={styles.role}>{note.role}</div>
         </header>
         <div className={styles.body}>
           {note.body.map((paragraph, i) => (

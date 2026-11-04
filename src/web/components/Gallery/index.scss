@@ -24,16 +24,17 @@ $enter-card: 900ms;
 /*
  * 贴纸胶带（三处共用：新投稿、复印后贴回、取消保存后贴回）。与 index.tsx 的 TAPE_* / HAND_* 一致：
  *   0–380ms       纸胶带从上方落下、贴平
- *   190–410ms     🤚 出现在胶带左端：从下方 8px 上移、淡入
- *   410–792ms     按着停 382ms
- *   792–1352ms    从左端划到右端（ease-in-out，起步和收尾都轻）
- *   1352–1734ms   按着停 382ms
- *   1734–1954ms   放手：下移 8px、淡出
+ *   380–762ms     贴好后停 382ms
+ *   762–982ms     🤚 出现在胶带左端：从下方 8px 上移、淡入
+ *   982–1364ms    按着停 382ms
+ *   1364–1924ms   从左端划到右端（ease-in-out，起步和收尾都轻）
+ *   1924–2306ms   按着停 382ms
+ *   2306–2526ms   放手：下移 8px、淡出
  */
 $enter-tape: 380ms;
-$hand-at: 190ms;
-$hand-in: 220ms;
 $hand-hold: 382ms;
+$hand-at: $enter-tape + $hand-hold;
+$hand-in: 220ms;
 $hand-sweep: 560ms;
 $hand-out: 220ms;
 $hand-total: $hand-in + $hand-hold + $hand-sweep + $hand-hold + $hand-out;

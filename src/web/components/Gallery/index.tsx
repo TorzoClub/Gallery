@@ -156,16 +156,18 @@ export function scatterFor(layout: GalleryLayout, photo: {
 /*
  * 贴纸胶带（新投稿、复印后贴回、取消保存后贴回都一样，与 index.scss 的 $enter-tape / $hand-* 一致）：
  *   0–380ms       纸胶带从上方落下、贴平
- *   190–410ms     🤚 出现在胶带左端：上移、淡入
- *   410–792ms     手按着停 382ms
- *   792–1352ms    手从左端划到右端，把胶带抹平
- *   1352–1734ms   手按着停 382ms
- *   1734–1954ms   放手：下移、淡出
+ *   380–762ms     贴好后停 382ms
+ *   762–982ms     🤚 出现在胶带左端：上移、淡入
+ *   982–1364ms    手按着停 382ms
+ *   1364–1924ms   手从左端划到右端，把胶带抹平
+ *   1924–2306ms   手按着停 382ms
+ *   2306–2526ms   放手：下移、淡出
  */
 const TAPE_STICK_MS = 380
-const HAND_AT_MS = 190
-const HAND_IN_MS = 220
 const HAND_HOLD_MS = 382
+/** 胶带贴好、再停 382ms，手才出现 */
+const HAND_AT_MS = TAPE_STICK_MS + HAND_HOLD_MS
+const HAND_IN_MS = 220
 const HAND_SWEEP_MS = 560
 const HAND_OUT_MS = 220
 /** 从开始贴胶带到放手 */

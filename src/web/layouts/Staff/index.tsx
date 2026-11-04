@@ -39,7 +39,7 @@ export default function StaffApp() {
       <header className={styles.masthead}>
         <div className={styles.kicker}>Torzo Gallery · Credits</div>
         <h1 className={styles.title}>Staff</h1>
-        <p className={styles.subtitle}>做这本摄影集的人，留下的话</p>
+        <p className={styles.subtitle}>做这本摄影集的成员，留下的话</p>
       </header>
 
       <div className={styles.board}>

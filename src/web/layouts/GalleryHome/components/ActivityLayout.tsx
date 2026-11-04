@@ -22,6 +22,7 @@ type ActivityLayoutProps = {
   submitted_pool: Record<string, number | undefined>
   setSelectedIdList: (idList: number[]) => void
 
+  loose_tape?: GalleryProps['loose_tape']
   selected_id_list: GalleryProps['selected_id_list']
   show_vote_button: GalleryProps['show_vote_button']
   onClickCover: GalleryProps['onClickCover']

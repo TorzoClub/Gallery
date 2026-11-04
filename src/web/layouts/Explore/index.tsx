@@ -189,9 +189,10 @@ export default function ExplorePage() {
   ), [])
 
   const normal_list_nodes = useMemo(() => (
-    past.map(gallery => (
+    past.map((gallery, idx) => (
       <div className="gallery-wrapper" key={gallery.id}>
         <Gallery
+          loose_tape={active === null && idx === 0}
           show_vote_button={false}
           gallery={gallery}
           selected_id_list={[]}
@@ -200,7 +201,7 @@ export default function ExplorePage() {
         />
       </div>
     ))
-  ), [handleClickCover, past])
+  ), [active, handleClickCover, past])
 
   const pool_error_message = pool_state.status === 'error' ? pool_state.error.message : null
   useEffect(() => {
@@ -226,6 +227,7 @@ export default function ExplorePage() {
       <div className='body'>
         {active !== null && (
           <ActivityLayout
+            loose_tape
             show_submit_button_area={show_submit_button_area}
             active={active}
             show_vote_button={in_vote_period}

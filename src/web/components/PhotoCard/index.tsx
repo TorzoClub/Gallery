@@ -20,15 +20,34 @@ export type PhotoCardPaperProps = {
   tilt?: { rotate: number; x: number }
   /** 纸胶带的 translateX 百分比和倾角（度）；false 表示不贴纸胶带 */
   tape?: { x: number; rotate: number } | false
+  /** 纸胶带松动了：一端翘起，可以点；点下去就是撕下来 */
+  tapeLoose?: TapeLoose
+  /** 正在被复印：盖一层扫描光，见 Gallery 的 .photo-card-copying */
+  copying?: boolean
+  /** 正在贴纸胶带：放一只 🤚 抹胶带，动画时间由外层 class 决定，见 Gallery 的 .photo-card-hand */
+  hand?: boolean
   style?: Partial<CSSProperties>
   children: ReactNode
+}
+
+/**
+ * 能撕的纸胶带（点下去就是撕，同时弹出系统的“存储为”对话框）：
+ * - idle：贴着，可以点；
+ * - tearing：正在撕起（动画由外层 class 驱动）；
+ * - asking：撕开了，在等系统对话框的结果（点“存储”继续、点“取消”胶带贴回去）。
+ * loose：松动的那一截（吸引锚），一端翘起。
+ */
+export type TapeLoose = {
+  state: 'idle' | 'tearing' | 'asking'
+  loose: boolean
+  onPull(): void
 }
 
 /**
  * 拍立得的那张相纸：白边、阴影、倾斜和纸胶带。
  * PhotoCard 和投稿表单共用它，里面放 .cover-area 和 .bottom-area。
  */
-export function PhotoCardPaper({ id, className, width, frame, has_bottom, tilt, tape, style, children }: PhotoCardPaperProps) {
+export function PhotoCardPaper({ id, className, width, frame, has_bottom, tilt, tape, tapeLoose, copying = false, hand = false, style, children }: PhotoCardPaperProps) {
   const tape_style = tape === false ? undefined : {
     '--tape-x': `${tape?.x ?? -50}%`,
     '--tape-r': `${tape?.rotate ?? -3}deg`,
@@ -44,9 +63,39 @@ export function PhotoCardPaper({ id, className, width, frame, has_bottom, tilt, 
         ...(style ?? {}),
       } as CSSProperties}
     >
-      {tape !== false && <span className="photo-card-tape" aria-hidden style={tape_style} />}
+      {tape !== false && (tapeLoose === undefined
+        ? <span className="photo-card-tape" aria-hidden style={tape_style} />
+        : <LooseTape loose={tapeLoose} style={tape_style} />
+      )}
       {children}
+      {copying && <span className="photo-card-scan" aria-hidden />}
+      {/* 和纸胶带同一个框（同样的位置、宽度、倾角），手在框里从左端扫到右端 */}
+      {hand && tape !== false && (
+        <span className="photo-card-hand" aria-hidden style={tape_style}>
+          <span className="photo-card-hand-glyph" />
+        </span>
+      )}
     </div>
+  )
+}
+
+function LooseTape({ loose, style }: { loose: TapeLoose; style: CSSProperties | undefined }) {
+  return (
+    <button
+      type="button"
+      className={loose.loose ? 'photo-card-tape is-button is-loose' : 'photo-card-tape is-button'}
+      style={style}
+      disabled={loose.state !== 'idle'}
+      aria-label="撕下纸胶带（保存原图）"
+      title="撕下来，保存原图"
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (loose.state === 'idle') {
+          loose.onPull()
+        }
+      }}
+    />
   )
 }
 
@@ -78,13 +127,21 @@ export type PhotoCardVote = {
 
 export type Props = {
   id: string | number
+  /**
+   * 是否在卡片上挂 `id="photo-{id}"`（相片加载优先级按它找元素）。
+   * 同一张相片在页面上出现第二次（投稿预览、碎纸机、掉下去的那张）时传 false，避免重复 id。
+   */
+  anchor?: boolean
 
   /** 卡片（含拍立得白边）的宽度 */
   width: number
   /** 倾角（度）和相对列中线的横向位移（px），由 getPhotoCardScatter 给出 */
   tilt?: { rotate: number; x: number }
-  /** 纸胶带的 translateX 百分比和倾角（度），由 getPhotoCardScatter 给出；不给就是居中、-3° */
-  tape?: { x: number; rotate: number }
+  /** 纸胶带的 translateX 百分比和倾角（度），由 getPhotoCardScatter 给出；不给就是居中、-3°；false 是不贴 */
+  tape?: { x: number; rotate: number } | false
+  tapeLoose?: TapeLoose
+  copying?: boolean
+  hand?: boolean
 
   style?: Partial<CSSProperties>
 
@@ -104,7 +161,7 @@ export type Props = {
 }
 
 const PhotoCard = (props: Props) => {
-  const { width, tilt, tape, photo, hideMember, avatar, desc, style, vote } = props
+  const { width, tilt, tape, tapeLoose, photo, hideMember, avatar, desc, style, vote, anchor = true } = props
 
   const [thumb_status, thumb, retryLoadPhotoThumb] = useQueueload(photo.thumb)
   const [avatar_status, avatarThumb] = useQueueload(avatar?.thumb)
@@ -132,18 +189,21 @@ const PhotoCard = (props: Props) => {
 
   return (
     <PhotoCardPaper
-      id={`photo-${props.id}`}
+      id={anchor ? `photo-${props.id}` : undefined}
       width={width}
       frame={frame}
       has_bottom={has_bottom}
       tilt={tilt}
       tape={tape}
+      tapeLoose={tapeLoose}
+      copying={props.copying}
+      hand={props.hand}
       style={style}
     >
       <div
         className="cover-area"
         ref={coverFrameEl}
-        style={{ height: `${cover_height}px` }}
+        style={{ height: `${cover_height}px`, cursor: props.onClickCover === undefined ? 'default' : undefined }}
         onClick={(e) => {
           e.preventDefault()
           if (thumb_status === 'FAILURE' || coverFrameEl.current === null) {

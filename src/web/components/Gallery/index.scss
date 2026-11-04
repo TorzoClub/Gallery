@@ -1,3 +1,5 @@
+@use "sass:math";
+
 .gallery {
   margin: auto;
 
@@ -18,7 +20,65 @@
 $enter-shift: 420ms;
 $enter-pause: 300ms;
 $enter-card: 900ms;
+
+/*
+ * 贴纸胶带（三处共用：新投稿、复印后贴回、取消保存后贴回）。与 index.tsx 的 TAPE_* / HAND_* 一致：
+ *   0–380ms       纸胶带从上方落下、贴平
+ *   190–410ms     🤚 出现在胶带左端：从下方 8px 上移、淡入
+ *   410–792ms     按着停 382ms
+ *   792–1352ms    从左端划到右端（ease-in-out，起步和收尾都轻）
+ *   1352–1734ms   按着停 382ms
+ *   1734–1954ms   放手：下移 8px、淡出
+ */
 $enter-tape: 380ms;
+$hand-at: 190ms;
+$hand-in: 220ms;
+$hand-hold: 382ms;
+$hand-sweep: 560ms;
+$hand-out: 220ms;
+$hand-total: $hand-in + $hand-hold + $hand-sweep + $hand-hold + $hand-out;
+$tape-done: $hand-at + $hand-total;
+
+@function hand-pct($t) {
+  @return math.div($t, $hand-total) * 100%;
+}
+
+@keyframes photo-card-hand {
+  0% {
+    opacity: 0;
+    transform: translate(0, 8px);
+    animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+
+  /* 出现，按住 */
+  #{hand-pct($hand-in)},
+  #{hand-pct($hand-in + $hand-hold)} {
+    opacity: 1;
+    transform: translate(0, 0);
+    animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
+  /* 划到右端，按住 */
+  #{hand-pct($hand-in + $hand-hold + $hand-sweep)},
+  #{hand-pct($hand-in + $hand-hold + $hand-sweep + $hand-hold)} {
+    opacity: 1;
+    transform: translate(100%, 0);
+    animation-timing-function: cubic-bezier(0.4, 0, 0.7, 0.5);
+  }
+
+  /* 放手 */
+  100% {
+    opacity: 0;
+    transform: translate(100%, 8px);
+  }
+}
+
+/* $start：这一处从什么时候开始贴纸胶带 */
+@mixin tape-hand($start) {
+  .photo-card-hand-glyph {
+    animation: photo-card-hand $hand-total linear ($start + $hand-at) both;
+  }
+}
 
 @keyframes photo-card-enter {
   0% {
@@ -81,11 +141,204 @@ $enter-tape: 380ms;
     animation: photo-card-tape-stick $enter-tape cubic-bezier(0.3, 0.6, 0.3, 1) ($enter-shift + $enter-pause + $enter-card) both;
   }
 
+  @include tape-hand($enter-shift + $enter-pause + $enter-card);
+
   @media (prefers-reduced-motion: reduce) {
     &,
     .photo-card,
     .photo-card-tape {
       animation: none;
     }
+  }
+}
+
+/* 撕下纸胶带后掉下去的那张：固定在视口里，从原位置掉出底边。低于大图（10010），高于磁粒托盘（900） */
+.photo-card-falling {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/*
+ * 撕纸胶带。时间线与 index.tsx 的 TEAR_* / COPY_* 常量一致，分阶段由外层 class 驱动：
+ *   .photo-card-tearing     （.with-magnet 时先 0–200ms 取下磁粒）胶带从粘着的左端撕起、消失 180ms
+ *   .photo-card-asking      停在撕开的样子，等系统“存储为”对话框的结果
+ *   .photo-card-copying     点了“存储”且放着磁粒：扫描 0–380ms → 复印件揭起掉落 → 720ms 起贴胶带（含手抹）→ 放手后磁粒放回
+ *   .photo-card-resticking  点了“取消”：贴胶带（含手抹）→ 放手后磁粒放回
+ * 没放磁粒时点“存储”，原件直接掉落（FallingPhotoCard），不经过这里。
+ * 每个阶段的起始帧都接着上一个阶段的结束帧，class 切换时不跳。
+ */
+$tear-lift: 200ms;
+$tear: 180ms;
+$copy-scan: 380ms;
+$copy-tape-at: 720ms;
+$magnet-drop: 220ms;
+
+/* 磁粒悬在原处上方：相片右上角在 .cover-area 里，往上只能抬 5px，靠放大和影子拉远表现“拿起来了” */
+%magnet-hovering {
+  filter: drop-shadow(2px 5px 3px rgb(20 30 40 / 0.35));
+  transform: translate(-2px, -5px) scale(1.25);
+}
+
+@keyframes photo-card-magnet-lift {
+  0% {
+    filter: drop-shadow(0 0 0 rgb(0 0 0 / 0));
+    transform: translate(0, 0) scale(1);
+  }
+
+  100% {
+    filter: drop-shadow(2px 5px 3px rgb(20 30 40 / 0.35));
+    transform: translate(-2px, -5px) scale(1.25);
+  }
+}
+
+/* 落回去，最后轻轻压一下 */
+@keyframes photo-card-magnet-drop {
+  0% {
+    filter: drop-shadow(2px 5px 3px rgb(20 30 40 / 0.35));
+    transform: translate(-2px, -5px) scale(1.25);
+    animation-timing-function: cubic-bezier(0.5, 0, 0.8, 0.6);
+  }
+
+  70% {
+    filter: drop-shadow(0 0 0 rgb(0 0 0 / 0));
+    transform: translate(0, 0) scale(0.94);
+  }
+
+  100% {
+    filter: drop-shadow(0 0 0 rgb(0 0 0 / 0));
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+/* 从撕之前的样子开始（贴着的或松动的，见 PhotoCard 的 --tape-lift-*）：左端还粘着，右端先翘起来，再整条揭走 */
+@keyframes photo-card-tape-tear {
+  0% {
+    opacity: 1;
+    transform: translateX(var(--tape-x, -50%)) rotate(calc(var(--tape-r, -3deg) + var(--tape-lift-r, 0deg)))
+      perspective(240px) rotateY(var(--tape-lift-y, 0deg)) translateZ(2px);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(var(--tape-x, -50%)) translateY(-14px) rotate(calc(var(--tape-r, -3deg) + 14deg))
+      perspective(240px) rotateY(-70deg) translateZ(18px);
+  }
+}
+
+@keyframes photo-card-scan {
+  0% {
+    opacity: 0;
+    transform: translateY(-40%);
+  }
+
+  12%,
+  88% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(260%);
+  }
+}
+
+.photo-card-tearing {
+  .photo-card-tape {
+    transform-origin: 12% 50%;
+    animation: photo-card-tape-tear $tear cubic-bezier(0.4, 0, 0.7, 0.4) both;
+  }
+
+  &.with-magnet {
+    .photo-card-vote {
+      animation: photo-card-magnet-lift $tear-lift cubic-bezier(0.3, 0.6, 0.3, 1) both;
+    }
+
+    .photo-card-tape {
+      animation-delay: $tear-lift;
+    }
+  }
+}
+
+/* 撕开了、在等选择：胶带看不见（弹层还锚在它原来的位置），磁粒悬着 */
+.photo-card-asking {
+  .photo-card-tape {
+    opacity: 0;
+    transform-origin: 12% 50%;
+    transform: translateX(var(--tape-x, -50%)) translateY(-14px) rotate(calc(var(--tape-r, -3deg) + 14deg))
+      perspective(240px) rotateY(-70deg) translateZ(18px);
+  }
+
+  &.with-magnet .photo-card-vote {
+    @extend %magnet-hovering;
+  }
+}
+
+.photo-card-copying {
+  .photo-card-tape {
+    transform-origin: 50% 50%;
+    animation: photo-card-tape-stick $enter-tape cubic-bezier(0.3, 0.6, 0.3, 1) $copy-tape-at both;
+  }
+
+  @include tape-hand($copy-tape-at);
+
+  /* 放手了磁粒才放回去 */
+  .photo-card-vote {
+    animation: photo-card-magnet-drop $magnet-drop linear ($copy-tape-at + $tape-done) both;
+  }
+}
+
+/* 贴回来的是普通的胶带（不再是松动的那条），贴好就是牢的 */
+.photo-card-resticking {
+  .photo-card-tape {
+    transform-origin: 50% 50%;
+    animation: photo-card-tape-stick $enter-tape cubic-bezier(0.3, 0.6, 0.3, 1) both;
+  }
+
+  @include tape-hand(0ms);
+
+  &.with-magnet .photo-card-vote {
+    animation: photo-card-magnet-drop $magnet-drop linear $tape-done both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo-card-tearing,
+  .photo-card-copying,
+  .photo-card-resticking {
+    .photo-card-vote,
+    .photo-card-tape,
+    .photo-card-scan::before {
+      animation: none;
+    }
+  }
+}
+
+/* 复印机的扫描光：一道偏冷的白光带，从卡片上沿扫到下沿 */
+.photo-card-scan {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -2%;
+    width: 104%;
+    height: 38%;
+    background: linear-gradient(
+      180deg,
+      rgb(220 245 255 / 0) 0%,
+      rgb(220 245 255 / 0.5) 42%,
+      rgb(255 255 255 / 0.95) 50%,
+      rgb(220 245 255 / 0.5) 58%,
+      rgb(220 245 255 / 0) 100%
+    );
+    mix-blend-mode: screen;
+    animation: photo-card-scan $copy-scan linear both;
   }
 }

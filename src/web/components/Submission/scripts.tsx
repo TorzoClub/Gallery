@@ -8,7 +8,8 @@ import { componentScript, script, select, Script, Select, Content, useSubmission
 import WaitingInputFrame from 'components/ConfirmQQ/WaitingInputFrame'
 import { Signal, timeout } from 'vait'
 import { LoadingMask } from 'components/LoadingMask'
-import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
+import PhotoCreateOrEdit from './PhotoCreateOrEdit'
+import SubmittedPhotoCard from './SubmittedPhotoCard'
 
 import image_同装同装 from '../../assets/同装 同装.png'
 import { getClientPoolState, reloadClientPool, replaceClientPool } from 'pool/store'
@@ -126,12 +127,7 @@ export function init(init_args : InitArgs) {
         return (
           <>
             <div style={{ marginBottom: '20px' }}>{exists_text}</div>
-            <PreviewBox
-              canClick={false}
-              previewURL={photo.thumb_url}
-              isDragging={false}
-              height={320 / (photo.width / photo.height)}
-            />
+            <SubmittedPhotoCard photo={photo} />
           </>
         )
       })
@@ -369,12 +365,7 @@ export function init(init_args : InitArgs) {
               {
                 photo && (
                   <div data-cancel-photo>
-                    <PreviewBox
-                      canClick={false}
-                      previewURL={photo.thumb_url}
-                      height={320 / (photo.width / photo.height)}
-                      isDragging={false}
-                    />
+                    <SubmittedPhotoCard photo={photo} />
                   </div>
                 )
               }

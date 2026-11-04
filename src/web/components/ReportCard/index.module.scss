@@ -12,6 +12,7 @@
   --stamp-grain: none;
   --stamp-blotch: none;
   --crease: .45;
+  --sheet-angle: -1deg;
   --stamp-x: 128px;
   --stamp-y: 335px;
   --stamp-angle: -4deg;
@@ -31,7 +32,7 @@
   position: relative;
   isolation: isolate;
   width: min(100%, 360px);
-  transform: rotate(-1deg);
+  transform: rotate(var(--sheet-angle));
 }
 
 .sheet::before,

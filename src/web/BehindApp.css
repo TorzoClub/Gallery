@@ -32,13 +32,6 @@
   text-align: center;
 }
 
-.behind-app__logo {
-  display: block;
-  width: min(300px, 78%);
-  height: auto;
-  margin: 0 auto;
-}
-
 .behind-app__title {
   margin: 28px 0 0;
   font-size: 44px;
@@ -71,8 +64,12 @@
 
 /*
  * 网格布局。
- * < 1100px 单列：品牌 → 名单簿 → System Reports。
- * ≥ 1100px 两栏：左栏 360px 放品牌和 System Reports，右栏最宽 720px 放名单簿（跨两行）。
+ * < 800px 单列：品牌 → 名单簿 → System Reports。
+ * ≥ 800px 两行：第一行左品牌、右 System Reports，各 360px、竖向居中对齐；
+ *          第二行名单簿横跨两栏，720px，与上面两块左右边缘对齐。
+ * ≥ 1600px 一行三栏：品牌 360 | System Reports 360 | 名单簿 720，栏距 40px，三块竖向居中对齐。
+ *          360 + 40 + 360 + 40 + 720 + 左右留白 32 × 2 = 1584px，1600px 起放得下。
+ *          名单簿在公开页最宽只画中等布局（maxLayout="M"），720px 正好装下。
  * 后台入口不在页面里，是 Navigator 上的“A”按钮。
  */
 .behind-app__layout {
@@ -100,39 +97,67 @@
   min-width: 0;
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 800px) {
   .behind-app__layout {
-    grid-template-columns: 360px minmax(0, 720px);
+    grid-template-columns: repeat(2, minmax(0, 360px));
     grid-template-areas:
-      "brand members"
-      "report members";
-    align-items: start;
-    column-gap: 64px;
-    row-gap: 40px;
-    padding: 40px 32px 64px;
+      "brand report"
+      "members members";
+    align-items: center;
+    column-gap: 0;
+    row-gap: 24px;
+    padding: 24px 32px 64px;
+  }
+
+  .behind-app__members {
+    align-self: start;
+  }
+
+  /*
+   * 预留 System Reports 的高度，免得卡片晚 500ms 出现时把名单簿往下推。
+   * 545px ≈ ReportCard 的自然高度：上留白 48 + 标题 94 + 表头 32.5 + 6 行 × 35 + 3 空行 × 32 + 下留白 64。
+   * 改了 ReportCard 的行数或尺寸，这里跟着改。
+   */
+  .behind-app__card-wrapper {
+    min-height: 545px;
   }
 
   .behind-app__report {
-    padding: 0 0 24px;
+    padding-top: 0;
+  }
+}
+
+@media (min-width: 1600px) {
+  .behind-app__layout {
+    grid-template-columns: 360px 360px 720px;
+    grid-template-areas: "brand report members";
+    align-items: center;
+    column-gap: 40px;
+    padding-top: 48px;
+  }
+
+  /* 名单簿竖向居中，不要沿用两行布局里的 align-self: start */
+  .behind-app__members {
+    align-self: center;
   }
 }
 
 .behind-app__card-wrapper {
   position: relative;
-  transform: translate3d(0, 0px, 0);
-  opacity: 1;
-  transition: opacity 1s, transform 1s;
-  transition-behavior:  allow-discrete;
-}
-@starting-style {
-  .behind-app__card-wrapper {
-    opacity: 0;
-    transform: translate3d(0, -10px, 0);
-  }
 }
 
 .behind-app__report {
   padding-top: 24px;
+  transform: translate3d(0, 0px, 0);
+  opacity: 1;
+  transition: opacity 1s, transform 1s;
+  transition-behavior: allow-discrete;
+}
+@starting-style {
+  .behind-app__report {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0);
+  }
 }
 
 @keyframes behind-title-shine {

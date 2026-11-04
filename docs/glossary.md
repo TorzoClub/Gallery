@@ -22,6 +22,7 @@
 | 成员笔记本 | Member notebook (CH. Member) | `/member/<id>` 上单独的只读名单簿，直接打开该成员的成员页；数据只来自 ClientPool，不含 QQ 号。 |
 | 后台 | Admin | 后台入口是 `/admin`，Behind 页 Navigator 上的“A”按钮换台进入。 |
 | 已弃用组件 | deprecated | `src/web/components/deprecated/` 里不再使用但保留参考的组件，例如后台登录抽屉 `AdminLoginDrawer`。 |
+| 相片堆叠 | BehindPhotoStack | Behind 页的品牌图：torzo-logo 加 12 张随机相片缩略图，一张张落下叠在桌上，移植自旧站“网址迁移说明”页。 |
 | 门禁 | AccessPanel | 进 `/admin` 必过的登录界面；本地已有 token 时先用 `/auth/check` 核对（`IS LOGINED`），通过前不读任何后台数据。 |
 | dispatch | Dispatch API | 通过 action 名称分发 query/mutation，而不是每个业务一个 REST 路径。 |
 | query | Query | 只读 action，走 `/query/:name` 或 `/admin/query/:name`。 |

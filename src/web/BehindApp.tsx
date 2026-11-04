@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom'
 
 import './BehindApp.css'
 
-import ReportCard, { type ReportCardBuild, type ReportCardRow } from './components/ReportCard'
+import ReportCard, { type ReportCardBuild, type ReportCardConfigInput, type ReportCardRow } from './components/ReportCard'
 
-import __logo_src from './about-image.jpg'
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import BehindPhotoStack from './components/BehindPhotoStack'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useClientPool } from './pool/store'
 import { formatUptime } from '@shared/uptime'
 import Navigator from './components/Navigator'
@@ -16,6 +16,23 @@ import { identity, thunkify } from 'ramda'
 const PublicMemberNotebook = lazy(() => import('./components/PublicMemberNotebook'))
 
 const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'N/A'
+
+/** 与 BehindApp.css 的三栏断点一致 */
+const THREE_COLUMN_QUERY = '(min-width: 1600px)'
+
+function useThreeColumn(): boolean {
+  const [matches, setMatches] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia(THREE_COLUMN_QUERY).matches
+  ))
+  useEffect(() => {
+    const mq = window.matchMedia(THREE_COLUMN_QUERY)
+    const update = () => setMatches(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+  return matches
+}
 const BASE_PATH = import.meta.env.VITE_BASE_PATH ?? 'N/A'
 
 function AppYearLabel(props: { year: string | number }) {
@@ -81,6 +98,13 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
   const pool = pool_state.status === 'ready' ? pool_state.pool : null
   const [show_card, setShowCard] = useState(false)
   const [uptime, setUptime] = useState('—')
+  // 三栏并排时 System Reports 摆正，和左右两块一起排成一行；其他宽度保持组件默认的 -1°。
+  // 只在跨断点时换对象，免得每次渲染都让 ReportCard 重算纸纹
+  const three_column = useThreeColumn()
+  const report_config = useMemo<ReportCardConfigInput | undefined>(
+    () => (three_column ? { angle: 0 } : undefined),
+    [three_column],
+  )
 
   useEffect(() => {
     if (pool === null) {
@@ -141,11 +165,12 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
         />
         {/*
           网格布局（见 BehindApp.css）：窄屏单列，品牌 → 名单簿 → System Reports；
-          ≥ 1100px 两栏，左栏品牌和 System Reports，右栏名单簿。后台入口是 Navigator 上的“A”按钮
+          ≥ 800px 第一行左品牌、右 System Reports，第二行名单簿横跨两栏；
+          ≥ 1600px 一行三栏：品牌 | System Reports | 名单簿。后台入口是 Navigator 上的“A”按钮
         */}
         <div className='behind-app__layout'>
           <div className='behind-app__brand'>
-            <img className='behind-app__logo' src={__logo_src} alt='Torzo Gallery' />
+            <BehindPhotoStack pool={pool} play={thisIsDisplay} />
             <h1 className='behind-app__title'>{pkg.title}</h1>
             <AppYearLabel year={2026} />
           </div>
@@ -157,15 +182,17 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
               </Suspense>
             </div>
           )}
-          {show_card && (
-            <div className='behind-app__card-wrapper'>
+          {/* 外壳常驻、≥ 800px 预留卡片高度：卡片晚 500ms 出现时，下面的名单簿不会往下跳 */}
+          <div className='behind-app__card-wrapper'>
+            {show_card && (
               <ReportCard
                 className='behind-app__report'
+                config={report_config}
                 report={report}
                 build={build}
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </section>

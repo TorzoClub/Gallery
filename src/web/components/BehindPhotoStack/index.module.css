@@ -1,0 +1,111 @@
+/*
+ * 相片堆叠（BehindPhotoStack）。原型是旧站“网址迁移说明”页的 #photos-container-wrapper。
+ * 两种观察角度由 tsx 按 800px 断点写在 data-view 上：
+ * - desk（≥ 800px）：正上方俯视，没有 rotateX、没有 preserve-3d，上下层靠 z-index
+ * - tilt（< 800px，移动端）：原版斜看，容器 perspective 1024px + preserve-3d，上下层靠 translateZ
+ * 每层的 transform / opacity / z-index 由 tsx 写在 style 上，这里只定尺寸、透视和过渡。
+ *
+ * desk 尺寸：相片长边 200px、偏移 ±20px、转 ±30°、放大到 1.1 倍时，最远的角离中心约 170px，
+ * 所以外框 340×340，层叠区 200×200 居中。tilt 尺寸照原版 256×256。
+ * 改 tsx 里的 VIEW_CONFIG 时这里跟着改。
+ */
+
+.wrapper {
+  --stack-size: 200px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 340px;
+  height: 340px;
+  margin: 0 auto;
+}
+
+.wrapper[data-view="tilt"] {
+  --stack-size: 256px;
+  width: 256px;
+  height: 256px;
+}
+
+.container {
+  position: relative;
+  width: var(--stack-size);
+  height: var(--stack-size);
+}
+
+.wrapper[data-view="tilt"] .container {
+  perspective: 1024px;
+  transform-style: preserve-3d;
+}
+
+.layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--stack-size);
+  height: var(--stack-size);
+  user-select: none;
+  transition: opacity 282ms ease, transform 882ms ease;
+}
+
+.wrapper[data-view="tilt"] .layer {
+  z-index: 3;
+  transform-style: preserve-3d;
+}
+
+.photo {
+  box-sizing: border-box;
+  padding: 5px;
+  background-color: white;
+  box-shadow: -1px 1px 2px rgba(0, 0, 0, .15), 1px 1px 2px rgba(0, 0, 0, .15);
+}
+
+.photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-user-drag: none;
+}
+
+/*
+ * 桌面上的落影。
+ * desk：相片堆底下一团柔和的灰，略往下偏 10px（光从上方来）。
+ * tilt：原版的圆形落影，和相片一样躺倒，阴影往左上投。
+ */
+.shadow {
+  --shadow-size: 280px;
+  position: absolute;
+  top: calc(50% - var(--shadow-size) / 2 + 10px);
+  left: calc(50% - var(--shadow-size) / 2);
+  z-index: 0;
+  width: var(--shadow-size);
+  height: var(--shadow-size);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, .14), rgba(0, 0, 0, .06) 60%, transparent);
+  pointer-events: none;
+  transition: opacity 500ms;
+}
+
+.wrapper[data-view="tilt"] .shadow {
+  --shadow-size: 200px;
+  top: calc(50% - var(--shadow-size) / 2);
+  background: none;
+  transform: rotateX(45deg) rotateZ(45deg) translateZ(0);
+  box-shadow: -50px -50px 100px rgba(0, 0, 0, .182);
+}
+
+.layer[data-instant],
+.shadow[data-instant] {
+  transition: none;
+}
+
+/* 375px 及更窄的手机：整叠缩到 85%，免得斜放的相片角伸出屏幕 */
+@media (max-width: 400px) {
+  .wrapper {
+    transform: scale(.85);
+  }
+}

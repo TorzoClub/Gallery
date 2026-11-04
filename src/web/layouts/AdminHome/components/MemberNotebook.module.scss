@@ -40,7 +40,19 @@ $icon-button-w: 24px; /* 页眉图标按钮（放大镜、X、‹、+）的宽�
   position: relative;
   height: 600px;
   user-select: none;
-  transform: translate3D(0,0,0); /* 不这样做的话，iOS Safari 会因为 <BehindPhotoStack /> 的相片下落而闪烁 */
+}
+
+/*
+ * 不提升合成层的话，iOS Safari 会因为 <BehindPhotoStack /> 的相片下落而闪烁。
+ * 只在 iOS / iPadOS 上提升：桌面端提升层可能让本子里的文字取到亚像素模糊。
+ * -webkit-touch-callout 是 iOS / iPadOS 独占的属性，桌面浏览器不支持，可当作判定条件。
+ * 写成 translateZ(0) 而不是 translate3d(0, 0, 0)：压缩后者的构建会把 z=0 化简成 translate(0, 0)，
+ * 2D 位移不会提升层，闪烁照旧。
+ */
+@supports (-webkit-touch-callout: none) {
+  .notebook {
+    transform: translateZ(0);
+  }
 }
 
 .notebook[data-layout='M'] {

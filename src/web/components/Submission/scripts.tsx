@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { cancelSubmission, confirmMember, fetchMemberView } from 'api/client-pool'
 
 import s from './scripts.module.scss'
@@ -93,11 +93,14 @@ export function init(init_args : InitArgs) {
     const { photo, qq_num } = useSubmissionStore.getState()
     const navigate = useNavigate()
     const location = useLocation()
+    // 只跳一次：Explore 换台离开后只是被 <Activity> 藏起来，回来时 effect 会再跑一遍，不能再进一次碎纸机
+    const entered = useRef(false)
 
     useEffect(() => {
-      if (!photo || !qq_num) {
+      if (!photo || !qq_num || entered.current) {
         return
       }
+      entered.current = true
       navigate('/explore/cancelSubmission', {
         replace: true,
         state: {
@@ -274,9 +277,13 @@ export function init(init_args : InitArgs) {
 
         function RemovingSubmission() {
           const [removing, setRemoving] = useState(true)
+          // 只跳一次：Explore 换台离开（比如点头像去成员页）后只是被 <Activity> 藏起来，回来时这个 effect 会再跑一遍。
+          // 不拦住的话会带着已经删掉的相片再进一次碎纸机，服务端回“相片不存在”
+          const entered = useRef(false)
 
           useEffect(() => {
-            if (photo && qq_num) {
+            if (photo && qq_num && !entered.current) {
+              entered.current = true
               Signal.once(_EVENT_.canceled, () => {
                 setTimeout(() => {
                   setRemoving(false)

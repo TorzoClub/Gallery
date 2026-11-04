@@ -1,0 +1,215 @@
+// Staff 页：纸质独立刊物的“工作人员名单”页。一张纸一个人，信纸横线 28px 一行，正文与横线对齐。
+// 改正文字号或行高时，--rule 要一起改，否则字会压线。
+
+.page {
+  --rule: 28px;
+  --paper: hsl(45deg 62% 96%);
+  --paper-edge: hsl(42deg 38% 86%);
+  --ink: #2b333b;
+  --ink-blue: #004774;
+  --line: rgb(0 71 116 / 13%);
+  --margin-line: rgb(179 57 47 / 30%);
+
+  box-sizing: border-box;
+  min-height: 100dvh;
+  padding-bottom: 96px;
+  background: white;
+  color: var(--ink);
+}
+
+/* 刊头：小标签 + 大号衬线 Staff + 一行副题，上下两道细线，像独立刊物的版权页 */
+.masthead {
+  width: min(100% - 32px, 720px);
+  margin: 40px auto 48px;
+  padding: 18px 0 16px;
+  border-top: 3px double rgb(0 71 116 / 55%);
+  border-bottom: 1px solid rgb(0 71 116 / 35%);
+  color: var(--ink-blue);
+  text-align: center;
+}
+
+.kicker {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 12px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  opacity: .75;
+}
+
+.title {
+  margin: 6px 0 4px;
+  font-family: Didot, "Bodoni 72", "Bodoni MT", "Playfair Display", "Hoefler Text", Georgia, serif;
+  font-size: 56px;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 1px;
+}
+
+.subtitle {
+  margin: 0;
+  font-family: "Songti SC", "STSong", SimSun, serif;
+  font-size: 14px;
+  letter-spacing: 2px;
+}
+
+/* 纸从中间往两边排，一行放不下就换行；顶端对齐，纸长短不一也不会被拉高 */
+.board {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 56px 40px;
+  padding: 0 16px;
+}
+
+.sheet {
+  position: relative;
+  isolation: isolate;
+  width: min(100%, 360px);
+  transform: rotate(var(--sheet-angle, -1deg));
+}
+
+/* 两个下角微微翘起：底下两团斜着的影子（同 ReportCard 的做法） */
+.sheet::before,
+.sheet::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  bottom: 14px;
+  width: 46%;
+  height: 22%;
+  box-shadow: 0 16px 12px rgb(0 0 0 / 38%);
+}
+
+.sheet::before {
+  left: 8px;
+  transform: rotate(-3.5deg);
+}
+
+.sheet::after {
+  right: 8px;
+  transform: rotate(3.5deg);
+}
+
+.paper {
+  position: relative;
+  padding: 30px 24px 22px 40px;
+  border: 1px solid var(--paper-edge);
+  background:
+    // 左边一道红色页边线
+    linear-gradient(to right, transparent 27px, var(--margin-line) 27px 28px, transparent 28px),
+    // 纸面一点点明暗，不是一块平涂
+    radial-gradient(120% 80% at 30% 0%, rgb(255 255 255 / 55%), transparent 60%),
+    var(--paper);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 12%);
+}
+
+/* 上沿正中一条半透明胶带，压住纸边 */
+.tape {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  width: 96px;
+  height: 24px;
+  transform: translateX(-50%) rotate(-3deg);
+  background: rgb(240 222 150 / 62%);
+  box-shadow: 0 1px 1px rgb(0 0 0 / 8%);
+
+  &[data-tint='blue'] { background: rgb(170 205 230 / 62%); }
+  &[data-tint='pink'] { background: rgb(240 185 200 / 62%); }
+  &[data-tint='green'] { background: rgb(190 222 170 / 62%); }
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgb(0 71 116 / 30%);
+}
+
+.name {
+  margin: 0;
+  color: var(--ink-blue);
+  font-family: Didot, "Bodoni 72", "Bodoni MT", "Playfair Display", "Hoefler Text", Georgia, serif;
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.role {
+  margin-top: 4px;
+  color: rgb(43 51 59 / 62%);
+  font-family: "Courier New", Courier, monospace;
+  font-size: 11px;
+  letter-spacing: .5px;
+}
+
+.date {
+  flex: none;
+  padding-top: 4px;
+  color: rgb(43 51 59 / 55%);
+  font-family: "Courier New", Courier, monospace;
+  font-size: 11px;
+}
+
+/* 信纸横线：每 --rule 一道，文字行高等于 --rule，字坐在线上 */
+.body {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 calc(var(--rule) - 1px),
+    var(--line) calc(var(--rule) - 1px) var(--rule)
+  );
+  font-family: "Songti SC", "STSong", SimSun, Georgia, serif;
+  font-size: 14.5px;
+  line-height: var(--rule);
+}
+
+.paragraph {
+  margin: 0;
+  text-indent: 2em;
+  text-align: justify;
+
+  // 段与段之间空一行信纸
+  & + & {
+    margin-top: var(--rule);
+  }
+}
+
+.signoff {
+  margin: var(--rule) 0 0;
+  color: var(--ink-blue);
+  font-style: italic;
+  text-align: right;
+}
+
+@media (max-width: 400px) {
+  .title {
+    font-size: 44px;
+  }
+
+  .paper {
+    padding-right: 18px;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .page {
+    background: #1b2027;
+  }
+
+  .masthead {
+    border-top-color: rgb(200 220 235 / 45%);
+    border-bottom-color: rgb(200 220 235 / 30%);
+    color: rgb(214 228 238);
+  }
+
+  // 纸还是纸，只是桌面暗了，影子再深一点
+  .sheet::before,
+  .sheet::after {
+    box-shadow: 0 16px 12px rgb(0 0 0 / 70%);
+  }
+}

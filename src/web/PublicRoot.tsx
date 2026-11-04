@@ -7,13 +7,14 @@ import ChannelTransition from './components/ChannelTransition'
 import type { ChannelOsdName } from './components/ChannelOsd'
 import HomeApp from './HomeApp'
 import CancelSubmissionApp from './layouts/CancelSubmission'
-import { isAdminPath, isBehindPath, isCancelSubmissionPath, isExplorePath, isLegacyCancelSubmissionPath, isMemberPath } from './routes'
+import { isAdminPath, isBehindPath, isCancelSubmissionPath, isExplorePath, isLegacyCancelSubmissionPath, isMemberPath, isStaffPath } from './routes'
 import styles from './PublicRoot.module.scss'
 import { primeChannelAudio } from './utils/crt-audio'
 import { primeTextAudio } from './utils/text-audio'
 
 const AdminHome = lazy(() => import('./layouts/AdminHome'))
 const MemberBookApp = lazy(() => import('./layouts/MemberBook'))
+const StaffApp = lazy(() => import('./layouts/Staff'))
 
 function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -22,7 +23,7 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-type Channel = 'explore' | 'behind' | 'admin' | 'member'
+type Channel = 'explore' | 'behind' | 'admin' | 'member' | 'staff'
 
 type ChannelTransitionState = {
   id: number
@@ -40,14 +41,15 @@ const CHANNEL_OSD: Record<Channel, ChannelOsdName> = {
   behind: 'CH. Behind',
   admin: 'CH. Admin',
   member: 'CH. Member',
+  staff: 'CH. Staff',
 }
 
 const activeStageStyle: React.CSSProperties = {
   position: 'relative',
 }
 
-/** 渲染顺序照旧：behind、explore、admin、member */
-const STAGE_ORDER: readonly Channel[] = ['behind', 'explore', 'admin', 'member']
+/** 渲染顺序照旧：behind、explore、admin、member、staff */
+const STAGE_ORDER: readonly Channel[] = ['behind', 'explore', 'admin', 'member', 'staff']
 
 type ScrollMemo = { pathname: string; y: number }
 
@@ -83,8 +85,11 @@ export default function PublicRoot() {
   const legacy_cancel = isLegacyCancelSubmissionPath(location.pathname)
   const admin = isAdminPath(location.pathname)
   const member = isMemberPath(location.pathname)
+  const staff = isStaffPath(location.pathname)
   const routeChannel: Channel | null = admin
     ? 'admin'
+    : staff
+      ? 'staff'
     : member
       ? 'member'
     : behind
@@ -99,9 +104,10 @@ export default function PublicRoot() {
   const behindStageRef = useRef<HTMLDivElement>(null)
   const adminStageRef = useRef<HTMLDivElement>(null)
   const memberStageRef = useRef<HTMLDivElement>(null)
+  const staffStageRef = useRef<HTMLDivElement>(null)
   const cancelStageRef = useRef<HTMLDivElement>(null)
   const stage_targets = useMemo(
-    () => [homeStageRef, behindStageRef, adminStageRef, memberStageRef],
+    () => [homeStageRef, behindStageRef, adminStageRef, memberStageRef, staffStageRef],
     [],
   )
   // 碎纸机页挂在 body 上，但换台时要和 Explore 一起抖
@@ -233,6 +239,7 @@ export default function PublicRoot() {
     explore: homeStageRef,
     admin: adminStageRef,
     member: memberStageRef,
+    staff: staffStageRef,
   }
 
   const stageContent = (channel: Channel): React.ReactNode => {
@@ -254,6 +261,12 @@ export default function PublicRoot() {
             <MemberBookApp />
           </Suspense>
         )
+      case 'staff':
+        return (
+          <Suspense fallback={null}>
+            <StaffApp />
+          </Suspense>
+        )
     }
   }
 
@@ -261,7 +274,7 @@ export default function PublicRoot() {
     return <Navigate to='/explore/cancelSubmission' replace state={location.state} />
   }
 
-  if (!behind && !explore && !cancel && !admin && !member) {
+  if (!behind && !explore && !cancel && !admin && !member && !staff) {
     return <Navigate to='/explore' replace />
   }
 

@@ -7,6 +7,13 @@
   user-select: none;
 }
 
+/* 左边：可选的“D”按钮 + 标题 */
+.navigator-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .navigator-title {
   font-family: "VT323", monospace;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -50,6 +57,28 @@
 .navigator-admin-button:active:not(:disabled) .pb__label,
 .navigator-admin-button.pb--pressed .pb__label {
   color: rgb(104 32 82);
+}
+
+/*
+ * “D”：Staff 页入口。与“A”同一套 Impact 斜体、同样的丝印处理，
+ * 颜色取 .navigator-title 的 rgb(48 103 133)，压暗到 rgb(38 86 114) 以配米白按钮面，按下时再暗一档。
+ */
+.navigator-staff-button .pb__label {
+  padding-right: 1px;
+  color: rgb(38 86 114);
+  font-family: Impact, Haettenschweiler, "Arial Narrow", "Liberation Sans Narrow", sans-serif;
+  font-size: 15px;
+  font-style: italic;
+  font-weight: 700;
+  font-stretch: condensed;
+  text-shadow:
+    0 1px 0 rgb(255 255 255 / .85),
+    0 -1px 0 rgb(15 40 60 / .18);
+}
+
+.navigator-staff-button:active:not(:disabled) .pb__label,
+.navigator-staff-button.pb--pressed .pb__label {
+  color: rgb(28 70 96);
 }
 
 .navigator-title-word {

@@ -21,6 +21,7 @@
 | 公开页 | Public page | 普通访问者看到的相册页面，入口是 `/explore`；`/` 重定向到它。 |
 | 成员笔记本 | Member notebook (CH. Member) | `/member/<id>` 上单独的只读名单簿，直接打开该成员的成员页；数据只来自 ClientPool，不含 QQ 号。 |
 | 只藏不卸 | Keep-alive stage | 换台时去过的频道不卸载，用 React `<Activity>` 藏起来，回来时组件状态和滚动位置都还在。见 `docs/designs.md` 的“CRT 换台”。 |
+| Staff 页 | Staff (CH. Staff) | `/staff` 上参与项目的人的留言，一张纸一个人；从 Behind 页左上角的“D”按钮进入，留言写在 `src/web/layouts/Staff/notes.ts`。 |
 | 后台 | Admin | 后台入口是 `/admin`，Behind 页 Navigator 上的“A”按钮换台进入。 |
 | 已弃用组件 | deprecated | `src/web/components/deprecated/` 里不再使用但保留参考的组件，例如后台登录抽屉 `AdminLoginDrawer`。 |
 | 相片堆叠 | BehindPhotoStack | Behind 页的品牌图：torzo-logo 加 12 张随机相片缩略图，一张张落下叠在桌上，移植自旧站“网址迁移说明”页。 |

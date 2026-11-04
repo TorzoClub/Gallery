@@ -31,6 +31,12 @@ export function isLegacyCancelSubmissionPath(pathname: string): boolean {
     || normalized.startsWith('/removingSubmission/')
 }
 
+/** Staff 页：参与项目的人的留言 */
+export function isStaffPath(pathname: string): boolean {
+  const normalized = normalizePath(pathname)
+  return normalized === '/staff' || normalized.startsWith('/staff/')
+}
+
 /** 单独的成员笔记本：/member/<member_id>，直接打开这位成员的成员页 */
 export function isMemberPath(pathname: string): boolean {
   const normalized = normalizePath(pathname)

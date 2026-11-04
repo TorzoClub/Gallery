@@ -168,6 +168,10 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
             setShowCard(false)
             navigate('/admin', { replace: true })
           }}
+          onClickStaff={() => {
+            setShowCard(false)
+            navigate('/staff', { replace: true })
+          }}
         />
         {/*
           网格布局（见 BehindApp.css）：窄屏单列，品牌 → 名单簿 → System Reports；

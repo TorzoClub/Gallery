@@ -77,6 +77,14 @@ Content-Type: application/json
 
 只有 admin action 能从 `/admin/query/*`、`/admin/mutate/*` 调用。公开路由调用 admin action 会返回 `403`。
 
+Admin SSE `/admin/events/pool` 同样需要：
+
+```http
+Authorization: Bearer <token>
+```
+
+Admin 前端通过 `fetch` 读取 SSE 流，而不是 `EventSource`，因此 token 不会出现在 URL 或访问日志中。连接返回 401/403 时只断开、不重连，也不跳转；登录失效统一由门禁处理：下一次普通后台请求收到 401/403 时回到门禁，显示 INVALID TOKEN / EXPIRED TOKEN。
+
 ### 4. 过期与登出
 
 - token 是 HS256 JWT，包含 `role: "admin"` 和 `exp`。

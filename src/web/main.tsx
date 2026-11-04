@@ -61,6 +61,8 @@ function TitleSync() {
 }
 
 import { signal_critical_error } from './signals'
+import { ZeldaQuestBanner } from './components/ZeldaQuestBanner'
+import ZeldaQuestBannerLayout from './ZeldaQuestBannerLayout'
 
 export default function CriticalFailureLayout({ children }: { children: ReactNode }) {
   const [ showFailure, , failure_layout ] = useFailureLayout(children)
@@ -128,15 +130,17 @@ function Bootstrap() {
   return (
     <div className='bootstrap'>
       <CriticalFailureLayout>
-        <RootErrorBoundary>
-          <BrowserRouter basename={basename}>
-            <TitleSync />
-            <Routes>
-              <Route path="/" element={<Navigate to="/explore" replace />} />
-              <Route path="/*" element={<PublicRoot />} />
-            </Routes>
-          </BrowserRouter>
-        </RootErrorBoundary>
+        <ZeldaQuestBannerLayout>
+          <RootErrorBoundary>
+            <BrowserRouter basename={basename}>
+              <TitleSync />
+              <Routes>
+                <Route path="/" element={<Navigate to="/explore" replace />} />
+                <Route path="/*" element={<PublicRoot />} />
+              </Routes>
+            </BrowserRouter>
+          </RootErrorBoundary>
+        </ZeldaQuestBannerLayout>
       </CriticalFailureLayout>
       {
         build_description && build_description.length && (

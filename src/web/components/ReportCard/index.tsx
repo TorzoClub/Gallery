@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useMemo, useRef } from 'react'
 
 import styles from './index.module.scss'
+import ReportLogo from '../ReportLogo'
 
 export type ReportCardConfig = {
   /** 整张纸在桌上的倾角（deg，正数顺时针）。0 是摆正；底下两道翘角落影跟着纸一起转 */
@@ -226,7 +227,7 @@ export default function ReportCard({
         </section>
 
         <div className={styles.stamp} aria-label='build info'>
-          <i className={styles.logo} />
+          <ReportLogo className={styles.logo} />
           <div>
             <div>构建日期: {build.date}</div>
             <div>githash: {build.hash}</div>

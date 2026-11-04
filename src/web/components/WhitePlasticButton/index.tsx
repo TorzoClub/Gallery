@@ -2,16 +2,15 @@ import React, { useEffect, useState } from 'react'
 
 import './index.css'
 
-function looseRotate() {
-  // -0.6 ~ +0.6 度，十三档，模拟塑料按键的松垮倾角。
-  return (Math.floor(Math.random() * 13) - 6) / 10
-}
-
 export interface WhitePlasticButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   /**
    * 由外部强制按下，适合提交中等需要保持按压态的场景。
    */
   press?: boolean
+}
+
+function wobblyRotateDeg() {
+  return (Math.floor(Math.random() * 11) - 5) / 10
 }
 
 export const WhitePlasticButton: React.FC<WhitePlasticButtonProps> = ({
@@ -30,7 +29,7 @@ export const WhitePlasticButton: React.FC<WhitePlasticButtonProps> = ({
   ...rest
 }) => {
   const [is_pressed, setIsPressed] = useState(false)
-  const [button_deg, setButtonDeg] = useState(looseRotate())
+  const [button_deg, setButtonDeg] = useState(wobblyRotateDeg())
   const is_press = press || is_pressed
 
   useEffect(() => {
@@ -88,7 +87,7 @@ export const WhitePlasticButton: React.FC<WhitePlasticButtonProps> = ({
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     // 每次点击后换一个很小的倾角，模拟塑料按键的松垮感。
-    setButtonDeg(looseRotate)
+    setButtonDeg(wobblyRotateDeg)
     onClick?.(event)
   }
 

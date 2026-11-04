@@ -87,3 +87,24 @@ export type ClientMemberView = {
 
 export type Gallery = ClientGallery
 export type GalleryInEvent = ClientGalleryInEvent
+
+
+export type ClientGalleryPhotos =
+  | {
+      id: number
+      in_event: false
+      photos: ClientPhoto[]
+    }
+  | {
+      id: number
+      in_event: true
+      photos: ClientPhotoInEvent[]
+    }
+
+export type ClientPhotosEvent = {
+  galleries: ClientGalleryPhotos[]
+}
+
+export type ClientMembersEvent = {
+  members: ClientMember[]
+}

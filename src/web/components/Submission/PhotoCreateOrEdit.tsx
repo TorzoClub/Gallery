@@ -5,6 +5,7 @@ import { useSubmissionStore } from '.'
 import { fetchClientPool, fetchMemberView, submitPhoto, updateSubmission } from 'api/client-pool'
 import { uploadImage } from 'api/upload'
 import { submittedPhotoView, type PhotoView } from 'pool/view'
+import { holdPoolEvents, releasePoolEvents } from 'pool/store'
 
 import s from './PhotoCreateOrEdit.module.scss'
 import { LoadingMask } from 'components/LoadingMask'
@@ -36,6 +37,9 @@ function readImageSize(url: string): Promise<ImageSize> {
     img.src = url
   })
 }
+
+/** 投稿 / 修改期间暂缓 SSE 用的 key，scripts.tsx 的“大感谢”发布时解除 */
+export const SUBMISSION_POOL_HOLD = 'submission'
 
 type Props = {
   /**
@@ -73,6 +77,8 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
         temp_id = (await uploadImage(file)).temp_id
       }
 
+      // 从提交起暂缓 SSE，直到“大感谢”放完由剧本发布新数据时解除（见 scripts.tsx 的 publish）
+      holdPoolEvents(SUBMISSION_POOL_HOLD)
       const current_photo_id = photo?.id
       if (is_edit_mode && current_photo_id !== undefined) {
         await updateSubmission({
@@ -107,6 +113,7 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
       useSubmissionStore.setState({ photo: updated_photo })
       onUpdateDone(updated_photo, pool)
     } catch (err) {
+      releasePoolEvents(SUBMISSION_POOL_HOLD)
       alert(`错误: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setProcessing(false)

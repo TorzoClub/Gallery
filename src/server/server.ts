@@ -181,6 +181,7 @@ export async function startServer(options: {
       }, 5000)
       force_timer.unref()
 
+      instance.closePoolStreams()
       await new Promise<void>((resolve) => {
         http_server.close(() => resolve())
       })

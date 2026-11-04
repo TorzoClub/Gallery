@@ -10,6 +10,7 @@ export type MemberViewState = {
 
 export function useMemberView(qq_num: number | null): MemberViewState & {
   reload(): Promise<void>
+  applyVote(photo_ids: number[]): void
 } {
   const [state, setState] = useState<MemberViewState>({
     view: null,
@@ -36,9 +37,25 @@ export function useMemberView(qq_num: number | null): MemberViewState & {
     }
   }, [qq_num])
 
+  const applyVote = useCallback((photo_ids: number[]) => {
+    setState(current => {
+      if (current.view === null) {
+        return current
+      }
+      return {
+        ...current,
+        view: {
+          ...current.view,
+          vote_submitted: true,
+          voted_photo_ids: photo_ids,
+        },
+      }
+    })
+  }, [])
+
   useEffect(() => {
     void reload()
   }, [reload])
 
-  return { ...state, reload }
+  return { ...state, reload, applyVote }
 }

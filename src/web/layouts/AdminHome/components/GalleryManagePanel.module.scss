@@ -98,10 +98,18 @@
 
 .formActions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding-top: 2px;
+}
+
+.formActionsRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .voteRatioCard {
@@ -125,6 +133,24 @@
   align-items: baseline;
   gap: 4px 6px;
   margin-top: 8px;
+}
+
+.voteBreakdown {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  margin-top: 8px;
+}
+
+.voteBreakdownCell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.voteBreakdownCell + .voteBreakdownCell {
+  border-left: 1px solid #d2cabb;
 }
 
 .voteRatioValue {

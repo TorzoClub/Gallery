@@ -8,6 +8,8 @@ import { updateInstanceConfig } from '../../admin/api/config'
 import { createGallery } from '../../admin/api/gallery'
 import { refreshAvatar, refreshThumb } from '../../admin/api/image'
 import { fetchAdminPool } from '../../admin/api/pool'
+import { connectAdminPoolEvents } from '../../admin/api/events'
+import { mergeAdminPool } from '../../pool/merge'
 import { removeToken, setToken } from '../../admin/auth/token'
 import { getApiErrorMessage } from '../../admin/utils/errors'
 import { global_queue } from '../../utils/queue-load'
@@ -125,7 +127,13 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     }
     try {
       const pool = await fetchAdminPool()
-      setState({ status: 'ready', pool })
+      setState(current => {
+        const next = mergeAdminPool(current.status === 'ready' ? current.pool : null, pool)
+        if (current.status === 'ready' && next === current.pool) {
+          return current
+        }
+        return { status: 'ready', pool: next }
+      })
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         removeToken()
@@ -173,11 +181,12 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     if (state.status !== 'ready') {
       return
     }
+    watterfall_refreshed.trigger()
     setSettings(current => current ?? settingsFromInstanceConfig(state.pool.instance_config))
     global_queue.startWorking()
     const timer = window.setTimeout(() => global_queue.startWorking(), 0)
     return () => window.clearTimeout(timer)
-  }, [state])
+  }, [state, watterfall_refreshed])
 
   useEffect(() => () => {
     if (settingsSaveTimer.current !== null) {
@@ -226,20 +235,41 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     saveSettings(next)
   }, [saveSettings])
 
+  const applyPool = useCallback((pool: AdminPoolDTO) => {
+    setState(current => {
+      const next = mergeAdminPool(current.status === 'ready' ? current.pool : null, pool)
+      if (current.status === 'ready' && next === current.pool) {
+        return current
+      }
+      return { status: 'ready', pool: next }
+    })
+  }, [])
+
+  // 后台数据的实时推送。只在过了门禁、读到数据、后台页正在显示时连接；
+  // 被拒（401 / 403）时只断开不跳转，登录失效统一由门禁处理
+  useEffect(() => {
+    if (!thisIsDisplay || token === '' || state.status !== 'ready') {
+      return
+    }
+    const controller = new AbortController()
+    void connectAdminPoolEvents({
+      signal: controller.signal,
+      onPool: applyPool,
+    })
+    return () => controller.abort()
+  }, [applyPool, state.status, thisIsDisplay, token])
+
   const refresh = useCallback(async () => {
-    await load(false)
     watterfall_refreshed.trigger()
-  }, [load, watterfall_refreshed])
+  }, [watterfall_refreshed])
 
   const handleMembersChanged = useCallback(async () => {
-    await load(false)
     watterfall_refreshed.trigger()
-  }, [load, watterfall_refreshed])
+  }, [watterfall_refreshed])
 
   const handleGalleryChanged = useCallback(async () => {
-    await load(false)
     watterfall_refreshed.trigger()
-  }, [load, watterfall_refreshed])
+  }, [watterfall_refreshed])
 
   const handleCreateGallery = useCallback(async () => {
     if (state.status !== 'ready' || creatingGallery) {
@@ -269,14 +299,13 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
         submission_expire: submission_expire.toISOString(),
         event_end: event_end.toISOString(),
       })
-      await load(false)
       watterfall_refreshed.trigger()
     } catch (error) {
       setCreateGalleryError(getApiErrorMessage(error, '创建相册失败'))
     } finally {
       setCreatingGallery(false)
     }
-  }, [creatingGallery, load, state, watterfall_refreshed])
+  }, [creatingGallery, state, watterfall_refreshed])
 
   const sorted_galleries = useMemo(() => {
     if (state.status !== 'ready') {
@@ -341,7 +370,6 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
       }
 
       if (updates.length > 0) {
-        await load(false)
         watterfall_refreshed.trigger()
       }
       setSortMode(false)
@@ -351,7 +379,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     } finally {
       setSortBusy(false)
     }
-  }, [draft_galleries, load, sort_busy, watterfall_refreshed])
+  }, [draft_galleries, sort_busy, watterfall_refreshed])
 
   const handleSortButton = useCallback(() => {
     if (sort_mode) {
@@ -472,8 +500,6 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
       reporter.progress(done, total)
     }
 
-    const pool = await fetchAdminPool()
-    setState({ status: 'ready', pool })
     watterfall_refreshed.trigger()
   }, [state, watterfall_refreshed])
 

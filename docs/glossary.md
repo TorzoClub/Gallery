@@ -44,7 +44,10 @@
 | GalleryInEvent | GalleryInEvent | 活动期相册，含 `in_event: true`，不含 `vote_records`，照片不带成员 ID。 |
 | PublicMemberDTO | Public member DTO | public query 返回的成员信息，`qq_num` 固定为 null；Admin 的 `MemberDTO` 保留 QQ。 |
 | storage schema | Storage schema | storage 数据格式版本；当前为 v2，v1 需要通过 `pnpm update-storage` 升级。 |
-| version_time | Version time | ClientPool 生成时间戳，用于拒绝旧快照覆盖新数据。 |
+| version_time | Version time | ClientPool 生成时间戳，保留为快照元数据；SSE 不用它判断新旧。 |
+| SSE | Server-Sent Events | 服务器推送长连接；公开页推送 photos/members 分类，Admin 推送完整 AdminPool。 |
+| updated_at | Updated at | item 最后更新时间；客户端收到 SSE 后按 id + updated_at 合并，保留较新版本。 |
+| Pool JSON raw | Pool JSON raw | Pool 更新后生成一次的序列化快照缓存，所有 SSE 连接复用。 |
 | image_processing_effort | Image processing effort | 所有图片处理的 CPU effort 配置，默认 8。 |
 | legacy | Legacy | 旧 server/web/脚本/CI，已从当前分支移除，归档在 `legacy-v3` 分支，只作历史参考。 |
 

@@ -307,7 +307,6 @@ export function AccessPanel({ rejected, onGranted }: {
         />
         <div className={styles.lamps}>
           <LedIndicator color={phase === 'verifying' || phase === 'checking' ? 'amber' : null} label='核对' />
-          <div style={{ width: '0px' }}></div>
           <LedIndicator color={phase === 'denied' || phase === 'rejected' ? 'red' : null} label='拒绝' />
         </div>
       </div>

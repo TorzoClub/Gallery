@@ -221,6 +221,8 @@
 .lamps {
   display: flex;
   gap: 14px;
+  width: 111.2px;
+  justify-content: space-between;
 }
 
 .srOnly {

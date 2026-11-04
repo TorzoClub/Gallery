@@ -135,7 +135,8 @@ payload: { "qq_num": 123456 }
 
 - `/` 重定向到 `/explore`。
 - `/explore` 是公开相册页。
-- `/behind` 是同级 About 页面，不再作为 `/` 的 fixed 子页面。
+- `/behind` 是同级 About 页面，不再作为 `/` 的 fixed 子页面；其中的只读名单簿只用 ClientPool。
+- `/member/<id>` 是单独的只读成员笔记本，只用 ClientPool，没有对应的新接口；不返回 QQ 号。
 - `/admin` 是所见即所得后台。
 
 ## AdminPool

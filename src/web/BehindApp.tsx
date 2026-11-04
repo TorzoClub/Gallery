@@ -6,7 +6,7 @@ import './BehindApp.css'
 import ReportCard, { type ReportCardBuild, type ReportCardRow } from './components/ReportCard'
 
 import __logo_src from './about-image.jpg'
-import { type FormEvent, useEffect, useId, useRef, useState } from 'react'
+import { type FormEvent, lazy, Suspense, useEffect, useId, useRef, useState } from 'react'
 import { useClientPool } from './pool/store'
 import { formatUptime } from '@shared/uptime'
 import Navigator from './components/Navigator'
@@ -14,11 +14,12 @@ import { login as adminLogin } from './admin/api/auth'
 import { setToken } from './admin/auth/token'
 import { getApiErrorMessage } from './admin/utils/errors'
 import Popover from './components/Popover'
-import SkeuomorphismButton from './components/SkeuomorphismButton'
-import { ZeldaQuestBanner } from './components/ZeldaQuestBanner'
 import { Slit } from './components/Title'
 import { identity, thunkify } from 'ramda'
 import { WhitePlasticButton } from './components/WhitePlasticButton'
+
+// 名单簿会带上后台的成员表单等代码，懒加载，不进公开页首屏的包
+const PublicMemberNotebook = lazy(() => import('./components/PublicMemberNotebook'))
 
 const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? 'N/A'
 const BASE_PATH = import.meta.env.VITE_BASE_PATH ?? 'N/A'
@@ -137,28 +138,39 @@ export default function BehindApp({ thisIsDisplay }: { thisIsDisplay: boolean })
           navigate('/explore', { replace: true })
           setShowCard(false)
         }} />
-        <div className='behind-app__brand'>
-          <img className='behind-app__logo' src={__logo_src} alt='Torzo Gallery' />
-          <h1 className='behind-app__title'>{pkg.title}</h1>
-          <AppYearLabel year={2026} />
-        </div>
-
-        <EnterAdmin onLoginSuccess={() => {
-          setShowCard(false)
-          navigate('/admin', { replace: true })
-        }} />
-
-        <ZeldaQuestBannerTest />
-        {/* <SkeuomorphismButton>测试</SkeuomorphismButton> */}
-        {show_card && (
-          <div className='behind-app__card-wrapper'>
-            <ReportCard
-              className='behind-app__report'
-              report={report}
-              build={build}
-            />
+        {/*
+          网格布局（见 BehindApp.css）：窄屏单列，品牌 → 后台抽屉 → 名单簿 → System Reports；
+          ≥ 1100px 两栏，左栏品牌和 System Reports，右栏名单簿和后台抽屉（与名单簿同宽）
+        */}
+        <div className='behind-app__layout'>
+          <div className='behind-app__brand'>
+            <img className='behind-app__logo' src={__logo_src} alt='Torzo Gallery' />
+            <h1 className='behind-app__title'>{pkg.title}</h1>
+            <AppYearLabel year={2026} />
           </div>
-        )}
+
+          <EnterAdmin onLoginSuccess={() => {
+            setShowCard(false)
+            navigate('/admin', { replace: true })
+          }} />
+
+          {pool !== null && (
+            <div className='behind-app__members'>
+              <Suspense fallback={null}>
+                <PublicMemberNotebook pool={pool} />
+              </Suspense>
+            </div>
+          )}
+          {show_card && (
+            <div className='behind-app__card-wrapper'>
+              <ReportCard
+                className='behind-app__report'
+                report={report}
+                build={build}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </section>
   )
@@ -170,6 +182,17 @@ function EnterAdmin(props: { onLoginSuccess(): void }) {
   const [admin_error, setAdminError] = useState('')
   const [admin_submitting, setAdminSubmitting] = useState(false)
   const admin_submitting_ref = useRef(false)
+
+  // 抽屉拉开（Slit 展开 360ms）后把焦点放进密码框，用户可以直接输入
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    const timer = window.setTimeout(() => {
+      document.getElementById('behind-admin-password')?.focus({ preventScroll: true })
+    }, DRAWER_SLIDE_MS)
+    return () => window.clearTimeout(timer)
+  }, [open])
 
   const submitAdminPassword = async (password: string) => {
     if (admin_submitting_ref.current) {
@@ -201,7 +224,8 @@ function EnterAdmin(props: { onLoginSuccess(): void }) {
   }
 
   return (
-    <>
+    <div className='behind-app__admin'>
+      {/* 抽屉：托盘在上，面板（拉手）在下；拉开时托盘从 0 长到表单高度，把面板往下推 */}
       <div className='behind-app__admin-login-area' id='behind-admin-login'>
         <Slit open={open} keepTransition>
           <form className='behind-app__admin-entry' onSubmit={handleAdminLogin}>
@@ -218,7 +242,7 @@ function EnterAdmin(props: { onLoginSuccess(): void }) {
                 trigger={(
                   <input
                     id='behind-admin-password'
-                    type='text'
+                    type='password'
                     value={admin_password}
                     autoComplete='current-password'
                     placeholder='管理员密码'
@@ -255,39 +279,49 @@ function EnterAdmin(props: { onLoginSuccess(): void }) {
                 label='登录错误'
                 className='behind-app__admin-error-popover'
               />
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <WhitePlasticButton
-                type='submit'
-                press={admin_submitting}
-              >{admin_submitting ? '验证中…' : '进入'}</WhitePlasticButton>
+              <div className='behind-app__admin-submit'>
+                <WhitePlasticButton
+                  type='submit'
+                  press={admin_submitting}
+                >{admin_submitting ? '验证中…' : '进入'}</WhitePlasticButton>
+              </div>
             </div>
           </form>
         </Slit>
       </div>
-      <div>
-        <AdminPullHandle
-          expanded={open}
-          onClick={thunkify(setOpen)(identity(true))}
-        />
-      </div>
-    </>
+      <AdminPullHandle
+        expanded={open}
+        onToggle={next => {
+          setOpen(next)
+          if (!next) {
+            setAdminError('')
+          }
+        }}
+      />
+    </div>
   )
 }
 
-const HAND_MOVE_MS = 380
-const HAND_GRIP_DELAY_MS = 300
-const HAND_GRIP_HOLD_MS = 260
+// 与 Slit 的展开时长一致（components/Title 的 __OPENING_DURATION__）
+const DRAWER_SLIDE_MS = 360
+// ✋ 从面板下方伸到拉手上
+const HAND_REACH_MS = 380
+// 手搭在拉手上，停一下再握
+const HAND_SETTLE_MS = 160
+// ✊ 握住后跟着面板一起被拉下来，时长等于抽屉滑出
+const HAND_PULL_MS = DRAWER_SLIDE_MS
+// 松手：✋ 下移淡出
+const HAND_RELEASE_MS = 180
 
-type HandPhase = 'idle' | 'entering' | 'moving' | 'gripped' | 'released'
+type HandPhase = 'idle' | 'entering' | 'reaching' | 'gripped' | 'released'
 
-function AdminPullHandle({ expanded, onClick }: {
+function AdminPullHandle({ expanded, onToggle }: {
   expanded: boolean
-  onClick(): void
+  onToggle(next: boolean): void
 }) {
   const uid = useId().replace(/:/g, '')
   const bar_gradient = `admin-pull-bar-${uid}`
-  const post_gradient = `admin-pull-post-${uid}`
+  const cap_gradient = `admin-pull-cap-${uid}`
   const [hand_phase, setHandPhase] = useState<HandPhase>('idle')
   const timers = useRef<number[]>([])
   const animation_frame = useRef<number | null>(null)
@@ -299,134 +333,98 @@ function AdminPullHandle({ expanded, onClick }: {
     }
   }, [])
 
+  const later = (fn: () => void, ms: number) => {
+    timers.current.push(window.setTimeout(fn, ms))
+  }
+
   const handleClick = () => {
     if (hand_phase !== 'idle') {
       return
     }
+    // 已拉开：直接推回去，不播手
     if (expanded) {
-      onClick()
+      onToggle(false)
       return
     }
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      onClick()
+      onToggle(true)
       return
     }
 
+    // entering 先把手放到起点（下方、透明），下一帧再切到 reaching 才有过渡
     setHandPhase('entering')
     animation_frame.current = window.requestAnimationFrame(() => {
       animation_frame.current = window.requestAnimationFrame(() => {
-        setHandPhase('moving')
-        timers.current.push(window.setTimeout(() => {
+        animation_frame.current = null
+        setHandPhase('reaching')
+        later(() => {
           setHandPhase('gripped')
-          onClick()
-          timers.current.push(window.setTimeout(() => {
+          onToggle(true)
+          later(() => {
             setHandPhase('released')
-            timers.current.push(window.setTimeout(() => {
-              setHandPhase('idle')
-            }, 120))
-          }, HAND_GRIP_HOLD_MS))
-        }, HAND_MOVE_MS + HAND_GRIP_DELAY_MS))
+            later(() => setHandPhase('idle'), HAND_RELEASE_MS)
+          }, HAND_PULL_MS)
+        }, HAND_REACH_MS + HAND_SETTLE_MS)
       })
     })
   }
 
   const stage_class = [
     'behind-app__admin-pull-stage',
+    expanded ? 'behind-app__admin-pull-stage--open' : '',
     hand_phase !== 'idle' ? `behind-app__admin-pull-stage--${hand_phase}` : '',
   ].filter(Boolean).join(' ')
 
+  const fist = hand_phase === 'gripped'
+
   return (
     <div className={stage_class}>
-      <span
-        className='behind-app__admin-pull-hand'
-        aria-hidden='true'
-        style={{ zIndex: hand_phase === 'gripped' || hand_phase === 'released' ? '10000' : '' }}
-      >
-        {hand_phase === 'gripped' || hand_phase === 'released' ? '✊' : '✋'}
-      </span>
       <button
         type='button'
         className='behind-app__admin-pull'
-        aria-label={expanded ? '收起后台管理' : '进入后台管理'}
+        aria-label={expanded ? '收起后台登录' : '拉开后台登录'}
         aria-expanded={expanded}
         aria-controls='behind-admin-login'
         aria-busy={hand_phase !== 'idle'}
         disabled={hand_phase !== 'idle'}
         onClick={handleClick}
       >
-        <svg
-          className='behind-app__admin-pull-graphic'
-          viewBox='0 0 164 60'
-          aria-hidden='true'
-          focusable='false'
-        >
-          <defs>
-            <linearGradient id={bar_gradient} x1='0' y1='0' x2='0' y2='1'>
-              <stop offset='0' stopColor='#f2f5f4' />
-              <stop offset='0.18' stopColor='#c7d0d1' />
-              <stop offset='0.42' stopColor='#8e9a9e' />
-              <stop offset='0.62' stopColor='#606c71' />
-              <stop offset='0.82' stopColor='#899599' />
-              <stop offset='1' stopColor='#424d52' />
-            </linearGradient>
-            <linearGradient id={post_gradient} x1='0' y1='0' x2='1' y2='0'>
-              <stop offset='0' stopColor='#aab5b7' />
-              <stop offset='0.45' stopColor='#6d797e' />
-              <stop offset='1' stopColor='#394348' />
-            </linearGradient>
-          </defs>
-          <rect x='22' y='34' width='10' height='18' rx='3.5' fill={`url(#${post_gradient})`} />
-          <rect x='132' y='34' width='10' height='18' rx='3.5' fill={`url(#${post_gradient})`} />
-          <path
-            d='M27 42 V26 Q27 16 37 16 H127 Q137 16 137 26 V42'
-            fill='none'
-            stroke={`url(#${bar_gradient})`}
-            strokeWidth='12'
-            strokeLinecap='round'
-          />
-          <path
-            d='M30 31 V26 Q30 19 38 19 H126 Q134 19 134 26 V31'
-            fill='none'
-            stroke='#E8EbEb'
-            strokeWidth='2.4'
-            strokeLinecap='round'
-            opacity='0.8'
-          />
-          <path
-            d='M29 39 V26 Q29 18 38 18 H126 Q135 18 135 26 V39'
-            fill='none'
-            stroke='#5b666b'
-            strokeWidth='1.2'
-            strokeLinecap='round'
-            opacity='0.55'
-          />
-        </svg>
+        <span className='behind-app__admin-pull-label' aria-hidden='true'>Admin</span>
+        <span className='behind-app__admin-pull-led' aria-hidden='true' />
+        <span className='behind-app__admin-pull-grip' aria-hidden='true'>
+          <svg
+            className='behind-app__admin-pull-graphic'
+            viewBox='0 0 132 32'
+            focusable='false'
+          >
+            <defs>
+              <linearGradient id={bar_gradient} x1='0' y1='0' x2='0' y2='1'>
+                <stop offset='0' stopColor='#fbfcfc' />
+                <stop offset='0.3' stopColor='#d5dbdd' />
+                <stop offset='0.55' stopColor='#9aa5a9' />
+                <stop offset='0.8' stopColor='#c3cacc' />
+                <stop offset='1' stopColor='#6f7a7f' />
+              </linearGradient>
+              <radialGradient id={cap_gradient} cx='0.4' cy='0.35' r='0.7'>
+                <stop offset='0' stopColor='#f4f6f6' />
+                <stop offset='0.6' stopColor='#aab3b6' />
+                <stop offset='1' stopColor='#6c777b' />
+              </radialGradient>
+            </defs>
+            {/* 拉手离开面板几毫米：下方一道柔和的落影 */}
+            <rect x='14' y='19' width='104' height='9' rx='4.5' fill='#1d262b' opacity='0.16' />
+            {/* 两端底座 */}
+            <circle cx='16' cy='15' r='8' fill={`url(#${cap_gradient})`} stroke='#7d878b' strokeWidth='0.8' />
+            <circle cx='116' cy='15' r='8' fill={`url(#${cap_gradient})`} stroke='#7d878b' strokeWidth='0.8' />
+            {/* 横杆 */}
+            <rect x='12' y='9' width='108' height='12' rx='6' fill={`url(#${bar_gradient})`} stroke='#6f7a7f' strokeWidth='0.8' />
+            <rect x='18' y='11' width='96' height='2' rx='1' fill='#ffffff' opacity='0.85' />
+          </svg>
+        </span>
       </button>
+      <span className='behind-app__admin-pull-hand' aria-hidden='true'>
+        {fist ? '✊' : '✋'}
+      </span>
     </div>
   )
-}
-
-function ZeldaQuestBannerTest() {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const triggerQuest = () => {
-    if (isOpen) return;
-    setIsOpen(true);
-    // 3.8秒后自动关闭
-    setTimeout(() => {
-      setIsOpen(false);
-    }, 3800);
-  };
-
-  return (
-    <div style={{ marginTop: '40px'}}>
-      <SkeuomorphismButton onClick={triggerQuest}>触发同装摄影活动banner</SkeuomorphismButton>
-
-      <ZeldaQuestBanner
-        isOpen={isOpen}
-        category="迷你挑战"
-        title="同装相册投票"
-      />
-    </div>
-  );
 }

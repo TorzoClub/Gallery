@@ -8,6 +8,7 @@ import { playPageBackSound, playPageFlipSound, playPageTearSound, primePaperAudi
 import type { Member, MemberCanDelete, MemberSubmission } from './AdminConsole'
 import { FlipStack, type FlipDir } from './FlipStack'
 import { MemberForm, type MemberFormDraft } from './MemberForm'
+import formStyles from './MemberForm.module.scss'
 import styles from './MemberNotebook.module.scss'
 import { SortSelect, type SortDirection, type SortOption } from './SortSelect'
 
@@ -31,24 +32,25 @@ const ROW_PX = 54
 /** 名单页里横线以外的固定高度：纸面上沿 10 + 线圈留白 18 + 页眉 46 + 翻页条 40 + 下沿 8。与 .sheet / .pageHead / .pager 的尺寸一致 */
 const LIST_CHROME_PX = 122
 
-function readLayout(): Layout {
+function readLayout(max: 'M' | 'L'): Layout {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return 'S'
   }
-  if (window.matchMedia(MQ_L).matches) return 'L'
+  if (window.matchMedia(MQ_L).matches) return max
   if (window.matchMedia(MQ_M).matches) return 'M'
   return 'S'
 }
 
-function useNotebookLayout(): Layout {
-  const [layout, setLayout] = useState<Layout>(readLayout)
+/** max = 'M'：没有侧栏可撑（公开页），≥ 1440px 也按中等布局画 */
+function useNotebookLayout(max: 'M' | 'L'): Layout {
+  const [layout, setLayout] = useState<Layout>(() => readLayout(max))
   useEffect(() => {
     const mqs = [window.matchMedia(MQ_M), window.matchMedia(MQ_L)]
-    const sync = () => setLayout(readLayout())
+    const sync = () => setLayout(readLayout(max))
     sync()
     mqs.forEach(mq => mq.addEventListener('change', sync))
     return () => mqs.forEach(mq => mq.removeEventListener('change', sync))
-  }, [])
+  }, [max])
   return layout
 }
 
@@ -101,7 +103,9 @@ function Pager({ page, pages, label, onFlip }: { page: number; pages: number; la
 /* ============================== 头像 ============================== */
 
 function MemberAvatar({ member }: { member: Member }) {
-  const hue = Number(member.qq.replace(/\D/g, '')) % 360 || 0 // 没有头像时，用 QQ 号算一个稳定的底色
+  // 没有头像时，用 QQ 号算一个稳定的底色；公开页拿不到 QQ 号，改用 member_id
+  const seed = member.qq !== '' ? member.qq : String(member.id)
+  const hue = Number(seed.replace(/\D/g, '')) % 360 || 0
   return member.avatarUrl ? (
     <img className={styles.avatar} src={member.avatarUrl} alt="" loading="lazy" />
   ) : (
@@ -193,6 +197,8 @@ type ListPageProps = {
   newIds: ReadonlySet<string>
   sort: Sort
   search: Search
+  /** 公开页：不显示 QQ 号和“+”，搜索只按昵称 */
+  readOnly: boolean
   onOpen(member: Member): void
   onCreate(): void
   onFlip(dir: 1 | -1): void
@@ -239,7 +245,7 @@ type Sort = {
   onDirectionChange(direction: SortDirection): void
 }
 
-function ListPage({ members, total, page, perPage, columns, focusId, newIds, sort, search, onOpen, onCreate, onFlip }: ListPageProps) {
+function ListPage({ members, total, page, perPage, columns, focusId, newIds, sort, search, readOnly, onOpen, onCreate, onFlip }: ListPageProps) {
   const root = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const start = page * perPage
@@ -289,8 +295,8 @@ function ListPage({ members, total, page, perPage, columns, focusId, newIds, sor
               className={styles.searchInput}
               type="search"
               value={search.query}
-              placeholder="QQ 号或昵称"
-              aria-label="搜索成员（QQ 号或昵称）"
+              placeholder={readOnly ? '昵称' : 'QQ 号或昵称'}
+              aria-label={readOnly ? '搜索成员（昵称）' : '搜索成员（QQ 号或昵称）'}
               onChange={(event) => search.onChange(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Escape') {
@@ -316,15 +322,17 @@ function ListPage({ members, total, page, perPage, columns, focusId, newIds, sor
             onChange={sort.onChange}
             onDirectionChange={sort.onDirectionChange}
           />
-          <button
-            type="button"
-            className={cn(styles.headButton, styles.iconButton)}
-            aria-label="新增成员"
-            title="新增成员"
-            onClick={onCreate}
-          >
-            <PlusIcon />
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              className={cn(styles.headButton, styles.iconButton)}
+              aria-label="新增成员"
+              title="新增成员"
+              onClick={onCreate}
+            >
+              <PlusIcon />
+            </button>
+          )}
         </div>
       </div>
       <div className={styles.listArea}>
@@ -349,7 +357,7 @@ function ListPage({ members, total, page, perPage, columns, focusId, newIds, sor
                 <MemberAvatar member={m} />
                 <span className={styles.who}>
                   <span className={styles.nick}>{m.nickname}</span>
-                  <span className={styles.qq}><small>QQ</small>{m.qq}</span>
+                  {!readOnly && <span className={styles.qq}><small>QQ</small>{m.qq}</span>}
                 </span>
               </button>
             </li>
@@ -571,6 +579,25 @@ function DeleteMember({ member, submitted, canDelete, disabled, onDeleted }: {
 
 /* ============================== 成员页（二级页面） ============================== */
 
+/** 公开页的成员页：只读，没有 QQ 号。沿用表单写在横线上的排法（头像占 3 行、昵称占 2 行），只是字写死在纸上 */
+function MemberProfile({ member }: { member: Member }) {
+  return (
+    <div className={cn(formStyles.form, formStyles.ruled)}>
+      <div className={formStyles.avatarRow}>
+        <div className={formStyles.avatarPreview}>
+          {member.avatarUrl
+            ? <img src={member.avatarUrl} alt="" />
+            : <span className={formStyles.avatarFallback}>{member.nickname.slice(0, 1) || '?'}</span>}
+        </div>
+      </div>
+      <div className={formStyles.field}>
+        <span>昵称</span>
+        <span className={styles.profileValue}>{member.nickname}</span>
+      </div>
+    </div>
+  )
+}
+
 type DetailPageProps = {
   mode: 'create' | 'edit'
   member?: Member
@@ -586,9 +613,13 @@ type DetailPageProps = {
   /** 删除请求已经成功：撕下这一页，回到名单 */
   onDeleted(member: Member): void
   onFlip(dir: 1 | -1): void
+  /** 公开页：没有保存 / 删除，表单换成只读的头像和昵称 */
+  readOnly: boolean
+  /** “‹”的说明文字 */
+  backLabel: string
 }
 
-function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDraftChange, onBack, onSaved, avatarBeside, onDeleted, onFlip }: DetailPageProps) {
+function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDraftChange, onBack, onSaved, avatarBeside, onDeleted, onFlip, readOnly, backLabel }: DetailPageProps) {
   const title = useFocusOnMount()
   const form_id = useId()
   const [busy, setBusy] = useState(false)
@@ -598,12 +629,12 @@ function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDra
     <div className={cn(styles.page, styles.detail)}>
       <div className={styles.pageHead}>
         <div className={styles.headLead}>
-          <MarginButton label="返回名单簿" onClick={onBack}><BackIcon /></MarginButton>
+          <MarginButton label={backLabel} onClick={onBack}><BackIcon /></MarginButton>
           <h3 ref={title} className={styles.detailTitle} tabIndex={-1}>
             {mode === 'create' ? '新增成员' : `member_id=${member?.id}`}
           </h3>
         </div>
-        <div className={styles.headActions}>
+        {!readOnly && <div className={styles.headActions}>
           {mode === 'edit' && member !== undefined && (
             <DeleteMember
               member={member}
@@ -616,11 +647,11 @@ function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDra
           <button type="submit" form={form_id} className={styles.saveButton} disabled={busy}>
             {busy ? '保存中…' : mode === 'create' ? '创建成员' : '保存修改'}
           </button>
-        </div>
+        </div>}
       </div>
       <div className={styles.detailBody}>
         <div className={styles.formColumn}>
-          <MemberForm
+          {readOnly && member !== undefined ? <MemberProfile member={member} /> : <MemberForm
             mode={mode}
             member={member}
             canDelete={canDelete}
@@ -633,7 +664,7 @@ function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDra
             onBusyChange={setBusy}
             onClose={onBack}
             onSaved={onSaved}
-          />
+          />}
         </div>
         <section className={styles.submissions} aria-label="过去的投稿">
           <div className={styles.sectionHead}>
@@ -702,10 +733,25 @@ export type MemberNotebookProps = {
   memberCanDelete?: MemberCanDelete
   memberSubmissions?(member: Member): MemberSubmission[]
   onMembersChanged?(): void | Promise<void>
+  /** 公开页：只读。不显示 QQ 号，没有新增 / 保存 / 删除，成员页只写头像和昵称 */
+  readOnly?: boolean
+  /** 本子最宽到哪种布局。后台默认 L（撑满侧栏）；公开页没有侧栏，传 M */
+  maxLayout?: 'M' | 'L'
+  /** 名单默认排序。后台默认创建时间升序 */
+  defaultSort?: { key: MemberSortKey; direction: SortDirection }
+  /**
+   * 单独的成员笔记本：一打开就是这位成员的成员页。
+   * 成员页的“‹”不回名单，而是调用 onLeave（公开页换台回 /explore）；续页的“‹”照常回成员页。
+   */
+  entryMemberId?: string
+  onLeave?(): void
 }
 
-export function MemberNotebook({ members, memberCanDelete, memberSubmissions, onMembersChanged }: MemberNotebookProps) {
-  const layout = useNotebookLayout()
+export function MemberNotebook({
+  members, memberCanDelete, memberSubmissions, onMembersChanged,
+  readOnly = false, maxLayout = 'L', defaultSort, entryMemberId, onLeave,
+}: MemberNotebookProps) {
+  const layout = useNotebookLayout(maxLayout)
   const root = useRef<HTMLDivElement>(null)
   const { width, height } = useElementSize(root)
 
@@ -717,7 +763,9 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
   const grid = printGrid(width, height, per_row)
   const paging: Paging = { first: per_row, rest: grid.rows * per_row, perRow: per_row, slot: grid.slot }
 
-  const [view, setView] = useState<View>({ kind: 'list' })
+  const [view, setView] = useState<View>(() => (
+    entryMemberId === undefined ? { kind: 'list' } : { kind: 'edit', id: entryMemberId, sheet: 0 }
+  ))
   const [list_page, setListPage] = useState(0)
   // 名单页的身份只在真正翻页时变（翻页次数 + 翻页时的页码）；搜索导致的回到第 1 页不换纸，输入框也就不会被重新挂载
   const [list_flip, setListFlip] = useState({ n: 0, page: 0 })
@@ -739,9 +787,9 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
   // 成员页没保存的输入。翻到续页时成员页会卸载，翻回来用它恢复
   const draft_ref = useRef<{ key: string; draft: MemberFormDraft } | null>(null)
 
-  // 默认按创建时间升序：最早的成员在第 1 页，新建的成员排在最后
-  const [sort_key, setSortKey] = useState<MemberSortKey>('created_at')
-  const [sort_dir, setSortDir] = useState<SortDirection>('asc')
+  // 后台默认按创建时间升序：最早的成员在第 1 页，新建的成员排在最后
+  const [sort_key, setSortKey] = useState<MemberSortKey>(defaultSort?.key ?? 'created_at')
+  const [sort_dir, setSortDir] = useState<SortDirection>(defaultSort?.direction ?? 'asc')
   const sorted = useMemo(() => sortMembers(members, sort_key, sort_dir), [members, sort_key, sort_dir])
   const listed = query.trim() === '' ? sorted : sorted.filter(m => matchMember(m, query))
 
@@ -843,6 +891,11 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
   }
 
   const backToList = () => {
+    // 单独的成员笔记本：没有名单可回，交给外面（换台）
+    if (entryMemberId !== undefined && onLeave !== undefined) {
+      onLeave()
+      return
+    }
     draft_ref.current = null
     // 回到刚才那个成员所在的那一页（搜索中就是搜索结果里的那一页）
     if (view.kind === 'edit') {
@@ -944,6 +997,7 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
                 newIds={new_ids}
                 sort={sort}
                 search={search}
+                readOnly={readOnly}
                 onOpen={openMember}
                 onCreate={openCreate}
                 onFlip={flipList}
@@ -996,6 +1050,8 @@ export function MemberNotebook({ members, memberCanDelete, memberSubmissions, on
               avatarBeside={layout === 'L'}
               onDeleted={tearOff}
               onFlip={flipSheet}
+              readOnly={readOnly}
+              backLabel={entryMemberId !== undefined && onLeave !== undefined ? '返回' : '返回名单簿'}
             />
           )
         }}

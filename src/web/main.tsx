@@ -5,7 +5,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import { OutterPromise } from 'vait'
 
 import { appInitInfomation } from './HomeApp'
-import { isBehindPath, isCancelSubmissionPath } from './routes'
+import { isBehindPath, isCancelSubmissionPath, isMemberPath } from './routes'
 import { FailureLayoutContainer, useFailureLayout } from './components/FailureLayout'
 
 const rawBase = import.meta.env.BASE_URL
@@ -44,6 +44,8 @@ function TitleSync() {
   useEffect(() => {
     if (isBehindPath(location.pathname)) {
       document.title = '同装摄影集 · About'
+    } else if (isMemberPath(location.pathname)) {
+      document.title = '同装摄影集 · Member'
     } else if (isCancelSubmissionPath(location.pathname)) {
       document.title = '同装摄影集 · cancelSubmission'
     } else if (location.pathname.startsWith('/explore')) {

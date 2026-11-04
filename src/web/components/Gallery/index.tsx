@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import './index.scss'
 
@@ -15,6 +16,7 @@ import { FallingMagnet, type MagnetDrop } from './FallingMagnet'
 import { PinchMagnet, type MagnetPickup } from './PinchMagnet'
 import { playMagnetDropSound, primeMagnetAudio } from 'utils/magnet-audio'
 import { pickSaveFile, writeSaveFile } from 'utils/save-file'
+import { memberPath } from '../../routes'
 
 export type GalleryLayout = WaterfallLayout & {
   /** ≤ 900px 的紧凑布局：PhotoCard 散落得更小、更浅 */
@@ -354,6 +356,12 @@ export default ({
   const root = useRef<HTMLDivElement>(null)
   const { tapes, loose_id, fallen, falling, pull, landed, loosen } = useTape(root, loose_tape, gallery.photos.length > 0, entering_ids)
 
+  // 点头像或昵称：换台（CH. Member）到这位成员单独的名单簿，直接打开他的成员页
+  const navigate = useNavigate()
+  const openMember = useCallback((member_id: number) => {
+    navigate(memberPath(member_id), { replace: true })
+  }, [navigate])
+
   // 刚放上去的磁粒：从托盘里那一格飞过去（不限票数时从磁粒位正上方落下来），落到纸面时响一声“ta～”，落定后真正的那颗才出现
   const [magnet_drops, setMagnetDrops] = useState<MagnetDrop[]>([])
   const dropping = useMemo(() => new Set(magnet_drops.map(drop => drop.photo_id)), [magnet_drops])
@@ -493,6 +501,25 @@ export default ({
               copying={busy?.phase === 'copying'}
               hand={is_entering || busy?.phase === 'copying' || busy?.phase === 'resticking'}
               onClickCover={(click_info) => onClickCover(click_info, photo.id)}
+              renderAvatar={photo.member === null ? undefined : (avatar) => (
+                <button
+                  type='button'
+                  className='photo-card-member-link is-avatar'
+                  aria-label={`查看 ${photo.member?.name ?? ''} 的名单簿`}
+                  onClick={() => openMember(photo.member!.id)}
+                >
+                  {avatar}
+                </button>
+              )}
+              renderName={photo.member === null ? undefined : (name) => (
+                <button
+                  type='button'
+                  className='photo-card-member-link'
+                  onClick={() => openMember(photo.member!.id)}
+                >
+                  {name}
+                </button>
+              )}
               vote={show_vote_button ? {
                 selected,
                 landing: dropping.has(photo.id),
@@ -537,7 +564,7 @@ export default ({
         return waterfall()
       }
     }
-  }, [entering_ids, fallen, loose_id, pull, tapes, gallery.can_submission, gallery.event_start, gallery.in_event, gallery.photos, layout, onClickCover, handleToggleVote, dropping, lifting, handleRefreshed, selected_id_list, show_vote_button, vote_interactive])
+  }, [entering_ids, fallen, loose_id, pull, tapes, gallery.can_submission, gallery.event_start, gallery.in_event, gallery.photos, layout, onClickCover, handleToggleVote, dropping, lifting, handleRefreshed, selected_id_list, show_vote_button, vote_interactive, openMember])
 
   return (
     <div className="gallery" ref={root}>

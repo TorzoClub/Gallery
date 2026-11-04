@@ -29,6 +29,13 @@ $icon-button-w: 24px; /* 页眉图标按钮（放大镜、X、‹、+）的宽�
 .notebook {
   /* 手写体：先用 macOS 的手札体 / 翩翩体，再退到各系统的楷体，最后是西文手写体 */
   --hand: 'Hannotate SC', 'HanziPen SC', 'Kaiti SC', STKaiti, KaiTi, 'BiauKai', 'AR PL UKai CN', 'Segoe Print', 'Bradley Hand', cursive;
+  /* 与 AdminConsole 的同名变量同值：公开页（/behind、/member）没有控制台外壳，本子自己带上 */
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --font: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --accent: #e8571f;
+
+  font-family: var(--font);
+  color: #374151;
 
   position: relative;
   height: 600px;
@@ -614,6 +621,19 @@ $icon-button-w: 24px; /* 页眉图标按钮（放大镜、X、‹、+）的宽�
   font: 700 10px var(--font);
   letter-spacing: 0.08em;
   color: #8a93a3;
+}
+
+/* 公开页成员页的昵称：和表单输入框里的字同一个样子（MemberForm.module.scss 的 .ruled .field input），只是写死在纸上 */
+.profileValue {
+  box-sizing: border-box;
+  height: 27px;
+  padding: 0 4px 3px;
+  overflow: hidden;
+  font: 400 20px/24px var(--hand);
+  color: #1f3a66;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
 }
 
 /* ============================== 成员页 ============================== */

@@ -19,6 +19,7 @@
 | 磁粒 | Magnet | 代表一票的蓝色圆粒。公开页是登录成员自己放在相片上的票；后台统计里红色磁粒代表 5 票。 |
 | 磁粒托盘 | Magnet tray | 公开页投票期屏幕底部居中的托盘（HUD），显示手里还剩几颗磁粒，磁粒与卡片上的一样大；放磁粒时磁粒从托盘飞到相片上。不限票数时为“磁粒 × ♾️”，磁粒从天而降。 |
 | 公开页 | Public page | 普通访问者看到的相册页面，入口是 `/explore`；`/` 重定向到它。 |
+| 成员笔记本 | Member notebook (CH. Member) | `/member/<id>` 上单独的只读名单簿，直接打开该成员的成员页；数据只来自 ClientPool，不含 QQ 号。 |
 | 后台 | Admin | 后台入口是 `/admin`。 |
 | dispatch | Dispatch API | 通过 action 名称分发 query/mutation，而不是每个业务一个 REST 路径。 |
 | query | Query | 只读 action，走 `/query/:name` 或 `/admin/query/:name`。 |

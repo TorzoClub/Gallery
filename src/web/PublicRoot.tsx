@@ -7,12 +7,13 @@ import ChannelTransition from './components/ChannelTransition'
 import type { ChannelOsdName } from './components/ChannelOsd'
 import HomeApp from './HomeApp'
 import CancelSubmissionApp from './layouts/CancelSubmission'
-import { isAdminPath, isBehindPath, isCancelSubmissionPath, isExplorePath, isLegacyCancelSubmissionPath } from './routes'
+import { isAdminPath, isBehindPath, isCancelSubmissionPath, isExplorePath, isLegacyCancelSubmissionPath, isMemberPath } from './routes'
 import styles from './PublicRoot.module.scss'
 import { primeChannelAudio } from './utils/crt-audio'
 import { primeTextAudio } from './utils/text-audio'
 
 const AdminHome = lazy(() => import('./layouts/AdminHome'))
+const MemberBookApp = lazy(() => import('./layouts/MemberBook'))
 
 function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -21,7 +22,7 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-type Channel = 'explore' | 'behind' | 'admin'
+type Channel = 'explore' | 'behind' | 'admin' | 'member'
 
 type ChannelTransitionState = {
   id: number
@@ -38,6 +39,7 @@ const CHANNEL_OSD: Record<Channel, ChannelOsdName> = {
   explore: 'CH. Explore',
   behind: 'CH. Behind',
   admin: 'CH. Admin',
+  member: 'CH. Member',
 }
 
 const activeStageStyle: React.CSSProperties = {
@@ -51,8 +53,11 @@ export default function PublicRoot() {
   const cancel = isCancelSubmissionPath(location.pathname)
   const legacy_cancel = isLegacyCancelSubmissionPath(location.pathname)
   const admin = isAdminPath(location.pathname)
+  const member = isMemberPath(location.pathname)
   const routeChannel: Channel | null = admin
     ? 'admin'
+    : member
+      ? 'member'
     : behind
       ? 'behind'
       : explore
@@ -64,9 +69,10 @@ export default function PublicRoot() {
   const homeStageRef = useRef<HTMLDivElement>(null)
   const behindStageRef = useRef<HTMLDivElement>(null)
   const adminStageRef = useRef<HTMLDivElement>(null)
+  const memberStageRef = useRef<HTMLDivElement>(null)
   const cancelStageRef = useRef<HTMLDivElement>(null)
   const stage_targets = useMemo(
-    () => [homeStageRef, behindStageRef, adminStageRef],
+    () => [homeStageRef, behindStageRef, adminStageRef, memberStageRef],
     [],
   )
   // 碎纸机页挂在 body 上，但换台时要和 Explore 一起抖
@@ -154,7 +160,7 @@ export default function PublicRoot() {
     return <Navigate to='/explore/cancelSubmission' replace state={location.state} />
   }
 
-  if (!behind && !explore && !cancel && !admin) {
+  if (!behind && !explore && !cancel && !admin && !member) {
     return <Navigate to='/explore' replace />
   }
 
@@ -193,6 +199,17 @@ export default function PublicRoot() {
         >
           <Suspense fallback={null}>
             <AdminHome thisIsDisplay />
+          </Suspense>
+        </div>
+      )}
+      {activeChannel === 'member' && (
+        <div
+          ref={memberStageRef}
+          className={styles.pageStage}
+          style={activeStageStyle}
+        >
+          <Suspense fallback={null}>
+            <MemberBookApp />
           </Suspense>
         </div>
       )}

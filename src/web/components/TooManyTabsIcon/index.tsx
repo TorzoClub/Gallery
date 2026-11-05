@@ -1,4 +1,5 @@
 import React from 'react'
+import styles from './index.module.scss'
 
 const NORMAL_CENTERS = [55, 145, 235, 325, 415] as const
 const BLOCKED_CENTER = 505
@@ -63,29 +64,14 @@ function ServerIcon() {
  * OverRunning 的示意图：
  * 服务器在顶端，五条线向下发散到五个网页；第六个网页的连线在途中断开。
  */
-export default function TooManyTabsIcon() {
+export default function TooManyTabsIcon({ className = '' }: { className?: string }) {
   return (
     <svg
       viewBox='0 0 560 300'
       role='img'
       aria-label='服务器连接到五个网页，第六个网页的连接已经断开'
-      style={{ display: 'block', width: '100%', height: 'auto' }}
+      className={`${styles.icon} ${className}`.trim()}
     >
-      <style>{`
-        .too-many-tabs-cannot {
-          animation: too-many-tabs-cannot-blink 1236ms steps(1, end) infinite;
-        }
-        @keyframes too-many-tabs-cannot-blink {
-          0%, 49.999% { opacity: 1; }
-          50%, 100% { opacity: 0; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .too-many-tabs-cannot {
-            animation: none;
-            opacity: 1;
-          }
-        }
-      `}</style>
       <g fill='none' strokeLinecap='round' strokeLinejoin='round'>
         <ServerIcon />
         <circle cx={SERVER_X} cy={SERVER_BOTTOM} r='2.2' fill='#5b666b' stroke='none' />
@@ -124,7 +110,7 @@ export default function TooManyTabsIcon() {
           <rect x='5' y='-4' width='12' height='8' rx='4' />
         </g>
         <text
-          className='too-many-tabs-cannot'
+          className={styles.cannot}
           x={BROKEN.x + 20}
           y={BROKEN.y - 5}
           fill='#b36a5d'

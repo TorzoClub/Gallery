@@ -1,0 +1,355 @@
+.page {
+  box-sizing: border-box;
+  display: grid;
+  min-height: 100dvh;
+  padding: 24px;
+  place-items: center;
+  overflow-x: hidden;
+  background: transparent;
+  color: #374151;
+  font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* 线圈本：宽度、封面、圆角和投影沿用页面给定的外框数值 */
+.notebook {
+  position: relative;
+  width: min(640px, calc(100vw - 32px));
+  height: 800px;
+  max-height: calc(100dvh - 48px);
+  box-sizing: border-box;
+  background: transparent;
+}
+
+/* 纸页下面压着的纸和阴影 */
+.notebook::before {
+  content: '';
+  position: absolute;
+  top: 13px;
+  right: 11px;
+  left: 11px;
+  z-index: 2;
+  height: 10px;
+  background: radial-gradient(circle at 9px 5px, #4d5256 0 3.1px, #8b8f92 3.5px, transparent 4px) 0 0 / 18px 10px space no-repeat;
+  pointer-events: none;
+}
+
+.backing {
+  position: absolute;
+  top: 10px;
+  right: 0;
+  bottom: -3px;
+  left: 0;
+  background: #f6f3ea;
+  border: 1px solid #d3cdbd;
+  border-radius: 2px 2px 6px 6px;
+  box-shadow:
+    0 3px 0 -1px #f8f6ef,
+    0 3px 0 0 #cbc5b5,
+    0 6px 0 -2px #f2eee4,
+    0 6px 0 -1px #bdb6a4,
+    0 10px 14px -6px rgb(0 0 0 / 0.35);
+}
+
+.pages {
+  position: absolute;
+  top: 10px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  perspective: 1600px;
+  perspective-origin: 50% 100%;
+}
+
+.sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: #fffef9;
+  border: 1px solid #d6d0c0;
+  border-radius: 2px 2px 6px 6px;
+  transform-origin: 50% 0;
+}
+
+/* 线圈穿过的孔：和上方线圈使用同一块 18px 的格子 */
+.under {
+  z-index: 0;
+}
+
+.flipAway {
+  z-index: 2;
+  pointer-events: none;
+  animation: notebook-flip 440ms both;
+}
+
+/* 返回上一页时，目标纸页从上方翻回来盖住当前页 */
+.flipBack {
+  z-index: 2;
+  pointer-events: none;
+  animation: notebook-flip 440ms reverse both;
+}
+
+.sheet::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: #fffef9;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.flipAway::after,
+.flipBack::after {
+  animation: notebook-flip-backside 440ms step-end both;
+}
+
+.flipBack::after {
+  animation-direction: reverse;
+}
+
+@keyframes notebook-flip-backside {
+  0%,
+  63.6% {
+    opacity: 0;
+  }
+
+  63.7%,
+  100% {
+    opacity: 1;
+  }
+}
+
+/* 和 MemberNotebook 一致：0 → 90° 用 280ms，之后翻过去并淡出 */
+@keyframes notebook-flip {
+  0% {
+    transform: rotateX(0deg);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.9, 0.6);
+  }
+
+  63.6% {
+    transform: rotateX(90deg);
+    opacity: 1;
+    animation-timing-function: linear;
+  }
+
+  100% {
+    transform: rotateX(100deg);
+    opacity: 0;
+  }
+}
+
+/* 线圈：盖在纸页上方，纸页翻起时从下面转过去 */
+.spiral {
+  position: absolute;
+  top: 0;
+  right: 12px;
+  left: 12px;
+  z-index: 3;
+  height: 26px;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='26'%3E%3Cdefs%3E%3ClinearGradient id='m' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%23676c71'/%3E%3Cstop offset='.5' stop-color='%23f6f8f9'/%3E%3Cstop offset='1' stop-color='%23787d82'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='6.5' y='1.5' width='5' height='19' rx='2.5' fill='url(%23m)' stroke='%234f5459' stroke-width='.7'/%3E%3C/svg%3E") 0 0 / 18px 26px space no-repeat;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.3));
+}
+
+.pageBody {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 100%;
+  padding: 26px 32px 24px;
+  overflow: hidden;
+}
+
+.docHeader {
+  flex: 0 0 auto;
+  margin-bottom: 16px;
+  color: #776b5c;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+}
+
+.docContent {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.docFooter {
+  flex: 0 0 auto;
+  margin-top: 16px;
+  color: #9b917f;
+  font-size: 10px;
+  letter-spacing: 0.6px;
+}
+
+.mainPage {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  text-align: center;
+}
+
+.icon {
+  display: block;
+  width: min(560px, 100%);
+  margin: 0 auto 10px;
+}
+
+.title {
+  margin: 0 0 16px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.lead {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.moreLink,
+.backLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #2f6f8f;
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.moreLink {
+  margin-top: 24px;
+  font-size: 13px;
+}
+
+.moreLink:hover,
+.backLink:hover {
+  color: #164b69;
+}
+
+.moreLink:focus-visible,
+.backLink:focus-visible {
+  outline: 2px solid #e8571f;
+  outline-offset: 3px;
+}
+
+.moreLink:disabled,
+.backLink:disabled {
+  color: #9b917f;
+  cursor: default;
+}
+
+.whyPage {
+  width: 100%;
+  text-align: left;
+}
+
+.backLink {
+  display: inline-block;
+  margin-bottom: 18px;
+  font-size: 13px;
+}
+
+.manualKicker {
+  margin-bottom: 8px;
+  color: #776b5c;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.whyTitle {
+  margin: 0 0 12px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.whyLead {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.section {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid #e6e0d4;
+}
+
+.sectionIndex {
+  color: #b36a5d;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  line-height: 1.8;
+}
+
+.sectionTitle {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.sectionText {
+  margin: 0;
+  color: #59616b;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 16px;
+  }
+
+  .notebook {
+    width: calc(100vw - 32px);
+    max-height: calc(100dvh - 32px);
+  }
+
+  .pageBody {
+    padding: 20px 20px 18px;
+  }
+
+  .title,
+  .whyTitle {
+    font-size: 24px;
+  }
+
+  .section {
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flipAway {
+    animation: none;
+    opacity: 0;
+  }
+
+  .flipBack,
+  .flipAway::after,
+  .flipBack::after {
+    animation: none;
+  }
+}

@@ -5,8 +5,8 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import { OutterPromise } from 'vait'
 
 import { appInitInfomation } from './HomeApp'
-import { acquireTabSlot, MAX_TABS } from './utils/tab-slot'
-import TooManyTabsIcon from './components/TooManyTabsIcon'
+import { acquireTabSlot } from './utils/tab-slot'
+import TooManyTabs from './components/TooManyTabs'
 import { isBehindPath, isCancelSubmissionPath, isMemberPath, isStaffPath } from './routes'
 import { FailureLayoutContainer, useFailureLayout } from './components/FailureLayout'
 
@@ -100,50 +100,6 @@ export async function initPictureSupportInfomation() {
   return { avif, webp } as const
 }
 
-function OverRunning() {
-  useEffect(() => {
-    document.title = '同装摄影集 · 页面太多'
-  }, [])
-
-  return (
-    <main
-      role='alert'
-      style={{
-        minHeight: '100dvh',
-        display: 'grid',
-        placeItems: 'center',
-        padding: '24px',
-        boxSizing: 'border-box',
-        background: 'transparent',
-        color: '#2b333b',
-        fontFamily: '"Helvetica Neue", Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif',
-        textAlign: 'center',
-      }}
-    >
-      <div
-        style={{
-          width: 'min(640px, calc(100vw - 32px))',
-          padding: '26px 32px 24px',
-          boxSizing: 'border-box',
-          background: '#fff',
-          borderRadius: '8px',
-          boxShadow: '0 0 1px grey, 0 4px 12px -4px hsl(0 0% 70% / 1)',
-        }}
-      >
-        <div style={{ width: 'min(560px, 100%)', margin: '0 auto 10px' }}>
-          <TooManyTabsIcon />
-        </div>
-        <h1 style={{ margin: '0 0 16px', fontSize: '28px', fontWeight: 700 }}>
-          页面开得太多了
-        </h1>
-        <p style={{ margin: '8px 0', lineHeight: 1.7 }}>
-          由于连接限制，最多同时打开 {MAX_TABS} 个页面。关掉一个标签页后会自动进入，不用刷新。
-        </p>
-      </div>
-    </main>
-  )
-}
-
 function RootGate() {
   const [status, set_status] = useState<'checking' | 'ready' | 'blocked'>('checking')
 
@@ -184,7 +140,7 @@ function RootGate() {
     return null
   }
   if (status === 'blocked') {
-    return <OverRunning />
+    return <TooManyTabs />
   }
   return <Bootstrap />
 }

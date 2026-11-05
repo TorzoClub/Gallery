@@ -1,0 +1,28 @@
+.icon {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.cannot {
+  animation: cannot-blink 1236ms steps(1, end) infinite;
+}
+
+@keyframes cannot-blink {
+  0%,
+  49.999% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cannot {
+    animation: none;
+    opacity: 1;
+  }
+}

@@ -7,7 +7,7 @@ import { createGestures } from './gestures'
 import { downloadImage, prepareImage, type ImageDownload } from './image-loading'
 import './style.scss'
 
-type DetailInput = {
+export type DetailInput = {
   from: ThumbRect
   thumb: string
   src: string

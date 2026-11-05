@@ -201,6 +201,7 @@ describe('memberBookFromPool', () => {
     }), {
       avatar: m => `images/thumb/${m.avatar_src}`,
       thumb: p => `images/thumb/${p.src}`,
+      optimized: p => `images/optimized/${p.src}`,
     })
 
     const a = book.members.find(m => Number(m.id) === author.member_id)!
@@ -214,6 +215,7 @@ describe('memberBookFromPool', () => {
     expect(v.photoCount).toBe(0)
     expect(v.voteCount).toBe(1)
     expect(a.avatarUrl).toContain('images/thumb/')
+    expect(book.submissions(a).every(p => p.srcUrl.includes('images/optimized/'))).toBe(true)
   })
 })
 

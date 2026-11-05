@@ -15,6 +15,8 @@ export type BookMember = {
 export type BookSubmission = {
   id: number
   thumbUrl: string
+  /** optimized 全尺寸图，点开大图时用 */
+  srcUrl: string
   width: number
   height: number
   desc: string
@@ -24,6 +26,7 @@ export type BookSubmission = {
 export type BookUrls = {
   avatar(member: ClientMember): string
   thumb(photo: ClientPhotoBase): string
+  optimized(photo: ClientPhotoBase): string
 }
 
 /**
@@ -51,6 +54,7 @@ export function memberBookFromPool(pool: ClientPool, urls: BookUrls): MemberBook
       list.push({
         id: photo.id,
         thumbUrl: urls.thumb(photo),
+        srcUrl: urls.optimized(photo),
         width: photo.width,
         height: photo.height,
         desc: photo.desc,

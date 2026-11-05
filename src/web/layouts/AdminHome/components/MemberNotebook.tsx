@@ -1,9 +1,10 @@
-import React, { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '@/utils/cn'
+import PhotoDetail, { prepareDetail, type Detail, type DetailInput } from '../../../components/Detail'
 import Popover from '../../../components/Popover'
 import { removeMember } from '../../../admin/api/member'
 import { getApiErrorMessage } from '../../../admin/utils/errors'
-import { useQueueload } from '../../../utils/queue-load'
+import { global_queue, useQueueload } from '../../../utils/queue-load'
 import { playPageBackSound, playPageFlipSound, playPageTearSound, primePaperAudio } from '../../../utils/paper-audio'
 import type { Member, MemberCanDelete, MemberSubmission } from './AdminConsole'
 import { FlipStack, type FlipDir } from './FlipStack'
@@ -420,23 +421,61 @@ function jitter(id: number) {
   return ((id * 37) % 21 - 10) / 10
 }
 
-function Print({ photo, slot }: { photo: MemberSubmission; slot: { rotate: number; drop: number } }) {
+function Print({ photo, slot, onOpen }: {
+  photo: MemberSubmission
+  slot: { rotate: number; drop: number }
+  onOpen(input: DetailInput): void
+}) {
   const [status, url, retry] = useQueueload(photo.thumbUrl)
+  const image_ref = useRef<HTMLImageElement>(null)
+  const rotate = slot.rotate + jitter(photo.id)
   // 槽位是正方形；相片按自己的宽高比贴进去，长边顶满
   const aspect = photo.width > 0 && photo.height > 0 ? photo.width / photo.height : 1
   const size = aspect >= 1
     ? { width: '100%', height: `${100 / aspect}%` }
     : { width: `${100 * aspect}%`, height: '100%' }
 
+  const open = () => {
+    const image = image_ref.current
+    if (status !== 'LOADED' || image === null || url === '' || photo.srcUrl === '') {
+      return
+    }
+    const rect = image.getBoundingClientRect()
+    const width = image.offsetWidth
+    const height = image.offsetHeight
+    onOpen({
+      from: {
+        width,
+        height,
+        left: rect.left + rect.width / 2 - width / 2,
+        top: rect.top + rect.height / 2 - height / 2,
+        rotate,
+      },
+      thumb: url,
+      src: photo.srcUrl,
+      width: photo.width,
+      height: photo.height,
+    })
+  }
+
   return (
     <figure
       className={styles.printSlot}
-      style={{ '--rotate': `${slot.rotate + jitter(photo.id)}deg`, '--drop': `${slot.drop}%` } as React.CSSProperties}
+      style={{ '--rotate': `${rotate}deg`, '--drop': `${slot.drop}%` } as React.CSSProperties}
     >
       <div className={styles.printBox}>
         <div className={styles.print} style={size}>
           <span className={styles.tape} aria-hidden />
-          {status === 'LOADED' && <img src={url} alt={photo.desc || photo.galleryName} />}
+          {status === 'LOADED' && (
+            <button
+              type='button'
+              className={styles.openPrint}
+              aria-label={`查看大图：${photo.desc || photo.galleryName}`}
+              onClick={open}
+            >
+              <img ref={image_ref} src={url} alt={photo.desc || photo.galleryName} />
+            </button>
+          )}
           {status === 'FAILURE' && (
             <button type="button" className={styles.printRetry} onClick={() => void retry()}>重试</button>
           )}
@@ -451,7 +490,12 @@ function Print({ photo, slot }: { photo: MemberSubmission; slot: { rotate: numbe
  * 一张拼贴卡：一排 2～3 张。只有它所在的纸页被渲染时，里面的相片才会进 queue-load。
  * 传了 slot 就按它定相片和卡的大小（续页）；没传就用 CSS 的默认尺寸（成员页）。
  */
-function CollageCard({ photos, perRow, slot }: { photos: MemberSubmission[]; perRow: number; slot?: number }) {
+function CollageCard({ photos, perRow, slot, onOpen }: {
+  photos: MemberSubmission[]
+  perRow: number
+  slot?: number
+  onOpen(input: DetailInput): void
+}) {
   const slots = SLOTS[perRow] ?? SLOTS[3]
   const style = slot === undefined
     ? undefined
@@ -459,7 +503,7 @@ function CollageCard({ photos, perRow, slot }: { photos: MemberSubmission[]; per
   return (
     <div className={styles.card} style={style}>
       <div className={styles.collage} style={{ '--slots': perRow } as React.CSSProperties}>
-        {photos.map((p, i) => <Print key={p.id} photo={p} slot={slots[i % slots.length]} />)}
+        {photos.map((p, i) => <Print key={p.id} photo={p} slot={slots[i % slots.length]} onOpen={onOpen} />)}
       </div>
     </div>
   )
@@ -617,9 +661,10 @@ type DetailPageProps = {
   readOnly: boolean
   /** “‹”的说明文字 */
   backLabel: string
+  onOpenPhoto(input: DetailInput): void
 }
 
-function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDraftChange, onBack, onSaved, avatarBeside, onDeleted, onFlip, readOnly, backLabel }: DetailPageProps) {
+function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDraftChange, onBack, onSaved, avatarBeside, onDeleted, onFlip, readOnly, backLabel, onOpenPhoto }: DetailPageProps) {
   const title = useFocusOnMount()
   const form_id = useId()
   const [busy, setBusy] = useState(false)
@@ -673,7 +718,7 @@ function DetailPage({ mode, member, canDelete, submissions, paging, draft, onDra
           {submissions === null && <div className={cn(styles.card, styles.cardEmpty)}>新成员还没有投稿。</div>}
           {submissions !== null && total === 0 && <div className={cn(styles.card, styles.cardEmpty)}>还没有投稿。</div>}
           {total > 0 && submissions !== null && (
-            <CollageCard photos={submissions.slice(0, paging.first)} perRow={paging.perRow} />
+            <CollageCard photos={submissions.slice(0, paging.first)} perRow={paging.perRow} onOpen={onOpenPhoto} />
           )}
         </section>
       </div>
@@ -691,9 +736,10 @@ type PrintsPageProps = {
   paging: Paging
   onBack(): void
   onFlip(dir: 1 | -1): void
+  onOpenPhoto(input: DetailInput): void
 }
 
-function PrintsPage({ member, submissions, sheet, paging, onBack, onFlip }: PrintsPageProps) {
+function PrintsPage({ member, submissions, sheet, paging, onBack, onFlip, onOpenPhoto }: PrintsPageProps) {
   const title = useFocusOnMount()
   const shown = submissions.slice(sheetStart(sheet, paging), sheetEnd(sheet, paging))
   const rows: MemberSubmission[][] = []
@@ -712,7 +758,7 @@ function PrintsPage({ member, submissions, sheet, paging, onBack, onFlip }: Prin
       </div>
       <div className={styles.printsBody}>
         <section className={styles.cardRows} aria-label={`过去的投稿，共 ${submissions.length} 张`}>
-          {rows.map(row => <CollageCard key={row[0].id} photos={row} perRow={paging.perRow} slot={paging.slot} />)}
+          {rows.map(row => <CollageCard key={row[0].id} photos={row} perRow={paging.perRow} slot={paging.slot} onOpen={onOpenPhoto} />)}
         </section>
       </div>
       <Pager page={sheet} pages={sheetCount(submissions.length, paging)} label="投稿翻页" onFlip={onFlip} />
@@ -752,6 +798,15 @@ export function MemberNotebook({
   readOnly = false, maxLayout = 'L', defaultSort, entryMemberId, onLeave,
 }: MemberNotebookProps) {
   const layout = useNotebookLayout(maxLayout)
+  const [detail, setDetail] = useState<Detail>(null)
+  const open_photo = useCallback((input: DetailInput) => {
+    setDetail(prepareDetail(input))
+  }, [])
+
+  // 公开成员页可以直接打开，不一定经过 Explore；进本子就开始队列，否则投稿缩略图会一直停在 LOADING。
+  useEffect(() => {
+    global_queue.startWorking()
+  }, [])
   const root = useRef<HTMLDivElement>(null)
   const { width, height } = useElementSize(root)
 
@@ -1022,6 +1077,7 @@ export function MemberNotebook({
                 paging={paging}
                 onBack={backToDetail}
                 onFlip={flipSheet}
+                onOpenPhoto={open_photo}
               />
             )
           }
@@ -1052,11 +1108,13 @@ export function MemberNotebook({
               onFlip={flipSheet}
               readOnly={readOnly}
               backLabel={entryMemberId !== undefined && onLeave !== undefined ? '返回' : '返回名单簿'}
+              onOpenPhoto={open_photo}
             />
           )
         }}
       />
       <div className={styles.spiral} aria-hidden />
+      <PhotoDetail detail={detail} onCancel={() => setDetail(null)} />
     </div>
   )
 }

@@ -529,6 +529,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
           list.push({
             id: photo.id,
             thumbUrl: photo.thumb_url,
+            srcUrl: photo.src_optimized,
             width: photo.width,
             height: photo.height,
             desc: photo.desc,

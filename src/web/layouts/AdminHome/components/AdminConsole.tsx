@@ -50,6 +50,8 @@ export type MemberCanDelete = (member: Member) => boolean;
 export interface MemberSubmission {
   id: number;
   thumbUrl: string;
+  /** optimized 全尺寸图，点开大图时用 */
+  srcUrl: string;
   width: number;
   height: number;
   desc: string;

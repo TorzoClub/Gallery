@@ -4,6 +4,7 @@ import ImageUploadingImport, { type ImageType, type ImageListType } from 'react-
 import { useSubmissionStore } from '.'
 import { fetchClientPool, fetchMemberView, submitPhoto, updateSubmission } from 'api/client-pool'
 import { uploadImage } from 'api/upload'
+import { beginClientPoolUpdateBlock } from 'pool/store'
 import { submittedPhotoView, type PhotoView } from 'pool/view'
 
 import s from './PhotoCreateOrEdit.module.scss'
@@ -26,6 +27,8 @@ type WillUploadImage = null | { blob: Blob, filename: string, blob_url: string, 
 const CARD_WIDTH = 320
 /** 还没选图时，相纸上的空位按 4:3 */
 const EMPTY_COVER: ImageSize = { width: 4, height: 3 }
+/** 投稿成功、切到“大感谢”后，暂缓公开页 SSE 应用的时间 */
+const SSE_RELEASE_DELAY_MS = 2000
 
 function readImageSize(url: string): Promise<ImageSize> {
   return new Promise((resolve) => {
@@ -62,6 +65,7 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
       return
     }
 
+    const release_sse = beginClientPoolUpdateBlock()
     try {
       setProcessing(true)
 
@@ -105,7 +109,9 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
       }
       useSubmissionStore.setState({ photo: updated_photo })
       onUpdateDone(updated_photo)
+      window.setTimeout(release_sse, SSE_RELEASE_DELAY_MS)
     } catch (err) {
+      release_sse()
       alert(`错误: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setProcessing(false)

@@ -137,7 +137,7 @@ function OverRunning() {
           页面开得太多了
         </h1>
         <p style={{ margin: '8px 0', lineHeight: 1.7 }}>
-          由于连接限制，最多同时打开 {MAX_TABS} 个页面，请关闭一些标签页后再刷新。
+          由于连接限制，最多同时打开 {MAX_TABS} 个页面。关掉一个标签页后会自动进入，不用刷新。
         </p>
       </div>
     </main>

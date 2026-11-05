@@ -1,29 +1,57 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import TooManyTabsIcon from '../TooManyTabsIcon'
 import { MAX_TABS } from '../../utils/tab-slot'
 import styles from './index.module.scss'
 
 type Page = 'main' | 'why'
+type FlipPhase = 'turn' | 'fade'
 type Flip = {
   target: Page
   direction: 'forward' | 'backward'
+  phase: FlipPhase
+  hide_front: boolean
 }
 
-const FLIP_MS = 440
+const TURN_MS = 280
+const FADE_MS = 160
 
 export default function TooManyTabs() {
   const [page, set_page] = useState<Page>('main')
   const [flip, set_flip] = useState<Flip | null>(null)
-  const flip_timer = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     document.title = '同装摄影集 · 页面太多'
-    return () => {
-      if (flip_timer.current !== undefined) {
-        window.clearTimeout(flip_timer.current)
-      }
-    }
   }, [])
+
+  useEffect(() => {
+    if (flip === null) {
+      return
+    }
+
+    const duration = flip.direction === 'forward'
+      ? (flip.phase === 'turn' ? TURN_MS : FADE_MS)
+      : (flip.phase === 'fade' ? FADE_MS : TURN_MS)
+
+    const timer = window.setTimeout(() => {
+      if (flip.direction === 'forward') {
+        if (flip.phase === 'turn') {
+          // 转到 90°：正面已经离开摄像机，先拿掉正面内容，再开始淡出空白背面。
+          set_flip({ ...flip, phase: 'fade', hide_front: true })
+        } else {
+          set_page(flip.target)
+          set_flip(null)
+        }
+      } else if (flip.phase === 'fade') {
+        // 空白背面已经从 100° 淡入到 90°；现在正面重新可见，转回 0°。
+        set_flip({ ...flip, phase: 'turn', hide_front: false })
+      } else {
+        set_page(flip.target)
+        set_flip(null)
+      }
+    }, duration)
+
+    return () => window.clearTimeout(timer)
+  }, [flip])
 
   const turn = (next: Page) => {
     if (flip !== null || next === page) {
@@ -33,15 +61,14 @@ export default function TooManyTabs() {
       set_page(next)
       return
     }
+
+    const direction = next === 'why' ? 'forward' : 'backward'
     set_flip({
       target: next,
-      direction: next === 'why' ? 'forward' : 'backward',
+      direction,
+      phase: direction === 'forward' ? 'turn' : 'fade',
+      hide_front: direction === 'backward',
     })
-    flip_timer.current = window.setTimeout(() => {
-      set_page(next)
-      set_flip(null)
-      flip_timer.current = undefined
-    }, FLIP_MS)
   }
 
   const renderPage = (which: Page) => {
@@ -125,12 +152,24 @@ export default function TooManyTabs() {
     )
   }
 
-  const renderSheet = (which: Page, className = '', hidden = false) => (
+  const renderSheet = (
+    which: Page,
+    className = '',
+    hidden = false,
+    hide_front = false,
+  ) => (
     <div className={`${styles.sheet} ${className}`.trim()} aria-hidden={hidden || undefined}>
       <div className={styles.pageBody}>
-        <header className={styles.docHeader}>TORZO GΛLLERY DOCUMENTION</header>
-        <div className={styles.docContent}>{renderPage(which)}</div>
-        <footer className={styles.docFooter}>位置：故障说明·连接数限制</footer>
+        <div className={styles.pageFront}>
+          {hide_front ? null : (
+            <>
+              <header className={styles.docHeader}>TORZO GΛLLERY DOCUMENTION</header>
+              <div className={styles.docContent}>{renderPage(which)}</div>
+              <footer className={styles.docFooter}>位置：故障说明·连接数限制</footer>
+            </>
+          )}
+        </div>
+        <div className={styles.pageBack} aria-hidden />
       </div>
     </div>
   )
@@ -138,8 +177,11 @@ export default function TooManyTabs() {
   const current_class = flip === null
     ? ''
     : flip.direction === 'forward'
-      ? styles.flipAway
+      ? (flip.phase === 'turn' ? styles.turnAway : styles.fadeAway)
       : styles.under
+  const target_class = flip?.direction === 'backward'
+    ? (flip.phase === 'fade' ? styles.backIn : styles.backTurn)
+    : styles.under
 
   return (
     <main className={styles.page} role='alert'>
@@ -147,8 +189,13 @@ export default function TooManyTabs() {
         <div className={styles.backing} aria-hidden />
         <div className={styles.pages}>
           {flip?.direction === 'forward' && renderSheet(flip.target, styles.under, true)}
-          {renderSheet(page, current_class)}
-          {flip?.direction === 'backward' && renderSheet(flip.target, styles.flipBack, true)}
+          {renderSheet(page, current_class, false, flip?.hide_front === true && flip.direction === 'forward')}
+          {flip?.direction === 'backward' && renderSheet(
+            flip.target,
+            target_class,
+            true,
+            flip.hide_front,
+          )}
         </div>
         <div className={styles.spiral} aria-hidden />
       </div>

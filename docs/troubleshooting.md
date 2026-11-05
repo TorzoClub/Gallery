@@ -202,3 +202,15 @@ pnpm start
 ## 上传返回“图片太长了”
 
 按当前配置生成的缩略图或大图有一边会超过 AVIF 的 16384px 上限。把图裁短，或在后台调小相片缩略图尺寸后再传。见 [images.md](images.md)“AVIF 每边 16384 的上限”。
+
+
+## 连续打开多个页面后请求阻塞
+
+公开页每个标签都会建立一条 `/events/pool` 长连接，Admin 也会建立 `/admin/events/pool`。浏览器对同一个 origin 的 HTTP/1.1 并发连接通常只有 6 条；短时间打开多个标签时，旧的后台标签如果不释放连接，新页面的 `fetchClientPool` 或静态资源就会排队。
+
+公开页（EventSource）和 Admin（fetch 流）都会在 `document.visibilityState === 'hidden'` 时主动关闭 SSE 连接，回到前台再重连；排查这个问题时先确认标签页的前后台状态，再看 DevTools 的 EventStream/网络请求。
+
+
+## 打开超过 5 个页面
+
+同装摄影集会在启动时用 Web Locks 占一个页面槽位：每个顶层页面持有一个 `__app_tab__:<uuid>` 锁，浏览器在页面销毁时自动释放。超过 5 个槽位时，新页面只显示“页面开得太多了”，不会挂载应用或建立 SSE，并每秒重试占位；关闭其他标签页、空出槽位后会自动进入。iframe 不单独占槽，由顶层窗口负责计数。

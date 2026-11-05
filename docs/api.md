@@ -155,6 +155,7 @@ Admin SSE 包含真实 QQ 和 `instance_config`，只能通过带 Bearer token �
 - 服务端在 Pool 更新后生成一次公开 photos/members 和完整 AdminPool 的 JSON raw 缓存
 - 所有 SSE 客户端共享同一份 JSON 字符串，不会为每个连接重复序列化 Pool
 - Gallery 时间窗口跨越 event_start/event_end 时，服务端会重建缓存并推送时间相关快照
+- 公开页和 Admin 标签页切到后台时主动关闭 SSE 连接，回到前台再重连；避免后台标签各占一条 HTTP/1.1 连接，触发浏览器同 origin 的 6 连接上限
 - 客户端断线自动重连；重连后立即收到当前快照
 - 反向代理必须关闭 SSE buffering，见 [configure.md](configure.md)
 

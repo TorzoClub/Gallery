@@ -1,10 +1,12 @@
-import React, { ReactNode, useEffect } from 'react'
+import React, { ReactNode, useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import './index.css'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { OutterPromise } from 'vait'
 
 import { appInitInfomation } from './HomeApp'
+import { acquireTabSlot, MAX_TABS } from './utils/tab-slot'
+import TooManyTabsIcon from './components/TooManyTabsIcon'
 import { isBehindPath, isCancelSubmissionPath, isMemberPath, isStaffPath } from './routes'
 import { FailureLayoutContainer, useFailureLayout } from './components/FailureLayout'
 
@@ -98,32 +100,94 @@ export async function initPictureSupportInfomation() {
   return { avif, webp } as const
 }
 
-const [
-  homeAppData,
-  publicRoot,
-] = await Promise.all([
-  import('./HomeApp'),
-  import('./PublicRoot'),
-])
+function OverRunning() {
+  useEffect(() => {
+    document.title = '同装摄影集 · 页面太多'
+  }, [])
 
-initPictureSupportInfomation()
-  .then(picutre_support => {
-    const [ getAppInitInfo, setAppInitInfo ] = appInitInfomation
-    setAppInitInfo({
-      ...getAppInitInfo(),
-      picutre_support,
-    })
+  return (
+    <main
+      role='alert'
+      style={{
+        minHeight: '100dvh',
+        display: 'grid',
+        placeItems: 'center',
+        padding: '24px',
+        boxSizing: 'border-box',
+        background: 'transparent',
+        color: '#2b333b',
+        fontFamily: '"Helvetica Neue", Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif',
+        textAlign: 'center',
+      }}
+    >
+      <div
+        style={{
+          width: 'min(640px, calc(100vw - 32px))',
+          padding: '26px 32px 24px',
+          boxSizing: 'border-box',
+          background: '#fff',
+          borderRadius: '8px',
+          boxShadow: '0 0 1px grey, 0 4px 12px -4px hsl(0 0% 70% / 1)',
+        }}
+      >
+        <div style={{ width: 'min(560px, 100%)', margin: '0 auto 10px' }}>
+          <TooManyTabsIcon />
+        </div>
+        <h1 style={{ margin: '0 0 16px', fontSize: '28px', fontWeight: 700 }}>
+          页面开得太多了
+        </h1>
+        <p style={{ margin: '8px 0', lineHeight: 1.7 }}>
+          由于连接限制，最多同时打开 {MAX_TABS} 个页面，请关闭一些标签页后再刷新。
+        </p>
+      </div>
+    </main>
+  )
+}
 
-    const mount_el = document.getElementById('root')
-    if (mount_el === null) {
-      alert('没有找到#root元素！')
-    } else {
-      ReactDOM.createRoot(mount_el).render(<Bootstrap />)
+function RootGate() {
+  const [status, set_status] = useState<'checking' | 'ready' | 'blocked'>('checking')
+
+  useEffect(() => {
+    let cancelled = false
+    let timer: number | undefined
+
+    const check = async () => {
+      let result
+      try {
+        result = await acquireTabSlot()
+      } catch {
+        result = { ok: true }
+      }
+      if (cancelled) {
+        return
+      }
+      if (result.ok) {
+        set_status('ready')
+        return
+      }
+      set_status('blocked')
+      timer = window.setTimeout(() => {
+        void check()
+      }, 1000)
     }
-  })
-  .catch(err => {
-    alert(`页面初始化错误：${err?.message}`)
-  })
+
+    void check()
+    return () => {
+      cancelled = true
+      if (timer !== undefined) {
+        window.clearTimeout(timer)
+      }
+    }
+  }, [])
+
+  if (status === 'checking') {
+    return null
+  }
+  if (status === 'blocked') {
+    return <OverRunning />
+  }
+  return <Bootstrap />
+}
 
 function Bootstrap() {
   const PublicRoot = publicRoot.default
@@ -171,4 +235,32 @@ function Bootstrap() {
       `}</style>
     </div>
   )
+}
+
+
+const [
+  homeAppData,
+  publicRoot,
+] = await Promise.all([
+  import('./HomeApp'),
+  import('./PublicRoot'),
+])
+
+const picutre_support = await initPictureSupportInfomation()
+
+try {
+  const [ getAppInitInfo, setAppInitInfo ] = appInitInfomation
+  setAppInitInfo({
+    ...getAppInitInfo(),
+    picutre_support,
+  })
+
+  const mount_el = document.getElementById('root')
+  if (mount_el === null) {
+    alert('没有找到#root元素！')
+  } else {
+    ReactDOM.createRoot(mount_el).render(<RootGate />)
+  }
+} catch (err) {
+  alert(`页面初始化错误：${err}`)
 }

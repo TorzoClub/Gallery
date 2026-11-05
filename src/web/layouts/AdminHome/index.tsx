@@ -92,6 +92,9 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
   const [token_rejection, setTokenRejection] = useState<TokenRejection | undefined>(undefined)
   const watterfall_refreshed = useMemo(() => Signal(), [])
   const [state, setState] = useState<LoadState>({ status: 'loading' })
+  const [tab_visible, setTabVisible] = useState(() => (
+    typeof document === 'undefined' || document.visibilityState !== 'hidden'
+  ))
   const [settings, setSettings] = useState<AdminSettings | null>(null)
   const [settingsSaving, setSettingsSaving] = useState(false)
   const [creatingGallery, setCreatingGallery] = useState(false)
@@ -117,6 +120,14 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
       document.title = '同装摄影集'
     }
   }, [thisIsDisplay])
+
+  useEffect(() => {
+    const sync_visibility = () => {
+      setTabVisible(document.visibilityState !== 'hidden')
+    }
+    document.addEventListener('visibilitychange', sync_visibility)
+    return () => document.removeEventListener('visibilitychange', sync_visibility)
+  }, [])
 
   const load = useCallback(async (show_loading = true) => {
     if (token === '') {
@@ -248,7 +259,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
   // 后台数据的实时推送。只在过了门禁、读到数据、后台页正在显示时连接；
   // 被拒（401 / 403）时只断开不跳转，登录失效统一由门禁处理
   useEffect(() => {
-    if (!thisIsDisplay || token === '' || state.status !== 'ready') {
+    if (!thisIsDisplay || !tab_visible || token === '' || state.status !== 'ready') {
       return
     }
     const controller = new AbortController()
@@ -257,7 +268,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
       onPool: applyPool,
     })
     return () => controller.abort()
-  }, [applyPool, state.status, thisIsDisplay, token])
+  }, [applyPool, state.status, tab_visible, thisIsDisplay, token])
 
   const refresh = useCallback(async () => {
     watterfall_refreshed.trigger()

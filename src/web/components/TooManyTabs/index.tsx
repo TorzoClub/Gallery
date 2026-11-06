@@ -102,7 +102,6 @@ export default function TooManyTabs() {
         >
           ‹ 返回
         </button>
-        <div className={styles.manualKicker}>Manual · Connection Limit</div>
         <h1 className={styles.whyTitle}>为什么会如此</h1>
         <p className={styles.whyLead}>
           因为浏览器不是一个可以无限打开页面的容器。每个同装摄影集页面都需要持续接收服务器推送，而浏览器的连接数是有限的。

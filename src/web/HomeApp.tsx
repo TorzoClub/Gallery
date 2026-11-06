@@ -17,7 +17,7 @@ export default function AppHome() {
   const navigate = useNavigate()
 
   return (
-    <div className="app">
+    <div className="homeApp" style={{ paddingBottom: '128px' }}>
       <Navigator
         scene='explore'
         onClickPushButton={() => {

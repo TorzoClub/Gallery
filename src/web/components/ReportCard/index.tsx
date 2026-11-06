@@ -44,7 +44,7 @@ export type ReportCardBuild = {
 export const DEFAULT_REPORT_CARD_CONFIG: ReportCardConfig = {
   angle: -1,
   stamp: {
-    x: 128,
+    x: 112,
     y: 335,
     angle: -4,
   },

@@ -120,7 +120,7 @@ export default function TooManyTabsIcon({ className = '' }: { className?: string
           letterSpacing='1.8'
           textAnchor='start'
         >
-          CANNOT
+          CANNOT CONNECT
         </text>
       </g>
     </svg>

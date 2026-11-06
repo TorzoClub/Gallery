@@ -525,7 +525,7 @@ export default ({
   }, [entering_ids, presence.leaving, presence.list, presence.shifting, fallen, loose_id, pull, tapes, gallery.can_submission, gallery.event_start, gallery.in_event, layout, onClickCover, handleToggleVote, dropping, lifting, handleRefreshed, selected_id_list, show_vote_button, vote_interactive, openMember])
 
   return (
-    <div className="gallery" ref={root}>
+    <div className="gallery" ref={root} style={{ paddingTop: gallery.can_submission ? '0px' : '42px' }}>
       { title_node }
       { waterfall_layout_node }
       {falling.map(item => (

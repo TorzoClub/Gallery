@@ -19,7 +19,6 @@ import { useMemberView } from 'pool/member-view'
 import { activeGallery, normalGalleries } from 'pool/selectors'
 import { shufflePhotosForEvent, toGalleryViews, type GalleryView } from 'pool/view'
 import { canUseCacheWorker, transformCacheWorkerURL } from 'pool/media'
-import { PaperShredder } from '@/components/uibrik/paper-shredder/paper-shredder'
 import { signal_critical_error } from 'signals'
 
 const watterfall_refreshed = Signal()
@@ -104,44 +103,44 @@ export default function ExplorePage() {
   }, [qq_num, setConfirmState])
 
   useEffect(() => {
-    if (active === null) {
-      return
-    }
-    if (!in_vote_period) {
-      return
-    }
-    if (qq_num === null && !confirm_state.in) {
+    if (
+      (active !== null) &&
+      (in_vote_period) &&
+      (qq_num === null && !confirm_state.in)
+    ) {
       setConfirmState({ in: true })
     }
   }, [active, confirm_state.in, in_vote_period, qq_num, setConfirmState])
 
   useEffect(() => {
-    if (!in_vote_period || member_view.view === null || vote_submitted || active === null) {
+    if (!in_vote_period || member_view.view === null || active === null) {
       setShowSubmitButtonArea(false)
-      return
-    }
-
-    let mounted = true
-    const timer = timeout(618).then(() => {
-      if (!mounted) {
-        return
-      }
+    } else if (vote_submitted) {
+      // 已提交是终态：保留提交区域，让 ActivityLayout 显示“感谢你的投票”
       setShowSubmitButtonArea(true)
-      setShowConfirmVote(true)
-    })
+    } else {
+      let mounted = true
+      const timer = timeout(618).then(() => {
+        if (!mounted) {
+          return
+        }
+        setShowSubmitButtonArea(true)
+        setShowConfirmVote(true)
+      })
 
-    return () => {
-      mounted = false
+      return () => {
+        mounted = false
+      }
     }
   }, [active, in_vote_period, member_view.view, vote_submitted])
 
   useEffect(() => {
     if (show_confirm_vote || !show_submit_button_area) {
       setShowMagnetTray(false)
-      return
+    } else {
+      const timer = setTimeout(() => setShowMagnetTray(true), DIALOG_ANIMATION_MS + MAGNET_TRAY_DELAY_MS)
+      return () => clearTimeout(timer)
     }
-    const timer = setTimeout(() => setShowMagnetTray(true), DIALOG_ANIMATION_MS + MAGNET_TRAY_DELAY_MS)
-    return () => clearTimeout(timer)
   }, [show_confirm_vote, show_submit_button_area])
 
   const handleClickAnyWhere = useCallback(() => {

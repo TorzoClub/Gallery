@@ -2,7 +2,7 @@
  * 用系统自带的“存储为”对话框保存文件，并且能知道用户点的是“存储”还是“取消”。
  *
  * 只有 Chromium 系（Chrome / Edge 等）在安全上下文（https / localhost）里有 showSaveFilePicker；
- * Safari / Firefox 没有，网页也拿不到 <a download> 那个对话框的结果，这时返回 'unsupported'，由调用方直接下载。
+ * Safari / Firefox 没有，网页也拿不到 <a download> 那个对话框的结果，这时返回 'unsupported'，由调用方在动画结束后下载。
  * 必须在用户点击的同一个调用栈里调用，否则浏览器会拒绝弹出对话框。
  */
 

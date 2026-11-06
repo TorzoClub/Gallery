@@ -153,7 +153,7 @@ $tape-done: $hand-at + $hand-total;
   }
 }
 
-/* 撕下纸胶带后掉下去的那张：固定在视口里，从原位置掉出底边。低于大图（10010），高于磁粒托盘（900） */
+/* 撕下纸胶带后掉下去的复印件：固定在视口里，从原位置掉出底边。低于大图（10010）；磁粒顶层在它上面（1001） */
 .photo-card-falling {
   position: fixed;
   z-index: 1000;
@@ -165,21 +165,36 @@ $tape-done: $hand-at + $hand-total;
  * 撕纸胶带。时间线与 index.tsx 的 TEAR_* / COPY_* 常量一致，分阶段由外层 class 驱动：
  *   .photo-card-tearing     （.with-magnet 时先 0–200ms 取下磁粒）胶带从粘着的左端撕起、消失 180ms
  *   .photo-card-asking      停在撕开的样子，等系统“存储为”对话框的结果
- *   .photo-card-copying     点了“存储”且放着磁粒：扫描 0–380ms → 复印件揭起掉落 → 720ms 起贴胶带（含手抹）→ 放手后磁粒放回
+ *   .photo-card-copying     点了“存储”：扫描 0–380ms → 复印件揭起掉落 → 1000ms 起贴胶带（含手抹）→ 放手后磁粒放回
  *   .photo-card-resticking  点了“取消”：贴胶带（含手抹）→ 放手后磁粒放回
- * 没放磁粒时点“存储”，原件直接掉落（FallingPhotoCard），不经过这里。
+ * 不管有没有磁粒都复印一张，原件始终留在原处。
  * 每个阶段的起始帧都接着上一个阶段的结束帧，class 切换时不跳。
  */
 $tear-lift: 200ms;
 $tear: 180ms;
 $copy-scan: 380ms;
-$copy-tape-at: 720ms;
+$copy-tape-at: 1000ms;
 $magnet-drop: 220ms;
 
 /* 磁粒悬在原处上方：32px 的磁粒在卡片右下角，不在 .cover-area 里，抬起多少都不会被裁掉 */
 %magnet-hovering {
   filter: drop-shadow(2px 6px 4px rgb(20 30 40 / 0.35));
   transform: translate(-2px, -10px) scale(1.12);
+}
+
+.photo-card-copy-magnet {
+  position: fixed;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  pointer-events: none;
+  filter: drop-shadow(2px 6px 4px rgb(20 30 40 / 0.35));
+  transform: translate(-2px, -10px) scale(1.12);
+  animation: photo-card-magnet-drop $magnet-drop linear ($copy-tape-at + $tape-done) both;
+  --magnet-size: 32px;
 }
 
 @keyframes photo-card-magnet-lift {
@@ -285,7 +300,7 @@ $magnet-drop: 220ms;
   @include tape-hand($copy-tape-at);
 
   /* 放手了磁粒才放回去 */
-  .photo-card-vote {
+  &.with-magnet .photo-card-vote {
     animation: photo-card-magnet-drop $magnet-drop linear ($copy-tape-at + $tape-done) both;
   }
 }

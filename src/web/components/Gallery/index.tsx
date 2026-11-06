@@ -12,6 +12,7 @@ import useSafeState from 'hooks/useSafeState'
 import { dateDiffInDays } from 'utils/date'
 import TextPlaceholder from './TextPlaceholder'
 import { FallingPhotoCard, type FallingCard } from './FallingPhotoCard'
+import { CopyMagnet } from './CopyMagnet'
 import { FallingMagnet, type MagnetDrop } from './FallingMagnet'
 import { PinchMagnet, type MagnetPickup } from './PinchMagnet'
 import { playMagnetDropSound, primeMagnetAudio } from 'utils/magnet-audio'
@@ -209,8 +210,6 @@ function magnetReturnTarget(index: number): { x: number; y: number } {
   return el === null ? trayFallback() : centerOf(el)
 }
 
-const NO_FALLEN: ReadonlySet<number> = new Set()
-
 /*
  * 撕纸胶带的时间线（与 index.scss 的 $tear-* / $copy-* 一致）。每一截纸胶带都能撕，松动的那截只是吸引注意。
  *
@@ -219,13 +218,12 @@ const NO_FALLEN: ReadonlySet<number> = new Set()
  *   +0–180ms      纸胶带从粘着的左端被撕起、消失
  *   然后          停在撕开的样子，等对话框的结果
  *
- * 点“存储”（Chrome / Edge 等能拿到结果；Safari / Firefox 拿不到，点胶带时直接下载，撕开后直接走这一段）：
- *   没有磁粒      原件 1000ms 直直掉下去，原来的格子空着
- *   有磁粒        复印一张掉下去，原件和这一票都留着：
- *                   0–380ms      扫描光从上到下扫过卡片
- *                   380–640ms    复印件从原件上揭起来（FallingPhotoCard 的 peel），随后 1000ms 直直掉下去
- *                   720ms 起     贴纸胶带（含手抹，TAPE_DONE_MS）
- *                   放手后       磁粒放回去 220ms
+ * 点“存储”（Chrome / Edge 等能拿到结果；Safari / Firefox 等拿不到，等完整动画结束后再下载）：
+ *   不管有没有磁粒，都复印一张掉下去，原件和这一票都留着：
+ *     0–380ms      扫描光从上到下扫过卡片
+ *     380–640ms    复印件从原件上揭起来（FallingPhotoCard 的 peel），随后 1000ms 直直掉下去
+ *     1000ms 起    贴纸胶带（含手抹，TAPE_DONE_MS）
+ *     放手后       有磁粒就把磁粒放回去 220ms
  *
  * 点“取消”：
  *   0ms 起        纸胶带重新贴好（含手抹，TAPE_DONE_MS），贴牢，不再是松动的样子
@@ -234,9 +232,12 @@ const NO_FALLEN: ReadonlySet<number> = new Set()
 const TEAR_LIFT_MS = 200
 const TEAR_MS = 180
 const COPY_SPAWN_MS = 380
-const COPY_TAPE_AT_MS = 720
+const COPY_TAPE_AT_MS = 1000
 const MAGNET_DROP_MS = 220
-const COPY_TOTAL_MS = COPY_TAPE_AT_MS + TAPE_DONE_MS + MAGNET_DROP_MS
+
+function copyTotalMs(with_magnet: boolean) {
+  return COPY_TAPE_AT_MS + TAPE_DONE_MS + (with_magnet ? MAGNET_DROP_MS : 0)
+}
 
 type TapePhase = 'tearing' | 'asking' | 'copying' | 'resticking'
 type TapeState = { phase: TapePhase; with_magnet: boolean }
@@ -263,7 +264,7 @@ function pickTopRowPhoto(root: HTMLElement | null, excluded: ReadonlySet<string>
   return Number(row[Math.floor(Math.random() * row.length)].id)
 }
 
-/** 浏览器拿不到系统对话框结果时，点胶带的一瞬间直接下载原图。跨域时 download 属性不生效，改为新标签页打开，免得把当前页面导走 */
+/** 浏览器拿不到系统对话框结果时，在完整动画结束后下载原图。跨域时 download 属性不生效，改为新标签页打开，免得把当前页面导走 */
 function downloadSource(photo: Pick<PhotoView, 'src' | 'src_url'>) {
   const a = document.createElement('a')
   a.href = photo.src_url
@@ -308,7 +309,7 @@ export default ({
   const presence = usePhotoPresence(gallery.photos)
   const entering_ids = presence.entering
   const root = useRef<HTMLDivElement>(null)
-  const { tapes, loose_id, fallen, falling, pull, landed, loosen } = useTape(root, loose_tape, gallery.photos.length > 0, entering_ids)
+  const { tapes, loose_id, falling, magnet_echoes, pull, landed, loosen } = useTape(root, loose_tape, gallery.photos.length > 0, entering_ids)
 
   // 点头像或昵称：换台（CH. Member）到这位成员单独的名单簿，直接打开他的成员页
   const navigate = useNavigate()
@@ -421,7 +422,6 @@ export default ({
           src: photo.member.avatar_thumb_url,
         } : null,
       }
-      const is_fallen = fallen.has(photo.id)
       const busy = tapes.get(photo.id)
       const is_entering = entering_ids.has(String(photo.id))
       const is_leaving = presence.leaving.has(String(photo.id))
@@ -439,11 +439,8 @@ export default ({
         id: String(photo.id),
         node: (
           <PhotoCardCell scatter={scatter} photoId={photo.id}>
-            {/* 入场动画放在这层：卡片自身的 transform 是倾斜，从一开始就是斜的。掉下去的相片只隐藏，格子留着 */}
-            <div
-              className={cell_class}
-              style={is_fallen ? { visibility: 'hidden' } : undefined}
-            >
+            {/* 入场动画放在这层：卡片自身的 transform 是倾斜，从一开始就是斜的。掉下去的是复印件，原件保留 */}
+            <div className={cell_class}>
             <PhotoCard
               {...card}
               width={scatter.card_width}
@@ -522,7 +519,7 @@ export default ({
         return waterfall()
       }
     }
-  }, [entering_ids, presence.leaving, presence.list, presence.shifting, fallen, loose_id, pull, tapes, gallery.can_submission, gallery.event_start, gallery.in_event, layout, onClickCover, handleToggleVote, dropping, lifting, handleRefreshed, selected_id_list, show_vote_button, vote_interactive, openMember])
+  }, [entering_ids, presence.leaving, presence.list, presence.shifting, loose_id, pull, tapes, gallery.can_submission, gallery.event_start, gallery.in_event, layout, onClickCover, handleToggleVote, dropping, lifting, handleRefreshed, selected_id_list, show_vote_button, vote_interactive, openMember])
 
   return (
     <div className="gallery" ref={root} style={{ paddingTop: gallery.can_submission ? '0px' : '42px' }}>
@@ -530,6 +527,9 @@ export default ({
       { waterfall_layout_node }
       {falling.map(item => (
         <FallingPhotoCard key={item.key} falling={item} onDone={() => landed(item.key)} />
+      ))}
+      {magnet_echoes.map(echo => (
+        <CopyMagnet key={echo.key} x={echo.x} y={echo.y} />
       ))}
       {magnet_drops.map(drop => (
         <FallingMagnet
@@ -553,10 +553,9 @@ export default ({
 
 /**
  * 纸胶带：每一截都能点。点下去胶带撕开，同时弹出系统的“存储为”对话框，动画停在撕开的样子等结果（时间线见上面的常量）。
- * - 存储：相片上没有自己的磁粒：原件掉下去，格子不收起，空位就这么空着；
- *   放着自己的磁粒：原件不走，复印一张掉下去，胶带贴回、磁粒放回，这一票原样留着。
+ * - 存储：不管有没有磁粒，原件都保留，统一复印一张掉下去；胶带在 1000ms 后贴回，有磁粒时再放回磁粒。
  * - 取消：胶带重新贴好。
- * 浏览器没有 showSaveFilePicker（Safari / Firefox）时拿不到对话框的结果：点胶带就直接下载，当作“存储”。
+ * 浏览器没有 showSaveFilePicker（Safari / Firefox）时拿不到对话框的结果：等完整复印动画结束后再下载，当作“存储”。
  * 吸引锚（loose_enabled）：瀑布流第一次排好时就挑定最上面一排随机一张，胶带直接是松的（只挑一次）；撕过之后贴回来就是贴牢的。
  * 掉下去的卡片掉出视口后移除。
  */
@@ -568,8 +567,8 @@ function useTape(
 ) {
   const [tapes, setTapes] = useState<ReadonlyMap<number, TapeState>>(NO_TAPES)
   const [loose_id, setLooseId] = useState<number | null>(null)
-  const [fallen, setFallen] = useState<ReadonlySet<number>>(NO_FALLEN)
   const [falling, setFalling] = useState<FallingCard[]>([])
+  const [magnet_echoes, setMagnetEchoes] = useState<{ key: string; x: number; y: number }[]>([])
   const loosened = useRef(false)
   const entering = useRef(entering_ids)
   /** 系统对话框同一时间只能开一个：开着的时候别的胶带先不理 */
@@ -621,7 +620,7 @@ function useTape(
     }
   }, [loose_enabled, has_photos, root])
 
-  const spawn = useCallback((photo: PhotoView, card: FallingCard['card'], rotate: number, peel: boolean) => {
+  const spawn = useCallback((photo: PhotoView, card: FallingCard['card'], rotate: number) => {
     const el = root.current?.querySelector<HTMLElement>(`.photo-card-cell[data-photo-id="${photo.id}"] .photo-card`)
     if (el === null || el === undefined) {
       return
@@ -630,7 +629,7 @@ function useTape(
     const rect = el.getBoundingClientRect()
     setFalling(list => [...list, {
       key: `${photo.id}-${Date.now()}`,
-      peel,
+      peel: true,
       from: {
         width: el.offsetWidth,
         height: el.offsetHeight,
@@ -642,26 +641,52 @@ function useTape(
     }])
   }, [root])
 
-  /** 对话框点了“存储”（或浏览器不支持、已经直接下载）：动画继续 */
-  const proceed = useCallback((photo: PhotoView, card: FallingCard['card'], rotate: number, with_magnet: boolean) => {
+  /** 对话框点了“存储”：统一复印一张掉下去；on_done 在完整动画结束后调用 */
+  const proceed = useCallback((
+    photo: PhotoView,
+    card: FallingCard['card'],
+    rotate: number,
+    with_magnet: boolean,
+    on_done?: () => void,
+  ) => {
     const reduce = prefersReducedMotion()
     setLooseId(id => (id === photo.id ? null : id))
-    if (with_magnet) {
-      if (reduce) {
-        advance(photo.id, 'asking', null)
-        return
-      }
-      advance(photo.id, 'asking', 'copying')
-      later(COPY_SPAWN_MS, () => spawn(photo, card, rotate, true))
-      later(COPY_TOTAL_MS, () => advance(photo.id, 'copying', null))
+
+    if (reduce) {
+      advance(photo.id, 'asking', null)
+      on_done?.()
       return
     }
-    advance(photo.id, 'asking', null)
-    setFallen(prev => new Set(prev).add(photo.id))
-    if (!reduce) {
-      spawn(photo, card, rotate, false)
+
+    advance(photo.id, 'asking', 'copying')
+    later(COPY_SPAWN_MS, () => spawn(photo, card, rotate))
+
+    let echo_key: string | null = null
+    if (with_magnet) {
+      const magnet = root.current?.querySelector<HTMLElement>(
+        `.photo-card-cell[data-photo-id="${photo.id}"] .photo-card-vote`,
+      )
+      if (magnet !== null && magnet !== undefined) {
+        const rect = magnet.getBoundingClientRect()
+        // 此时磁粒处于 asking 的悬起状态：布局中心 = 变换后的中心 + (2, 10)
+        const key = `${photo.id}-${Date.now()}`
+        echo_key = key
+        setMagnetEchoes(list => [...list, {
+          key,
+          x: rect.left + rect.width / 2 + 2,
+          y: rect.top + rect.height / 2 + 10,
+        }])
+      }
     }
-  }, [advance, later, spawn])
+
+    later(copyTotalMs(with_magnet), () => {
+      advance(photo.id, 'copying', null)
+      if (echo_key !== null) {
+        setMagnetEchoes(list => list.filter(item => item.key !== echo_key))
+      }
+      on_done?.()
+    })
+  }, [advance, later, root, spawn])
 
   /** 对话框点了“取消”：胶带贴回去 */
   const restick = useCallback((id: number, with_magnet: boolean) => {
@@ -676,11 +701,9 @@ function useTape(
     if (picker_open.current || busy_ids.current.has(photo.id)) {
       return
     }
-    // 系统对话框必须在这一次点击里弹出；不支持就在这一次点击里直接下载
+    // 系统对话框必须在这一次点击里弹出；Safari / Firefox 等不支持时等动画结束再下载
     const picking = pickSaveFile(photo.src)
-    if (picking === null) {
-      downloadSource(photo)
-    } else {
+    if (picking !== null) {
       picker_open.current = true
     }
 
@@ -701,9 +724,10 @@ function useTape(
         restick(photo.id, with_magnet)
         return
       }
-      if (pick.kind === 'unsupported' && picking !== null) {
-        // 有 showSaveFilePicker 但弹不出来（例如被安全策略拦下）：退回直接下载
-        downloadSource(photo)
+      if (pick.kind === 'unsupported') {
+        // 不支持系统保存：完整复印/贴胶带动画结束后再下载
+        proceed(photo, card, rotate, with_magnet, () => downloadSource(photo))
+        return
       }
       proceed(photo, card, rotate, with_magnet)
       if (pick.kind === 'saved' && !(await writeSaveFile(pick.handle, photo.src_url))) {
@@ -717,7 +741,7 @@ function useTape(
     setFalling(list => list.filter(item => item.key !== key))
   }, [])
 
-  return { tapes, loose_id, fallen, falling, pull, landed, loosen }
+  return { tapes, loose_id, falling, magnet_echoes, pull, landed, loosen }
 }
 
 function useWaterfallLayout() {

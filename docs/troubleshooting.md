@@ -160,7 +160,7 @@ QQ number 是成员身份的一部分，创建后不可修改。`adminUpdateMemb
 lsof -nP -iTCP:${HTTP_PORT:-7001} -sTCP:LISTEN
 ```
 
-确认是否已有进程在运行。不要手动删除正在使用中的 lock；先停止旧进程。异常退出后的 stale lock 由服务端按 PID 检测处理。
+确认是否已有进程在运行。不要手动删除正在使用中的 lock；先停止旧进程。异常退出后的 stale lock 由服务端按 hostname、PID 和进程启动时间判断；容器重建或 PID 复用时会自动清理。
 
 ## 端口被占用
 
@@ -214,3 +214,10 @@ pnpm start
 ## 打开超过 5 个页面
 
 同装摄影集会在启动时用 Web Locks 占一个页面槽位：每个顶层页面持有一个 `__app_tab__:<uuid>` 锁，浏览器在页面销毁时自动释放。超过 5 个槽位时，新页面只显示“页面开得太多了”，不会挂载应用或建立 SSE，并每秒重试占位；关闭其他标签页、空出槽位后会自动进入。iframe 不单独占槽，由顶层窗口负责计数。
+
+
+### HEIC / HEIF
+
+- Chrome 预览 HEIC 会失败，这是浏览器限制；表单会显示“提交后显示缩略图”，提交后服务端用 `pillow_heif` 生成 SDR thumb。
+- 服务端没有 `pillow_heif` / `exiftool` / `apple-hdr-heic-decoder` 时，HEIC 无法读取；用 Docker 镜像，或在宿主机安装对应工具。
+- 只有带 Apple HDR gain map 的 HEIC 会生成 HDR；普通 HEIC 只生成 SDR。

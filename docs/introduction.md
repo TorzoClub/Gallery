@@ -6,6 +6,7 @@
 
 - 根目录是单体 SPA + dispatch API：一个 Hono HTTP 服务同时提供前端、API、图片和健康检查。
 - 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。
+- 图片 source 支持 jpg/png/gif/webp/avif/heic；HEIC 由 Docker 内的 `pillow_heif` 解出 SDR，HDR HEIC 由 `apple-hdr-heic-decoder` 处理。
 - `src/web/components/deprecated/` 放已弃用但值得留着的组件：不被任何页面引用，只是造型或交互还有参考价值、以后可能复用。规则见 [designs.md](designs.md) 的“已弃用组件”。
 - 测试在 `test/`，当前覆盖服务端业务逻辑、storage、图片、登录、静态服务和缓存。
 - storage schema 当前为 v2；v1 需要先运行 `pnpm update-storage`。

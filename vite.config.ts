@@ -81,7 +81,6 @@ export default defineConfig(({ mode }) => {
         'zustand',
         'react-images-uploading',
         'html2canvas',
-        'heic-convert/browser',
         '@juggle/resize-observer',
       ],
     },

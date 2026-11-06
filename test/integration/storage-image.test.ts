@@ -18,6 +18,7 @@ import { isUuidV7, uuidV7Timestamp, uuidv7 } from '../../src/server/common/uuid'
 import { createLogger } from '../../src/server/logger'
 import { createImagePipeline, TEMP_IMAGE_TTL_MS, TEMP_CLEANUP_INTERVAL_MS } from '../../src/server/instance/prepare-photo'
 import { hdrToolsAvailable } from '../../src/server/storage/hdr'
+import { heicToolsAvailable } from '../../src/server/storage/heic-hdr'
 
 const dirs: string[] = []
 let active: TestContext | undefined
@@ -747,5 +748,59 @@ describe.skipIf(!hdr_available)('HDR image flow', () => {
     })
     expect(photo.has_hdr_optimized).toBe(false)
     expect(photo.src_optimized_hdr).toBeNull()
+  })
+})
+
+
+const heic_available = await heicToolsAvailable()
+
+describe.skipIf(!heic_available)('HEIC image flow', () => {
+  it('stores a native HEIC source and generates SDR images', async () => {
+    const ctx = await context()
+    const member = await ctx.createMember({ qq_num: 51011 })
+    const gallery = await ctx.createGallery()
+    const image = await fs.readFile(fileURLToPath(new URL('../fixtures/hdr/iphone-sdr.heic', import.meta.url)))
+    const photo = await ctx.createPhoto({
+      gallery_id: gallery.id as number,
+      member_id: member.id as number,
+      image,
+      image_filename: 'iphone.heic',
+    })
+
+    expect(photo.src).toMatch(/\.heic$/)
+    expect(photo.format).toBe('heic')
+    expect(photo.has_hdr_optimized).toBe(false)
+    expect(photo.src_optimized_hdr).toBeNull()
+
+    const source = await ctx.app.request(`/images/source/${photo.src}`)
+    expect(source.status).toBe(200)
+    expect(source.headers.get('content-type')).toBe('image/heic')
+    const thumb = await ctx.app.request(new URL(photo.thumb as string).pathname)
+    expect(thumb.status).toBe(200)
+    expect(thumb.headers.get('content-type')).toBe('image/avif')
+  })
+})
+
+describe.skipIf(!hdr_available || !heic_available)('HEIC HDR image flow', () => {
+  it('converts an Apple HDR HEIC to a 10-bit HDR AVIF', async () => {
+    const ctx = await context()
+    const member = await ctx.createMember({ qq_num: 51012 })
+    const gallery = await ctx.createGallery()
+    const image = await fs.readFile(fileURLToPath(new URL('../fixtures/hdr/iphone-hdr.heic', import.meta.url)))
+    const photo = await ctx.createPhoto({
+      gallery_id: gallery.id as number,
+      member_id: member.id as number,
+      image,
+      image_filename: 'iphone-hdr.heic',
+    })
+
+    expect(photo.has_hdr_optimized).toBe(true)
+    expect(photo.src_optimized_hdr).toContain('-hdr.avif')
+    const hdr_name = variantName(photo.src as string, 'hdr')
+    const info = await avifCicp(ctx.storage.imagePath('optimized', hdr_name))
+    expect(info).toContain('Bit Depth      : 10')
+    expect(info).toContain('Color Primaries: 9')
+    expect(info).toContain('Transfer Char. : 16')
+    expect(info).toContain('Matrix Coeffs. : 9')
   })
 })

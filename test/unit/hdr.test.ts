@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isHdrCicp, parseAvifCicp, parseAvifInfo, parsePngCicp } from '../../src/server/storage/hdr'
 import { supportsHdrDisplay } from '../../src/web/utils/browser'
 import { chooseDetailSource } from '../../src/web/components/Detail/hdr'
+import { formatFromFilename, mimeTypeOf } from '../../src/server/common/image-name'
 
 function pngWithCicp(values: readonly [number, number, number, number]): Buffer {
   const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
@@ -12,6 +13,12 @@ function pngWithCicp(values: readonly [number, number, number, number]): Buffer 
 }
 
 describe('HDR detection', () => {
+  it('recognizes HEIC/HEIF filenames and MIME', () => {
+    expect(formatFromFilename('photo.heic')).toBe('heic')
+    expect(formatFromFilename('photo.heif')).toBe('heic')
+    expect(mimeTypeOf('photo.heic')).toBe('image/heic')
+  })
+
   it('treats PQ and HLG transfer as HDR', () => {
     expect(isHdrCicp({ primaries: 9, transfer: 16, matrix: 9, full_range: true })).toBe(true)
     expect(isHdrCicp({ primaries: 9, transfer: 18, matrix: 9, full_range: true })).toBe(true)

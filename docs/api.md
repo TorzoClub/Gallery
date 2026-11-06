@@ -357,7 +357,7 @@ GET /images/thumb/:file        # SDR AVIF 缩略图
 Cache-Control: public, max-age=31536000, immutable
 ```
 
-source 地址形如 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`，例如 `photo-2-3-4a9b66db.jpg`。SDR 始终生成；HDR source 额外生成 HDR：
+source 地址形如 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`；`format` 可以是 `jpg`、`png`、`gif`、`webp`、`avif`、`heic`，例如 `photo-2-3-4a9b66db.jpg`。SDR 始终生成；HDR source 额外生成 HDR：
 
 ```text
 source/photo-2-3-4a9b66db.jpg

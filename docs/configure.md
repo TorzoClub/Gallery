@@ -6,7 +6,7 @@
 
 - Node.js >= 24.22.1
 - pnpm >= 10.24.0
-- HDR 图片需要 Docker 镜像内的 libavif 1.4.2 工具（`avifenc` / `avifdec` / `avifgainmaputil`）；推荐用 Docker 开发和生产
+- HDR 图片需要 Docker 镜像内的 libavif 1.4.2 工具（`avifenc` / `avifdec` / `avifgainmaputil`）；HEIC/HEIF 还需要 `pillow_heif`、exiftool 和 `apple-hdr-heic-decoder`
 
 ```bash
 nvm use
@@ -23,7 +23,7 @@ pnpm dev
 ```
 
 - 只有一个端口：`HTTP_PORT`（默认 `7001`）。
-- 本地开发推荐 `docker compose -f compose.dev.yaml up --build`；HDR 工具随镜像提供。宿主机没有 libavif 时仍可看 SDR，但不能生成 HDR。
+- 本地开发推荐 `docker compose -f compose.dev.yaml up --build`；HDR/HEIC 工具随镜像提供。宿主机没有 libavif/pillow_heif 时仍可看 SDR，但不能生成 HDR 或读取 HEIC。
 - Hono 在 Node HTTP Server 最前面处理 API。
 - development 下非 API 请求进入同进程的 Vite middleware；production 下进入 Hono 的 `dist/client` 静态服务。
 - 公开页 `/explore`（`/` 重定向），About 页 `/behind`，取消投稿覆盖层 `/explore/cancelSubmission`（旧 `/cancelSubmission`、`/removingSubmission` 会重定向到这里），后台入口 `/admin`。

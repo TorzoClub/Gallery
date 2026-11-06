@@ -36,6 +36,7 @@
 | UUIDv7 | UUID version 7 | 带时间前缀的 UUID，用作 temp_id，便于按时间清理。 |
 | CRC32 | CRC-32 | 上传文件内容的 32 位校验值，用于生成相片/头像文件名。 |
 | temp_id | Temp ID | 上传后返回的 UUIDv7，对应 `stored-images/temp/<temp_id>.<format>`。 |
+| HEIC/HEIF | HEIC/HEIF | 原始 HEIC 文件作为 source；SDR 由 pillow_heif 解码，Apple HDR gain map 由 apple-hdr-heic 处理。 |
 | optimized | Optimized image | 相片的全尺寸 AVIF；SDR 文件名为 source basename 加 `-sdr`，HDR source 另有 `-hdr`，位于 `stored-images/optimized/`。 |
 | avif_source_quality | AVIF source quality | optimized 全尺寸 AVIF 的质量配置，默认 75。 |
 | has_hdr_optimized | Has HDR optimized | 磁盘上是否确实存在 HDR optimized 文件；HDR source 生成后为 true。 |

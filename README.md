@@ -8,7 +8,7 @@
 
 要求 Node.js >= 24.22.1、pnpm >= 10.24.0。
 
-推荐用 Docker 开发，镜像内已经包含 HDR 所需的 libavif 工具：
+推荐用 Docker 开发，镜像内已经包含 HDR 和 HEIC 所需的 libavif、pillow_heif、exiftool 和 `apple-hdr-heic`：
 
 ```bash
 cp .env.example .env.development

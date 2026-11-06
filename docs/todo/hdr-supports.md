@@ -60,7 +60,10 @@ type PhotoDTO = {
 | AVIF gain map | sharp SDR | sharp 8-bit | `avifgainmaputil swapbase` 得到 HDR base，10-bit CICP |
 | AVIF 10/12-bit + CICP | sharp SDR | sharp 8-bit | `avifdec --depth 16`，缩放后 10-bit CICP |
 | PNG 16-bit + cICP | sharp SDR | sharp 8-bit | `avifenc` 10-bit CICP |
-| 无 CICP 的 16-bit / 10-bit SDR | sharp SDR | sharp 8-bit | 不生成，不猜 HDR |
+| HEIC/HEIF + Apple HDR gain map | pillow_heif 解 SDR | sharp 8-bit | `apple-hdr-heic-decoder` 生成 16-bit BT.2020 PQ PNG，再 avifenc |
+| 无 gain map 的 HEIC/HEIF | pillow_heif 解 SDR | sharp 8-bit | 不生成 |
+
+HEIC/HEIF 的 HEVC 解码由 Docker 内 Python `pillow_heif` 完成；sharp 内置的 libheif 没有 HEVC decoder plugin，不能直接解 HEIC 主图。
 
 HDR 判定只认：
 
@@ -76,10 +79,11 @@ HDR 判定只认：
 
 1. `detectHdrSource()` 读取 sharp metadata、PNG `cICP`、`avifdec --info`，或转换 gain map。
 2. JPEG gain map 使用 `avifgainmaputil convert --swap-base --ignore-profile`，AVIF gain map 使用 `avifgainmaputil swapbase`，得到纯 HDR base。
-3. `avifdec --depth 16 --sato` 解出 16-bit PNG（PNG source 直接使用）。
-4. sharp 以 `rgb16` pipeline 缩放，输出 16-bit PNG；不转 sRGB、不 flatten。
-5. `avifenc --depth 10 --cicp P/T/M --range ... --ignore-icc` 输出 HDR AVIF。
-6. 成功后才 rename 到 `optimized/...-hdr.avif`。
+3. HEIC：`pillow_heif` 解出 SDR PNG 给 sharp；HEIC HDR 用 `apple-hdr-heic-decoder` 输出 16-bit BT.2020 PQ PNG。
+4. AVIF：`avifdec --depth 16 --sato` 解出 16-bit PNG（PNG source 直接使用）。
+5. sharp 以 `rgb16` pipeline 缩放，输出 16-bit PNG；不转 sRGB、不 flatten。
+6. `avifenc --depth 10 --cicp P/T/M --range ... --ignore-icc` 输出 HDR AVIF。
+7. 成功后才 rename 到 `optimized/...-hdr.avif`。
 
 失败策略：
 
@@ -94,6 +98,7 @@ HDR 判定只认：
 - HDR 下载/解码失败自动换 `src_optimized`，不把查看器停在失败态。
 - 瀑布流只使用 SDR `thumb`。
 - 不做 HDR thumb。
+- Chrome 不能预览 HEIC 时显示“HEIC 文件已选择，提交后显示缩略图”，仍可提交；Safari 可原生预览。
 
 ## Docker
 
@@ -102,6 +107,8 @@ HDR 工具固定为 libavif `1.4.2` + libaom `3.14.1`：
 - `avifenc`
 - `avifdec`
 - `avifgainmaputil`
+- `pillow_heif`（随 apple-hdr-heic 安装）
+- `apple-hdr-heic==0.1.0` + exiftool（HEIC HDR）
 
 Dockerfile 的 `libavif` 阶段构建三件套；`dev` / `check` / `runtime` 都从带工具的 base 派生。开发、测试、生产统一使用 Docker，不依赖宿主机 libavif 版本。
 

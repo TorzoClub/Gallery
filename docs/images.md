@@ -51,6 +51,12 @@ sharp（libheif）输出 AVIF 时每条边最多 16384px，超过会在编码时
 - 默认配置下，竖向长过约 1:25.6（thumb 宽 640）、横向长过约 1:64（短边 256）的图会被拒。
 - 不要用“超限就悄悄等比缩小”代替报错：那样短边会掉到 256 以下，横长图竖贴又会糊，而且用户不知道发生了什么。
 
+### HEIC / HEIF
+- HEIC/HEIF 保留原文件作为 source；SDR 由 `pillow_heif` 解出 PNG 后交给 sharp。
+- Apple HDR HEIC 的 gain map 由 `apple-hdr-heic-decoder` 解成 16-bit BT.2020 PQ PNG，再走 HDR AVIF。
+- 没有 Apple gain map 的 HEIC 只生成 SDR。
+- 浏览器不能预览 HEIC 时拍摄表单显示提示，提交后由服务端生成 thumb。
+
 ### HDR optimized
 
 - `thumb` 和 `optimized` 的 SDR 文件规则不变：thumb 只有 SDR，optimized 始终有 `-sdr.avif`。

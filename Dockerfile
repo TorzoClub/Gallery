@@ -26,14 +26,20 @@ RUN unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy && \
 
 FROM node:24.22.1-bookworm-slim AS base
 
+COPY docker/heic-requirements.txt /tmp/heic-requirements.txt
+
 RUN unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy && \
     apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates libpng16-16 libjpeg62-turbo libxml2 libstdc++6 zlib1g libicu72 \
+    python3 python3-pip python3-venv libimage-exiftool-perl \
  && rm -rf /var/lib/apt/lists/* \
  && unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy \
- && npm install -g pnpm@10.24.0
+ && npm install -g pnpm@10.24.0 \
+ && python3 -m venv /opt/heic \
+ && /opt/heic/bin/pip install --no-cache-dir -r /tmp/heic-requirements.txt
 
 COPY --from=libavif /out/avifenc /out/avifdec /out/avifgainmaputil /usr/local/bin/
+ENV PATH="/opt/heic/bin:${PATH}"
 
 WORKDIR /app
 

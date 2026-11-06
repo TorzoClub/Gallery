@@ -9,6 +9,11 @@ import {
 } from './image'
 import type { ImageFormat } from '../common/image-name'
 import { badRequest } from '../common/error'
+import {
+  HEIC_HDR_CICP,
+  isHeicHdrSource,
+  writeHeicHdrPng,
+} from './heic-hdr'
 
 export type HdrCicp = {
   primaries: number
@@ -18,7 +23,7 @@ export type HdrCicp = {
 }
 
 export type HdrSource = {
-  kind: 'avif-cicp' | 'png-cicp' | 'jpeg-gain-map' | 'avif-gain-map'
+  kind: 'avif-cicp' | 'png-cicp' | 'jpeg-gain-map' | 'avif-gain-map' | 'heic-gain-map'
   cicp: HdrCicp
 }
 
@@ -176,6 +181,12 @@ export async function detectHdrSource(
   format: ImageFormat,
   temp_dir: string,
 ): Promise<HdrSource | null> {
+  if (format === 'heic') {
+    return (await isHeicHdrSource(source_path))
+      ? { kind: 'heic-gain-map', cicp: HEIC_HDR_CICP }
+      : null
+  }
+
   const metadata = await sharp(source_path).metadata()
   const has_gain_map = metadata.gainMap !== undefined
 
@@ -215,11 +226,16 @@ async function decodeHdrToPng(
     return source_path
   }
 
+  const output_path = path.join(temp_dir, `hdr-${Date.now()}-${Math.random().toString(16).slice(2)}.png`)
+  if (kind === 'heic-gain-map') {
+    await writeHeicHdrPng({ source_path, output_path, temp_dir })
+    return output_path
+  }
+
   let hdr_avif = source_path
   if (kind === 'jpeg-gain-map' || kind === 'avif-gain-map') {
     hdr_avif = (await makeGainMapHdr(source_path, format, temp_dir)).path
   }
-  const output_path = path.join(temp_dir, `hdr-${Date.now()}-${Math.random().toString(16).slice(2)}.png`)
   try {
     await run('avifdec', ['--depth', '16', '--sato', hdr_avif, output_path])
     return output_path

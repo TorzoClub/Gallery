@@ -35,6 +35,7 @@ import {
   type TempImage,
 } from './prepare-photo'
 import { assertHdrTools, hdrToolsAvailable } from '../storage/hdr'
+import { assertHeicTools, heicToolsAvailable } from '../storage/heic-hdr'
 import {
   buildPoolJsonCache,
   nextGalleryBoundary,
@@ -125,8 +126,9 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
 
   if (env.app_env === 'production') {
     await assertHdrTools()
-  } else if (!(await hdrToolsAvailable())) {
-    logger.warn('HDR tools unavailable; HDR images will be skipped in this environment')
+    await assertHeicTools()
+  } else if (!(await hdrToolsAvailable()) || !(await heicToolsAvailable())) {
+    logger.warn('HDR or HEIC HDR tools unavailable; unsupported images will be SDR-only')
   }
 
   const images: ImagePipeline = createImagePipeline({

@@ -51,9 +51,17 @@ sharp（libheif）输出 AVIF 时每条边最多 16384px，超过会在编码时
 - 默认配置下，竖向长过约 1:25.6（thumb 宽 640）、横向长过约 1:64（短边 256）的图会被拒。
 - 不要用“超限就悄悄等比缩小”代替报错：那样短边会掉到 256 以下，横长图竖贴又会糊，而且用户不知道发生了什么。
 
+### HDR optimized
+
+- `thumb` 和 `optimized` 的 SDR 文件规则不变：thumb 只有 SDR，optimized 始终有 `-sdr.avif`。
+- HDR source 额外生成 `optimized/...-hdr.avif`；HDR 文件不是 gain map 形式，而是纯 10-bit HDR base。
+- HDR 判定认 AVIF/PNG 的 PQ/HLG CICP，或 JPEG/AVIF 的 gain map；10-bit SDR 和没有 CICP 的 16-bit 图不生成 HDR。
+- HDR 详情只在 `(dynamic-range: high)` 环境加载；失败回退 SDR。
+- 详细流程、文件名和 Docker 工具见 [todo/hdr-supports.md](todo/hdr-supports.md)。
+
 ### 其他约定
 
-- 先 `.rotate()` 按 EXIF 摆正，再转 sRGB、铺白底（透明 PNG 不会变黑），只输出 8bit SDR。HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
+- SDR 派生图先 `.rotate()` 按 EXIF 摆正，再转 sRGB、铺白底（透明 PNG 不会变黑），只输出 8bit SDR。
 - 文件名带实体 ID 和内容 CRC32，强缓存；配置变化时 URL 的 `?v=` 跟着变。命名见 [api.md](api.md)。
 - 配置只影响之后的上传和显式重建，不会自动重做已有图片。
 

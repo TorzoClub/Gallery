@@ -883,15 +883,21 @@ export const mutations = {
     admin: true,
     prepare: async (ctx, payload) => {
       const found = findPhoto(ctx.pool, toPhotoID(payload.photo_id))
-      await ctx.refreshThumb(found.photo.src)
+      return ctx.refreshThumb(found.photo.src)
     },
-    commit: (ctx, payload) => {
+    commit: (ctx, payload, has_hdr_optimized) => {
       const found = findPhoto(ctx.pool, toPhotoID(payload.photo_id))
+      const next = has_hdr_optimized === found.photo.has_hdr_optimized
+        ? { pool: ctx.pool, photo: found.photo }
+        : poolUpdatePhoto(ctx.pool, ctx.now, found.gallery.id, found.photo.id, {
+            has_hdr_optimized,
+          })
       return {
-        pool: ctx.pool,
+        pool: next.pool,
         result: {
-          src: found.photo.src,
-          thumb: photoThumbFilename(found.photo.src),
+          src: next.photo.src,
+          thumb: photoThumbFilename(next.photo.src),
+          has_hdr_optimized: next.photo.has_hdr_optimized,
         },
       }
     },

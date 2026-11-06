@@ -17,6 +17,8 @@ export type BookSubmission = {
   thumbUrl: string
   /** optimized 全尺寸图，点开大图时用 */
   srcUrl: string
+  /** HDR optimized；没有时为空 */
+  srcHdrUrl?: string | null
   width: number
   height: number
   desc: string
@@ -27,6 +29,7 @@ export type BookUrls = {
   avatar(member: ClientMember): string
   thumb(photo: ClientPhotoBase): string
   optimized(photo: ClientPhotoBase): string
+  optimizedHdr(photo: ClientPhotoBase): string
 }
 
 /**
@@ -55,6 +58,7 @@ export function memberBookFromPool(pool: ClientPool, urls: BookUrls): MemberBook
         id: photo.id,
         thumbUrl: urls.thumb(photo),
         srcUrl: urls.optimized(photo),
+        srcHdrUrl: photo.has_hdr_optimized ? urls.optimizedHdr(photo) : null,
         width: photo.width,
         height: photo.height,
         desc: photo.desc,

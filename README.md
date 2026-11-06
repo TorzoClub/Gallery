@@ -8,6 +8,16 @@
 
 要求 Node.js >= 24.22.1、pnpm >= 10.24.0。
 
+推荐用 Docker 开发，镜像内已经包含 HDR 所需的 libavif 工具：
+
+```bash
+cp .env.example .env.development
+docker compose -f compose.dev.yaml run --rm api pnpm storage:init
+docker compose -f compose.dev.yaml up --build
+```
+
+宿主机也可以直接跑（没有 libavif 时只能生成 SDR）：
+
 ```bash
 nvm use
 pnpm install
@@ -30,9 +40,9 @@ cp .env.example .env.production
 pnpm start
 ```
 
-`pnpm start` 会先构建前端到 `dist/client`、服务端到 `dist/server`，然后由 Hono 提供 SPA、API 和图片。默认地址是 `http://localhost:7001`。
+`pnpm start` 会先构建前端到 `dist/client`、服务端到 `dist/server`，然后由 Hono 提供 SPA、API 和图片。默认地址是 `http://localhost:7001`。宿主机直接跑 production 时，PATH 中必须有 libavif 1.4.2 的 `avifenc` / `avifdec` / `avifgainmaputil`，否则 production 启动会失败。推荐直接用 Docker：
 
-Docker：
+Docker（production，镜像内包含 libavif HDR 工具）：
 
 ```bash
 docker compose up -d --build

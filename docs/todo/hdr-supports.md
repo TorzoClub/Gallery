@@ -1,16 +1,16 @@
-# HDR 图片支持计划
+# HDR 图片支持
 
-> 状态：Phase 0（SDR-only 回退）已完成；Phase 1（HDR AVIF）待实施。
-> 本文是一次性技术方案记录，不属于用户 API 文档。
+> 状态：Phase 1（HDR AVIF）已实施。
+> 本文记录一次性技术方案和当前实现，不属于用户 API 文档。
 
 ## 目标
 
 - `thumb` 只生成 SDR AVIF，文件名不带 `-sdr`。
 - `optimized` 始终生成 SDR AVIF；HDR source 额外生成 HDR AVIF。
-- HDR 输出必须带正确的 CICP，不再出现线性 scRGB 数据被标成 sRGB ICC 的过曝。
+- HDR 输出带正确 CICP，不把线性 scRGB 数据标成 sRGB ICC。
 - SDR / HDR 分别使用独立文件，通过 API 字段选择。
 
-## 最终文件命名
+## 文件命名
 
 ```text
 source/photo-<gallery>-<photo>-<crc32>.<format>
@@ -32,6 +32,8 @@ thumb/avatar-<member-id>-<crc32>.avif
 
 ## API
 
+`PhotoDTO` 的字段：
+
 ```ts
 type PhotoDTO = {
   // ...
@@ -49,122 +51,71 @@ type PhotoDTO = {
 - `thumb` / `thumb_url` 指向无后缀 SDR thumb。
 - 派生图 URL 继续使用 `?v=<instance_hash>`。
 
-## 为什么 sharp 不够
-
-当前 `sharp 0.35.5` 使用 `libvips 8.18.7`：
-
-- 能写 10/12-bit AVIF；
-- 不能写 CICP/nclx；
-- 不能把 gain map 写回 AVIF。
-
-`withGainMap()` 得到的是线性 scRGB 数据，`keepIccProfile()` 保留 source 的 sRGB ICC；浏览器按 sRGB 解释线性数据，导致过曝。
-
-相关上游信息：
-
-- [sharp-libvips#247](https://github.com/lovell/sharp-libvips/issues/247)
-- [libvips PR #4979 `scRGB2CICP`](https://github.com/libvips/libvips/pull/4979)
-- `scRGB2CICP` 已合并，但仍是手动 operation，需要 libvips 8.19；sharp 未暴露该 operation。
-- 当前最新 libvips release 仍是 8.18.7。
-
-## Phase 0：SDR-only 回退
-
-先移除所有 HDR 生成和使用逻辑，只保留：
-
-```text
-source 原图
-thumb 无后缀 SDR AVIF
-optimized -sdr.avif
-```
-
-- `has_hdr_optimized` 一律为 `false`。
-- `src_optimized_hdr` 一律为 `null`。
-- 前端不再请求 `-hdr`。
-- 旧 thumb、旧头像 thumb、旧 HDR 文件在重建时清理。
-- 现有 storage 需要执行一次全量“重新生成图片”。
-
-## Phase 1：libavif HDR 管线
-
-### 技术栈
-
-- `sharp`：SDR optimized、SDR thumb、头像、基础探测。
-- **libavif v1.4.2 CLI**：
-  - `avifenc`
-  - `avifdec`
-  - `avifgainmaputil`
-- libaom 3.14.1，启用 high-bit-depth。
-- libxml2（JPEG gain map 转换需要）。
-- 构建参数：
-  - `-DAVIF_CODEC_AOM=LOCAL`
-  - `-DAVIF_BUILD_APPS=ON`
-  - `-DAVIF_LIBXML2=SYSTEM`
-  - 固定版本，不依赖系统包版本。
-
-### 编码矩阵
+## 判定与编码矩阵
 
 | source | thumb | optimized SDR | optimized HDR |
 |---|---|---|---|
 | SDR | sharp SDR | sharp 8-bit | 不生成 |
-| JPEG gain map | sharp SDR base | sharp 8-bit | libavif 转 HDR base，10-bit CICP |
-| AVIF 10/12-bit + CICP | sharp SDR | sharp 8-bit | libavif 重编码 10-bit CICP |
-| PNG 16-bit + cICP | sharp SDR | sharp 8-bit | libavif 编码 |
-| 无 CICP 的 16-bit | sharp SDR | sharp 8-bit | 明确失败，不猜 HDR |
+| JPEG gain map | sharp SDR base | sharp 8-bit | `avifgainmaputil convert --swap-base --ignore-profile` 得到 HDR base，10-bit CICP |
+| AVIF gain map | sharp SDR | sharp 8-bit | `avifgainmaputil swapbase` 得到 HDR base，10-bit CICP |
+| AVIF 10/12-bit + CICP | sharp SDR | sharp 8-bit | `avifdec --depth 16`，缩放后 10-bit CICP |
+| PNG 16-bit + cICP | sharp SDR | sharp 8-bit | `avifenc` 10-bit CICP |
+| 无 CICP 的 16-bit / 10-bit SDR | sharp SDR | sharp 8-bit | 不生成，不猜 HDR |
 
-HEIC 由前端 `heic-convert` 转 JPEG 后按普通 source 处理；如果转换结果带有 gain map，则走 HDR 管线。
+HDR 判定只认：
 
-### HDR 输出
+- AVIF 主图的 CICP transfer = 16（PQ）或 18（HLG）
+- PNG `cICP` chunk 的 transfer = 16 或 18
+- JPEG/AVIF 的 gain map
 
-- `-hdr.avif` 为纯 HDR base，不把 gain map 作为最终文件形式。
-- JPEG gain map：
-  1. `avifgainmaputil convert --swap-base` 得到 HDR base；
-  2. `avifdec --depth 16` 得到带 CICP 的 PNG；
-  3. 如需缩放，用 sharp 处理 16-bit PNG；
-  4. `avifenc --depth 10 --cicp ...` 输出 HDR AVIF。
-- AVIF HDR：`avifdec --depth 16` + `avifenc --depth 10 --cicp`。
-- PNG HDR：`avifenc --depth 10 --cicp`。
-- 编码失败不能产生半成品；重建失败保留旧文件。
+任何 >8-bit 但 transfer 不是 PQ/HLG 的图都按 SDR 处理。
 
-### 前端
+## 编码流程
 
-- `has_hdr_optimized` 且系统 HDR：详情使用 `src_optimized_hdr`。
-- 加载失败回退 `src_optimized`。
+实现位于 `src/server/storage/hdr.ts`：
+
+1. `detectHdrSource()` 读取 sharp metadata、PNG `cICP`、`avifdec --info`，或转换 gain map。
+2. JPEG gain map 使用 `avifgainmaputil convert --swap-base --ignore-profile`，AVIF gain map 使用 `avifgainmaputil swapbase`，得到纯 HDR base。
+3. `avifdec --depth 16 --sato` 解出 16-bit PNG（PNG source 直接使用）。
+4. sharp 以 `rgb16` pipeline 缩放，输出 16-bit PNG；不转 sRGB、不 flatten。
+5. `avifenc --depth 10 --cicp P/T/M --range ... --ignore-icc` 输出 HDR AVIF。
+6. 成功后才 rename 到 `optimized/...-hdr.avif`。
+
+失败策略：
+
+- HDR 是 SDR 之外的附加产物，失败不阻止 SDR 保存。
+- 重建失败保留旧 HDR 文件。
+- 缺少 `avifenc` / `avifdec` / `avifgainmaputil` 时，开发环境告警并降级 SDR；production 启动 fail-fast。
+- HDR 文件丢失或损坏时，详情加载失败自动回退 SDR。
+
+## 前端
+
+- `has_hdr_optimized` 且 `(dynamic-range: high)` 匹配时，详情使用 `src_optimized_hdr`。
+- HDR 下载/解码失败自动换 `src_optimized`，不把查看器停在失败态。
 - 瀑布流只使用 SDR `thumb`。
 - 不做 HDR thumb。
 
-## Docker-first 环境
+## Docker
 
-Phase 1 统一使用 Docker：
+HDR 工具固定为 libavif `1.4.2` + libaom `3.14.1`：
 
-- 单一多阶段 `Dockerfile`：
-  - `base`：Node 24 + pnpm + libavif/libaom 工具；
-  - `deps`；
-  - `dev`：本地开发；
-  - `check`：typecheck / lint / test / build；
-  - `runtime`：生产。
-- `compose.dev.yaml`：
-  - source bind mount；
-  - `/app/node_modules` 命名卷；
-  - storage 卷；
-  - 端口 7001；
-  - `.env.development`；
-  - Vite HMR / tsx watch。
-- CI 在 Docker 内执行 check，不依赖 runner 的 host Node/libavif。
-- 本地开发只需要 Docker，不要求 host Node/pnpm/libavif。
-- 生产镜像包含 libavif 三件套。
+- `avifenc`
+- `avifdec`
+- `avifgainmaputil`
+
+Dockerfile 的 `libavif` 阶段构建三件套；`dev` / `check` / `runtime` 都从带工具的 base 派生。开发、测试、生产统一使用 Docker，不依赖宿主机 libavif 版本。
 
 ## 测试
 
-- JPEG gain map fixture → HDR AVIF，CICP 正确，视觉不过曝。
-- AVIF HDR → HDR AVIF。
-- SDR 10-bit 不误判为 HDR。
-- 无 CICP HDR 源明确失败。
+- PNG cICP / `avifdec --info` CICP 解析。
+- PQ/HLG 判定；SDR 10-bit 不误判。
+- 16-bit 无 cICP 不生成 HDR。
+- HDR PNG → 10-bit HDR AVIF，CICP 正确。
+- 重新生成图片更新 `has_hdr_optimized`。
 - HDR 文件缺失/损坏回退 SDR。
-- 旧文件清理、API 字段、缓存版本。
 - Docker check 通过。
-- HDR 手机对比 source / `-hdr.avif` / `-sdr.avif`。
+- HDR 手机/显示器对比 source / `-hdr.avif` / `-sdr.avif`。
 
-## 风险与边界
+## 迁移
 
-- libavif 外部二进制增加构建和部署复杂度；Phase 1 用 Docker 统一环境。
-- HDR 输出是否被具体浏览器正确显示取决于浏览器 AVIF/CICP 支持；前端保留 SDR 回退。
-- 当前 `has_hdr_optimized` 语义只表示文件存在，不表示浏览器一定支持。
-- 不实现 AVIF gain map 作为最终 HDR 文件；SDR/HDR 继续分开。
+不需要 storage schema 迁移。已有相片需要在后台执行一次“重新生成图片”，才会生成 HDR 并更新 `has_hdr_optimized`。

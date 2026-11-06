@@ -453,6 +453,7 @@ function Print({ photo, slot, onOpen }: {
       },
       thumb: url,
       src: photo.srcUrl,
+      srcHdr: photo.srcHdrUrl ?? null,
       width: photo.width,
       height: photo.height,
     })

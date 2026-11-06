@@ -34,6 +34,7 @@ import {
   type ImagePipeline,
   type TempImage,
 } from './prepare-photo'
+import { assertHdrTools, hdrToolsAvailable } from '../storage/hdr'
 import {
   buildPoolJsonCache,
   nextGalleryBoundary,
@@ -122,9 +123,16 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
   let active_operations = 0
   const drain_waiters = new Set<() => void>()
 
+  if (env.app_env === 'production') {
+    await assertHdrTools()
+  } else if (!(await hdrToolsAvailable())) {
+    logger.warn('HDR tools unavailable; HDR images will be skipped in this environment')
+  }
+
   const images: ImagePipeline = createImagePipeline({
     storage,
     getConfig: () => instance_config,
+    logger,
   })
 
   let pool_json_cache: PoolJsonCache | null = null

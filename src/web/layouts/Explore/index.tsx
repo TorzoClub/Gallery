@@ -187,6 +187,7 @@ export default function ExplorePage() {
         from: click_info.from,
         thumb: click_info.thumbBlobUrl,
         src: cachedImageUrl(photo.src_optimized),
+        srcHdr: photo.src_optimized_hdr === null ? null : cachedImageUrl(photo.src_optimized_hdr),
         height: photo.height,
         width: photo.width,
       }))

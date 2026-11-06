@@ -39,7 +39,7 @@
 | `POST` | `/admin/mutate/:name` | admin mutation，需要 Bearer token |
 | `POST` | `/upload-image` | 上传图片到临时目录 |
 | `GET` | `/images/source/:file` | 原图 |
-| `GET` | `/images/optimized/:file` | 全尺寸 SDR AVIF；始终返回 image/avif |
+| `GET` | `/images/optimized/:file` | 全尺寸 SDR/HDR AVIF；始终返回 image/avif |
 | `GET` | `/images/thumb/:file` | SDR 缩略图；始终返回 image/avif |
 | `GET` | `/healthz` | 健康检查 |
 | `GET` | `/events/pool` | 公开页 SSE：照片、成员分类更新 |
@@ -272,7 +272,7 @@ payload: {}
 | `adminUpdatePhoto` | `{ photo_id, gallery_id?, member_id?, desc?, index?, temp_id? }` | 更新相片 |
 | `adminRemovePhoto` | `{ photo_id }` | 删除相片 |
 | `adminSortPhotos` | `{ gallery_id, photo_ids }` | 一次性重排整个相册：`photo_ids[i]` 的 `index` 写成 `i`，公开页按 `index` 升序展示。`photo_ids` 必须恰好是该相册的全部相片，缺漏或重复返回 `400`，含其他相册的相片返回 `404`，整体拒绝、不改任何一张；`index` 未变的相片不刷新 `updated_at`。返回更新后的相册 |
-| `adminRefreshThumb` | `{ photo_id }` | 重建 SDR optimized 和缩略图；按当前配置生成的图超过 AVIF 每边 16384px 时返回 400 |
+| `adminRefreshThumb` | `{ photo_id }` | 重建 SDR optimized/thumb，并按 source 重新生成 HDR optimized；同时更新 `has_hdr_optimized`。超过 AVIF 每边 16384px 时返回 400 |
 | `adminRefreshAvatar` | `{ member_id }` | 重建头像缩略图 |
 
 日期字段使用 ISO 8601，例如 `2026-10-01T00:00:00.000Z`。
@@ -334,7 +334,7 @@ right.event_start <= left.event_end
 }
 ```
 
-上传只写入 `stored-images/temp/<uuidv7>.<format>`。`temp_id` 本身是 UUIDv7，不带扩展名；扩展名只允许 `[0-9A-Za-z]`，归一化后的格式还必须和实际图片内容一致。创建/更新相片或成员时把 `temp_id` / `avatar_temp_id` 传给 mutation：source 保存原图，相片生成 SDR optimized/thumb。临时文件默认 24 小时过期。
+上传只写入 `stored-images/temp/<uuidv7>.<format>`。`temp_id` 本身是 UUIDv7，不带扩展名；扩展名只允许 `[0-9A-Za-z]`，归一化后的格式还必须和实际图片内容一致。创建/更新相片或成员时把 `temp_id` / `avatar_temp_id` 传给 mutation：source 保存原图，相片生成 SDR optimized/thumb，HDR source 额外生成 HDR optimized。临时文件默认 24 小时过期。
 
 限制：
 
@@ -347,7 +347,7 @@ right.event_start <= left.event_end
 
 ```text
 GET /images/source/:file       # 原图原始字节
-GET /images/optimized/:file    # SDR AVIF 全尺寸图
+GET /images/optimized/:file    # SDR/HDR AVIF 全尺寸图
 GET /images/thumb/:file        # SDR AVIF 缩略图
 ```
 
@@ -357,11 +357,12 @@ GET /images/thumb/:file        # SDR AVIF 缩略图
 Cache-Control: public, max-age=31536000, immutable
 ```
 
-source 地址形如 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`，例如 `photo-2-3-4a9b66db.jpg`。当前 Phase 0 全部派生图只生成 SDR：
+source 地址形如 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`，例如 `photo-2-3-4a9b66db.jpg`。SDR 始终生成；HDR source 额外生成 HDR：
 
 ```text
 source/photo-2-3-4a9b66db.jpg
 optimized/photo-2-3-4a9b66db-sdr.avif
+optimized/photo-2-3-4a9b66db-hdr.avif   # 仅 HDR source
 thumb/photo-2-3-4a9b66db.avif
 ```
 
@@ -374,25 +375,25 @@ thumb/avatar-<member-id>-<crc32>.avif
 
 头像 thumb 内容为 SDR AVIF。
 
-`PhotoDTO` 的 `src` / `src_url` 指向 source 原图；`src_optimized` 和 `thumb` 是带版本参数的 SDR 派生图 URL：
+`PhotoDTO` 的 `src` / `src_url` 指向 source 原图；`src_optimized` 是 SDR 全尺寸图，`src_optimized_hdr` 是 HDR 全尺寸图（没有时为 `null`），`thumb` 是 SDR 缩略图；三者都带版本参数：
 
 ```json
 {
   "src_url": "http://localhost:7001/images/source/photo-2-3-4a9b66db.jpg",
   "src_optimized": "http://localhost:7001/images/optimized/photo-2-3-4a9b66db-sdr.avif?v=5a493005",
-  "src_optimized_hdr": null,
+  "src_optimized_hdr": "http://localhost:7001/images/optimized/photo-2-3-4a9b66db-hdr.avif?v=5a493005",
   "thumb": "http://localhost:7001/images/thumb/photo-2-3-4a9b66db.avif?v=5a493005",
   "thumb_url": "http://localhost:7001/images/thumb/photo-2-3-4a9b66db.avif?v=5a493005",
-  "has_hdr_optimized": false
+  "has_hdr_optimized": true
 }
 ```
 
 - `thumb_url` 是 `thumb` 的同值兼容别名。
 - `?v=` 来自 `Instance.getInstanceHash()`，即当前 `instance_config` 的 CRC32；配置变化后 URL 变化，避免浏览器继续使用旧的 immutable 缓存。
 - 头像 `avatar_thumb_url` 同样带 `?v=`。
-- Phase 0 不生成 HDR optimized；`has_hdr_optimized` 固定为 `false`，`src_optimized_hdr` 固定为 `null`。
-- HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
-- 旧的 `-hdr.avif` 文件会在重建时清理。
+- `has_hdr_optimized` 表示磁盘上确有 HDR optimized；没有 HDR 时为 `false`，`src_optimized_hdr` 为 `null`。
+- HDR 只从 PQ/HLG CICP 或 gain map source 生成；10-bit SDR 和没有 CICP 的 16-bit 图不生成 HDR。详见 [todo/hdr-supports.md](todo/hdr-supports.md)。
+- 旧的 `-hdr.avif` 文件会在重建时按新结果清理或更新。
 
 ## 健康检查
 

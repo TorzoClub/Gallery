@@ -9,7 +9,7 @@
 - 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。
 - 前端由 Vite 构建到 `dist/client`，服务端由 tsup 构建到 `dist/server`。
 - 静态缓存：HTML 弱缓存，hash assets 强缓存，API/图片强缓存。
-- 服务端与前端纯逻辑测试 200 个用例通过；不包含浏览器 UI 交互测试。
+- 服务端与前端纯逻辑测试 222 个用例通过；不包含浏览器 UI 交互测试。
 - 旧 `server/`、`web/`、脚本和 CI 已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支。
 - storage 仍为单实例 JSON + 图片池；没有 MySQL 运行时依赖。
 
@@ -33,7 +33,7 @@
 ## 后续待办
 
 - [x] 图片管线 Phase 0：SDR-only 回退，thumb 无后缀，头像 thumb 使用 `.avif`，`has_hdr_optimized=false`。
-- [ ] 图片管线 Phase 1：按 [docs/todo/hdr-supports.md](docs/todo/hdr-supports.md) 引入 libavif HDR AVIF 和 Docker-first 环境。
+- [x] 图片管线 Phase 1：libavif HDR AVIF、CICP/gain map 探测、HDR 详情回退和 Docker-first 环境，见 [docs/todo/hdr-supports.md](docs/todo/hdr-supports.md)。
 - [ ] 浏览器 UI 交互测试（公开页投稿/投票、后台编辑、配置表单）。
 - [ ] 真实部署的 CI/CD 和密钥管理。
 - [ ] 取消投稿脚本的 lint 警告 `react-hooks(exhaustive-deps)`：`src/web/components/Submission/scripts.tsx` 里 `selects` 的 `useMemo(..., [])` 缺少依赖 `RemovingSubmission`。这是当前 `pnpm lint` 唯一一条警告，刻意保留未修。

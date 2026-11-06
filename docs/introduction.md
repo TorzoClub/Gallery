@@ -126,7 +126,7 @@ Node HTTP Server
 - `/explore` 与 `/behind` 是同级页面；页面切换用隐藏 stage，而不是 fixed 覆盖。
 - `/behind` 在 System Reports 之前有一本只读名单簿；`/member/<id>` 是单独的成员笔记本（CH. Member），从公开页 PhotoCard 的头像或昵称进入，返回时换台回 `/explore`。两者都只读 ClientPool。`/staff` 是参与项目的人的留言（CH. Staff），从 Behind 页左上角的“D”按钮进入，返回时换台回 `/behind`；内容写死在前端，不读任何接口。
 - `/explore/cancelSubmission` 是挂载在 Explore 页面上的固定全屏取消投稿覆盖层，不会卸载底层 Explore；进入和返回 Explore 时复用 `ChannelTransition` 播放 CRT 换台特效。旧 `/cancelSubmission` 与 `/removingSubmission` 会重定向到这里。
-- 图片分三类：`source` 原图、`optimized` 全尺寸 SDR AVIF、`thumb` SDR AVIF 缩略图；相片 optimized 固定为 `-sdr.avif`，thumb 为无后缀 `.avif`；头像 thumb 为 `.avif`。前后端的图片处理思路见 [images.md](images.md)。当前 Phase 0 只生成 SDR；HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
+- 图片分三类：`source` 原图、`optimized` 全尺寸 SDR/HDR AVIF、`thumb` SDR AVIF 缩略图；相片 optimized 固定为 `-sdr.avif`，HDR source 额外有 `-hdr.avif`，thumb 为无后缀 `.avif`；头像 thumb 为 `.avif`。前后端的图片处理思路见 [images.md](images.md)，HDR 实现见 [todo/hdr-supports.md](todo/hdr-supports.md)。
 - 后台保持轻依赖和工具化，不套用公开页视觉风格。
 - 后端通过 dispatch action 执行业务，admin action 只能从 admin 路由调用。
 - storage 是单实例 JSON + 图片池；同一 storage 只允许一个进程写。

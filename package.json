@@ -32,7 +32,6 @@
     "@hono/node-server": "^2.1.5",
     "@juggle/resize-observer": "^3.4.0",
     "@tabler/icons-react": "^3.50.0",
-    "axios": "^1.21.0",
     "busboy": "^1.6.0",
     "clsx": "^2.1.1",
     "heic-convert": "^2.1.0",

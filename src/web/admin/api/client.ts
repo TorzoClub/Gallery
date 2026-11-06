@@ -1,10 +1,8 @@
-import axios from 'axios'
-
 import {
-  API_BASE,
-  ApiError,
+  getJson,
+  postJson,
   unwrapApiResponse,
-} from '../../api/dispatch'
+} from '../../api/http'
 import { getToken, removeToken } from '../auth/token'
 
 export const UNAUTHORIZED_EVENT = 'admin:unauthorized'
@@ -29,12 +27,6 @@ function maybeUnauthorized(status: number, raw: unknown): void {
   }
 }
 
-const http = axios.create({
-  baseURL: API_BASE,
-  timeout: 30_000,
-  validateStatus: () => true,
-})
-
 function headers(): Record<string, string> {
   const token = getToken()
   return token.length > 0 ? { Authorization: `Bearer ${token}` } : {}
@@ -45,19 +37,14 @@ async function adminDispatch<T>(
   name: string,
   payload: unknown,
 ): Promise<T> {
-  try {
-    const route = kind === 'query' ? 'query' : 'mutate'
-    const response = await http.post(`admin/${route}/${name}`, { payload }, {
-      headers: headers(),
-    })
-    maybeUnauthorized(response.status, response.data)
-    return unwrapApiResponse<T>(response.status, response.data)
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response === undefined) {
-      throw new ApiError(0, 'NETWORK_ERROR', '无法连接服务器，请检查网络或 API 地址')
-    }
-    throw error
-  }
+  const route = kind === 'query' ? 'query' : 'mutate'
+  const response = await postJson(
+    `admin/${route}/${name}`,
+    { payload },
+    { timeout: 30_000, headers: headers() },
+  )
+  maybeUnauthorized(response.status, response.data)
+  return unwrapApiResponse<T>(response.status, response.data)
 }
 
 export function adminQuery<T>(name: string, payload: unknown = {}): Promise<T> {
@@ -69,15 +56,8 @@ export function adminMutate<T>(name: string, payload: unknown = {}): Promise<T> 
 }
 
 export async function adminLogin(password: string): Promise<{ token: string }> {
-  try {
-    const response = await http.post('auth/login', { password })
-    return unwrapApiResponse<{ token: string }>(response.status, response.data)
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response === undefined) {
-      throw new ApiError(0, 'NETWORK_ERROR', '无法连接服务器，请检查网络或 API 地址')
-    }
-    throw error
-  }
+  const response = await postJson('auth/login', { password }, { timeout: 30_000 })
+  return unwrapApiResponse<{ token: string }>(response.status, response.data)
 }
 
 /**
@@ -85,15 +65,9 @@ export async function adminLogin(password: string): Promise<{ token: string }> {
  * 不走 maybeUnauthorized——被拒时由门禁自己清 token、报警，不发全局事件。
  */
 export async function checkAdminToken(token: string): Promise<void> {
-  try {
-    const response = await http.get('auth/check', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    unwrapApiResponse<{ ok: true }>(response.status, response.data)
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response === undefined) {
-      throw new ApiError(0, 'NETWORK_ERROR', '无法连接服务器，请检查网络或 API 地址')
-    }
-    throw error
-  }
+  const response = await getJson('auth/check', {
+    timeout: 30_000,
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  unwrapApiResponse<{ ok: true }>(response.status, response.data)
 }

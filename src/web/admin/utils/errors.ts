@@ -1,5 +1,3 @@
-import axios from 'axios'
-
 import { ApiError } from '../../api/dispatch'
 
 export function extractApiMessage(data: unknown): string | undefined {
@@ -48,18 +46,6 @@ export function isUnauthorizedResponse(status: number | undefined, data: unknown
 export function getApiErrorMessage(err: unknown, fallback = '请求失败'): string {
   if (err instanceof ApiError) {
     return err.message || fallback
-  }
-
-  if (axios.isAxiosError(err)) {
-    if (!err.response) {
-      if (err.code === 'ECONNABORTED') {
-        return '请求超时，请稍后重试'
-      }
-      return '无法连接服务器，请检查网络或 API 地址'
-    }
-
-    return extractApiMessage(err.response.data)
-      ?? (err.response.status ? `请求失败（HTTP ${err.response.status}）` : fallback)
   }
 
   if (err instanceof Error && err.message) {

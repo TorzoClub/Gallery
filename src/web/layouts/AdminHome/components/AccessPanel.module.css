@@ -1,0 +1,238 @@
+/*
+ * 门禁面板（AccessPanel）：后台登录。
+ * 竖长的拉丝金属门禁机，四角螺丝；与控制台同一套拟物语汇（缩略图重建的金属壳、数码屏、LED 小灯）。
+ * 状态变化是瞬时的；动画只有：等待输入的点（在 tsx 里）、拒绝类（ACCESS DENIED / INVALID TOKEN / EXPIRED TOKEN）
+ * 和通过类（LOGIN SUCCESS / IS LOGINED）各闪 3 次。
+ */
+
+.panel {
+  --lcd-bg: #9eb492;
+  --lcd-on: #182015;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  /* 液晶屏的点阵字（index.html 内联的子集）：屏上的字只用 A-Z、a-z、0-9 和空格；点用 .lcdDot 画 */
+  --lcd-font: 'guanzhi 8x8 base', var(--mono);
+  --lcd-font-pixel-size: calc((1em / 8) * 1);
+
+  position: relative;
+  box-sizing: border-box;
+  width: min(100%, 340px);
+  padding: 22px 22px 18px;
+  color: #374151;
+  /* 竖向细拉丝 + 上亮下暗的铝面 */
+  background:
+    repeating-linear-gradient(90deg,
+      rgb(255 255 255 / .16) 0 1px,
+      rgb(0 0 0 / .025) 1px 3px),
+    linear-gradient(180deg, #eef0f1 0%, #d9dde0 45%, #c3c9cd 100%);
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .9),
+    inset 0 -1px 0 rgb(0 0 0 / .12),
+    inset 0 0 0 1px #9da5aa,
+    0 10px 16px -8px rgb(0 0 0 / .45),
+    0 2px 3px rgb(0 0 0 / .18);
+  user-select: none;
+}
+
+.screw {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background:
+    linear-gradient(35deg, transparent 44%, rgb(0 0 0 / .55) 44% 56%, transparent 56%),
+    radial-gradient(circle at 35% 30%, #f1f1ee, #7a7a74);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .45), 0 1px 0 rgb(255 255 255 / .7);
+}
+
+.screw0 { transform: rotate(0deg); top: 8px; left: 8px; }
+.screw1 { transform: rotate(27deg); top: 8px; right: 8px; }
+.screw2 { transform: rotate(122deg); bottom: 8px; left: 8px; }
+.screw3 { transform: rotate(275deg); bottom: 8px; right: 8px; }
+
+/* 铭牌：压印字 */
+.plate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin-bottom: 14px;
+}
+
+.plateTitle {
+  color: #4a5459;
+  font: 800 13px/1 var(--mono);
+  letter-spacing: .28em;
+  text-shadow: 0 1px 0 rgb(255 255 255 / .9), 0 -1px 0 rgb(0 0 0 / .15);
+}
+
+.plateSub {
+  color: #7d878c;
+  font: 600 10px/1 var(--mono);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 0 rgb(255 255 255 / .8);
+}
+
+/* 数码屏：深色边框里的绿色液晶 */
+.screen {
+  box-sizing: border-box;
+  min-height: 62px;
+  padding: 9px 12px;
+  color: var(--lcd-on);
+  background: var(--lcd-bg);
+  border: 8px solid #2b2f33;
+  border-radius: 5px;
+  box-shadow:
+    inset 0 3px 6px rgb(0 0 0 / .45),
+    0 1px 0 rgb(255 255 255 / .8),
+    0 -1px 0 rgb(0 0 0 / .25);
+}
+
+/*
+ * 点阵字一格 = 1/16em：16px 时一个点正好 1px，每个字 8px 宽。
+ * 状态行用 32px（一个点 2px），提示行用 16px；都保持整数倍，点不会糊。
+ */
+.screenStatus {
+  display: inline-block;
+  font: 400 32px/1 var(--lcd-font);
+  letter-spacing: 0;
+  white-space: nowrap;
+  -webkit-font-smoothing: none;
+  padding: var(--lcd-font-pixel-size) var(--lcd-font-pixel-size) 0 var(--lcd-font-pixel-size);
+}
+
+/* 拒绝时字不换色（液晶只有一种墨色），用反白强调 */
+.screenStatus[data-phase='denied'],
+.screenStatus[data-phase='rejected'] {
+  margin-left: calc(-1 * var(--lcd-font-pixel-size));
+  color: var(--lcd-bg);
+  background: var(--lcd-on);
+  /* 被拒时立刻闪 3 次（与拒绝的蜂鸣同时开始），闪完反白常亮 */
+  animation: lcd-blink 400ms step-end 3;
+}
+
+/*
+ * 登录成功：成功音放完（260ms）后闪 3 次，每次灭 180ms、亮 220ms，闪完常亮。
+ * 与 AccessPanel.tsx 里的 GRANTED_* 常量对应，两边要一起改。
+ */
+.screenStatus[data-phase='granted'] {
+  animation: lcd-blink 400ms step-end 260ms 3;
+}
+
+@keyframes lcd-blink {
+  0% { visibility: hidden; }
+  45% { visibility: visible; }
+}
+
+.screenHint {
+  margin-top: 8px;
+  font: 400 16px/1.25 var(--lcd-font);
+  /* 不换行：“。”一个个加时不会把行挤断；所有提示都短于屏宽 */
+  white-space: nowrap;
+  /* 很窄的屏上点到 6、7 个时可能超出屏宽，超出的直接被屏框遮住，不撑开门禁 */
+  overflow: hidden;
+  -webkit-font-smoothing: none;
+}
+
+/*
+ * 等待输入时的点（AccessPanel.tsx 的 LcdDot）：半角宽（0.5em），高度等于提示行的 line-height（1.25em），
+ * vertical-align: top 让它正好占满一整行，2×2 的方点画在 SVG 正中 → 点落在行高的垂直中线上，水平也居中。
+ * 改 .screenHint 的 line-height 时，这里的 height 和 SVG 的 viewBox 要跟着改。
+ */
+.lcdDot {
+  display: inline-block;
+  width: .5em;
+  height: 100%;
+  vertical-align: top;
+  fill: currentColor;
+  shape-rendering: crispEdges;
+}
+
+/* 密码框 + 开锁键 */
+.entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.field {
+  box-sizing: border-box;
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  color: #2d3d47;
+  background: #fff;
+  border: 1px solid #8d8c87;
+  border-radius: 4px;
+  font: 600 16px var(--mono);
+  letter-spacing: .14em;
+  outline: none;
+  box-shadow:
+    inset 0 2px 4px -2px rgb(0 0 0 / .35),
+    0 1px 0 rgb(255 255 255 / .9);
+  user-select: text;
+}
+
+.field::placeholder {
+  color: #9aa3a8;
+  font: 400 14px -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  letter-spacing: 0;
+}
+
+.field:focus {
+  border-color: #306785;
+  box-shadow:
+    inset 0 2px 4px -2px rgb(0 0 0 / .35),
+    0 0 0 3px rgb(48 103 133 / .18);
+}
+
+.field:disabled {
+  color: #8a949a;
+  background: #f1f3f4;
+}
+
+.unlock {
+  display: inline-block;
+  min-width: 60px;
+  letter-spacing: .2em;
+  text-indent: .2em;
+}
+
+/* 底部：喇叭孔 + 两颗状态灯 */
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding: 0 4px;
+}
+
+.grille {
+  width: 111.2px;
+  height: 22px;
+  /* 横向 space：孔在任意宽度里均匀铺满，两端不会出现被切掉的半个孔 */
+  background: radial-gradient(circle, #3a4045 1.3px, transparent 1.8px) 0 0 / 5.8px 7px space repeat;
+  filter: drop-shadow(0 1px 0 rgb(255 255 255 / .8));
+  opacity: .75;
+}
+
+.lamps {
+  display: flex;
+  gap: 14px;
+  width: 111.2px;
+  justify-content: space-between;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

@@ -1,0 +1,321 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  min-width: 240px;
+  color: #374151;
+  font-size: 13px;
+}
+
+.heading {
+  padding-bottom: 9px;
+  border-bottom: 1px solid #d7d0c1;
+  color: #3f4a55;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+
+.avatarRow {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.avatarPreview {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  overflow: hidden;
+  border: 2px solid #fffdf6;
+  border-radius: 50%;
+  background: #d7dde0;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / .25), 0 2px 4px rgb(0 0 0 / .2);
+  color: #4b5563;
+  font-size: 20px;
+  font-weight: 800;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.avatarCopy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  color: #776b5c;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #59616b;
+  font-size: 12px;
+  font-weight: 700;
+
+  input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 9px;
+    border: 1px solid #8d8c87;
+    border-radius: 3px;
+    background: #fafaf8;
+    color: #374151;
+    box-shadow: inset 0 2px 4px rgb(0 0 0 / .25);
+    font: 600 14px ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+    outline: none;
+  }
+
+  input[readonly] {
+    color: #6b7280;
+    background: #eeeae0;
+    box-shadow: none;
+  }
+
+  input:focus-visible {
+    outline: 2px solid #e8571f;
+    outline-offset: 2px;
+  }
+}
+
+.error {
+  color: #8c2828;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-top: 2px;
+}
+
+.actionsRight {
+  display: flex;
+  gap: 7px;
+  margin-left: auto;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 3px;
+  font: 700 12px 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 1px solid #9a4a2d;
+  background: linear-gradient(#f17b4d, #d95625);
+  color: #fffdf7;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .35), 0 1px 2px rgb(0 0 0 / .25);
+
+  &:disabled {
+    cursor: default;
+    opacity: .6;
+  }
+}
+
+.secondaryButton {
+  border: 1px solid #a8aa9e;
+  background: linear-gradient(#fffef7, #e9e5d7);
+  color: #4b5563;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(0 0 0 / .12);
+
+  &:disabled {
+    cursor: default;
+    opacity: .6;
+  }
+}
+
+.dangerButton {
+  border: 1px solid #b98282;
+  background: linear-gradient(#fff8f4, #f4ddd8);
+  color: #8c2828;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(0 0 0 / .12);
+
+  &:disabled {
+    cursor: default;
+    opacity: .6;
+  }
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.dangerButton:focus-visible {
+  outline: 2px solid #e8571f;
+  outline-offset: 2px;
+}
+
+.fileInput {
+  display: none;
+}
+
+/* 挂在某个输入项下面的提示：与输入框的字对齐，前面一个上箭头指向它 */
+.fieldError::before {
+  content: '↑';
+  display: inline-block;
+  margin-right: 4px;
+  font-weight: 700;
+}
+
+/* ============================== 名单簿成员页：写在横线上的表单 ==============================
+ * 纸面横线间距 27px。表单每一行的高度都是 27 的整数倍，字落在横线上，不画输入框：
+ *   头像 81（3 行）· QQ 号 54 · 昵称 54 · 出错提示 27 · 删除 54
+ * 字体用名单簿的手写体 --hand（定义在 MemberNotebook.module.scss 的 .notebook 上），按钮仍是实物按钮。 */
+.ruled {
+  gap: 0;
+  min-width: 0;
+  font-family: var(--hand, inherit);
+
+  .avatarRow {
+    box-sizing: border-box;
+    height: 81px;
+    gap: 14px;
+  }
+
+  .avatarPreview {
+    border-width: 3px;
+    border-radius: 2px;
+    transform: rotate(-2deg);
+    box-shadow: 0 0 0 .5px rgb(0 0 0 / .15), 0 4px 8px -4px rgb(40 30 10 / .45);
+  }
+
+  .avatarCopy {
+    color: #6b7a92;
+    font-size: 14px;
+  }
+
+  .field {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    align-items: end;
+    gap: 0;
+    box-sizing: border-box;
+    height: 54px;
+    color: #8a7f68;
+    font: 400 15px/27px var(--hand, inherit);
+
+    input {
+      height: 27px;
+      padding: 0 4px 3px;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      color: #1f3a66;
+      font: 400 20px/24px var(--hand, inherit);
+    }
+
+    input[readonly] {
+      color: #858c97;
+      background: transparent;
+    }
+
+    input:focus-visible {
+      outline: none;
+      background: rgb(255 236 170 / .5);
+      box-shadow: inset 0 -2px 0 #e8571f;
+    }
+  }
+
+  /* 最宽布局：头像 81px（3 行横线）在左，右边是 QQ 号和昵称两行（共 108px = 4 行）。头像本身就是选图按钮 */
+  .besideRow {
+    display: grid;
+    grid-template-columns: 81px minmax(0, 1fr);
+    align-items: start;
+    gap: 22px;
+    padding-top: 14px;
+  }
+
+  .besideFields {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    margin-top: -14px; /* 与 .besideRow 的 padding-top 抵消，两行字段仍压在横线上 */
+  }
+
+  .avatarPick {
+    width: 81px;
+    height: 81px;
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .avatarPick:disabled {
+    cursor: default;
+  }
+
+  .avatarPick:hover:not(:disabled) {
+    box-shadow: 0 0 0 1.5px #e8571f, 0 4px 8px -4px rgb(40 30 10 / .45);
+  }
+
+  .avatarPick:focus-visible {
+    outline: 2px solid #e8571f;
+    outline-offset: 3px;
+  }
+
+  .avatarPick .avatarFallback {
+    color: #9a9078;
+    font-size: 30px;
+    font-weight: 400;
+  }
+
+  .fieldError {
+    padding-left: 68px; /* 标签列 64 + 输入框内边距 4，与输入的字对齐 */
+  }
+
+  /* QQ 号是 type=number：去掉浏览器的上下箭头，看起来仍是写在横线上的字 */
+  .field input[type='number'] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  .field input[type='number']::-webkit-inner-spin-button,
+  .field input[type='number']::-webkit-outer-spin-button {
+    margin: 0;
+    -webkit-appearance: none;
+  }
+
+  .field input::placeholder {
+    color: #b9b09a;
+  }
+
+  .error {
+    height: 27px;
+    overflow: hidden;
+    font: 400 15px/27px var(--hand, inherit);
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .actions {
+    box-sizing: border-box;
+    height: 54px;
+    align-items: flex-end;
+    padding: 0 0 4px;
+  }
+
+  .secondaryButton,
+  .dangerButton {
+    min-height: 22px;
+    padding: 3px 9px;
+    font-size: 11px;
+  }
+}

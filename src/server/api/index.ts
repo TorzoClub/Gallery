@@ -14,6 +14,7 @@ import type { EnvConfig } from '../config'
 import type { Instance } from '../instance'
 import type { Logger } from '../logger'
 import { createAdminAuth } from './admin'
+import { createAdminPoolEventsHandler, createPublicPoolEventsHandler } from './events'
 import { createUploadHandler } from './upload'
 
 type Deps = {
@@ -33,6 +34,8 @@ const API_LIKE_PREFIXES = [
   '/upload-image',
   '/images',
   '/healthz',
+  '/events',
+  '/admin/events',
 ]
 
 export function isApiLikePath(pathname: string, base_path = '/'): boolean {
@@ -215,13 +218,24 @@ export function constructApi(deps: Deps): Hono {
     onError: bodyLimitError,
   }), login)
 
+  // 只校验 token、不返回任何后台数据：/admin 门禁用它判断本地已有的 token 还能不能用。
+  // 过期 401 `Token 已过期`，签名不对 / 不是 admin 403，与 admin dispatch 的鉴权完全同一套。
+  app.get('/auth/check', auth, (c) => c.json({
+    success: true,
+    data: { ok: true },
+  }))
+
   app.use('/admin/query/*', auth)
   app.use('/admin/mutate/*', auth)
+  app.use('/admin/events/*', auth)
 
   const json_limit = bodyLimit({
     maxSize: 1024 * 1024,
     onError: bodyLimitError,
   })
+
+  app.get('/events/pool', createPublicPoolEventsHandler(instance, clock))
+  app.get('/admin/events/pool', createAdminPoolEventsHandler(instance, clock))
 
   app.post('/query/:name', json_limit, dispatchHandler(instance, 'query', false, clock))
   app.post('/mutate/:name', json_limit, dispatchHandler(instance, 'mutation', false, clock))
@@ -265,6 +279,7 @@ export function constructApi(deps: Deps): Hono {
           admin_query: '/admin/query/:name',
           admin_mutation: '/admin/mutate/:name',
           login: '/auth/login',
+          check: '/auth/check',
         },
       },
     }))

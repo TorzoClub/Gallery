@@ -16,7 +16,7 @@ pnpm storage:init
 pnpm dev
 ```
 
-默认打开 `http://localhost:7001`。development 和 production 一样，只有一个后端端口：Hono 处理 API，Vite 作为同进程 middleware 提供开发页面。公开页在 `/`，后台在 `/admin`。Behind 页输入管理员密码后进入后台。
+默认打开 `http://localhost:7001`。development 和 production 一样，只有一个后端端口：Hono 处理 API，Vite 作为同进程 middleware 提供开发页面。公开页在 `/`，后台在 `/admin`。后台没登录时显示门禁，输入管理员密码后进入；Behind 页右上角的“A”按钮是入口。
 
 首次启动 storage、环境变量和代理配置见 [docs/configure.md](docs/configure.md)。
 
@@ -44,7 +44,7 @@ docker compose up -d --build
 - [docs/configure.md](docs/configure.md)：环境变量、instance 配置、构建、缓存、部署
 - [docs/api.md](docs/api.md)：HTTP 接口和 dispatch action
 - [docs/auth.md](docs/auth.md)：后台登录、JWT 和权限边界
-- [changelogs-2026.md](changelogs-2026.md)：4.0.0 / 4.1.0 / 4.1.1 版本变更记录
+- [changelogs-2026.md](changelogs-2026.md)：4.0.0 / 4.1.0 / 4.1.1 / 4.2.0 版本变更记录
 - [docs/troubleshooting.md](docs/troubleshooting.md)：常见问题
 - [AGENTS.md](AGENTS.md)：协作和 agent 工作边界
 - [TODOS.md](TODOS.md)：当前状态和后续待办

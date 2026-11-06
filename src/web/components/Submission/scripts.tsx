@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { cancelSubmission, confirmMember, fetchMemberView } from 'api/client-pool'
 
 import s from './scripts.module.scss'
@@ -8,10 +8,11 @@ import { componentScript, script, select, Script, Select, Content, useSubmission
 import WaitingInputFrame from 'components/ConfirmQQ/WaitingInputFrame'
 import { Signal, timeout } from 'vait'
 import { LoadingMask } from 'components/LoadingMask'
-import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
+import PhotoCreateOrEdit from './PhotoCreateOrEdit'
+import SubmittedPhotoCard from './SubmittedPhotoCard'
 
 import image_同装同装 from '../../assets/同装 同装.png'
-import { getClientPoolState, reloadClientPool } from 'pool/store'
+import { getClientPoolState } from 'pool/store'
 import { submittedPhotoView, type GalleryView, type PhotoView } from 'pool/view'
 import { thunkify } from 'ramda'
 import { dateDiffInDays, isInvalidDate, isNextMonth, isNextWeek, monthDiff, stringifyWeekDay } from 'utils/date'
@@ -91,11 +92,14 @@ export function init(init_args : InitArgs) {
     const { photo, qq_num } = useSubmissionStore.getState()
     const navigate = useNavigate()
     const location = useLocation()
+    // 只跳一次：Explore 换台离开后只是被 <Activity> 藏起来，回来时 effect 会再跑一遍，不能再进一次碎纸机
+    const entered = useRef(false)
 
     useEffect(() => {
-      if (!photo || !qq_num) {
+      if (!photo || !qq_num || entered.current) {
         return
       }
+      entered.current = true
       navigate('/explore/cancelSubmission', {
         replace: true,
         state: {
@@ -125,39 +129,29 @@ export function init(init_args : InitArgs) {
         return (
           <>
             <div style={{ marginBottom: '20px' }}>{exists_text}</div>
-            <PreviewBox
-              canClick={false}
-              previewURL={photo.thumb_url}
-              isDragging={false}
-              height={320 / (photo.width / photo.height)}
-            />
+            <SubmittedPhotoCard photo={photo} />
           </>
         )
       })
     } else {
       return componentScript([], ({ changeScript }) => {
-        return <PhotoCreateOrEdit onUpdateDone={(created_photo) => {
-          changeScript(script_大感谢('CREATE', created_photo))
+        return <PhotoCreateOrEdit onUpdateDone={() => {
+          changeScript(script_大感谢())
         }} />
       })
     }
   }
 
-  const script_大感谢 = (type: 'CREATE' | 'EDIT', photo: PhotoView) => {
-    return componentScript([], ({ changeScript }) => {
-      useEffect(() => {
-        setTimeout(() => {
-          if (type === 'CREATE') {
-            _EVENT_.created.trigger(photo)
-          } else if (type === 'EDIT') {
-            _EVENT_.updated.trigger(photo)
-          }
-        }, 1500)
-      }, [])
+  const THANKS_TEXT = '大感谢'
+  const THANKS_WAITTIME = 300
+
+  // 新相片由 SSE 推到瀑布流，贴上来的动画也由它触发（见 Gallery 的 usePhotoPresence），这里只说谢谢
+  const script_大感谢 = () => {
+    return componentScript([], () => {
       return (
         <TextContentEffect
-          textContent='大感谢'
-          showContentWaittime={300}
+          textContent={THANKS_TEXT}
+          showContentWaittime={THANKS_WAITTIME}
           showClassName={s.ThanksShow}
           hideClassName={s.ThanksHide}
         />
@@ -181,8 +175,8 @@ export function init(init_args : InitArgs) {
       </div>
       {
         (show_form || immediately) && (
-          <PhotoCreateOrEdit onUpdateDone={(updated_photo) => {
-            changeScript(script_大感谢(type, updated_photo))
+          <PhotoCreateOrEdit onUpdateDone={() => {
+            changeScript(script_大感谢())
           }} />
         )
       }
@@ -258,9 +252,13 @@ export function init(init_args : InitArgs) {
 
         function RemovingSubmission() {
           const [removing, setRemoving] = useState(true)
+          // 只跳一次：Explore 换台离开（比如点头像去成员页）后只是被 <Activity> 藏起来，回来时这个 effect 会再跑一遍。
+          // 不拦住的话会带着已经删掉的相片再进一次碎纸机，服务端回“相片不存在”
+          const entered = useRef(false)
 
           useEffect(() => {
-            if (photo && qq_num) {
+            if (photo && qq_num && !entered.current) {
+              entered.current = true
               Signal.once(_EVENT_.canceled, () => {
                 setTimeout(() => {
                   setRemoving(false)
@@ -340,23 +338,16 @@ export function init(init_args : InitArgs) {
               />
             </div>
 
-            <div style={{
-              ...(show_photo ? {
-                marginTop: '20px'
-              } : {
-                overflow: 'hidden',
-                height: '0px'
-              }),
+            <div style={show_photo ? {
+              marginTop: '20px'
+            } : {
+              overflow: 'hidden',
+              height: '0px'
             }}>
               {
                 photo && (
                   <div data-cancel-photo>
-                    <PreviewBox
-                      canClick={false}
-                      previewURL={photo.thumb_url}
-                      height={320 / (photo.width / photo.height)}
-                      isDragging={false}
-                    />
+                    <SubmittedPhotoCard photo={photo} />
                   </div>
                 )
               }
@@ -392,7 +383,7 @@ export function init(init_args : InitArgs) {
 
   const script_同装同装 = componentScript([], () => {
     return <>
-      <img src={image_同装同装} style={{ height: '120px' }} />
+      <img src={image_同装同装} style={{ margin: 'auto', display: 'block', height: '120px' }} />
     </>
   })
 
@@ -401,25 +392,25 @@ export function init(init_args : InitArgs) {
       throw new Error('computeExpectTime failure: submission_expire is null')
     } else {
       const submission_expire_date = new Date(submission_expire)
-      const currentDate = new Date
+      const current_date = new Date
       if (isInvalidDate(submission_expire_date)) {
         throw new Error(`computeExpectTime failure: submission_expire('${submission_expire}') is invalid date`)
-      } else if (currentDate > submission_expire_date) {
+      } else if (current_date > submission_expire_date) {
         return null
       } else {
-        const day = dateDiffInDays(currentDate, submission_expire_date)
+        const day = dateDiffInDays(current_date, submission_expire_date)
         if (day === 1) {
           return '明天'
         } else if (day === 2) {
           return '后天'
-        } else if (isNextWeek(currentDate, submission_expire_date)) {
+        } else if (isNextWeek(current_date, submission_expire_date)) {
           const week_day = submission_expire_date.getDay()
           return `下${stringifyWeekDay(week_day)}`
-        } else if (isNextMonth(currentDate, submission_expire_date)) {
+        } else if (isNextMonth(current_date, submission_expire_date)) {
           const d = submission_expire_date.getDate()
           return `下个月${d}号`
         } else {
-          const m = monthDiff(currentDate, submission_expire_date)
+          const m = monthDiff(current_date, submission_expire_date)
           if (m === 0) {
             return `${day}天后`
           } else {
@@ -464,10 +455,7 @@ export function init(init_args : InitArgs) {
           return undefined
         }
 
-        const [member_view] = await Promise.all([
-          fetchMemberView(Number(qq_num)),
-          reloadClientPool(),
-        ])
+        const member_view = await fetchMemberView(Number(qq_num))
         const pool_state = getClientPoolState()
         if (pool_state.status !== 'ready') {
           throw new Error('ClientPool 尚未加载完成')

@@ -5,7 +5,6 @@ import ExplorePage from './layouts/Explore'
 // import CoverScroller from './layouts/CoverScroller'
 // import BgImageUrl from 'assets/bg.png'
 
-import './HomeApp.css'
 import { Link, useNavigate } from 'react-router-dom'
 import Navigator from './components/Navigator'
 
@@ -18,7 +17,7 @@ export default function AppHome() {
   const navigate = useNavigate()
 
   return (
-    <div className="app">
+    <div className="homeApp" style={{ paddingBottom: '128px' }}>
       <Navigator
         scene='explore'
         onClickPushButton={() => {

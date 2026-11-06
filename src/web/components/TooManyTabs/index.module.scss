@@ -1,0 +1,359 @@
+.page {
+  box-sizing: border-box;
+  display: grid;
+  min-height: 100dvh;
+  padding: 24px;
+  place-items: center;
+  overflow-x: hidden;
+  background: transparent;
+  color: #374151;
+  font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* 线圈本：宽度、封面、圆角和投影沿用页面给定的外框数值 */
+.notebook {
+  position: relative;
+  width: min(640px, calc(100vw - 32px));
+  height: 800px;
+  max-height: calc(100dvh - 48px);
+  box-sizing: border-box;
+  background: transparent;
+}
+
+/* 纸页下面压着的纸和阴影 */
+.notebook::before {
+  content: '';
+  position: absolute;
+  top: 13px;
+  right: 11px;
+  left: 11px;
+  z-index: 2;
+  height: 10px;
+  background: radial-gradient(circle at 9px 5px, #4d5256 0 3.1px, #8b8f92 3.5px, transparent 4px) 0 0 / 18px 10px space no-repeat;
+  pointer-events: none;
+}
+
+.backing {
+  position: absolute;
+  top: 10px;
+  right: 0;
+  bottom: -3px;
+  left: 0;
+  background: #f6f3ea;
+  border: 1px solid #d3cdbd;
+  border-radius: 2px 2px 6px 6px;
+  box-shadow:
+    0 3px 0 -1px #f8f6ef,
+    0 3px 0 0 #cbc5b5,
+    0 6px 0 -2px #f2eee4,
+    0 6px 0 -1px #bdb6a4,
+    0 10px 14px -6px rgb(0 0 0 / 0.35);
+}
+
+.pages {
+  position: absolute;
+  top: 10px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  perspective: 1600px;
+  perspective-origin: 50% 100%;
+}
+
+.sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  transform-origin: 50% 0;
+  transform-style: preserve-3d;
+}
+
+.pageBody {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+.pageFront,
+.pageBack {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: #fffef9;
+  border: 1px solid #d6d0c0;
+  border-radius: 2px 2px 6px 6px;
+  backface-visibility: hidden;
+}
+
+/* 正面在纸的上方，背面在纸的下方；用 3D 位移错开两层，避免共面闪烁 */
+.pageFront {
+  display: flex;
+  flex-direction: column;
+  padding: 26px 32px 24px;
+  transform: translate3d(0, 0, 1px);
+}
+
+.pageBack {
+  transform: translate3d(0, 0, -1px) rotateX(180deg);
+}
+
+/* 两阶段翻页：先转到 90° 并摘下正面内容，再淡出空白纸背 */
+.turnAway {
+  z-index: 2;
+  pointer-events: none;
+  animation: page-turn-away 280ms cubic-bezier(0.45, 0, 0.9, 0.6) both;
+}
+
+.fadeAway {
+  z-index: 2;
+  pointer-events: none;
+  animation: page-fade-away 160ms linear both;
+}
+
+.backIn {
+  z-index: 2;
+  pointer-events: none;
+  animation: page-back-in 160ms linear both;
+}
+
+.backTurn {
+  z-index: 2;
+  pointer-events: none;
+  animation: page-back-turn 280ms cubic-bezier(0.1, 0.4, 0.55, 1) both;
+}
+
+@keyframes page-turn-away {
+  from {
+    transform: rotateX(0deg);
+  }
+
+  to {
+    transform: rotateX(90deg);
+  }
+}
+
+@keyframes page-fade-away {
+  from {
+    transform: rotateX(90deg);
+    opacity: 1;
+  }
+
+  to {
+    transform: rotateX(100deg);
+    opacity: 0;
+  }
+}
+
+@keyframes page-back-in {
+  from {
+    transform: rotateX(100deg);
+    opacity: 0;
+  }
+
+  to {
+    transform: rotateX(90deg);
+    opacity: 1;
+  }
+}
+
+@keyframes page-back-turn {
+  from {
+    transform: rotateX(90deg);
+  }
+
+  to {
+    transform: rotateX(0deg);
+  }
+}
+
+/* 线圈：盖在纸页上方，纸页翻起时从下面转过去 */
+.spiral {
+  position: absolute;
+  top: 0;
+  right: 12px;
+  left: 12px;
+  z-index: 3;
+  height: 26px;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='26'%3E%3Cdefs%3E%3ClinearGradient id='m' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%23676c71'/%3E%3Cstop offset='.5' stop-color='%23f6f8f9'/%3E%3Cstop offset='1' stop-color='%23787d82'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='6.5' y='1.5' width='5' height='19' rx='2.5' fill='url(%23m)' stroke='%234f5459' stroke-width='.7'/%3E%3C/svg%3E") 0 0 / 18px 26px space no-repeat;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.3));
+}
+
+.docHeader {
+  flex: 0 0 auto;
+  margin-bottom: 16px;
+  color: #776b5c;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2.2px;
+  text-transform: uppercase;
+}
+
+.docContent {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.docFooter {
+  flex: 0 0 auto;
+  margin-top: 16px;
+  color: #9b917f;
+  font-size: 10px;
+  letter-spacing: 0.6px;
+}
+
+.mainPage {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  text-align: center;
+}
+
+.icon {
+  display: block;
+  width: min(560px, 100%);
+  margin: 0 auto 10px;
+}
+
+.title {
+  margin: 0 0 16px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.lead {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.moreLink,
+.backLink {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #2f6f8f;
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.moreLink {
+  margin-top: 24px;
+  font-size: 13px;
+}
+
+.moreLink:hover,
+.backLink:hover {
+  color: #164b69;
+}
+
+.moreLink:focus-visible,
+.backLink:focus-visible {
+  outline: 2px solid #e8571f;
+  outline-offset: 3px;
+}
+
+.moreLink:disabled,
+.backLink:disabled {
+  color: #9b917f;
+  cursor: default;
+}
+
+.whyPage {
+  width: 100%;
+  text-align: left;
+}
+
+.backLink {
+  display: inline-block;
+  margin-bottom: 18px;
+  font-size: 13px;
+}
+
+.whyTitle {
+  margin: 0 0 12px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.whyLead {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.section {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid #e6e0d4;
+}
+
+.sectionIndex {
+  color: #b36a5d;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  line-height: 1.8;
+}
+
+.sectionTitle {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.sectionText {
+  margin: 0;
+  color: #59616b;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 16px;
+  }
+
+  .notebook {
+    width: calc(100vw - 32px);
+    max-height: calc(100dvh - 32px);
+  }
+
+  .pageFront {
+    padding: 20px 20px 18px;
+  }
+
+  .title,
+  .whyTitle {
+    font-size: 24px;
+  }
+
+  .section {
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 8px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turnAway,
+  .fadeAway,
+  .backIn,
+  .backTurn {
+    animation: none;
+  }
+}

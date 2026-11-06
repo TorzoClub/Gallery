@@ -252,7 +252,38 @@ describe('instance configuration', () => {
     const after_meta = await sharp(
       ctx.storage.imagePath('thumb', thumbFilename(after.thumb as string)),
     ).metadata()
-    expect(after_meta.width).toBe(100)
+    // 宽 100 会让短边只有 75，被 256 的下限顶回去
+    expect(after_meta.width).toBe(341)
+    expect(after_meta.height).toBe(256)
+  })
+
+  it('keeps the short edge of photo thumb and optimized at least 256px', async () => {
+    const gallery = await ctx.createGallery()
+    await ctx.adminMutate('adminUpdateInstanceConfig', {
+      image_thumb_size: 300,
+      max_image_dimension: 600,
+    })
+    const cases: Array<[number, number, [number, number], [number, number]]> = [
+      // [原图宽, 原图高, 缩略图, optimized]
+      [3000, 1500, [512, 256], [600, 300]],
+      [1500, 3000, [300, 600], [300, 600]],
+      [3000, 500, [1536, 256], [1536, 256]],
+      // 原图短边本来就不到 256：不放大
+      [1200, 200, [1200, 200], [1200, 200]],
+    ]
+    let qq = 30001
+    for (const [width, height, thumb, optimized] of cases) {
+      const member = await ctx.createMember({ qq_num: qq++ })
+      const photo = await ctx.createPhoto({
+        gallery_id: gallery.id as number,
+        member_id: member.id as number,
+        image: await makePng(width, height),
+      })
+      const thumb_meta = await sharp(ctx.storage.imagePath('thumb', thumbFilename(photo.thumb as string))).metadata()
+      expect([thumb_meta.width, thumb_meta.height]).toEqual(thumb)
+      const optimized_meta = await sharp(ctx.storage.imagePath('optimized', thumbFilename(photo.src_optimized as string))).metadata()
+      expect([optimized_meta.width, optimized_meta.height]).toEqual(optimized)
+    }
   })
 
   it('rejects env-only fields and over-hard-limit upload sizes', async () => {

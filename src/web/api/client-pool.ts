@@ -1,5 +1,6 @@
 import { mutate, query } from './dispatch'
 import type { ClientMemberView, ClientPool } from '@shared/client-pool'
+import type { PhotoDTO } from '@shared/dto'
 
 export function fetchClientPool(): Promise<ClientPool> {
   return query<ClientPool>('fetchClientPool')
@@ -27,8 +28,8 @@ export function submitPhoto(input: {
   qq_num: number
   desc: string
   temp_id: string
-}): Promise<unknown> {
-  return mutate('submitPhoto', input)
+}): Promise<PhotoDTO> {
+  return mutate<PhotoDTO>('submitPhoto', input)
 }
 
 export function updateSubmission(input: {
@@ -36,13 +37,13 @@ export function updateSubmission(input: {
   qq_num: number
   desc?: string
   temp_id?: string
-}): Promise<unknown> {
-  return mutate('updateSubmission', input)
+}): Promise<PhotoDTO> {
+  return mutate<PhotoDTO>('updateSubmission', input)
 }
 
 export function cancelSubmission(input: {
   photo_id: number
   qq_num: number
-}): Promise<unknown> {
-  return mutate('cancelSubmission', input)
+}): Promise<PhotoDTO> {
+  return mutate<PhotoDTO>('cancelSubmission', input)
 }

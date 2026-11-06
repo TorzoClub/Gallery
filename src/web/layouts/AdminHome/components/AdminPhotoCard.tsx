@@ -1,25 +1,30 @@
 import React, { type ReactNode } from 'react'
-import PhotoBox from '../../../components/PhotoBox'
+import PhotoCard, { photoCardCover, type PhotoCardScatter } from '../../../components/PhotoCard'
 import MemberPopover from './MemberPopover'
 import PhotoPopover from './PhotoPopover'
+import VoteMagnets from './VoteMagnets'
+import type { PhotoVoteRecord } from './photo-votes'
 import type { AdminGalleryDTO } from '@shared/dto'
 import type { MemberCanDelete } from './AdminConsole'
 
 type Props = {
   gallery: AdminGalleryDTO
   photo: AdminGalleryDTO['photos'][number]
-  box_width: number
-  box_type: 'normal' | 'compact'
+  votes: readonly PhotoVoteRecord[]
+  scatter: PhotoCardScatter
   memberCanDelete?: MemberCanDelete
+  /** 正在贴纸胶带（新相片贴上来）：放一只 🤚 抹胶带，见 Gallery 的 .photo-card-entering */
+  hand?: boolean
   onChanged(): Promise<void>
 }
 
-export default function AdminPhotoBox({
+export default function AdminPhotoCard({
   gallery,
   photo,
-  box_width,
-  box_type,
+  votes,
+  scatter,
   memberCanDelete,
+  hand = false,
   onChanged,
 }: Props) {
   const member = photo.member
@@ -31,6 +36,9 @@ export default function AdminPhotoBox({
         qq: String(member.qq_num),
         avatarUrl: member.avatar_thumb_url,
       }
+
+  // 磁粒在相片区域内，随卡片一起倾斜
+  const cover = photoCardCover(scatter.card_width, photo)
 
   const can_delete = member_data !== undefined && memberCanDelete?.(member_data) === true
 
@@ -55,12 +63,13 @@ export default function AdminPhotoBox({
       gallery_id={gallery.id}
       onChanged={onChanged}
       trigger={(
-        <PhotoBox
+        <PhotoCard
           id={photo.id}
-          type={box_type}
-          box_width={box_width}
+          width={scatter.card_width}
+          tilt={{ rotate: scatter.rotate, x: scatter.offset_x }}
+          tape={{ x: scatter.tape_x, rotate: scatter.tape_rotate }}
+          hand={hand}
           hideMember={false}
-          show_vote_button={false}
           name={member?.name ?? null}
           desc={photo.desc}
           photo={{
@@ -75,6 +84,14 @@ export default function AdminPhotoBox({
             thumb: member.avatar_thumb_url,
             src: member.avatar_thumb_url,
           }}
+          coverOverlay={(
+            <VoteMagnets
+              photo_id={photo.id}
+              records={votes}
+              cover_width={cover.cover_width}
+              cover_height={cover.cover_height}
+            />
+          )}
           renderAvatar={(avatar) => with_member_popover(
             <button type='button' className='admin-avatar-trigger'>
               {avatar}

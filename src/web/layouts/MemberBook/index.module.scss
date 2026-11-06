@@ -1,0 +1,25 @@
+/* 单独的成员笔记本：整屏只有这一本，居中。本子高度由名单簿自己定（≤ 640px 600px，其余 448px） */
+.page {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 32px 16px;
+  background: white;
+
+  max-width: 100vw;
+  width: 100vw;
+  overflow-x: hidden;
+}
+
+.book {
+  width: 100%;
+  max-width: 720px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .page {
+    background: #1b2027;
+  }
+}

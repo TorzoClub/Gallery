@@ -29,9 +29,11 @@ import { type InstanceConfig } from '../config/instance'
 import { type Storage } from '../storage'
 import { fileExists } from '../storage/fs'
 import {
+  assertDerivableImage,
   readImageInfo,
+  writeAvatarThumbImage,
   writeOptimizedImage,
-  writeThumbImage,
+  writePhotoThumbImage,
   type ImageInfo,
 } from '../storage/image'
 
@@ -146,6 +148,8 @@ export function createImagePipeline(options: {
       if (info.format !== format) {
         throw badRequest(`图片实际格式(${info.format})与扩展名(${format})不一致`)
       }
+      // 太长的图在上传这一步就拒绝，不等到投稿 / 保存时才在生成缩略图时失败
+      assertDerivableImage(info, getConfig())
       const stat = await fs.stat(temp_path)
       temp_metadata.set(input.temp_id, {
         crc32,
@@ -297,8 +301,16 @@ export function createImagePipeline(options: {
               quality: getConfig().avif_source_quality,
               effort: getConfig().image_processing_effort,
             })
+          } else if (input.kind === 'photo') {
+            await writePhotoThumbImage({
+              input_path: source_path,
+              output_path: staging,
+              size: input.thumb_size,
+              quality: getConfig().image_thumb_quality,
+              effort: getConfig().image_processing_effort,
+            })
           } else {
-            await writeThumbImage({
+            await writeAvatarThumbImage({
               input_path: source_path,
               output_path: staging,
               size: input.thumb_size,
@@ -423,7 +435,7 @@ export function createImagePipeline(options: {
     thumb_name: string,
     size: number,
     variant: 'sdr' | 'hdr',
-    cleanup_legacy: boolean,
+    kind: 'photo' | 'avatar',
   ): Promise<void> {
     if (!isSafeFilename(source_filename)) {
       throw badRequest('非法的图片文件名')
@@ -434,15 +446,15 @@ export function createImagePipeline(options: {
     const temp_path = storage.tempPath(`${uuidv7()}.avif`)
 
     try {
-      await writeThumbImage({
-        input_path: source_path,
-        output_path: temp_path,
-        size,
-        quality: getConfig().image_thumb_quality,
-        effort: getConfig().image_processing_effort,
-      })
+      const quality = getConfig().image_thumb_quality
+      const effort = getConfig().image_processing_effort
+      if (kind === 'photo') {
+        await writePhotoThumbImage({ input_path: source_path, output_path: temp_path, size, quality, effort })
+      } else {
+        await writeAvatarThumbImage({ input_path: source_path, output_path: temp_path, size, quality, effort })
+      }
       await fs.rename(temp_path, thumb_path)
-      if (cleanup_legacy) {
+      if (kind === 'photo') {
         await cleanupLegacyPhotoVariants(source_filename, 'thumb', variant)
       }
     } catch (error) {
@@ -495,7 +507,7 @@ export function createImagePipeline(options: {
       photoThumbFilename(source_filename),
       getConfig().image_thumb_size,
       'sdr',
-      true,
+      'photo',
     )
 
     // HDR uses the original source directly; remove stale generated HDR files.
@@ -515,7 +527,7 @@ export function createImagePipeline(options: {
       avatarThumbFilename(source_filename),
       getConfig().avatar_thumb_size,
       'sdr',
-      false,
+      'avatar',
     )
     if (source_filename !== avatarThumbFilename(source_filename)) {
       await fs.rm(storage.imagePath('thumb', source_filename), { force: true })

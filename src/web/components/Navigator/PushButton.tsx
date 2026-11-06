@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, CSSProperties } from "react";
+import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import "./PushButton.css";
 
 type CssWidth = CSSProperties["width"];
@@ -30,6 +30,9 @@ export interface PushButtonProps
 
   /** 按钮面是否为粗糙的塑料颗粒质感；false 则是光滑的渐变。@default false */
   textured?: boolean;
+
+  /** 印在按钮面上的字（如 "A"），跟着按钮面一起按下。样式由调用方通过 className 覆盖 .pb__label */
+  label?: ReactNode;
 }
 
 /** 数字 → px；字符串原样返回 */
@@ -43,6 +46,7 @@ export default function PushButton({
   pressAnimate,
   "press-animate": pressAnimateAttr,
   textured = false,
+  label,
   className,
   style,
   type = "button",
@@ -76,7 +80,9 @@ export default function PushButton({
       {...rest}
     >
       <span className="pb__socket" aria-hidden="true" />
-      <span className="pb__cap" aria-hidden="true" />
+      <span className="pb__cap" aria-hidden="true">
+        {label !== undefined && <span className="pb__label">{label}</span>}
+      </span>
     </button>
   );
 }

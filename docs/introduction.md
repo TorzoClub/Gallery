@@ -6,11 +6,13 @@
 
 - 根目录是单体 SPA + dispatch API：一个 Hono HTTP 服务同时提供前端、API、图片和健康检查。
 - 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。
+- `src/web/components/deprecated/` 放已弃用但值得留着的组件：不被任何页面引用，只是造型或交互还有参考价值、以后可能复用。规则见 [designs.md](designs.md) 的“已弃用组件”。
 - 测试在 `test/`，当前覆盖服务端业务逻辑、storage、图片、登录、静态服务和缓存。
 - storage schema 当前为 v2；v1 需要先运行 `pnpm update-storage`。
 - 旧 `server/`、`web/`、脚本和 CI 已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支，不参与当前分支的构建、测试、lint、部署。
 - 后台页面和样式按路由异步加载，公开页首屏不会加载后台代码。
 - 后台是 `/admin`；使用完整 AdminPool 查询，并在 AdminConsole 中管理运行期配置和名单簿成员。
+- 公开页和 Admin 分别通过 `/events/pool`、`/admin/events/pool` 接收 SSE 增量更新。
 
 更细的状态和待办见 [TODOS.md](../TODOS.md)。
 
@@ -63,6 +65,7 @@ Node HTTP Server
   │     ├── POST /admin/query/*, /admin/mutate/*
   │     ├── POST /auth/login, /upload-image
   │     ├── GET /images/source|optimized|thumb/*
+  │     ├── GET /events/pool, /admin/events/pool（SSE）
   │     └── GET /healthz
   │           ▼
   │        Hono API listener
@@ -121,8 +124,9 @@ Node HTTP Server
 - 前端 bundle 使用 hash 文件名并强缓存；HTML 使用 `no-cache` 弱缓存；source 保存原始上传字节，optimized/thumb 使用实体 ID + 内容 CRC32 文件名并强缓存；上传临时文件使用 UUIDv7。
 - 公开页和后台共用前端入口，后台整体异步加载；公开页入口是 `/explore`，`/` 重定向到它。
 - `/explore` 与 `/behind` 是同级页面；页面切换用隐藏 stage，而不是 fixed 覆盖。
+- `/behind` 在 System Reports 之前有一本只读名单簿；`/member/<id>` 是单独的成员笔记本（CH. Member），从公开页 PhotoCard 的头像或昵称进入，返回时换台回 `/explore`。两者都只读 ClientPool。`/staff` 是参与项目的人的留言（CH. Staff），从 Behind 页左上角的“D”按钮进入，返回时换台回 `/behind`；内容写死在前端，不读任何接口。
 - `/explore/cancelSubmission` 是挂载在 Explore 页面上的固定全屏取消投稿覆盖层，不会卸载底层 Explore；进入和返回 Explore 时复用 `ChannelTransition` 播放 CRT 换台特效。旧 `/cancelSubmission` 与 `/removingSubmission` 会重定向到这里。
-- 图片分三类：`source` 原图、`optimized` 全尺寸 SDR AVIF、`thumb` SDR AVIF 缩略图；相片 optimized 固定为 `-sdr.avif`，thumb 为无后缀 `.avif`；头像 thumb 为 `.avif`。当前 Phase 0 只生成 SDR；HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
+- 图片分三类：`source` 原图、`optimized` 全尺寸 SDR AVIF、`thumb` SDR AVIF 缩略图；相片 optimized 固定为 `-sdr.avif`，thumb 为无后缀 `.avif`；头像 thumb 为 `.avif`。前后端的图片处理思路见 [images.md](images.md)。当前 Phase 0 只生成 SDR；HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
 - 后台保持轻依赖和工具化，不套用公开页视觉风格。
 - 后端通过 dispatch action 执行业务，admin action 只能从 admin 路由调用。
 - storage 是单实例 JSON + 图片池；同一 storage 只允许一个进程写。
@@ -145,6 +149,7 @@ Node HTTP Server
 | [docs/auth.md](auth.md) | 后台登录、JWT、权限边界 |
 | [docs/troubleshooting.md](troubleshooting.md) | 常见问题排查 |
 | [docs/designs.md](designs.md) | 设计原则与公开页 UI 风格 |
+| [docs/images.md](images.md) | 图片处理：后端派生图尺寸与上限、前端拍立得尺寸估算、横长图竖贴、竖长摆正 |
 | [docs/glossary.md](glossary.md) | 领域术语简表 |
 | [TODOS.md](../TODOS.md) | 当前状态、范围、后续待办 |
 | [AGENTS.md](../AGENTS.md) | AI agent 工作边界和验证要求 |

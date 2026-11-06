@@ -9,6 +9,10 @@ export interface WhitePlasticButtonProps extends React.ButtonHTMLAttributes<HTML
   press?: boolean
 }
 
+function wobblyRotateDeg() {
+  return (Math.floor(Math.random() * 11) - 5) / 10
+}
+
 export const WhitePlasticButton: React.FC<WhitePlasticButtonProps> = ({
   press = false,
   onClick,
@@ -25,7 +29,7 @@ export const WhitePlasticButton: React.FC<WhitePlasticButtonProps> = ({
   ...rest
 }) => {
   const [is_pressed, setIsPressed] = useState(false)
-  const [button_deg, setButtonDeg] = useState(-0.5)
+  const [button_deg, setButtonDeg] = useState(wobblyRotateDeg())
   const is_press = press || is_pressed
 
   useEffect(() => {
@@ -83,7 +87,7 @@ export const WhitePlasticButton: React.FC<WhitePlasticButtonProps> = ({
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     // 每次点击后换一个很小的倾角，模拟塑料按键的松垮感。
-    setButtonDeg((Math.floor(Math.random() * 11) - 5) / 10)
+    setButtonDeg(wobblyRotateDeg)
     onClick?.(event)
   }
 

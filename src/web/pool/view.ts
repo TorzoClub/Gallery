@@ -8,6 +8,7 @@ import type {
   ClientPool,
   ClientVote,
 } from '@shared/client-pool'
+import type { PhotoDTO } from '@shared/dto'
 import {
   memberAvatarUrl,
   photoOptimizedUrl,
@@ -112,6 +113,31 @@ export function toPhotoView(
   }
 }
 
+export function photoViewFromDTO(photo: PhotoDTO, is_voted = false): PhotoView {
+  return {
+    id: photo.id,
+    gallery_id: photo.gallery_id,
+    index: photo.index,
+    desc: photo.desc,
+    src: photo.src,
+    format: photo.format,
+    width: photo.width,
+    height: photo.height,
+    has_hdr_optimized: photo.has_hdr_optimized,
+    member_id: photo.member_id,
+    member: photo.member === null ? null : { ...photo.member, qq_num: null },
+    src_url: photo.src_url,
+    src_optimized: photo.src_optimized,
+    src_optimized_hdr: null,
+    vote_count: photo.vote_count,
+    thumb: photo.thumb,
+    thumb_url: photo.thumb_url,
+    is_voted,
+    created_at: photo.created_at,
+    updated_at: photo.updated_at,
+  }
+}
+
 export function toGalleryView(
   pool: ClientPool,
   gallery: ClientGallery | ClientGalleryInEvent,
@@ -158,6 +184,30 @@ export function submittedPhotoView(
     return null
   }
   return toPhotoView(pool, gallery.id, photo, memberMap(pool), member_view)
+}
+
+/**
+ * 活动期的相册在公开页乱序展示，不按 index：每次打开页面洗一次牌（EVENT_SHUFFLE_SEED），之后同一张相片的先后不再变。
+ * 用 id 和种子算哈希排序，而不是洗数组：SSE 推来新相片、删掉相片时，其他相片之间的先后不受影响。
+ */
+const EVENT_SHUFFLE_SEED = (Math.random() * 0x100000000) >>> 0
+
+function shuffleKey(id: number, seed: number): number {
+  // splitmix32 式的整数哈希
+  let x = (id ^ seed) >>> 0
+  x = Math.imul(x ^ (x >>> 16), 0x21f0aaad) >>> 0
+  x = Math.imul(x ^ (x >>> 15), 0x735a2d97) >>> 0
+  return (x ^ (x >>> 15)) >>> 0
+}
+
+export function shufflePhotosForEvent<T extends { id: number }>(
+  photos: readonly T[],
+  seed = EVENT_SHUFFLE_SEED,
+): T[] {
+  return photos
+    .map(photo => ({ photo, key: shuffleKey(photo.id, seed) }))
+    .sort((a, b) => a.key - b.key || a.photo.id - b.photo.id)
+    .map(item => item.photo)
 }
 
 export function toGalleryViews(

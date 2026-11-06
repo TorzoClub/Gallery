@@ -12,6 +12,8 @@ describe('isApiLikePath', () => {
       '/upload-image',
       '/images/source/a.png',
       '/healthz',
+      '/events/pool',
+      '/admin/events/pool',
     ]) {
       expect(isApiLikePath(pathname)).toBe(true)
     }

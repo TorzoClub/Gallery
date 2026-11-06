@@ -3,7 +3,7 @@ import type { AdminGalleryDTO, MemberDTO } from '@shared/dto'
 import { adminMutate } from '../../../admin/api/client'
 import { removeGallery } from '../../../admin/api/gallery'
 import Popover from '../../../components/Popover'
-import { sortPhotosByVoteCount } from '../../../admin/api/photo'
+import AddPhotoPopover from './AddPhotoPopover'
 import { getApiErrorMessage } from '../../../admin/utils/errors'
 import {
   compareDateTimeLocalValue,
@@ -112,8 +112,6 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
   const [form_busy, setFormBusy] = useState(false)
   const [form_error, setFormError] = useState('')
   const [saved_note, setSavedNote] = useState('')
-  const [sort_busy, setSortBusy] = useState(false)
-  const [sort_error, setSortError] = useState('')
   const [delete_open, setDeleteOpen] = useState(false)
   const [delete_busy, setDeleteBusy] = useState(false)
   const [vote_view, setVoteView] = useState<VoteView>('summary')
@@ -157,6 +155,8 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
     () => members.filter(member => !submitted_ids.has(Number(member.id))),
     [members, submitted_ids],
   )
+  const submitted = total - non_submitters.length
+  const vote_count = gallery.vote_records.length
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm(current => ({ ...current, [key]: value }))
@@ -218,22 +218,6 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
       setFormError(getApiErrorMessage(err, '保存相册失败'))
     } finally {
       setFormBusy(false)
-    }
-  }
-
-  const handleSort = async () => {
-    if (sort_busy) {
-      return
-    }
-    setSortBusy(true)
-    setSortError('')
-    try {
-      await sortPhotosByVoteCount(gallery.id)
-      await onChanged()
-    } catch (err) {
-      setSortError(getApiErrorMessage(err, '按票数排序失败'))
-    } finally {
-      setSortBusy(false)
     }
   }
 
@@ -384,9 +368,17 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
                 </div>
               )}
             />
-            <button type='submit' className={styles.primaryButton} disabled={form_busy || delete_busy}>
-              {form_busy ? '保存中…' : '保存相册'}
-            </button>
+            <div className={styles.formActionsRight}>
+              <AddPhotoPopover
+                gallery_id={Number(gallery.id)}
+                members={members}
+                submitted_member_ids={submitted_ids}
+                onChanged={onChanged}
+              />
+              <button type='submit' className={styles.primaryButton} disabled={form_busy || delete_busy}>
+                {form_busy ? '保存中…' : '保存相册'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -409,41 +401,25 @@ export default function GalleryManagePanel({ gallery, members, member_history, o
               </div>
             </div>
 
-            {sort_error !== '' && <div className={styles.error} role='alert'>{sort_error}</div>}
+            <div
+              className={styles.voteRatioCard}
+              aria-label={`参与投稿的人数：已投稿 ${submitted} 人；投票计数：${vote_count} 票`}
+            >
+              <div className={styles.voteBreakdown} aria-hidden='true'>
+                <div className={styles.voteBreakdownCell}>
+                  <span className={styles.voteRatioTitle}>参与投稿的人数</span>
+                  <span className={styles.voteRatioValue}>{submitted}</span>
+                  <span className={styles.voteRatioLabel}>已投稿</span>
+                </div>
+                <div className={styles.voteBreakdownCell}>
+                  <span className={styles.voteRatioTitle}>投票计数</span>
+                  <span className={styles.voteRatioValue}>{vote_count}</span>
+                  <span className={styles.voteRatioLabel}>总票数</span>
+                </div>
+              </div>
+            </div>
 
             <div className={styles.voteActions}>
-              <Popover
-                label='确认按票数排序'
-                trigger={(
-                  <button
-                    type='button'
-                    className={styles.secondaryButton}
-                    disabled={sort_busy}
-                  >
-                    {sort_busy ? '排序中…' : '按票数排序'}
-                  </button>
-                )}
-                content={(close) => (
-                  <div className={styles.sortConfirm}>
-                    <div className={styles.sortConfirmText}>确定要按当前票数重新排列相片吗？</div>
-                    <div className={styles.sortConfirmActions}>
-                      <button type='button' className={styles.secondaryButton} onClick={close}>
-                        取消
-                      </button>
-                      <button
-                        type='button'
-                        className={styles.primaryButton}
-                        onClick={() => {
-                          close()
-                          void handleSort()
-                        }}
-                      >
-                        开始排序
-                      </button>
-                    </div>
-                  </div>
-                )}
-              />
               <button
                 type='button'
                 className={styles.secondaryButton}

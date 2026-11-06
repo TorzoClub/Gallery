@@ -1,0 +1,872 @@
+/*
+ * 名单簿：线圈本。
+ *
+ * 三种布局与 AdminConsole.module.css 的断点一致，由 .notebook[data-layout] 区分：
+ *   S  ≤ 640px   本子高 600px；名单 1 列 × 8 行；成员页上下排（表单 / 拼贴卡），每卡 2 张，续页 2 卡
+ *   M  641–1439  本子高 448px；名单 2 列 × 6 行；成员页左右排（表单 260px | 拼贴卡），每卡 3 张，续页 1 卡
+ *   L  ≥ 1440px  本子撑满侧栏高度；名单 2 列 × 按高度算行数；成员页上下排，每卡 3 张，续页卡数按高度算
+ *
+ * 名单行数 = floor((本子高度 − 122) / 54)，122 与 54 写在 MemberNotebook.tsx 的
+ * LIST_CHROME_PX / ROW_PX 里，改这里的尺寸时必须同步：
+ *   纸面距本子上沿 10 + 线圈留白 18 + 页眉 46 + 翻页条 40 + 下沿 8 = 122
+ * 续页卡数 = floor((本子高度 − 136 + 12) / (卡高 + 12))，136 = 122 + 正文上内边距 14（续页没有小标题），
+ * 卡高 / 卡间距写在 CARD_PX / CARD_GAP_PX 里，与 .card / .cardRows 同步。
+ *
+ * 翻页（叙事动效）：纸页绕上沿的线圈翻起，0 → 90° 用 280ms，之后 90° → 100° 并在 160ms 内淡出，共 440ms。
+ * 往回翻是同一段动画倒放。减少动态效果时直接换页。
+ */
+
+$sheet-top: 10px;
+$coil-pad: 18px;
+$head-h: 46px;
+$pager-h: 40px;
+$row-h: 54px;
+$margin-x: 44px;
+$icon-button-w: 24px; /* 页眉图标按钮（放大镜、X、‹、+）的宽度 */
+
+/* ============================== 本子 ============================== */
+
+.notebook {
+  /* 手写体：先用 macOS 的手札体 / 翩翩体，再退到各系统的楷体，最后是西文手写体 */
+  --hand: 'Hannotate SC', 'HanziPen SC', 'Kaiti SC', STKaiti, KaiTi, 'BiauKai', 'AR PL UKai CN', 'Segoe Print', 'Bradley Hand', cursive;
+  /* 与 AdminConsole 的同名变量同值：公开页（/behind、/member）没有控制台外壳，本子自己带上 */
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --font: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --accent: #e8571f;
+
+  font-family: var(--font);
+  color: #374151;
+
+  position: relative;
+  height: 600px;
+  user-select: none;
+}
+
+/*
+ * 不提升合成层的话，iOS Safari 会因为 <BehindPhotoStack /> 的相片下落而闪烁。
+ * 只在 iOS / iPadOS 上提升：桌面端提升层可能让本子里的文字取到亚像素模糊。
+ * -webkit-touch-callout 是 iOS / iPadOS 独占的属性，桌面浏览器不支持，可当作判定条件。
+ * 写成 translateZ(0) 而不是 translate3d(0, 0, 0)：压缩后者的构建会把 z=0 化简成 translate(0, 0)，
+ * 2D 位移不会提升层，闪烁照旧。
+ */
+@supports (-webkit-touch-callout: none) {
+  .notebook {
+    transform: translateZ(0);
+  }
+}
+
+.notebook[data-layout='M'] {
+  height: 448px;
+}
+
+.notebook[data-layout='L'] {
+  height: 100%;
+}
+
+/* 底下还压着的几张纸 + 一点投影 */
+.backing {
+  position: absolute;
+  top: $sheet-top;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: #f6f3ea;
+  border: 1px solid #d3cdbd;
+  border-radius: 2px 2px 6px 6px;
+  box-shadow:
+    0 3px 0 -1px #f8f6ef,
+    0 3px 0 0 #cbc5b5,
+    0 6px 0 -2px #f2eee4,
+    0 6px 0 -1px #bdb6a4,
+    0 10px 14px -6px rgb(0 0 0 / 0.35);
+}
+
+/* 线圈：盖在所有纸页上面，纸页翻起时从它下面转过去 */
+.spiral {
+  position: absolute;
+  top: 0;
+  right: 12px;
+  left: 12px;
+  z-index: 3;
+  height: 26px;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='26'%3E%3Cdefs%3E%3ClinearGradient id='m' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%23676c71'/%3E%3Cstop offset='.5' stop-color='%23f6f8f9'/%3E%3Cstop offset='1' stop-color='%23787d82'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='6.5' y='1.5' width='5' height='19' rx='2.5' fill='url(%23m)' stroke='%234f5459' stroke-width='.7'/%3E%3C/svg%3E") 0 0 / 18px 26px space no-repeat;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.3));
+}
+
+/* ============================== 翻页叠层 ============================== */
+
+.flipStack {
+  position: relative;
+  perspective: 1600px;
+  perspective-origin: 50% 100%;
+}
+
+.pages {
+  position: absolute;
+  top: $sheet-top;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.sheet {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  transform-origin: 50% 0;
+}
+
+.under {
+  z-index: 0;
+}
+
+.flipAway {
+  z-index: 2;
+  pointer-events: none;
+  animation: notebook-flip 440ms both;
+}
+
+.flipBack {
+  z-index: 2;
+  pointer-events: none;
+  animation: notebook-flip 440ms reverse both;
+}
+
+/* 纸页背面：rotateX 过了 90° 看到的是纸的背面，要是一张空白的纸，不能透出（倒过来的）正面内容。
+ * 盖一层与纸同色的空白层，翻到 90°（63.6%）那一帧瞬间显示，前半段完全不显示；
+ * .flipBack 是倒放，同一个关键帧倒过来正好是“从背面转回 90° 时撤掉”。
+ * 线圈孔（::before）在空白层上面，背面也看得到孔 */
+.flipAway::after,
+.flipBack::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 5; /* 高过纸面内容里的纸胶带、聚焦的选单（z-index 1） */
+  background: #fffef9;
+  border-radius: inherit;
+  opacity: 0;
+  animation: notebook-flip-backside 440ms step-end both;
+}
+
+.flipBack::after {
+  animation-direction: reverse;
+}
+
+.pages > .flipAway::before,
+.pages > .flipBack::before {
+  z-index: 6;
+}
+
+@keyframes notebook-flip-backside {
+  0%,
+  63.6% {
+    opacity: 0;
+  }
+  63.7%,
+  100% {
+    opacity: 1;
+  }
+}
+
+/* 280 / 440 = 63.6% */
+@keyframes notebook-flip {
+  0% {
+    transform: rotateX(0deg);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.45, 0, 0.9, 0.6);
+  }
+  63.6% {
+    transform: rotateX(90deg);
+    opacity: 1;
+    animation-timing-function: linear;
+  }
+  100% {
+    transform: rotateX(100deg);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flipAway,
+  .flipBack,
+  .tearAway,
+  .flipAway::after,
+  .flipBack::after {
+    animation: none;
+  }
+}
+
+/* 撕下一页（删除成员）：620ms。
+ * 0 → 40%（250ms）纸被往下拽，右边先从线圈孔里断开（绕左上角转 4°，下移 14px），撕纸声的“咔嚓”颗粒在这段里；
+ * 40% → 100%（370ms）整张纸被扯下、往右下掉并淡出，对上那声“嘶啦”。
+ * 纸的上沿用遮罩剪成锯齿，像从孔眼处撕开的毛边。 */
+.tearAway {
+  z-index: 2;
+  pointer-events: none;
+  transform-origin: 0 0;
+  animation: notebook-tear 620ms both;
+  mask:
+    linear-gradient(#000, #000) 0 6px / 100% 100% no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 6L2.5 1L5 4L7.5 0L10 6Z'/%3E%3C/svg%3E") 0 0 / 10px 6px repeat-x;
+}
+
+@keyframes notebook-tear {
+  0% {
+    transform: none;
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1);
+  }
+  40% {
+    transform: translate(3px, 14px) rotate(4deg);
+    opacity: 1;
+    animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.5);
+  }
+  100% {
+    transform: translate(70px, 75%) rotate(17deg);
+    opacity: 0;
+  }
+}
+
+/* ============================== 纸页 ============================== */
+
+/* 横线每 27px 一条（名单行高 54 的一半），与名单区顶边对齐；左边一条红色页边线。
+ * 页边线从页眉的红色双线下沿开始画：线圈留白（$coil-pad）那一段不画，否则纸的左上角会冒出一截小竖线 */
+.pages > .sheet {
+  box-sizing: border-box;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, transparent #{$margin-x - 1px}, #e9aaa5 #{$margin-x - 1px} $margin-x, transparent $margin-x) 0 #{$coil-pad + $head-h} / 100% 100% no-repeat,
+    repeating-linear-gradient(180deg, transparent 0 26px, #d4e0ec 26px 27px) 0 #{($coil-pad + $head-h) - 27px} / 100% 27px,
+    #fffef9;
+  border: 1px solid #d6d0c0;
+  border-radius: 2px 2px 6px 6px;
+}
+
+/* 线圈穿过的孔：与 .spiral 同宽、同一块 18px 的格子，所以孔和线圈一一对上 */
+.pages > .sheet::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 11px;
+  left: 11px;
+  height: 10px;
+  background: radial-gradient(circle at 9px 5px, #4d5256 0 3px, #8b8f92 3.4px, transparent 3.9px) 0 0 / 18px 10px space no-repeat;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 100%;
+  padding-top: $coil-pad;
+}
+
+.pageHead {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-sizing: border-box;
+  height: $head-h;
+  padding: 0 14px 0 0;
+  background: #fffef9;
+  border-bottom: 3px double #c0504a; /* 账本式红色双线 */
+}
+
+.headLead {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* 页眉最左边的小按钮放在页边线左侧那一列（宽 = 页边线位置），与名单的序号同列居中；
+ * 后面的标题因此从 44 + 12 = 56px 开始，与名单的头像左缘对齐 */
+/* 名单页右上角“+”到纸右边的留白 = 放大镜到纸左边的留白：
+ * 放大镜在 $margin-x 宽的左列里居中，左侧留白 = ($margin-x - 图标按钮宽) / 2 = 10px */
+.listHead {
+  padding-right: calc((#{$margin-x} - #{$icon-button-w}) / 2);
+}
+
+.marginSlot {
+  display: flex;
+  flex: 0 0 $margin-x;
+  justify-content: center;
+}
+
+.bookTitle {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 窄屏页眉放不下“名单簿（共 XX 人）”+ 排序 + 新增：标题收紧字距，仍放不下时省略号 */
+.notebook[data-layout='S'] .bookTitle {
+  letter-spacing: 0.02em;
+}
+
+.notebook[data-layout='S'] .headActions {
+  gap: 6px;
+}
+
+.headActions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.headButton,
+.backButton {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  font: 700 11px var(--font);
+  letter-spacing: 0.04em;
+  color: #3f4a55;
+  white-space: nowrap;
+  cursor: pointer;
+  background: linear-gradient(#fffef7, #e6e2d6);
+  border: 1px solid #9ba3a7;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(0 0 0 / 0.16);
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: $icon-button-w;
+  height: 22px;
+  padding: 0;
+}
+
+/* 搜索框：写在页眉横线上的一行字 */
+.searchInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 220px;
+  height: 26px;
+  box-sizing: border-box;
+  padding: 0 4px;
+  font: 400 16px/26px var(--hand);
+  color: #1f3a66;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid #c9c2ae;
+  border-radius: 0;
+  outline: none;
+  appearance: none;
+}
+
+.searchInput::placeholder {
+  color: #aaa08a;
+}
+
+.searchInput:focus-visible {
+  background: rgb(255 236 170 / 0.45);
+  border-bottom-color: var(--accent);
+}
+
+.searchInput::-webkit-search-cancel-button {
+  display: none;
+}
+
+/* 名单排序：字体字号跟页眉按钮一致 */
+.sortSelect {
+  font: 700 11px var(--font);
+  letter-spacing: 0.04em;
+}
+
+.headButton:hover,
+.backButton:hover {
+  background: linear-gradient(#fffdf0, #ece7d7);
+}
+
+/* 页眉里的提交按钮：尺寸同“名单簿”，配色同表单主按钮 */
+.saveButton {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  font: 700 11px var(--font);
+  letter-spacing: 0.04em;
+  color: #fffdf7;
+  white-space: nowrap;
+  cursor: pointer;
+  background: linear-gradient(#f17b4d, #d95625);
+  border: 1px solid #9a4a2d;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 1px 2px rgb(0 0 0 / 0.25);
+}
+
+/* 删除：与“保存修改”同尺寸，醒目的红色 */
+.deleteButton {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  font: 700 11px var(--font, 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif);
+  letter-spacing: 0.04em;
+  color: #fff;
+  white-space: nowrap;
+  cursor: pointer;
+  background: linear-gradient(#e2504a, #b8231f);
+  border: 1px solid #861a17;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3), 0 1px 2px rgb(0 0 0 / 0.25);
+}
+
+.deleteButton:hover {
+  background: linear-gradient(#e85a53, #c22a25);
+}
+
+.deleteButton:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.deleteButton:focus-visible {
+  outline: 2px solid #b8231f;
+  outline-offset: 2px;
+}
+
+/* 删除确认弹层（Popover 挂在 body 上，拿不到 .notebook 上的变量，字体写全） */
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 230px;
+  max-width: 280px;
+  font: 400 12px 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: #374151;
+}
+
+.confirmText,
+.confirmError {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.confirmError {
+  color: #8c2828;
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.confirmActions .headButton,
+.confirmActions .deleteButton {
+  font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.saveButton:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.saveButton:focus-visible,
+.headButton:focus-visible,
+.backButton:focus-visible,
+.pagerButton:focus-visible,
+.printRetry:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ============================== 翻页条 ============================== */
+
+.pager {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  box-sizing: border-box;
+  height: $pager-h;
+  margin-bottom: 8px;
+}
+
+.pagerButton {
+  padding: 4px 8px;
+  font: 700 12px var(--font);
+  color: #3f4a55;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.pagerButton:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.pagerNum {
+  min-width: 48px;
+  font: 600 12px var(--mono);
+  color: #7d7563;
+  text-align: center;
+}
+
+/* ============================== 名单页 ============================== */
+
+.listArea {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.empty {
+  height: $row-h;
+  padding-left: #{$margin-x + 12px};
+  font: 400 16px/#{$row-h} var(--hand);
+  color: #6b7a92;
+}
+
+.memberList {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+  grid-auto-rows: $row-h;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.memberCell {
+  min-width: 0;
+}
+
+/* 两列时，第二列与第一列之间一条淡红竖线 */
+.notebook:not([data-layout='S']) .memberCell:nth-child(even) {
+  border-left: 1px solid #f0d5d2;
+}
+
+.member {
+  display: grid;
+  grid-template-columns: $margin-x 36px minmax(0, 1fr);
+  column-gap: 12px;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: $row-h;
+  padding: 0 14px 0 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.member:hover {
+  background: rgb(255 236 170 / 0.35);
+}
+
+.member:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* 序号写在页边线左侧 */
+.no {
+  font: 600 11px var(--mono);
+  color: #b3aa88;
+  text-align: center;
+}
+
+/* 新建成员的角标：占在序号的位置上，一枚斜贴的小红签 */
+.noNew {
+  justify-self: center;
+  padding: 1px 4px 2px;
+  font: 700 10px/1 var(--mono);
+  letter-spacing: 0.04em;
+  color: #fffdf6;
+  text-transform: lowercase;
+  background: #d9412b;
+  border-radius: 2px;
+  box-shadow: 0 1px 1px rgb(80 20 10 / 0.35);
+  transform: rotate(-8deg);
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  font-size: 15px;
+  font-weight: 800;
+  object-fit: cover;
+  background: #ddd;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px #fffdf6, 0 0 0 3px rgb(0 0 0 / 0.2), 0 2px 3px rgb(0 0 0 / 0.3); /* 像贴上去的小相片 */
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nick {
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qq {
+  padding-top: 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font: 600 13px/16px var(--mono);
+  color: #2b4a7a;
+}
+
+.qq small {
+  font: 700 10px var(--font);
+  letter-spacing: 0.08em;
+  color: #8a93a3;
+}
+
+/* 公开页成员页的昵称：和表单输入框里的字同一个样子（MemberForm.module.scss 的 .ruled .field input），只是写死在纸上 */
+.profileValue {
+  box-sizing: border-box;
+  height: 27px;
+  padding: 0 4px 3px;
+  overflow: hidden;
+  font: 400 20px/24px var(--hand);
+  color: #1f3a66;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
+}
+
+/* ============================== 成员页 ============================== */
+
+.detailTitle {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font: 600 13px var(--mono);
+  letter-spacing: 0.02em;
+  color: #8b9097;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  outline: none;
+}
+
+/* 正文顶边正好压在一条横线上（纸面横线在 64、91、118…）。正文可能在纸内滚动，所以自己也画同一套横线和页边线，
+ * background-attachment: local 让横线跟着内容滚，表单的每一行（27 的整数倍）始终落在横线上 */
+.detailBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 14px 0 #{$margin-x + 12px};
+  overflow-y: auto;
+  user-select: text;
+  background:
+    linear-gradient(90deg, transparent #{$margin-x - 1px}, #e9aaa5 #{$margin-x - 1px} $margin-x, transparent $margin-x),
+    repeating-linear-gradient(180deg, transparent 0 26px, #d4e0ec 26px 27px),
+    #fffef9;
+  background-attachment: local;
+}
+
+.detailBody .submissions {
+  margin-top: 27px;
+}
+
+.notebook[data-layout='M'] .detailBody .submissions {
+  margin-top: 0;
+}
+
+.notebook[data-layout='M'] .detailBody {
+  flex-direction: row;
+  gap: 24px;
+}
+
+.notebook[data-layout='M'] .formColumn {
+  flex: 0 0 260px;
+}
+
+.formColumn {
+  min-width: 0;
+}
+
+/* 三级页面：只有拼贴卡，三种布局都上下排。整页都是相片，所以不让出页边线左侧的位置 */
+.printsBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 14px 14px 0;
+  overflow: hidden;
+}
+
+.submissions {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 小标题占一整行横线，字落在线上 */
+.sectionHead {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  box-sizing: border-box;
+  height: 27px;
+  padding-bottom: 2px;
+  font: 400 15px var(--hand);
+  color: #8a7f68;
+}
+
+/* ============================== 拼贴 ==============================
+ * 像收藏辑：相片直接贴在纸上，不加底卡；白边相片 + 纸胶带，下面一行手写的“来自「相册名」”。
+ * 卡高与 MemberNotebook.tsx 的 CARD_PX 一致：S 226，M / L 270；三级页面卡间距 12 = CARD_GAP_PX。
+ * 相片槽宽 = min(--slot-max, 平分卡宽)，--slot-max 按卡高留出错落和手写说明：S 160px，M / L 188px。 */
+
+.card {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  height: 226px;
+  --slot-max: 160px;
+}
+
+.notebook:not([data-layout='S']) .card {
+  height: 270px;
+  --slot-max: 188px;
+}
+
+/* 续页：排数和相片大小由 JS（printGrid）按纸面算好，余下的高度均匀分到排与排之间 */
+.cardRows {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-evenly;
+  gap: 12px;
+  min-height: 0;
+}
+
+.cardEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--hand);
+  font-size: 15px;
+  color: #6b7a92;
+}
+
+.collage {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 10px;
+  box-sizing: border-box;
+  height: 100%;
+  padding-top: 14px;
+}
+
+.printSlot {
+  flex: 0 0 auto;
+  width: var(--slot, min(var(--slot-max), calc((100% - 10px * (var(--slots, 3) - 1)) / var(--slots, 3))));
+  margin: 0;
+  transform: translateY(var(--drop, 0)) rotate(var(--rotate, 0deg));
+}
+
+.printBox {
+  position: relative;
+  aspect-ratio: 1;
+}
+
+.print {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  box-sizing: border-box;
+  padding: 6px;
+  background: linear-gradient(#e7e3da, #e7e3da) content-box, #fffefb;
+  box-shadow:
+    0 0 0 0.5px rgb(0 0 0 / 0.12),
+    0 1px 1px rgb(0 0 0 / 0.14),
+    0 8px 14px -8px rgb(40 30 10 / 0.4);
+  transform: translate(-50%, -50%);
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+/* 一截半透明的纸胶带 */
+.tape {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  z-index: 1;
+  width: 40%;
+  min-width: 38px;
+  height: 17px;
+  background: rgb(238 226 186 / 0.72);
+  border-right: 1px dashed rgb(160 140 90 / 0.22);
+  border-left: 1px dashed rgb(160 140 90 / 0.22);
+  transform: translateX(-50%) rotate(-3deg);
+}
+
+.openPrint {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+  appearance: none;
+}
+
+.openPrint:focus-visible {
+  outline: 2px solid #e8571f;
+  outline-offset: 2px;
+}
+
+.printRetry {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: max-content;
+  height: max-content;
+  padding: 3px 8px;
+  font: 700 11px var(--font);
+  color: #8c2828;
+  cursor: pointer;
+  background: #fff8f4;
+  border: 1px solid #b98282;
+  border-radius: 3px;
+}
+
+/* 手写说明：楷体、墨水蓝，跟着相片一起倾斜 */
+.printCaption {
+  margin-top: 8px;
+  overflow: hidden;
+  font-family: var(--hand);
+  font-size: 14px;
+  line-height: 18px;
+  letter-spacing: 0.04em;
+  color: #2f4a72;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

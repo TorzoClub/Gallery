@@ -1,3 +1,151 @@
+# Torzo Gallery 4.2.0
+
+- 发布日期：2026-11-07
+- 版本：`4.2.0`
+- Git tag：`v4.2.0`
+- 对比基准：`v4.1.1` (`c1e2dee`)
+- 对比链接：https://github.com/TorzoClub/Gallery/compare/v4.1.1...v4.2.0
+
+## 概览
+
+4.2.0 是公开页与后台的一次大版本更新：公开页完成拍立得相片卡、磁粒投票、撕胶带保存和成员频道，后台重做门禁、名单簿与控制台，并加入公开页/后台 SSE 实时同步。图片派生规则、PWA 资源和前端 HTTP 依赖也在本版本调整。
+
+没有 storage schema 变更，不需要执行 storage 迁移；没有新增必需环境变量。新增的 SSE 对反向代理有 buffering 配置要求，见“接口、配置与升级”。
+
+## 公开页
+
+- `PhotoBox` 更名为 `PhotoCard`：斜贴拍立得、纸胶带、按相片 id 生成的轻微错落和倾角。
+- 瀑布流相片按数据变化贴上和撕下；新投稿从最矮一列顶部落下、压平并补上纸胶带。
+- 公开页投票改为磁粒：
+  - 点相片右下角的磁粒位，托盘里的磁粒沿抛物线飞上去
+  - 收回时由 🤏 捏回托盘
+  - 落纸时播放 `ta～` 音效
+  - 托盘显示剩余磁粒，支持投票上限和不限票数
+- 撕纸胶带保存原图：
+  - 撕开胶带后弹出系统“存储为”对话框
+  - 点“存储”播放扫描、揭起复印件、复印件掉落的动画，原件保留
+  - 点“取消”播放纸胶带贴回动画
+  - 有磁粒时磁粒使用顶层 echo 保持在复印件之上
+  - Safari / Firefox 等拿不到系统保存结果时，完整动画结束后才下载
+- 提交投票后提交区域保留，持续显示“感谢你的投票”。
+- 查看大图重做：缩放/拖动/关闭手势、图片加载状态、加载失败提示与重试。
+- 横长图在卡片中竖贴；竖长卡片按比例收敛倾角，减少极端倾斜。
+- 新增只读成员笔记本 `/member/<id>`，从相片头像或昵称进入，返回 Explore。
+- 频道切换改为只隐藏不卸载，返回时保留页面状态和滚动位置；修复重复进入碎纸机等换台问题。
+
+## 成员、Behind 与 Staff
+
+- Behind 页：
+  - 品牌图改为 logo 与相片堆叠
+  - 新增 800 / 1600 双断点布局
+  - 嵌入只读名单簿
+  - System Reports 继续延迟挂载，离开时正确卸载
+- 新增 Staff 频道 `/staff`：
+  - 人类组与 AI 组分开排列
+  - 追加项目参与者留言
+  - 支持小标题、加粗和 ReactNode 落款
+  - 1601px 以上加宽留言纸
+- 后台入口从 Behind 页登录表单移到 Navigator 上的“A”按钮；原登录抽屉归档为 deprecated。
+
+## 后台
+
+- `/admin` 登录改为门禁面板：
+  - 密码输入、错误提示和解锁按钮重做
+  - 门禁蜂鸣与 token 预校验
+  - 本地 token 先经过 `/auth/check` 核对
+  - 登录密码框改为明文显示
+- 名单簿重做：
+  - 线圈本分页、成员页与投稿续页三级翻页
+  - 手写体、横线表单、页眉搜索、续页铺满
+  - 新增成员跳页与 new 角标
+  - 翻页、撕页音效
+  - 成员头像与字段在宽屏并排
+- 相片排序固化：
+  - 新增 `adminSortPhotos`，一次提交完整 `photo_ids` 顺序并批量写 `index`
+  - 移除旧的按票数排序 action `adminSortPhotosByVoteCount`
+  - 新增通用 `SortSelect`，名单簿和投票图例共用
+- 相片与投票：
+  - Admin 相片卡显示蓝色 1 票、红色 5 票的磁粒
+  - 新增投票记录查看：投票人与投票时间
+  - 支持按投稿时间/获票数在前端排序
+  - 完善成员投票统计与重投
+- 合并相册投稿与投票统计，完善相册新增照片、照片替换、描述编辑、删除和图片重建。
+- 后台控制台：
+  - 操作按钮改为 `WhitePlasticButton`
+  - 移动端面板切换改为录音机式琴键
+  - 加入机械按键音效与按压反馈
+  - 调整控制台间距、选中态和名单簿分隔线
+
+## 实时更新与连接
+
+- 新增公开页 `/events/pool` SSE：
+  - 推送 `gallery-photos` 与 `members` 分类快照
+  - 只包含公开字段，QQ 固定为 `null`
+  - 每 15 秒发送 `ping`
+- 新增 Admin `/admin/events/pool` SSE：
+  - 需要 Bearer token
+  - 推送完整 AdminPool，包含真实 QQ 与 `instance_config`
+  - 前端用 fetch 读取流，不把 token 放进 URL
+- 客户端按 item `id` 和 `updated_at` 合并，未变化对象保持原引用；完整快照中缺失的 photo/member 视为删除。
+- 服务端新增 Pool JSON raw 缓存，所有 SSE 连接共享同一份序列化结果。
+- 标签页隐藏时主动断开 SSE，回到前台重连；后台标签让出连接。
+- 使用 Web Locks 限制同 origin 最多 5 个页面，超出时进入“页面过多”线圈本说明。
+- 投稿提交期间暂缓公开页 SSE 应用，成功切到“大感谢”后再延迟合并。
+- 相片出入场改由数据变化驱动：公开页与后台共用同一套 Presence 动画。
+
+## 图片与上传
+
+- 相片缩略图和 optimized 的短边不低于 256px。
+- AVIF 每边上限 16384px；上传和重建按当前配置预计算，超限返回 400，不再生成坏图。
+- 横长图在拍立得中顺时针竖贴；竖长卡片倾角按高宽比收敛。
+- 新增 `docs/images.md`，记录后端派生尺寸、前端拍立得尺寸估算、横长图竖贴与竖长摆正。
+
+## 工程与依赖
+
+- 移除 axios，公开 dispatch 与后台 client 统一改用原生 fetch 封装的 `http` 模块：
+  - 统一超时
+  - 统一网络/超时错误映射为 `ApiError`
+  - 保留 HTTP 非 2xx 的 envelope 解析
+- 测试扩展到 31 个测试文件、210 个用例，新增 SSE、ClientPool 合并、图片尺寸、大图手势、PhotoCard 布局、HTTP 等覆盖。
+- PWA `short_name` 改为 `TORZO GΛLLERY`，manifest 主题色更新。
+
+## 接口、配置与升级
+
+- 新增 `GET /auth/check`，用于后台门禁校验本地 token。
+- 新增 `GET /events/pool` 与 `GET /admin/events/pool`。
+- Admin action `adminSortPhotosByVoteCount` 替换为 `adminSortPhotos`；外部脚本如果依赖旧 action，需要改为传完整 `photo_ids` 顺序。
+- SSE 部署要求：反向代理必须关闭响应 buffering，例如 nginx 使用 `proxy_buffering off`，并将 `proxy_read_timeout` 设为大于 15 秒。
+- storage schema 仍为 v2，不需要迁移；没有新增必需环境变量。
+- 版本号更新：
+  - `package.json` → `4.2.0`
+  - `index.html` 静态资源 query → `v=4.2.0`
+  - `resources/report-card.html` 与 ReportCard 默认 Version 行 → `v4.2.0`
+- Git tag：`v4.2.0`
+
+## 验证
+
+本版本发布前验证通过：
+
+```text
+pnpm typecheck  通过
+pnpm lint       0 errors，2 warnings
+pnpm test       31 个测试文件，210 个用例通过
+pnpm build      通过
+```
+
+说明：
+
+- lint 警告为既有组件告警，不阻塞发布。
+- 当前仍没有浏览器 UI 自动化测试；changelog 不宣称未执行的浏览器手测。
+- 服务端测试覆盖 dispatch、SSE、鉴权、storage、图片处理、投稿/投票、相册约束、静态服务和缓存。
+
+## 已知限制
+
+- storage 仍是单实例 JSON + 图片池，同一 storage 同时只允许一个进程写。
+- 图片管线仍为 SDR-only。
+- 后台和公开页共享单进程，后台代码异步加载但由同一服务提供。
+- 后台请求超时 30 秒；图片重建等长任务仍可能超过客户端超时，而服务端继续执行。
+
 # Torzo Gallery 4.1.1
 
 - 发布日期：2026-11-01

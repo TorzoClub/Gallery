@@ -1,6 +1,6 @@
 # HTTP API
 
-服务端与前端同源，默认地址 `http://localhost:7001`。除 `/upload-image`（multipart）外，业务接口都是 `POST` + JSON；图片和健康检查是 `GET`。登录流程见 [auth.md](auth.md)。
+服务端与前端同源，默认地址 `http://localhost:7001`。除 `/upload-image`（multipart）外，业务接口都是 `POST` + JSON；图片、健康检查和 SSE 推送是 `GET`。登录流程见 [auth.md](auth.md)。
 
 ## 响应格式
 
@@ -32,6 +32,7 @@
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | `POST` | `/auth/login` | 后台登录，返回 JWT |
+| `GET` | `/auth/check` | 校验 Bearer token，通过返回 `{ ok: true }`，不返回后台数据；过期 401，无效 403 |
 | `POST` | `/query/:name` | 公开 query |
 | `POST` | `/mutate/:name` | 公开 mutation |
 | `POST` | `/admin/query/:name` | admin query，需要 Bearer token |
@@ -41,6 +42,8 @@
 | `GET` | `/images/optimized/:file` | 全尺寸 SDR AVIF；始终返回 image/avif |
 | `GET` | `/images/thumb/:file` | SDR 缩略图；始终返回 image/avif |
 | `GET` | `/healthz` | 健康检查 |
+| `GET` | `/events/pool` | 公开页 SSE：照片、成员分类更新 |
+| `GET` | `/admin/events/pool` | Admin SSE：完整 AdminPool 更新，需要 Bearer token |
 
 `/admin/*` 的 query/mutation 需要 `Authorization: Bearer <token>`。公开路由调用 admin action 返回 `403`。
 
@@ -94,9 +97,67 @@
 - `members` 保留完整成员列表，但每个 `ClientMember.qq_num` 固定为 `null`。
 - `submissions` 统计全部相片；`votes` 统计非活动 Gallery 的投票数。
 - `app_startup_time` 是服务端程序启动时间（epoch ms）。
-- `version_time` 是本次 ClientPool 生成时间（epoch ms），用于 SSE/异步响应防旧数据覆盖。
+- `version_time` 是本次 ClientPool 生成时间（epoch ms），仅作为快照元数据；SSE 不使用它判断新旧，而是按 item 的 `updated_at` 合并。
 - `build_date` / `git_hash` 在 dev 下为 `N/A`，`pnpm build` / `pnpm start` 构建时注入。
 - ClientPool 不返回成员 QQ；头像文件名使用 member id，不包含 QQ。
+
+
+## SSE
+
+服务端提供两条互不相同的 SSE 长连接。SSE 使用 `GET`，不计入普通 query/mutation。
+
+### 公开页 `/events/pool`
+
+公开连接建立后立即收到两条当前分类快照：
+
+```text
+event: gallery-photos
+data: {"galleries":[{"id":1,"in_event":true,"photos":[...]}]}
+
+event: members
+data: {"members":[...]}
+```
+
+- `gallery-photos` 包含所有 Gallery 的 `photos` 和 `in_event`
+- `members` 包含当前 `ClientPool.members`
+- 两类数据都只包含公开字段；`members[].qq_num` 固定为 `null`
+- 不包含 `vote_records`、Gallery 元数据、AdminPool 或 `instance_config`
+- Pool 更新后，只有序列化字符串发生变化的分类会推送
+- 每 15 秒发送 `ping`
+- 事件没有 `version_time` 新旧语义
+
+客户端合并规则：
+
+- 按 item `id` 匹配
+- incoming `updated_at` 更新时才覆盖
+- 完整分类快照中不存在的 photo/member 视为删除
+- 未变化的 photo/member/Gallery 对象保持原引用，避免瀑布流重建
+
+### Admin `/admin/events/pool`
+
+```http
+GET /admin/events/pool
+Authorization: Bearer <token>
+Accept: text/event-stream
+```
+
+连接后立即收到完整 AdminPool，之后每次 Pool 或 instance_config 更新都会收到完整快照：
+
+```text
+event: admin-pool
+data: <完整 AdminPoolDTO>
+```
+
+Admin SSE 包含真实 QQ 和 `instance_config`，只能通过带 Bearer token 的请求读取。Admin 前端用 `fetch` 读取流，不使用 EventSource，避免把 token 放进 URL。
+
+### 缓存与重连
+
+- 服务端在 Pool 更新后生成一次公开 photos/members 和完整 AdminPool 的 JSON raw 缓存
+- 所有 SSE 客户端共享同一份 JSON 字符串，不会为每个连接重复序列化 Pool
+- Gallery 时间窗口跨越 event_start/event_end 时，服务端会重建缓存并推送时间相关快照
+- 公开页和 Admin 标签页切到后台时主动关闭 SSE 连接，回到前台再重连；避免后台标签各占一条 HTTP/1.1 连接，触发浏览器同 origin 的 6 连接上限
+- 客户端断线自动重连；重连后立即收到当前快照
+- 反向代理必须关闭 SSE buffering，见 [configure.md](configure.md)
 
 ### 公开 DTO 与 QQ
 
@@ -135,7 +196,8 @@ payload: { "qq_num": 123456 }
 
 - `/` 重定向到 `/explore`。
 - `/explore` 是公开相册页。
-- `/behind` 是同级 About 页面，不再作为 `/` 的 fixed 子页面。
+- `/behind` 是同级 About 页面，不再作为 `/` 的 fixed 子页面；其中的只读名单簿只用 ClientPool。
+- `/member/<id>` 是单独的只读成员笔记本，只用 ClientPool，没有对应的新接口；不返回 QQ 号。
 - `/admin` 是所见即所得后台。
 
 ## AdminPool
@@ -209,8 +271,8 @@ payload: {}
 | `adminCreatePhoto` | `{ gallery_id, member_id, desc, index?, temp_id }` | 创建相片 |
 | `adminUpdatePhoto` | `{ photo_id, gallery_id?, member_id?, desc?, index?, temp_id? }` | 更新相片 |
 | `adminRemovePhoto` | `{ photo_id }` | 删除相片 |
-| `adminSortPhotosByVoteCount` | `{ gallery_id }` | 按票数排序 |
-| `adminRefreshThumb` | `{ photo_id }` | 重建 SDR optimized 和缩略图 |
+| `adminSortPhotos` | `{ gallery_id, photo_ids }` | 一次性重排整个相册：`photo_ids[i]` 的 `index` 写成 `i`，公开页按 `index` 升序展示。`photo_ids` 必须恰好是该相册的全部相片，缺漏或重复返回 `400`，含其他相册的相片返回 `404`，整体拒绝、不改任何一张；`index` 未变的相片不刷新 `updated_at`。返回更新后的相册 |
+| `adminRefreshThumb` | `{ photo_id }` | 重建 SDR optimized 和缩略图；按当前配置生成的图超过 AVIF 每边 16384px 时返回 400 |
 | `adminRefreshAvatar` | `{ member_id }` | 重建头像缩略图 |
 
 日期字段使用 ISO 8601，例如 `2026-10-01T00:00:00.000Z`。
@@ -277,6 +339,7 @@ right.event_start <= left.event_end
 限制：
 
 - 文件大小不能超过当前 instance 配置的 `max_upload_bytes`，也不能超过进程的 `HTTP_BODY_HARD_LIMIT_BYTES`。
+- 图片不能太长：按当前配置生成的相片缩略图、相片 optimized、头像缩略图，任何一边超过 16384px（AVIF 上限）就返回 400 “图片太长了……”。规则见 [configure.md](configure.md)“过长图片在上传时拒绝”。
 - 无法解析的图片返回 `BAD_REQUEST`。
 - 临时文件由服务端在启动和清理流程中回收。
 
@@ -369,6 +432,9 @@ curl -X POST http://localhost:7001/query/listGalleries \
 curl -X POST http://localhost:7001/auth/login \
   -H 'content-type: application/json' \
   -d '{"password":"your-password"}'
+
+curl http://localhost:7001/auth/check \
+  -H "authorization: Bearer $TOKEN"
 
 curl -X POST http://localhost:7001/admin/query/adminFetchPool \
   -H 'content-type: application/json' \

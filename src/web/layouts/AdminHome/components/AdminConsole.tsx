@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { cn } from '@/utils/cn'
-import { playMechanicalKeyReleaseSound, playMechanicalKeySound } from '@/utils/mechanical-key-audio'
+import { playCoverPopSound, playFireButtonSound, playMechanicalKeyReleaseSound, playMechanicalKeySound } from '@/utils/mechanical-key-audio'
 import { LedIndicator } from './LedIndicator';
 import SegmentLCDProgress from './SegmentLCDProgress';
-import MemberPopover from './MemberPopover';
+import { MemberNotebook } from './MemberNotebook';
 import styles from './AdminConsole.module.css';
 
 /* ============================== 类型 ============================== */
@@ -31,10 +31,14 @@ export interface Member {
   nickname: string;
   qq: string;
   avatarUrl?: string;
+  /** 以下三项给名单簿排序用；没有时按 0 / 空串处理 */
+  createdAt?: string;
+  photoCount?: number;
+  voteCount?: number;
 }
 
 export interface RebuildReporter {
-  /** 汇报进度：已处理数量 / 总数量。数码管显示的是“剩余项目” = total - done */
+  /** 汇报进度：已处理数量 / 总数量。数码管显示的是“剩余项目” = total - done。开始前先报一次 (0, total)，数码管会立即显示总数 */
   progress: (done: number, total: number) => void;
   /** 打印一行错误。只有出错时才会调用 */
   error: (message: string) => void;
@@ -42,12 +46,26 @@ export interface RebuildReporter {
 
 export type MemberCanDelete = (member: Member) => boolean;
 
+/** 成员的一张投稿，名单簿成员页里的拼贴用 */
+export interface MemberSubmission {
+  id: number;
+  thumbUrl: string;
+  /** optimized 全尺寸图，点开大图时用 */
+  srcUrl: string;
+  width: number;
+  height: number;
+  desc: string;
+  galleryName: string;
+}
+
 export interface AdminConsoleProps {
   stats: AdminStats;
   settings: AdminSettings;
   onSettingsChange: (next: AdminSettings) => void;
   members: Member[];
   memberCanDelete?(member: Member): boolean;
+  /** 成员过去的全部投稿，从新到旧 */
+  memberSubmissions?(member: Member): MemberSubmission[];
   onMembersChanged?(): void | Promise<void>;
   /** 抛出异常会被当作致命错误打印 */
   onRebuild?: (reporter: RebuildReporter) => Promise<void>;
@@ -262,6 +280,8 @@ const MAX_LINES = 60;
 function LaunchSwitch({ armed, running, onToggleCover, onFire }: {
   armed: boolean; running: boolean; onToggleCover: () => void; onFire: () => void;
 }) {
+  // 指针按下的那一刻就出声；键盘触发没有 pointerdown，在 click 时补一声
+  const pressSounded = useRef(false);
   return (
     <div className={styles.launch}>
       <div className={styles.housing}>
@@ -282,7 +302,16 @@ function LaunchSwitch({ armed, running, onToggleCover, onFire }: {
               disabled={!armed || running}
               tabIndex={armed ? 0 : -1}
               aria-label="开始重建缩略图"
-              onClick={onFire}
+              onPointerDown={(e) => {
+                if (e.button !== 0) return;
+                pressSounded.current = true;
+                playFireButtonSound();
+              }}
+              onClick={() => {
+                if (!pressSounded.current) playFireButtonSound();
+                pressSounded.current = false;
+                onFire();
+              }}
             />
           </div>
           <div className={styles.hingeBar} />
@@ -300,17 +329,15 @@ function LaunchSwitch({ armed, running, onToggleCover, onFire }: {
   );
 }
 
-/** 热敏纸：最新一行贴着槽口，旧的往下排；每一节都比上一节再向外弯一点（见 CSS 的 .seg） */
+/** 热敏纸：一条平的纸从槽口直接伸出来。最新一行贴着槽口，旧的往下排 */
 const PAPER_LINES = 14;
 
 function Paper({ lines }: { lines: LogLine[] }) {
   const shown = [...lines].reverse().slice(0, PAPER_LINES);
   const newestId = shown[0]?.id;
-  const render = (i: number): ReactNode => {
-    const l = shown[i];
-    if (!l) return null;
-    return (
-      <div className={styles.seg}>
+  return (
+    <div className={styles.paper} role="log" aria-live="polite">
+      {shown.map((l, i) => (
         <p
           key={l.id}
           className={cn(
@@ -324,13 +351,7 @@ function Paper({ lines }: { lines: LogLine[] }) {
             <span className={styles.lineText}>{l.time} {l.text}</span>
           </span>
         </p>
-        {render(i + 1)}
-      </div>
-    );
-  };
-  return (
-    <div className={styles.paper} role="log" aria-live="polite">
-      {render(0)}
+      ))}
     </div>
   );
 }
@@ -369,7 +390,10 @@ function RebuildPanel({ onRebuild, note }: { onRebuild?: AdminConsoleProps['onRe
   return (
     <div className={styles.rebuild}>
       <div className={styles.rebuildTop}>
-        <LaunchSwitch armed={armed} running={phase === 'running'} onToggleCover={() => setArmed((a) => !a)} onFire={fire} />
+        <LaunchSwitch armed={armed} running={phase === 'running'} onToggleCover={() => {
+          if (!armed) playCoverPopSound();
+          setArmed(!armed);
+        }} onFire={fire} />
         <div className={styles.side}>
           <div className={styles.note}>
             {['TL', 'BR'].map((k) => (
@@ -424,8 +448,8 @@ function RebuildPanel({ onRebuild, note }: { onRebuild?: AdminConsoleProps['onRe
 
 /* ============================== 面板 D：名单簿 ============================== */
 
-function MemberPanel({ members, onMembersChanged, memberCanDelete }: { members: Member[]; onMembersChanged?: () => void | Promise<void>; memberCanDelete?: MemberCanDelete }) {
-  // 仅大屏生效：默认收起，点击标题条展开。小屏由单选按钮切换，这里的状态被 CSS 忽略
+function MemberPanel({ members, onMembersChanged, memberCanDelete, memberSubmissions }: { members: Member[]; onMembersChanged?: () => void | Promise<void>; memberCanDelete?: MemberCanDelete; memberSubmissions?: (member: Member) => MemberSubmission[] }) {
+  // 仅 641–1439px 生效：默认收起，点击标题条展开。小屏由单选按钮切换，≥1440px 是常驻侧栏，这里的状态被 CSS 忽略
   const [open, setOpen] = useState(false);
   return (
     <div className={cn(open && styles.memberOpen)}>
@@ -440,55 +464,12 @@ function MemberPanel({ members, onMembersChanged, memberCanDelete }: { members: 
         <span className={styles.bookCount}>共 {members.length} 人</span>
       </button>
       <div id="member-body" className={styles.memberBody}>
-        <div className={styles.book}>
-          <div className={styles.bookHead}>
-            <span className={styles.bookTitle}>名单簿</span>
-            <div className={styles.bookHeadActions}>
-              <span className={styles.bookCount}>共 {members.length} 人</span>
-              <MemberPopover
-                mode='create'
-                trigger={(
-                  <button type='button' className={styles.addMember}>
-                    新增成员
-                  </button>
-                )}
-                onSaved={onMembersChanged ?? (() => {})}
-              />
-            </div>
-          </div>
-          <div className={styles.bookScroll}>
-            {members.length === 0 && <div className={styles.empty}>还没有成员。</div>}
-            <div className={styles.memberList}>
-              {members.map((m) => {
-                const hue = Number(m.qq.replace(/\D/g, '')) % 360 || 0; // 没有头像时，用 QQ 号算一个稳定的底色
-                return (
-                  <MemberPopover
-                    key={m.id}
-                    mode='edit'
-                    member={m}
-                    canDelete={memberCanDelete?.(m) ?? false}
-                    trigger={(
-                      <button type='button' className={styles.member} aria-label={`修改成员 ${m.nickname}`}>
-                        {m.avatarUrl ? (
-                          <img className={styles.avatar} src={m.avatarUrl} alt="" loading="lazy" />
-                        ) : (
-                          <span className={styles.avatar} style={{ background: `hsl(${hue} 40% 82%)`, color: `hsl(${hue} 35% 28%)` }}>
-                            {m.nickname.slice(0, 1)}
-                          </span>
-                        )}
-                        <div className={styles.who}>
-                          <span className={styles.nick}>{m.nickname}</span>
-                          <span className={styles.qq}><small>QQ</small>{m.qq}</span>
-                        </div>
-                      </button>
-                    )}
-                    onSaved={onMembersChanged ?? (() => {})}
-                  />
-                );
-              })}
-            </div>
-          </div>
-        </div>
+        <MemberNotebook
+          members={members}
+          memberCanDelete={memberCanDelete}
+          memberSubmissions={memberSubmissions}
+          onMembersChanged={onMembersChanged}
+        />
       </div>
     </div>
   );
@@ -517,7 +498,7 @@ function useIsLarge() {
   return large;
 }
 
-export function AdminConsole({ stats, settings, onSettingsChange, members, memberCanDelete, onMembersChanged, onRebuild, rebuildNote }: AdminConsoleProps) {
+export function AdminConsole({ stats, settings, onSettingsChange, members, memberCanDelete, memberSubmissions, onMembersChanged, onRebuild, rebuildNote }: AdminConsoleProps) {
   const [tab, setTab] = useState<TabId>('stats');
   const [pressed_key, setPressedKey] = useState<TabId | null>(null);
   const tab_ref = useRef<TabId>('stats');
@@ -559,6 +540,7 @@ export function AdminConsole({ stats, settings, onSettingsChange, members, membe
   // 所有面板常驻挂载。小屏用 .off 隐藏，大屏全部平铺；重建进行中切走再切回来，状态不会丢
   return (
     <div className={styles.root}>
+      <div className={styles.bankRow}>
       <div className={styles.bank} role="radiogroup" aria-label="面板" onKeyDown={onKeyDown}>
         {TABS.map((t, i) => (
           <button
@@ -603,6 +585,8 @@ export function AdminConsole({ stats, settings, onSettingsChange, members, membe
           </button>
         ))}
       </div>
+      <LedIndicator className={styles.loginLed} color="green" label="登录" />
+      </div>
 
       <div className={styles.console}>
         <div className={styles.inner}>
@@ -616,9 +600,36 @@ export function AdminConsole({ stats, settings, onSettingsChange, members, membe
           <RebuildPanel onRebuild={onRebuild} note={rebuildNote} />
         </div>
         <div id="panel-members" className={cn(styles.panel, styles.pMembers, tab !== 'members' && styles.off)}>
-          <MemberPanel members={members} memberCanDelete={memberCanDelete} onMembersChanged={onMembersChanged} />
+          <MemberPanel members={members} memberCanDelete={memberCanDelete} memberSubmissions={memberSubmissions} onMembersChanged={onMembersChanged} />
         </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================== 未登录 / 读取中 ============================== */
+
+/**
+ * 登录前（和登录后、AdminPool 还没读回来时）的控制台外壳：
+ * 琴键照常摆着但一个都不按下、不可按；右侧“登录”灯未登录黄、已登录绿；
+ * 主面板里只放 children（门禁 / 读取提示），不挂任何需要后台数据的面板。
+ */
+export function AdminConsoleShell({ loggedIn, children }: { loggedIn: boolean; children: ReactNode }) {
+  return (
+    <div className={styles.root}>
+      <div className={styles.bankRow}>
+        <div className={styles.bank} role="group" aria-label="面板（登录后可用）">
+          {TABS.map((t) => (
+            <button key={t.id} type="button" className={styles.key} disabled>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <LedIndicator className={styles.loginLed} color={loggedIn ? 'green' : 'yellow'} label="登录" />
+      </div>
+      <div className={styles.console}>
+        <div className={styles.shellInner}>{children}</div>
       </div>
     </div>
   );
@@ -638,6 +649,7 @@ export function AdminConsoleDemo() {
     { id: 4, nickname: '666', qq: '10004' },
   ];
   const fakeRebuild = async (r: RebuildReporter) => {
+    r.progress(0, 20);
     for (let i = 1; i <= 20; i++) {
       await new Promise((ok) => setTimeout(ok, 120));
       r.progress(i, 20);

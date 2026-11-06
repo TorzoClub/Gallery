@@ -261,6 +261,24 @@ describe('image flow', () => {
     expect(bad_ext.status).toBe(400)
   })
 
+  it('rejects images too long for the derived AVIF files at upload', async () => {
+    const ctx = await context()
+    // 默认缩略图宽 640：700×18000 的竖条缩略图会是 640×16457，超过 16384
+    const form = new FormData()
+    form.append('file', new File([new Uint8Array(await makePng(700, 18000))], 'tall.png', { type: 'image/png' }))
+    const response = await ctx.app.request('/upload-image', { method: 'POST', body: form })
+    expect(response.status).toBe(400)
+    const body = await response.json() as any
+    expect(JSON.stringify(body)).toContain('图片太长了')
+    // 拒绝的图不留在 temp 里
+    const left = (await fs.readdir(ctx.storage.paths.temp)).filter(name => name.endsWith('.png'))
+    expect(left).toHaveLength(0)
+
+    // 改小缩略图宽之后同一张图可以上传
+    await ctx.adminMutate('adminUpdateInstanceConfig', { image_thumb_size: 256, avatar_thumb_size: 128 })
+    await expect(ctx.uploadImage(await makePng(700, 18000), 'tall.png')).resolves.toMatchObject({ width: 700, height: 18000 })
+  })
+
   it('handles photo dimensions rotated by EXIF Orientation', async () => {
     const ctx = await context()
     const member = await ctx.createMember({ qq_num: 51003 })

@@ -1,8 +1,11 @@
 import React, { useLayoutEffect, useMemo, useRef } from 'react'
 
 import styles from './index.module.scss'
+import ReportLogo from '../ReportLogo'
 
 export type ReportCardConfig = {
+  /** 整张纸在桌上的倾角（deg，正数顺时针）。0 是摆正；底下两道翘角落影跟着纸一起转 */
+  angle: number
   stamp: {
     x: number
     y: number
@@ -21,6 +24,7 @@ export type ReportCardConfig = {
 }
 
 export type ReportCardConfigInput = {
+  angle?: number
   stamp?: Partial<ReportCardConfig['stamp']>
   paper?: Partial<ReportCardConfig['paper']>
   ink?: Partial<ReportCardConfig['ink']>
@@ -38,8 +42,9 @@ export type ReportCardBuild = {
 }
 
 export const DEFAULT_REPORT_CARD_CONFIG: ReportCardConfig = {
+  angle: -1,
   stamp: {
-    x: 128,
+    x: 112,
     y: 335,
     angle: -4,
   },
@@ -56,7 +61,7 @@ export const DEFAULT_REPORT_CARD_CONFIG: ReportCardConfig = {
 }
 
 export const DEFAULT_REPORT_CARD_ROWS: readonly ReportCardRow[] = [
-  ['Version', 'v4.1.1'],
+  ['Version', 'v4.2.0'],
   ['Uptime', '4y2m1d'],
   ['Submissions', '245'],
   ['Votes', '2189'],
@@ -75,6 +80,7 @@ function clamp(value: number, min = 0, max = 1): number {
 
 function resolveConfig(input?: ReportCardConfigInput): ReportCardConfig {
   return {
+    angle: input?.angle ?? DEFAULT_REPORT_CARD_CONFIG.angle,
     stamp: { ...DEFAULT_REPORT_CARD_CONFIG.stamp, ...(input?.stamp ?? {}) },
     paper: { ...DEFAULT_REPORT_CARD_CONFIG.paper, ...(input?.paper ?? {}) },
     ink: { ...DEFAULT_REPORT_CARD_CONFIG.ink, ...(input?.ink ?? {}) },
@@ -136,6 +142,7 @@ function applyConfig(element: HTMLDivElement, config: ReportCardConfig): void {
     `<feTurbulence type='fractalNoise' baseFrequency='.035' numOctaves='3' seed='4' stitchTiles='stitch'/>` +
     holes(4, missing * 0.4)))
 
+  set('--sheet-angle', `${config.angle}deg`)
   set('--crease', String(clamp(config.creases)))
   set('--stamp-x', `${config.stamp.x}px`)
   set('--stamp-y', `${config.stamp.y}px`)
@@ -220,7 +227,7 @@ export default function ReportCard({
         </section>
 
         <div className={styles.stamp} aria-label='build info'>
-          <i className={styles.logo} />
+          <ReportLogo className={styles.logo} />
           <div>
             <div>构建日期: {build.date}</div>
             <div>githash: {build.hash}</div>

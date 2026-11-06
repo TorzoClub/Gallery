@@ -89,11 +89,11 @@ CORS_ORIGINS=http://10.0.0.5:3000
 | 字段 | 默认 | 范围 | 用途 |
 |---|---:|---:|---|
 | `avatar_thumb_size` | 128 | 16–2048 | 头像缩略图边长 |
-| `image_thumb_size` | 640 | 32–4096 | 相片缩略图边长 |
+| `image_thumb_size` | 640 | 32–4096 | 相片缩略图宽度（短边不低于 256，见下方尺寸规则） |
 | `image_thumb_quality` | 40 | 1–100 | 缩略图 AVIF 质量 |
 | `avif_source_quality` | 75 | 1–100 | 全尺寸 optimized AVIF 质量 |
 | `image_processing_effort` | 8 | 0–9 | 所有图片处理的 sharp effort |
-| `max_image_dimension` | 3840 | 256–16384 | optimized 全尺寸图最大边 |
+| `max_image_dimension` | 3840 | 256–16384 | optimized 全尺寸图最大边（短边不低于 256，见下方尺寸规则） |
 | `max_upload_bytes` | 16777216 | 1024–1GiB | 上传大小上限，且不能超过请求体硬上限 |
 
 通过新后台 `/admin` 的“运行期配置”修改，或调用：
@@ -104,6 +104,24 @@ adminUpdateInstanceConfig
 ```
 
 当前配置值从 `adminFetchPool` 返回的 `instance_config` 读取。单独的 `adminGetInstanceConfig` 读取接口已移除。
+
+### 相片缩略图与 optimized 的尺寸规则
+
+为什么这样定，以及和前端横长图竖贴的关系，见 [images.md](images.md)。
+
+实现在 `src/server/storage/image.ts` 的 `photoThumbSize()` / `photoOptimizedSize()` / `avatarThumbSize()`：
+
+- 相片缩略图：宽 = `image_thumb_size`，高等比。
+- 相片 optimized：长边 ≤ `max_image_dimension`，等比。
+- 都不放大：原图本来就更小时保持原尺寸。
+- 短边下限 256px（`MIN_DERIVED_SHORT_EDGE`）：相片的缩略图和 optimized，短边无论如何不低于 256。这条优先于上面两条，例如 6000×1000 的缩略图是 1536×256 而不是 640×107；20000×1000 的 optimized 是 5120×256，长边超过 `max_image_dimension`。原图短边本来就不到 256 时保持原尺寸。
+- 头像不参与短边下限：`avatar_thumb_size` 是头像缩略图的宽。
+
+### 过长图片在上传时拒绝
+
+sharp 输出 AVIF 时每条边最多 16384px（`AVIF_MAX_DIMENSION`），超过会报 “Processed image is too large for the HEIF format”。`/upload-image` 在读出图片尺寸后，按当前配置算出相片缩略图、相片 optimized、头像缩略图三种尺寸（上传接口不知道图片的用途），任何一边超过 16384 就返回 400 “图片太长了……请裁短后再上传”，临时文件不保留。默认配置下，大约竖向超过 1:25.6（缩略图宽 640）或横向超过 1:64（短边 256）的图会被拒绝。
+
+生成图片时（投稿、保存、后台“重新生成图片”）会按当时的配置再查一次：上传之后把 `image_thumb_size` 等调大，已有的超长相片重新生成时会得到同样的 400，不会改坏已有文件。
 
 修改只影响后续上传和 optimized/缩略图生成，不会自动重做已有图片。source 始终保留原图，不受这些图像处理配置影响。已有图片可以在后台用“重新生成图片”处理。
 
@@ -269,6 +287,8 @@ pnpm start
 - `PUBLIC_BASE_URL` 是浏览器可访问的站点 origin
 - 同一 storage 只运行一个 API 进程
 - 反向代理直接转发到 Hono，不需要单独的静态服务器
+- SSE `/events/pool` 和 `/admin/events/pool` 必须关闭响应 buffering；nginx 使用 `proxy_buffering off`，并将 `proxy_read_timeout` 设为大于 15 秒心跳间隔
+- SSE 连接不参与普通静态资源缓存
 
 Docker：
 

@@ -32,13 +32,6 @@
   text-align: center;
 }
 
-.behind-app__logo {
-  display: block;
-  width: min(300px, 78%);
-  height: auto;
-  margin: 0 auto;
-}
-
 .behind-app__title {
   margin: 28px 0 0;
   font-size: 44px;
@@ -69,242 +62,106 @@
   transform: translate3d(0, 0, 0);
 }
 
+/*
+ * 网格布局。
+ * < 800px 单列：品牌 → 名单簿 → System Reports。
+ * ≥ 800px 两行：第一行左品牌、右 System Reports，各 360px、竖向居中对齐；
+ *          第二行名单簿横跨两栏，720px，与上面两块左右边缘对齐。
+ * ≥ 1600px 一行三栏：品牌 360 | System Reports 360 | 名单簿 720，栏距 40px，三块竖向居中对齐。
+ *          360 + 40 + 360 + 40 + 720 + 左右留白 32 × 2 = 1584px，1600px 起放得下。
+ *          名单簿在公开页最宽只画中等布局（maxLayout="M"），720px 正好装下。
+ * 后台入口不在页面里，是 Navigator 上的“A”按钮。
+ */
+.behind-app__layout {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 720px);
+  grid-template-areas: "brand" "members" "report";
+  justify-content: center;
+  row-gap: 48px;
+  padding: 24px 16px 0;
+}
+
+.behind-app__brand {
+  grid-area: brand;
+}
+
+/* 公开页的名单簿（只读）。641px 起是两列名单，最宽 720px */
+.behind-app__members {
+  grid-area: members;
+  min-width: 0;
+}
+
+.behind-app__card-wrapper {
+  grid-area: report;
+  min-width: 0;
+}
+
+@media (min-width: 800px) {
+  .behind-app__layout {
+    grid-template-columns: repeat(2, minmax(0, 360px));
+    grid-template-areas:
+      "brand report"
+      "members members";
+    align-items: center;
+    column-gap: 0;
+    row-gap: 24px;
+    padding: 24px 32px 64px;
+  }
+
+  .behind-app__members {
+    align-self: start;
+  }
+
+  /*
+   * 预留 System Reports 的高度，免得卡片晚 500ms 出现时把名单簿往下推。
+   * 545px ≈ ReportCard 的自然高度：上留白 48 + 标题 94 + 表头 32.5 + 6 行 × 35 + 3 空行 × 32 + 下留白 64。
+   * 改了 ReportCard 的行数或尺寸，这里跟着改。
+   */
+  .behind-app__card-wrapper {
+    min-height: 545px;
+  }
+
+  .behind-app__report {
+    padding-top: 0;
+  }
+}
+
+@media (min-width: 1600px) {
+  .behind-app__layout {
+    grid-template-columns: 360px 360px 720px;
+    grid-template-areas: "brand report members";
+    align-items: center;
+    column-gap: 40px;
+    padding-top: 48px;
+  }
+
+  /* 名单簿竖向居中，不要沿用两行布局里的 align-self: start */
+  .behind-app__members {
+    align-self: center;
+  }
+}
+
 .behind-app__card-wrapper {
   position: relative;
-  transform: translate3d(0, 0px, 0);
-  opacity: 1;
-  transition: opacity 1s, transform 1s;
-  transition-behavior:  allow-discrete;
-}
-@starting-style {
-  .behind-app__card-wrapper {
-    opacity: 0;
-    transform: translate3d(0, -10px, 0);
-  }
 }
 
 .behind-app__report {
   padding-top: 24px;
+  transform: translate3d(0, 0px, 0);
+  opacity: 1;
+  transition: opacity 1s, transform 1s;
+  transition-behavior: allow-discrete;
+}
+@starting-style {
+  .behind-app__report {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0);
+  }
 }
 
 @keyframes behind-title-shine {
   to {
     background-position: -200% center;
   }
-}
-
-.behind-app__admin-pull-stage {
-  position: relative;
-  width: 188px;
-  height: 68px;
-  margin: 0 auto 18px;
-}
-
-.behind-app__admin-pull-hand {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  z-index: 0;
-  font-size: 44px;
-  line-height: 1;
-  pointer-events: none;
-  opacity: 0;
-  filter: drop-shadow(0 2px 1px rgb(42 52 55 / .18));
-  transform: translate(0, calc(-50% + 54px)) rotate(10deg) scale(.82);
-  transition:
-    transform 380ms cubic-bezier(.2, .75, .25, 1),
-    opacity 100ms linear;
-}
-
-.behind-app__admin-pull-stage--entering .behind-app__admin-pull-hand {
-  opacity: 1;
-}
-
-.behind-app__admin-pull-stage--moving .behind-app__admin-pull-hand,
-.behind-app__admin-pull-stage--gripped .behind-app__admin-pull-hand,
-.behind-app__admin-pull-stage--released .behind-app__admin-pull-hand {
-  opacity: 1;
-  transform: translate(-50%, calc(-50% - 13px)) rotate(-3deg) scale(1);
-}
-
-.behind-app__admin-pull-stage--released .behind-app__admin-pull-hand {
-  opacity: 0;
-}
-
-.behind-app__admin-pull {
-  position: relative;
-  z-index: 1;
-  display: block;
-  width: 188px;
-  height: 68px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: #306785;
-  cursor: pointer;
-}
-
-.behind-app__admin-pull-graphic {
-  display: block;
-  width: 188px;
-  height: 68px;
-  filter: drop-shadow(0 3px 2px rgb(42 52 55 / .22));
-}
-
-.behind-app__admin-pull:hover .behind-app__admin-pull-graphic {
-  filter: brightness(1.04) drop-shadow(0 3px 2px rgb(42 52 55 / .22));
-}
-
-.behind-app__admin-pull:active .behind-app__admin-pull-graphic {
-  transform: translateY(1px);
-}
-
-.behind-app__admin-pull:focus-visible {
-  outline: 2px solid #306785;
-  outline-offset: 4px;
-  border-radius: 4px;
-}
-
-.behind-app__admin-pull:disabled {
-  cursor: default;
-}
-
-.behind-app__admin-entry {
-  box-sizing: border-box;
-  width: calc(100% - 32px);
-  max-width: 360px;
-  /* margin: 34px auto 0; */
-  margin: 0 auto;
-  color: #3f4a55;
-  background-color: #eceef0;
-  padding: 40px 30px;
-  border-radius: 4px;
-  box-shadow:
-    inset 0 10px 10px -10px grey,
-    inset 0 0 8px -3px rgba(0, 0, 0, 0.8),
-    inset 2px 0px 0 -1px #CCC,
-    inset -2px 0px 0 -1px #CCC,
-    inset 0px -2px 0 -1px #DDD
-  ;
-}
-
-.behind-app__admin-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.behind-app__admin-rule {
-  flex: 1;
-  height: 2px;
-  background: #BBB;
-  border-bottom: solid 1px white;
-}
-
-.behind-app__admin-kicker {
-  flex: 0 0 auto;
-  color: #306785;
-  font: 700 11px/1.2 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  letter-spacing: .14em;
-  white-space: nowrap;
-  text-shadow: 0 1px 0 white;
-}
-
-.behind-app__admin-sr-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-#behind-admin-password {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 8px 10px;
-  text-align: center;
-  font: 600 16px var(--mono);
-  color: #374151;
-  background: white;
-  border: 1px solid #8d8c87;
-  border-radius: 3px;
-  box-shadow:
-  inset 0 2px 4px -2px rgba(0, 0, 0, 0.25),
-  inset 0 2px 4px -2px rgba(0, 0, 0, 0.25),
-  0 2px 0 -1px white;
-}
-
-.behind-app__admin-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 20px auto;
-
-  input {
-    box-sizing: border-box;
-    min-width: 0;
-    flex: 1;
-    height: 36px;
-    padding: 8px 10px;
-    border: 1px solid #aea79a;
-    border-radius: 3px;
-    background: #fff;
-    color: #2d3d47;
-    font: inherit;
-    font-size: 14px;
-    outline: none;
-    box-shadow: inset 0 1px 2px rgb(60 45 28 / .08);
-
-    &:focus {
-      border-color: #306785;
-      box-shadow:
-        inset 0 1px 2px rgb(60 45 28 / .08),
-        0 0 0 2px rgb(48 103 133 / .14);
-    }
-
-    &:disabled {
-      background: #f5f1e7;
-      color: #8d8172;
-      cursor: default;
-    }
-  }
-}
-
-.behind-app__admin-login-area {
-  overflow: hidden;
-  margin-top: 50px;
-}
-
-.behind-app__admin-submit {
-  flex: 0 0 auto;
-}
-
-.behind-app__admin-submit button {
-  min-height: 36px;
-}
-
-.behind-app__admin-submit button:disabled {
-  cursor: default;
-  opacity: .6;
-}
-
-.behind-app__admin-submit button:focus-visible {
-  outline: 2px solid #306785;
-  outline-offset: 2px;
-}
-
-body .behind-app__admin-error-popover {
-  min-width: 180px;
-  max-width: min(240px, calc(100vw - 16px));
-  padding: 9px 12px;
-}
-
-.behind-app__admin-error-message {
-  color: #8c2828;
-  font-size: 12px;
-  line-height: 1.4;
 }

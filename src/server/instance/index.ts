@@ -10,7 +10,7 @@ import {
 } from '../config/instance'
 import { type EnvConfig } from '../config'
 import { crc32Hex } from '../common/crc32'
-import { type Pool } from '../core/Pool'
+import type { Pool } from '../core/Pool'
 import { checkPool } from '../core/Pool-Check'
 import type { Logger } from '../logger'
 import type { Readable } from 'node:stream'
@@ -34,11 +34,24 @@ import {
   type ImagePipeline,
   type TempImage,
 } from './prepare-photo'
+import {
+  buildPoolJsonCache,
+  nextGalleryBoundary,
+  poolInEventKey,
+  type PoolEventsSnapshot,
+  type PoolJsonCache,
+} from './pool-json-cache'
 
 export type DispatchOptions = {
   admin: boolean
   now: Date
 }
+
+export type PoolUpdateEvent =
+  | { type: 'photos'; json: string }
+  | { type: 'members'; json: string }
+  | { type: 'admin'; json: string }
+  | { type: 'close' }
 
 export type Instance = {
   read(): Pool
@@ -54,6 +67,9 @@ export type Instance = {
     crc32: Promise<number>
   }): Promise<TempImage>
   readImage(kind: ImageKind, filename: string): Promise<Buffer>
+  getPoolEvents(now: Date): PoolEventsSnapshot
+  subscribePoolUpdates(listener: (event: PoolUpdateEvent) => void): () => void
+  closePoolStreams(): void
   close(): Promise<void>
 }
 
@@ -110,6 +126,77 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
     storage,
     getConfig: () => instance_config,
   })
+
+  let pool_json_cache: PoolJsonCache | null = null
+  let pool_boundary_timer: ReturnType<typeof setTimeout> | null = null
+  const pool_listeners = new Set<(event: PoolUpdateEvent) => void>()
+
+  function publishPoolEvent(event: PoolUpdateEvent): void {
+    for (const listener of pool_listeners) {
+      try {
+        listener(event)
+      } catch (error) {
+        logger.error('pool event listener failed', { error: String(error) })
+      }
+    }
+  }
+
+  function publishPoolCacheChanges(
+    before: PoolJsonCache | null,
+    after: PoolJsonCache,
+  ): void {
+    if (before === null || before.photos_json !== after.photos_json) {
+      publishPoolEvent({ type: 'photos', json: after.photos_json })
+    }
+    if (before === null || before.members_json !== after.members_json) {
+      publishPoolEvent({ type: 'members', json: after.members_json })
+    }
+    if (before === null || before.admin_pool_json !== after.admin_pool_json) {
+      publishPoolEvent({ type: 'admin', json: after.admin_pool_json })
+    }
+  }
+
+  function schedulePoolBoundary(): void {
+    if (pool_boundary_timer !== null) {
+      clearTimeout(pool_boundary_timer)
+      pool_boundary_timer = null
+    }
+    const boundary = nextGalleryBoundary(pool, new Date())
+    if (boundary === null) {
+      return
+    }
+    pool_boundary_timer = setTimeout(() => {
+      pool_boundary_timer = null
+      const before = pool_json_cache
+      const after = getPoolJsonCache(new Date())
+      publishPoolCacheChanges(before, after)
+      schedulePoolBoundary()
+    }, Math.max(0, boundary - Date.now() + 5))
+    pool_boundary_timer.unref?.()
+  }
+
+  function getPoolJsonCache(now: Date): PoolJsonCache {
+    if (
+      pool_json_cache !== null &&
+      pool_json_cache.pool === pool &&
+      pool_json_cache.instance_config === instance_config &&
+      pool_json_cache.instance_hash === instance_hash &&
+      pool_json_cache.in_event_key === poolInEventKey(pool, now)
+    ) {
+      return pool_json_cache
+    }
+
+    pool_json_cache = buildPoolJsonCache({
+      pool,
+      env,
+      instance_config,
+      instance_hash,
+      app_startup_time,
+      now,
+    })
+    schedulePoolBoundary()
+    return pool_json_cache
+  }
 
   function ensureOpen(): void {
     if (closing) {
@@ -335,7 +422,11 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
 
     beginOperation()
     try {
-      return await executeMutation(name, definition, parsed.data, dispatch_options.now)
+      const before = getPoolJsonCache(dispatch_options.now)
+      const result = await executeMutation(name, definition, parsed.data, dispatch_options.now)
+      const after = getPoolJsonCache(dispatch_options.now)
+      publishPoolCacheChanges(before, after)
+      return result
     } finally {
       endOperation()
     }
@@ -351,11 +442,21 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
     return images.storeTempImage(input)
   }
 
+  function closePoolStreams(): void {
+    if (pool_boundary_timer !== null) {
+      clearTimeout(pool_boundary_timer)
+      pool_boundary_timer = null
+    }
+    publishPoolEvent({ type: 'close' })
+    pool_listeners.clear()
+  }
+
   async function close(): Promise<void> {
     if (closed) {
       return
     }
     closing = true
+    closePoolStreams()
     await waitForOperations()
     await persistQueue(async () => {})
     try {
@@ -368,6 +469,19 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
 
   return {
     read: () => pool,
+    getPoolEvents: (now) => {
+      const cache = getPoolJsonCache(now)
+      return {
+        photos_json: cache.photos_json,
+        members_json: cache.members_json,
+        admin_json: cache.admin_pool_json,
+      }
+    },
+    subscribePoolUpdates: (listener) => {
+      pool_listeners.add(listener)
+      return () => pool_listeners.delete(listener)
+    },
+    closePoolStreams,
     getInstanceConfig: () => instance_config,
     getInstanceHash: () => instance_hash,
     isAdminAction: (name) => __admin_list.includes(name),

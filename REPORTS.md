@@ -269,7 +269,7 @@ O(photos × members + photos × votes)
 
 #### 3.3.2 后台 30 秒超时与服务端长任务不匹配
 
-`src/web/admin/api/client.ts` 的 axios timeout 是 30 秒；单张重建、批量重建、图片处理可能超过 30 秒：
+`src/web/admin/api/client.ts` 的请求超时是 30 秒（当时走 axios，现在改为 `api/http.ts` 的 `fetch` 封装，超时值不变）；单张重建、批量重建、图片处理可能超过 30 秒：
 
 - 客户端显示超时/失败；
 - 服务端 mutation 可能继续执行并最终落盘；

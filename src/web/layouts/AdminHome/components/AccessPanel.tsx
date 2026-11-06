@@ -279,7 +279,7 @@ export function AccessPanel({ rejected, onGranted }: {
           ref={input_ref}
           id='admin-access-password'
           className={styles.field}
-          type='password'
+          type='text'
           value={password}
           autoComplete='current-password'
           placeholder='管理员密码'

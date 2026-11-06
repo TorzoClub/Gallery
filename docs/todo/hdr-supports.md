@@ -63,7 +63,7 @@ type PhotoDTO = {
 | HEIC/HEIF + Apple HDR gain map | pillow_heif 解 SDR | sharp 8-bit | `apple-hdr-heic-decoder` 生成 16-bit BT.2020 PQ PNG，再 avifenc |
 | 无 gain map 的 HEIC/HEIF | pillow_heif 解 SDR | sharp 8-bit | 不生成 |
 
-HEIC/HEIF 的 HEVC 解码由 Docker 内 Python `pillow_heif` 完成；sharp 内置的 libheif 没有 HEVC decoder plugin，不能直接解 HEIC 主图。
+HEIC/HEIF 的 HEVC 解码由 Docker 内 Python `pillow_heif` 完成；sharp 内置的 libheif 没有 HEVC decoder plugin，不能直接解 HEIC 主图。HEIC HDR 需要 `pillow_heif >= 1.8`：旧版只能读 8-bit monochrome aux，iPhone 常见的 8-bit YCbCr gain map 会失败并退回 SDR。
 
 HDR 判定只认：
 
@@ -107,7 +107,7 @@ HDR 工具固定为 libavif `1.4.2` + libaom `3.14.1`：
 - `avifenc`
 - `avifdec`
 - `avifgainmaputil`
-- `pillow_heif`（随 apple-hdr-heic 安装）
+- `pillow_heif>=1.8`（随 apple-hdr-heic 安装）
 - `apple-hdr-heic==0.1.0` + exiftool（HEIC HDR）
 
 Dockerfile 的 `libavif` 阶段构建三件套；`dev` / `check` / `runtime` 都从带工具的 base 派生。开发、测试、生产统一使用 Docker，不依赖宿主机 libavif 版本。

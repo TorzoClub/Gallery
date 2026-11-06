@@ -221,3 +221,4 @@ pnpm start
 - Chrome 预览 HEIC 会失败，这是浏览器限制；表单会显示“提交后显示缩略图”，提交后服务端用 `pillow_heif` 生成 SDR thumb。
 - 服务端没有 `pillow_heif` / `exiftool` / `apple-hdr-heic-decoder` 时，HEIC 无法读取；用 Docker 镜像，或在宿主机安装对应工具。
 - 只有带 Apple HDR gain map 的 HEIC 会生成 HDR；普通 HEIC 只生成 SDR。
+- 如果日志出现 `Only 8-bit monochrome auxiliary images are currently supported`，说明 `pillow_heif` 太旧；升级到 `>=1.8` 后重建图片。

@@ -6,7 +6,7 @@
 
 - Node.js >= 24.22.1
 - pnpm >= 10.24.0
-- HDR 图片需要 Docker 镜像内的 libavif 1.4.2 工具（`avifenc` / `avifdec` / `avifgainmaputil`）；HEIC/HEIF 还需要 `pillow_heif`、exiftool 和 `apple-hdr-heic-decoder`
+- HDR 图片需要 Docker 镜像内的 libavif 1.4.2 工具（`avifenc` / `avifdec` / `avifgainmaputil`）；HEIC/HEIF 还需要 `pillow_heif>=1.8`、exiftool 和 `apple-hdr-heic-decoder`
 
 ```bash
 nvm use

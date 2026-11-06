@@ -144,11 +144,17 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
           })
           const jpg_blob = new Blob([new Uint8Array(jpg_buf)], { type: 'image/jpeg' })
           const blob_url = URL.createObjectURL(jpg_blob)
-          setWillUploadImage({
-            filename: `img-${Date.now()}.jpg`,
-            blob: jpg_blob,
-            blob_url,
-            size: await readImageSize(blob_url),
+          const size = await readImageSize(blob_url)
+          setWillUploadImage(prev => {
+            if (prev?.blob_url) {
+              URL.revokeObjectURL(prev.blob_url)
+            }
+            return {
+              filename: `img-${Date.now()}.jpg`,
+              blob: jpg_blob,
+              blob_url,
+              size,
+            }
           })
         } else {
           const blob_url = URL.createObjectURL(blob)

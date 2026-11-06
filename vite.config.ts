@@ -75,7 +75,6 @@ export default defineConfig(({ mode }) => {
     },
     optimizeDeps: {
       include: [
-        'axios',
         'vait',
         'ramda',
         'swr',

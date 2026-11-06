@@ -20,7 +20,7 @@ import {
   galleryRemovePhoto,
   galleryRemoveSubmission,
   gallerySetSubmission,
-  gallerySortPhotosByVoteCount,
+  gallerySortPhotos,
   gallerySubmitVotes,
   galleryUpdatePhoto,
   galleryVotesForMember,
@@ -692,13 +692,14 @@ export function poolClearMemberGalleryVotes(
   }
 }
 
-export function poolSortPhotosByVoteCount(
+export function poolSortPhotos(
   pool: Pool,
   now: Date,
   gallery_id: GalleryID,
+  photo_ids: readonly PhotoID[],
 ): { pool: Pool; gallery: Gallery } {
   const gallery = findGallery(pool, gallery_id)
-  const next_gallery = gallerySortPhotosByVoteCount(now, gallery)
+  const next_gallery = gallerySortPhotos(now, gallery, photo_ids)
   return {
     pool: updatePool(pool, {
       galleries: pool.galleries.set(gallery_id, next_gallery),

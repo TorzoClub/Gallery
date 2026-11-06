@@ -1,121 +1,89 @@
-.PreviewBox {
-  width: 320px;
-  // height: 320px;
-  border-radius: 4px;
+/* 投稿表单：一张摆正、不贴纸胶带的拍立得（PhotoCardPaper），相片位就是选图按钮，写字区就是介绍输入框 */
+.Card {
+  margin: 0 auto;
+  text-align: left;
 }
 
-.UploadButton {
-  cursor: pointer;
+.CoverButton {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  border-radius: 0;
+  transition: none;
 
   &:focus-visible {
     outline: 2px solid rgb(48 103 133);
-    outline-offset: 4px;
+    outline-offset: 2px;
+  }
+
+  &.IsDragging {
+    box-shadow: inset 0 0 0 1px rgb(48 103 133);
+  }
+
+  &.IsDragging .CoverImage {
+    opacity: 0.5;
   }
 }
 
-// Only the upload button gets a pointer cursor. PreviewBox is also used in
-// read-only contexts where the surrounding element is not clickable.
-.UploadButton .PreviewBox {
-  cursor: pointer;
-}
-
-.PreviewImageWrapperDragging::before {
-  content: "before";
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-
-  color: white;
-  font-size: 18px;
-
-  position: absolute;
-  top: 0;
-  left: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-}
-.PreviewImageWrapperDragging {
-  position: relative;
-}
-
-.PreviewImageWrapper {
-  position: relative;
-}
-
-.DragTips {
-  content: "更换投稿图像";
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  height: 100%;
-
-  color: white;
-  font-size: 18px;
-
-  position: absolute;
-  top: 0;
-  left: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-}
-
-.PreviewImage.IsDragging {
-  box-shadow: none;
-  opacity: 0.5;
-}
-.PreviewImage {
-  position: relative;
-  display: block;
-  width: 320px;
-  border-radius: 4px;
-  box-shadow: 0px 1.7px 0.7px rgba(0, 0, 0, 0.06), 0px 4.1px 1.7px rgba(0, 0, 0, 0.043), 0px 7.6px 3.1px rgba(0, 0, 0, 0.036), 0px 13.6px 5.6px rgba(0, 0, 0, 0.03), 0px 25.5px 10.4px rgba(0, 0, 0, 0.024), 0px 61px 25px rgba(0, 0, 0, 0.017), 0 -1px 0 1px rgba(0, 0, 0, 0.05);
-}
-
-.EmptyTips {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 320px;
-  height: 160px;
-  border-radius: 4px;
-  border: dashed 1px rgba(0, 0, 0, 0.2);
-  color: rgba(0, 0, 0, 0.5);
-  box-sizing: border-box;
+.CoverTips {
+  padding: 0 24px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgb(0 0 0 / 0.42);
+  text-align: center;
   user-select: none;
-  transition: none;
 
-  &:not(.IsDragging):hover {
-    border-style: solid;
-    border-color: rgb(48 103 133);
+  .CoverButton:hover &,
+  .CoverButton.IsDragging & {
     color: rgb(48 103 133);
   }
 }
 
-.EmptyTips.IsDragging {
-  border-color: rgb(48 103 133);
-  border-style: solid;
-  color: rgb(48 103 133);
+.CoverImage {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
-.Textarea {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  width: 320px;
-  box-sizing: content-box;
-  display: block;
-  font-size: 18px;
-  padding: 10px;
-  box-sizing: border-box;
-  resize: vertical;
-  margin: 0 auto;
-  margin-top: 20px;
+/* 横长图竖着放，与 PhotoCard 的 .cover-sideways 相同：宽高在行内样式里对调，居中后顺时针转 90° */
+.CoverImageSideways {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  transform: translate(-50%, -50%) rotate(90deg);
+}
 
-  line-height: 1.25em;
-  min-height: calc(5 * 1.25em);
+.Desc {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: calc(3 * 20px);
+  padding: 0;
+  margin: 0;
+  font-family: var(--photo-card-hand);
+  font-size: 16px;
+  line-height: 20px;
+  color: rgb(0 0 0 / 0.68);
+  resize: none;
+  field-sizing: content;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   outline: 0;
-  border-radius: 4px;
-  border: solid 1px rgba(0, 0, 0, 0.2);
-  color: rgba(0, 0, 0, 0.7);
+  appearance: none;
+  -webkit-appearance: none;
+
+  &::placeholder {
+    color: rgb(0 0 0 / 0.3);
+  }
 }

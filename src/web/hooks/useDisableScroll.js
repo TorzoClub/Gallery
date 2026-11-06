@@ -1,7 +1,7 @@
-import { useLayoutEffect } from 'react'
+import { useEffect } from 'react'
 
 export default (disable = true) => {
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!disable) {
       return
     }

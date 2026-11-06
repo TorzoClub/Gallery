@@ -311,29 +311,41 @@ export function galleryRemovePhoto(
   }, now)
 }
 
-export function gallerySortPhotosByVoteCount(
+/**
+ * 按给定顺序一次性重排整个相册的相片：photo_ids[i] 的 index 写成 i。
+ * photo_ids 必须恰好是该相册的全部相片（不缺、不重、不含别的相册的相片），否则整体拒绝、不改任何一张。
+ * index 没变的相片保持原样（不刷新 updated_at）。
+ */
+export function gallerySortPhotos(
   now: Date,
   gallery: Gallery,
+  photo_ids: readonly PhotoID[],
 ): Gallery {
-  const sorted = gallery.photos
-    .valueSeq()
-    .toArray()
-    .sort((left, right) => {
-      const diff = voteCountByPhoto(gallery, right.id) - voteCountByPhoto(gallery, left.id)
-      if (diff !== 0) {
-        return diff
-      }
-      return Number(left.id) - Number(right.id)
-    })
+  const seen = new Set<PhotoID>()
+  for (const photo_id of photo_ids) {
+    if (seen.has(photo_id)) {
+      throw badRequest(`photo_ids 里重复出现了相片(id=${photo_id})`)
+    }
+    seen.add(photo_id)
+    galleryPhoto(gallery, photo_id)
+  }
+  if (seen.size !== gallery.photos.size) {
+    throw badRequest(`photo_ids 必须包含相册里的全部 ${gallery.photos.size} 张相片，实际 ${seen.size} 张`)
+  }
 
+  let changed = false
   const photos = Immutable.Map<PhotoID, Photo>(
-    sorted.map((photo, index) => [
-      photo.id,
-      checkPhoto({ ...photo, index, updated_at: now }),
-    ] as const),
+    photo_ids.map((photo_id, index) => {
+      const photo = galleryPhoto(gallery, photo_id)
+      if (photo.index === index) {
+        return [photo_id, photo] as const
+      }
+      changed = true
+      return [photo_id, checkPhoto({ ...photo, index, updated_at: now })] as const
+    }),
   )
 
-  return updateGallery(gallery, { photos }, now)
+  return changed ? updateGallery(gallery, { photos }, now) : gallery
 }
 
 export function galleryPhotosSorted(gallery: Gallery): Photo[] {

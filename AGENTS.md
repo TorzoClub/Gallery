@@ -16,7 +16,7 @@
 ## 当前事实
 
 - 根目录是单体 SPA + dispatch API：一个 Node HTTP Server 监听唯一端口；Hono 始终在后端最前面，development 的非 API 请求进入同进程 Vite middleware，production 由 Hono 提供前端静态文件。
-- 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。
+- 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。`src/web/components/deprecated/` 里是已弃用组件，不要在新页面里引用，除非用户要求复用。
 - 服务端测试在 `test/`；当前没有浏览器 UI 交互测试。
 - 前端 bundle 由 Vite 生成 hash 文件；HTML 弱缓存，assets/images 强缓存。
 - 旧 `server/`、`web/`、脚本和 CI 已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支，不参与当前分支的构建、测试、lint、CI 或部署。
@@ -82,11 +82,11 @@ pnpm dev
 ## 设计规则
 
 - 精确：直接操作要跟手，状态变化默认瞬时，不给普通交互加过渡。
-- 有趣：只有明确叙事价值的时刻才用动画，例如灭霸消散、致命错误关闭荧幕。
+- 有趣：只有明确叙事价值的时刻才用动画和声音，例如 CRT 换台、碎纸机、致命错误关闭荧幕；声音全部用 Web Audio 合成，是即时反馈。
 - 克制：少即是多；瞬时状态足够就不加动画；没有比“精确”更好的方案就不加。
-- 公开页是“纸质独立刊物 + 早期日式个人网站 + 早期 OS X 式轻拟物”；后台保持工具化，不要把公开页风格搬进后台。
+- 公开页是“纸质独立刊物 + 早期日式个人网站 + 早期 OS X 式轻拟物”；后台是拟物控制台，叙事动效不进入管理操作的主路径。
 
-完整原则和公开页 UI 风格见 [docs/designs.md](docs/designs.md)。
+完整原则、叙事时刻、声音和两套 UI 风格见 [docs/designs.md](docs/designs.md)。
 
 ## 对用户疏漏的提示义务
 

@@ -1,0 +1,77 @@
+/* 排序控件：外观与名单簿页眉按钮（.headButton）同一套——米白渐变、灰边、3px 圆角。
+ * 箭头和 select 共用一个外壳，中间一道刻线；select 去掉系统外观，右侧自己画一个小三角。
+ * 高度 22px，与页眉按钮一致。字号默认 12px，调用方可用 className 覆盖。 */
+.sort {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  height: 22px;
+  box-sizing: border-box;
+  overflow: hidden;
+  font: 700 12px 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: #3f4a55;
+  background: linear-gradient(#fffef7, #e6e2d6);
+  border: 1px solid #9ba3a7;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgb(0 0 0 / 0.16);
+}
+
+.direction {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-right: 1px solid #b9bdb8;
+  box-shadow: 1px 0 0 rgb(255 255 255 / 0.8); /* 刻线右侧一道高光，像压出来的缝 */
+
+  svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+.direction:hover {
+  background: rgb(255 253 240 / 0.7);
+}
+
+.direction:active {
+  background: rgb(0 0 0 / 0.06);
+}
+
+.field {
+  min-width: 0;
+  padding: 0 18px 0 7px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background:
+    linear-gradient(45deg, transparent 50%, currentColor 50%) right 9px top 50% / 4px 4px no-repeat,
+    linear-gradient(135deg, currentColor 50%, transparent 50%) right 5px top 50% / 4px 4px no-repeat;
+  border: 0;
+  border-radius: 0;
+  appearance: none;
+}
+
+.field:hover {
+  background:
+    linear-gradient(45deg, transparent 50%, currentColor 50%) right 9px top 50% / 4px 4px no-repeat,
+    linear-gradient(135deg, currentColor 50%, transparent 50%) right 5px top 50% / 4px 4px no-repeat,
+    rgb(255 253 240 / 0.7);
+}
+
+.direction:focus-visible,
+.field:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid #e8571f;
+  outline-offset: -2px;
+}

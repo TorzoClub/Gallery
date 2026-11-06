@@ -3,6 +3,7 @@ import type { ClientMembersEvent, ClientPhotosEvent, ClientPool } from '@shared/
 import { fetchClientPool } from '../api/client-pool'
 import { mergeClientPool, mergeGalleryPhotos, mergePublicMembers } from './merge'
 import { connectPublicPoolEvents } from './events'
+import { createPublicPoolSseGate, type PendingPublicPoolSseUpdates } from './sse-gate'
 
 export type ClientPoolState =
   | { status: 'loading' }
@@ -14,6 +15,7 @@ let load_promise: Promise<void> | null = null
 let close_events: (() => void) | null = null
 let pending_photos: ClientPhotosEvent | null = null
 let pending_members: ClientMembersEvent | null = null
+const public_sse_gate = createPublicPoolSseGate()
 const listeners = new Set<() => void>()
 
 function emit(): void {
@@ -61,6 +63,9 @@ export function replaceClientPool(pool: ClientPool): void {
 }
 
 export function applyGalleryPhotos(update: ClientPhotosEvent): void {
+  if (public_sse_gate.buffer({ type: 'photos', update })) {
+    return
+  }
   if (state.status !== 'ready') {
     pending_photos = update
     return
@@ -72,6 +77,9 @@ export function applyGalleryPhotos(update: ClientPhotosEvent): void {
 }
 
 export function applyPublicMembers(update: ClientMembersEvent): void {
+  if (public_sse_gate.buffer({ type: 'members', update })) {
+    return
+  }
   if (state.status !== 'ready') {
     pending_members = update
     return
@@ -79,6 +87,43 @@ export function applyPublicMembers(update: ClientMembersEvent): void {
   const next = mergePublicMembers(state.pool, update.members)
   if (next !== state.pool) {
     setState({ status: 'ready', pool: next })
+  }
+}
+
+function flushBlockedPublicSseUpdates(pending: PendingPublicPoolSseUpdates): void {
+  if (state.status !== 'ready') {
+    if (pending.photos !== null) {
+      pending_photos = pending.photos
+    }
+    if (pending.members !== null) {
+      pending_members = pending.members
+    }
+    return
+  }
+
+  let next = state.pool
+  if (pending.photos !== null) {
+    next = mergeGalleryPhotos(next, pending.photos.galleries)
+  }
+  if (pending.members !== null) {
+    next = mergePublicMembers(next, pending.members.members)
+  }
+  if (next !== state.pool) {
+    setState({ status: 'ready', pool: next })
+  }
+}
+
+/**
+ * 临时停止把公开页 SSE 更新应用到 UI；EventSource 本身保持连接。
+ * 返回幂等的释放函数；最后一层释放时才合并阻塞期间的最新快照。
+ */
+export function beginClientPoolUpdateBlock(): () => void {
+  const release = public_sse_gate.begin()
+  return () => {
+    const pending = release()
+    if (pending !== null) {
+      flushBlockedPublicSseUpdates(pending)
+    }
   }
 }
 

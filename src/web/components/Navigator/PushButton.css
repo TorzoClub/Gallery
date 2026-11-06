@@ -156,6 +156,20 @@
   box-shadow: inset 0 calc(var(--u) * 0.6) calc(var(--u) * 1) rgba(255, 255, 255, 0.55);
 }
 
+/* ---------- 印字（label） ---------- */
+
+/* 叠在按钮面（::before）之上，随 .pb__cap 一起缩放，所以按下时字也跟着陷下去 */
+.pb__label {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  pointer-events: none;
+}
+
 /* ---------- 按下状态（:active 或 pressed 属性） ---------- */
 
 .pb:active:not(:disabled) .pb__cap,

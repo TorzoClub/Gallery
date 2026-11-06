@@ -60,7 +60,11 @@ async function consumeSse(
 export async function connectAdminPoolEvents(options: {
   signal: AbortSignal
   onPool(pool: AdminPoolDTO): void
-  onUnauthorized(): void
+  /**
+   * 推送连接被拒（401 / 403）。不传时只是安静地断开、不再重连：
+   * 后台页不在这里处理登录失效，交给下一次普通后台请求走门禁流程（INVALID / EXPIRED TOKEN）
+   */
+  onUnauthorized?(): void
 }): Promise<void> {
   let retry_delay = 1000
 
@@ -81,7 +85,7 @@ export async function connectAdminPoolEvents(options: {
       })
 
       if (response.status === 401 || response.status === 403) {
-        options.onUnauthorized()
+        options.onUnauthorized?.()
         return
       }
       if (!response.ok || response.body === null) {

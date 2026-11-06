@@ -4,6 +4,7 @@
 > 评估基线：`930ccb4 [feature] 回退图片管线为 SDR-only 并修正 thumb 命名`
 > 范围：当前 `src/`、`test/`、构建/部署配置、公开页与后台的图片/API 流程
 > 说明：本报告基于静态阅读、现有测试和本地构建结果，不包含真实生产流量、压测或浏览器兼容性矩阵。
+> 复校：2026-11-06 对照当前代码修正了已过时的结论（mutation 串行、文件与测试数量、头像命名、文件路径等），仍成立的问题保留原判断。
 
 ---
 
@@ -17,18 +18,17 @@
 - JSON 文件 + 图片池持久化；
 - dispatch action 权限边界；
 - sharp 图片流水线；
-- 70 个服务端测试。
+- 210 个测试用例（31 个测试文件），含前端纯逻辑单测。
 
 当前最需要关注的问题不是“功能缺失”，而是**运行期可靠性和长链路性能**：
 
-1. **所有 mutation 被 `Sequence()` 串行化**，图片处理也在其中。单张高 effort 图片会阻塞所有上传、投票、后台操作。
+1. **图片处理仍在 mutation 的 `prepare` 阶段同步执行**：一次重建/上传请求要等 sharp 编码完才返回，高 effort 大图可能超过客户端 30 秒超时。mutation 之间已经不再整体串行——`690025c` 把图片准备移出串行区，现在只有落盘队列 `persistQueue` 串行。
 2. **JSON storage 的跨文件写入没有事务**，崩溃/磁盘错误可能留下部分提交。
 3. **相册/相片查询存在 O(P×M + P×V) 的重复扫描**，图片和投票量增长后会明显变慢。
 4. **前端图片队列缓存 object URL 不释放**，长时间浏览会累积内存。
-5. **详情大图没有加载失败态**，图片 404 或解码失败时 loading 可能一直存在。
-6. **后台 API 超时 30 秒**，图片重建/批量操作可能客户端已超时，但服务端仍在执行。
-7. **认证缺少登录限流**，`ADMIN_PASSWORD` 也没有最低长度约束。
-8. HDR 当前被有意回退为 SDR-only；`has_hdr_optimized`/`src_optimized_hdr` 已预留，但 HDR 实现仍是下一阶段。
+5. **后台 API 超时 30 秒**，图片重建/批量操作可能客户端已超时，但服务端仍在执行。
+6. **认证缺少登录限流**，`ADMIN_PASSWORD` 也没有最低长度约束。
+7. HDR 当前被有意回退为 SDR-only；`has_hdr_optimized`/`src_optimized_hdr` 已预留，但 HDR 实现仍是下一阶段。
 
 这些问题的优先级高于继续加新功能。建议先做一轮 1 周左右的稳定性/性能修复，再进入 HDR 和更大规模功能。
 
@@ -56,10 +56,10 @@
 
 规模快照：
 
-- 源码文件：约 144 个（当前分支）
-- 服务端 TypeScript：约 28 个
-- 前端 TS/TSX：约 78 个
-- 测试：12 个测试文件、70 个用例
+- 源码文件：185 个 TypeScript / TSX（当前分支）
+- 服务端 TypeScript：40 个
+- 前端 TS/TSX：140 个
+- 测试：31 个测试文件、210 个用例
 - `src/` 约 3.3 MB，其中包含字体和图片资源
 - `docs/` 约 56 KB
 
@@ -98,22 +98,23 @@ HTTP
 - `Pool`：Immutable 的 gallery/member 内存状态；
 - `instance_config`：运行期配置；
 - `instance_hash`：instance_config 的 CRC32，用于派生图 URL 缓存版本；
-- `Sequence`：所有 mutation 的串行队列；
+- `persistQueue`：只串行落盘那一步（`Sequence()`），prepare 阶段并发；
 - `ImagePipeline`：图片临时文件、准备、刷新、GC。
 
 ### 2.3 前端
 
 ```text
 src/web/
-├── admin/          后台页面、表格、弹窗、上传、配置、登录
+├── admin/          后台 API 客户端、auth、错误映射
 ├── api/            同源 dispatch / upload 客户端
-├── components/     公开页组件：Waterfall、PhotoBox、Detail、Submission 等
-├── layouts/        GalleryHome 等页面骨架
+├── components/     公开页组件：Waterfall、PhotoCard、Detail、Submission 等
+├── layouts/        AdminHome / Explore / Behind / Staff / MemberBook 等页面骨架
+├── pool/           ClientPool 状态、SSE、合并、selectors
 ├── hooks/          滚动、测量、挂载状态
 ├── utils/          图片队列、下载、日期、通用函数
 ├── assets/         字体、心形图标、站点图
-├── App.tsx
-└── main.tsx
+├── routes.ts       路径判断
+└── main.tsx        入口、tab 槽位、路由
 ```
 
 请求链：
@@ -148,8 +149,8 @@ React
 - source：原始字节，保留原扩展名；
 - photo thumb：`thumb/photo-<gallery>-<photo>-<crc>.avif`；
 - photo optimized：`optimized/photo-...-<crc>-sdr.avif`；
-- avatar source：`source/avatar-<qq>-<crc>.<format>`；
-- avatar thumb：`thumb/avatar-<qq>-<crc>.avif`；
+- avatar source：`source/avatar-<member-id>-<crc>.<format>`；
+- avatar thumb：`thumb/avatar-<member-id>-<crc>.avif`；
 - 不生成 HDR 派生图；
 - `PhotoDTO.has_hdr_optimized=false`、`src_optimized_hdr=null`；
 - 派生图 URL 带 `?v=<instance_hash>`。
@@ -172,31 +173,36 @@ React
 
 | 问题 | 位置 | 影响 |
 |---|---|---|
-| `actions.ts` 超过 1000 行，包含全部公开/admin action 与大量内联逻辑 | `src/server/instance/actions.ts` | 修改一个 action 容易误触其他逻辑；测试和 review 成本高 |
-| `GalleryHome` 约 540 行，数据加载、投票、图片优先级、视图状态全在一个组件 | `src/web/layouts/GalleryHome/index.tsx` | 状态耦合；难做局部测试和虚拟列表 |
-| `Detail` 约 368 行，动画、触摸、图片加载混在一起 | `src/web/components/Detail/index.tsx` | 出错路径难处理，缺少加载失败态 |
+| `actions.ts` 约 990 行，包含全部公开/admin action 与大量内联逻辑 | `src/server/instance/actions.ts` | 修改一个 action 容易误触其他逻辑；测试和 review 成本高 |
+| `components/Gallery` 约 790 行，瀑布流、投票磁粒、撕胶带保存与掉落动画都在一个文件里 | `src/web/components/Gallery/index.tsx` | 交互与动画耦合；难做局部测试 |
+| `Detail` 约 300 行，动画、触摸、图片加载混在一起 | `src/web/components/Detail/index.tsx` | 出错路径难处理（加载失败态已补） |
 | 公开页仍有大量历史注释/旧 API 示例 | `src/web/components/Submission/index.tsx` | 阅读噪音，容易误用过时字段 |
 | `queue-load` 使用 `any`、`pipe`、可变 Memo，类型边界弱 | `src/web/utils/queue-load.ts` | 失败路径和缓存策略难以推理 |
 | HDR 过渡字段仍保留了内部 `is_hdr`/`ImageInfo.is_hdr`，而公开字段已改为 `has_hdr_optimized` | `src/server/storage/image.ts`、`codec.ts` | 命名双轨，后续 HDR 实现容易混用 |
 | `src_optimized_hdr` 永远为 `null`，`has_hdr_optimized` 永远为 `false` | `src/server/instance/serializers.ts` | 有意占位，但目前是“半成品 API”，需要文档和后续实现跟上 |
 | 一次性 Legacy 迁移代码仍在服务端目录 | `src/server/migration/` | 不影响运行，但增加搜索和构建噪音 |
-| 测试只有服务端，没有浏览器 UI/E2E | `test/` | 前端加载失败、缓存、交互回归无法自动发现 |
+| 测试只有单元/集成，没有浏览器 UI/E2E | `test/` | 加载失败、缓存、交互回归无法自动发现 |
 
 ### 3.2 性能隐患
 
-#### 3.2.1 所有 mutation 串行，图片处理阻塞业务
+#### 3.2.1 图片处理同步阻塞请求
 
-`src/server/instance/index.ts` 用 `Sequence()` 包住整个 mutation。`preparePhoto` 在 mutation 内部执行 sharp 编码，因此：
+图片处理没有彻底异步化。`executeMutation`（`src/server/instance/index.ts`）先 `await definition.prepare(...)`，再同步 `commit(...)`，最后把落盘交给串行的 `persistQueue`：
 
 ```text
-上传/更新相片
-→ 生成 optimized + thumb
-→ 期间所有 vote / gallery / member / admin mutation 都排队
+POST /admin/mutate/adminRefreshThumb
+→ prepare：refreshThumb 用 sharp 重新编码 optimized + thumb
+→ commit：更新内存 Pool
+→ persistQueue：写 JSON（与其它 mutation 的落盘排队）
+→ 返回
 ```
 
-`image_processing_effort` 默认是 8（偏慢），高分辨率图片和多张批量重建时，这个队列会明显拉长。公开页投票、后台保存、投稿都会被图片处理拖住。
+因此：
 
-这是当前最值得优先解决的性能问题。
+- **mutation 之间不再串行**：`690025c`（2026-10-28）把图片准备移出串行区，`test/integration/mutation-concurrency.test.ts` 覆盖了并发建相片；投票、后台保存不会被别人的图片任务堵在队列里。
+- **单个请求仍被图片处理同步拖住**：`image_processing_effort` 默认 8（偏慢），大图的一次重建就是一次完整的 AVIF 编码，请求要等它跑完才返回，客户端等不到就按 30 秒超时（见 3.3.2）。
+
+所以这个问题的形态从「全局排队」变成了「单请求长尾」：不再阻塞别人，但自己也拿不到及时响应。
 
 #### 3.2.2 DTO 序列化存在重复扫描
 
@@ -211,7 +217,7 @@ React
 O(photos × members + photos × votes)
 ```
 
-`adminListPhotos`、公开 `listGalleries` 在数据量上来后会放大这个问题。更适合预先构建：
+`adminFetchPool`、公开 `listGalleries` 在数据量上来后会放大这个问题。更适合预先构建：
 
 - `memberId -> Member` 索引；
 - 一次遍历算出 `photoId -> vote_count`；
@@ -220,8 +226,7 @@ O(photos × members + photos × votes)
 #### 3.2.3 全量返回、无分页
 
 - `listGalleries` 返回所有 galleries 和所有 photos；
-- `adminListPhotos` 返回全部相片；
-- 后台 `listPhotos(galleryId)` 先取全部再前端过滤；
+- 后台 `adminFetchPool` 返回完整 AdminPool，前端再自己按相册过滤；
 - 没有 cursor/limit/分页；
 - 没有缩略图尺寸选择/srcset。
 
@@ -243,7 +248,7 @@ O(photos × members + photos × votes)
 
 #### 3.2.6 初始加载硬编码延迟
 
-`GalleryHome` 在 `fetchList()` 前有 `timeout(4000)`。这会固定增加约 4 秒首屏等待，且与网络/缓存无关。需要确认是刻意动画节奏还是历史遗留；如果是后者应移除或改成并行加载。
+评估时 `GalleryHome` 在 `fetchList()` 前有 `timeout(4000)`，固定增加约 4 秒首屏等待。当前代码里这条延迟和 `GalleryHome/index.tsx` 都已不存在，`Explore` 直接读 `ClientPool`，此项已解决。
 
 #### 3.2.7 JSON 持久化写放大
 
@@ -257,23 +262,21 @@ O(photos × members + photos × votes)
 
 ### 3.3 潜在 bug / 可靠性问题
 
-#### 3.3.1 详情页没有图片加载失败处理
+#### 3.3.1 详情页没有图片加载失败处理（已解决）
 
-`src/web/components/Detail/index.tsx` 的 `usePictureLoading` 只在 `sourceUrl` 变化时设为 loading，`onLoad` 清除；没有 `onError`：
+评估时 `Detail` 只在 `sourceUrl` 变化时设为 loading、靠 `onLoad` 清除，没有 `onError`，404 或解码失败会一直停在 loading。
 
-```tsx
-<img className="source" src={sourceUrl} onLoad={onLoad} />
-```
-
-如果 optimized/thumb URL 404、被缓存层返回错误、或浏览器解码失败，loading 可能永久保留。应在 `<img>` 上加 `onError`，显示失败态并提供重试/回退。
+现在 `Detail` 先 `fetch` 字节再 `decode`（`components/Detail/image-loading.ts`），失败进入 `failed` 状态：加载层显示「大图加载失败，仍显示缩略图」并给一个「重试」按钮，缩略图始终垫在下面。
 
 #### 3.3.2 后台 30 秒超时与服务端长任务不匹配
 
-`src/web/admin/api/client.ts` 的 axios timeout 是 30 秒；单张重建、批量重建、图片处理可能超过 30 秒：
+`src/web/admin/api/client.ts` 的请求超时是 30 秒；单张重建、批量重建、图片处理可能超过 30 秒：
 
 - 客户端显示超时/失败；
 - 服务端 mutation 可能继续执行并最终落盘；
 - 用户重试会叠加任务。
+
+注意「超过 30 秒」不需要批量重建才成立：图片处理仍在 mutation 的 `prepare` 阶段同步执行（见 3.2.1），**只重建一张大图**的那次请求本身就可能跑过 30 秒。
 
 建议：
 
@@ -299,10 +302,9 @@ galleries/<id>.json（逐个）
 
 `preparePhoto`/`prepareAvatar` 先写 source/derived 文件，再由 dispatch 写 JSON。如果 JSON 持久化失败：
 
-- action 已经返回成功；
-- `dispatchMutation` 捕获持久化错误并抛 500；
-- 但 action 内的 `discard()` 不在持久化失败路径上被调用；
-- 可能留下没有 Photo/Member 引用的 source/optimized/thumb 文件。
+- `dispatchMutation` 捕获持久化错误并抛 500，请求失败；
+- 但 `discardPrepared(prepared)` 只在 prepare/commit 失败和实例关闭时调用，持久化失败路径上不调用；
+- 结果可能留下没有 Photo/Member 引用的 source/optimized/thumb 文件。
 
 GC 只在 mutation 成功后运行，失败路径不会自动清理。需要把“文件提交”纳入事务边界，或在启动时做 orphan 扫描。
 
@@ -370,8 +372,8 @@ GC 只在 mutation 成功后运行，失败路径不会自动清理。需要把�
 
 ```text
 pnpm typecheck  通过
-pnpm lint       0 errors，16 个旧 UI warnings
-pnpm test       12 个测试文件，70 个用例通过
+pnpm lint       0 errors，2 个旧 UI warnings
+pnpm test       31 个测试文件，210 个用例通过
 pnpm build      通过
 ```
 
@@ -390,7 +392,7 @@ pnpm build      通过
 缺口：
 
 - 没有浏览器 UI 交互测试；
-- 没有并发 mutation/图片处理压测；
+- 并发 mutation 已有回归测试（`test/integration/mutation-concurrency.test.ts`），但图片处理的并发压测仍缺；
 - 没有崩溃恢复/部分写入测试；
 - 没有大相册序列化性能测试；
 - 没有登录暴力破解/限流测试；
@@ -404,14 +406,14 @@ pnpm build      通过
 
 ### 5.1 稳定性与性能（优先）
 
-1. **图片处理移出 mutation 关键路径**
-   - 请求只创建 job，后台 worker 处理；
-   - mutation 只做轻量校验/入队；
-   - 前端轮询 job 或订阅进度。
+1. **图片处理移出 mutation 关键路径**（部分完成）
+   - 已做：图片准备移出 mutation 串行区（`690025c`），不再阻塞其它 mutation；
+   - 未做：请求仍同步等 sharp 跑完，单次请求会长尾超时；
+   - 目标：请求只创建 job，后台 worker 处理；前端轮询 job 或订阅进度。
 
-2. **修复详情加载失败态**
-   - `onError`、重试、SDR 回退；
-   - 避免无限 loading。
+2. **修复详情加载失败态**（已完成）
+   - `fetch` + `decode` 失败进入 `failed` 状态，显示「仍显示缩略图」；
+   - 提供「重试」按钮，不再无限 loading。
 
 3. **前端图片缓存治理**
    - object URL 回收；
@@ -491,8 +493,7 @@ pnpm build      通过
 - 错误监控；
 - 登录限流/审计；
 - E2E（Playwright）；
-- 依赖漏洞扫描；
-- 多实例前先做 storage 抽象和共享锁。
+- 依赖漏洞扫描。
 
 ---
 
@@ -502,7 +503,7 @@ pnpm build      通过
 
 | 层级 | 目标 | 完成标准 |
 |---|---|---|
-| P0 稳定 | 不丢数据、不出无限 loading、长任务可控 | 崩溃/失败测试、加载失败态、任务状态 |
+| P0 稳定 | 不丢数据、不出无限 loading、长任务可控 | 崩溃/失败测试、任务状态 |
 | P1 性能 | mutation 不被图片阻塞，列表可扩展 | 图片 job 化、分页、序列化索引 |
 | P2 HDR | SDR/HDR 双 AVIF，HDR 不过曝 | CICP 校验、手机验收、Docker 构建 |
 | P3 数据 | JSON 可恢复，规模上限明确 | 事务/备份/orphan 扫描；必要时 SQLite |
@@ -514,7 +515,7 @@ pnpm build      通过
 
 | 工作包 | 内容 | 估算 |
 |---|---|---:|
-| P0 稳定性修复 | 详情失败态、队列回收、上传取消/超时、登录限流、密码长度、崩溃恢复最小集 | 5–7 天 |
+| P0 稳定性修复 | 队列回收、上传取消/超时、登录限流、密码长度、崩溃恢复最小集 | 5–7 天 |
 | HDR Phase 1 | libavif 构建、HDR 编码、Docker-first、CICP 测试、手机验收 | 7–10 天 |
 | 图片 job 化 | 后台队列、任务状态、进度、重试、mutation 解耦 | 5–8 天 |
 | 查询/分页/序列化 | 索引、cursor、admin 分页、大相册压测 | 5–8 天 |
@@ -526,7 +527,6 @@ pnpm build      通过
 
 **第 1 周：P0 稳定修复**
 
-- 详情 `onError`
 - object URL 回收/缓存上限
 - 上传超时/取消
 - 登录限流/密码要求
@@ -569,14 +569,13 @@ pnpm build      通过
 - **稳定可扩展版本（P0 + HDR + job + 分页 + storage 恢复）**：约 6–8 周。
 - **包含产品增强**：约 8–12 周，具体取决于功能范围。
 
-如果只能做一件事：先做 **P0 稳定性 + 图片处理 job 化**，再做 HDR。否则 HDR 只会让图片处理更重，串行 mutation 的问题会更明显。
+如果只能做一件事：先做 **P0 稳定性 + 图片处理 job 化**，再做 HDR。否则 HDR 只会让图片处理更重，单次请求的长尾超时会更明显。
 
 ---
 
 ## 7. 建议的下一步
 
 1. 先补一个 **P0 修复清单**，不引入新依赖：
-   - 详情 `onError`；
    - queue object URL 回收；
    - 图片像素上限；
    - 上传超时/取消；
@@ -599,7 +598,7 @@ pnpm build      通过
 | `src/server/api/index.ts` | Hono 路由、缓存、错误响应、静态 SPA |
 | `src/server/api/admin.ts` | 登录、JWT、admin auth |
 | `src/server/api/upload.ts` | multipart 上传、CRC、temp |
-| `src/server/instance/index.ts` | Instance、Sequence、dispatch、持久化 |
+| `src/server/instance/index.ts` | Instance、dispatch、persistQueue、持久化 |
 | `src/server/instance/actions.ts` | 全部 query/mutation |
 | `src/server/instance/prepare-photo.ts` | 图片准备、刷新、GC |
 | `src/server/instance/serializers.ts` | DTO 与图片 URL |
@@ -609,7 +608,9 @@ pnpm build      通过
 | `src/server/storage/image.ts` | sharp SDR 编码 |
 | `src/server/core/Pool.ts` | 领域聚合、索引/查找 |
 | `src/server/core/Gallery.ts` | 相册/投票领域逻辑 |
-| `src/web/layouts/GalleryHome/index.tsx` | 公开页数据/投票/详情 |
+| `src/web/layouts/Explore/index.tsx` | 公开页骨架、投票与提交流程 |
+| `src/web/components/Gallery/index.tsx` | 瀑布流、磁粒投票、撕胶带保存 |
+| `src/web/pool/` | ClientPool 状态、SSE、合并 |
 | `src/web/components/Detail/index.tsx` | 详情大图/动画/加载 |
 | `src/web/utils/queue-load.ts` | 前端图片队列/缓存 |
 | `src/web/admin/api/client.ts` | 后台 API 客户端/超时 |

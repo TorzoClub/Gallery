@@ -8,7 +8,8 @@ import { componentScript, script, select, Script, Select, Content, useSubmission
 import WaitingInputFrame from 'components/ConfirmQQ/WaitingInputFrame'
 import { Signal, timeout } from 'vait'
 import { LoadingMask } from 'components/LoadingMask'
-import PhotoCreateOrEdit, { PreviewBox } from './PhotoCreateOrEdit'
+import PhotoCreateOrEdit from './PhotoCreateOrEdit'
+import SubmittedPhotoCard from './SubmittedPhotoCard'
 
 import image_同装同装 from '../../assets/同装 同装.png'
 import { getClientPoolState } from 'pool/store'
@@ -18,7 +19,6 @@ import { dateDiffInDays, isInvalidDate, isNextMonth, isNextWeek, monthDiff, stri
 import { signal_critical_error } from 'signals'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { playTextBlip } from '@/utils/text-audio'
-import { resetPageScroll } from '@/utils/reset-page-scroll'
 import Spinner from '../Spinner'
 
 type InitArgs = {
@@ -92,15 +92,14 @@ export function init(init_args : InitArgs) {
     const { photo, qq_num } = useSubmissionStore.getState()
     const navigate = useNavigate()
     const location = useLocation()
-    // Activity 会让 Explore 的 effects 在恢复时重新执行；这个入口只允许进入一次。
-    const has_navigated = useRef(false)
+    // 只跳一次：Explore 换台离开后只是被 <Activity> 藏起来，回来时 effect 会再跑一遍，不能再进一次碎纸机
+    const entered = useRef(false)
 
     useEffect(() => {
-      if (has_navigated.current || !photo || !qq_num) {
+      if (!photo || !qq_num || entered.current) {
         return
       }
-      has_navigated.current = true
-      resetPageScroll()
+      entered.current = true
       navigate('/explore/cancelSubmission', {
         replace: true,
         state: {
@@ -130,39 +129,29 @@ export function init(init_args : InitArgs) {
         return (
           <>
             <div style={{ marginBottom: '20px' }}>{exists_text}</div>
-            <PreviewBox
-              canClick={false}
-              previewURL={photo.thumb_url}
-              isDragging={false}
-              height={320 / (photo.width / photo.height)}
-            />
+            <SubmittedPhotoCard photo={photo} />
           </>
         )
       })
     } else {
       return componentScript([], ({ changeScript }) => {
-        return <PhotoCreateOrEdit onUpdateDone={(created_photo) => {
-          changeScript(script_大感谢('CREATE', created_photo))
+        return <PhotoCreateOrEdit onUpdateDone={() => {
+          changeScript(script_大感谢())
         }} />
       })
     }
   }
 
-  const script_大感谢 = (type: 'CREATE' | 'EDIT', photo: PhotoView) => {
-    return componentScript([], ({ changeScript }) => {
-      useEffect(() => {
-        setTimeout(() => {
-          if (type === 'CREATE') {
-            _EVENT_.created.trigger(photo)
-          } else if (type === 'EDIT') {
-            _EVENT_.updated.trigger(photo)
-          }
-        }, 1500)
-      }, [])
+  const THANKS_TEXT = '大感谢'
+  const THANKS_WAITTIME = 300
+
+  // 新相片由 SSE 推到瀑布流，贴上来的动画也由它触发（见 Gallery 的 usePhotoPresence），这里只说谢谢
+  const script_大感谢 = () => {
+    return componentScript([], () => {
       return (
         <TextContentEffect
-          textContent='大感谢'
-          showContentWaittime={300}
+          textContent={THANKS_TEXT}
+          showContentWaittime={THANKS_WAITTIME}
           showClassName={s.ThanksShow}
           hideClassName={s.ThanksHide}
         />
@@ -186,8 +175,8 @@ export function init(init_args : InitArgs) {
       </div>
       {
         (show_form || immediately) && (
-          <PhotoCreateOrEdit onUpdateDone={(updated_photo) => {
-            changeScript(script_大感谢(type, updated_photo))
+          <PhotoCreateOrEdit onUpdateDone={() => {
+            changeScript(script_大感谢())
           }} />
         )
       }
@@ -263,28 +252,27 @@ export function init(init_args : InitArgs) {
 
         function RemovingSubmission() {
           const [removing, setRemoving] = useState(true)
-          // Activity 恢复 Explore 时会重新执行 effect，不能再次跳进碎纸机。
-          const has_navigated = useRef(false)
+          // 只跳一次：Explore 换台离开（比如点头像去成员页）后只是被 <Activity> 藏起来，回来时这个 effect 会再跑一遍。
+          // 不拦住的话会带着已经删掉的相片再进一次碎纸机，服务端回“相片不存在”
+          const entered = useRef(false)
 
           useEffect(() => {
-            if (has_navigated.current || !photo || !qq_num) {
-              return
+            if (photo && qq_num && !entered.current) {
+              entered.current = true
+              Signal.once(_EVENT_.canceled, () => {
+                setTimeout(() => {
+                  setRemoving(false)
+                }, 2000)
+              })
+              navigate('/explore/cancelSubmission', {
+                replace: true,
+                state: {
+                  photo,
+                  qq_num: Number(qq_num),
+                  return_to: location.pathname,
+                },
+              })
             }
-            has_navigated.current = true
-            resetPageScroll()
-            Signal.once(_EVENT_.canceled, () => {
-              setTimeout(() => {
-                setRemoving(false)
-              }, 2000)
-            })
-            navigate('/explore/cancelSubmission', {
-              replace: true,
-              state: {
-                photo,
-                qq_num: Number(qq_num),
-                return_to: location.pathname,
-              },
-            })
           }, [])
 
           const removed_selects = [
@@ -350,23 +338,16 @@ export function init(init_args : InitArgs) {
               />
             </div>
 
-            <div style={{
-              ...(show_photo ? {
-                marginTop: '20px'
-              } : {
-                overflow: 'hidden',
-                height: '0px'
-              }),
+            <div style={show_photo ? {
+              marginTop: '20px'
+            } : {
+              overflow: 'hidden',
+              height: '0px'
             }}>
               {
                 photo && (
                   <div data-cancel-photo>
-                    <PreviewBox
-                      canClick={false}
-                      previewURL={photo.thumb_url}
-                      height={320 / (photo.width / photo.height)}
-                      isDragging={false}
-                    />
+                    <SubmittedPhotoCard photo={photo} />
                   </div>
                 )
               }

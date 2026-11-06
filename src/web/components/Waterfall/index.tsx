@@ -39,54 +39,43 @@ function calcTotalBoxWidth({
   return [ box_width, gutter_total_len ] as const
 }
 
-export type WaterfallItemPlacement = 'top' | 'bottom'
-
 export type Props = {
   layout: WaterfallLayout
   items: WaterfallItem[]
-  newItemPlacement?: WaterfallItemPlacement
+  preservePositions?: boolean
+  /**
+   * 布局键：变了就丢掉已有位置、按 items 顺序从头排一遍（例如后台换了排序方式）；
+   * 不变时照 preservePositions 保留位置，新条目贴到最矮那列顶部、被拿掉的条目由下面的顶上去。
+   */
+  layoutKey?: string
+  /**
+   * 正在“贴上来”的条目：第一次出现时插到当前最矮那一列的顶部（而不是追加到底部），
+   * 并且这段时间里各条目的 top 变化带过渡，看得见那一列往下挪出空位。
+   */
+  enteringIds?: ReadonlySet<string>
+  /** 各条目的 top 变化带过渡：相片贴上来时那一列往下挪、相片被拿掉后下面的往上顶。缺省时有 enteringIds 就带 */
+  shifting?: boolean
   onWatterfallRefreshed?(): void
 }
 
+/** 某列往下挪出空位的时长；PhotoCard 的入场动画在它之后开始（见 Gallery/index.scss） */
+export const WATERFALL_SHIFT_MS = 420
+
+const NO_ENTERING: ReadonlySet<string> = new Set()
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+}
+
 export default (props: Props) => {
-  const { layout, items, onWatterfallRefreshed, newItemPlacement = 'bottom' } = props
+  const { layout, items, onWatterfallRefreshed, preservePositions = true, layoutKey, enteringIds = NO_ENTERING, shifting: shifting_prop } = props
   const { gallery_width, vertical_gutter } = layout
   const [ box_width ] = calcTotalBoxWidth(layout)
 
   const { refFn, columns, waterfall_height, pos_map, refresh_signal } = useLayout({
-    items, box_width, layout, newItemPlacement
+    items, box_width, layout, preservePositions, layoutKey, enteringIds
   })
-
-  const seen_ids = useRef<Set<string> | null>(null)
-  const entering_timer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [entering_ids, setEnteringIds] = useState<Set<string>>(() => new Set())
-  useEffect(() => {
-    const next_ids = new Set(items.map(item => item.id))
-    if (seen_ids.current === null) {
-      seen_ids.current = next_ids
-      return
-    }
-    const entering = [...next_ids].filter(id => !seen_ids.current?.has(id))
-    seen_ids.current = next_ids
-    if (entering.length === 0) {
-      return
-    }
-
-    setEnteringIds(current => new Set([...current, ...entering]))
-    if (entering_timer.current !== null) {
-      clearTimeout(entering_timer.current)
-    }
-    entering_timer.current = setTimeout(() => {
-      entering_timer.current = null
-      setEnteringIds(new Set())
-    }, 420)
-  }, [items])
-
-  useEffect(() => () => {
-    if (entering_timer.current !== null) {
-      clearTimeout(entering_timer.current)
-    }
-  }, [])
+  const shifting = (shifting_prop ?? enteringIds.size > 0) && !prefersReducedMotion()
 
   useEffect(() => {
     let handler: ReturnType<typeof setTimeout>
@@ -108,12 +97,13 @@ export default (props: Props) => {
         left: `calc(${pos.left})`,
         zIndex: `calc(${pos.zIndex})`,
         opacity: pos.col_count >= layout.column_count ? 0 : 1,
-        // transition: pos && 'left 382ms, top 382ms'
+        // 平时排布是瞬时的；只有相片贴上来 / 被拿掉时，让那一列挪动
+        transition: shifting ? `top ${WATERFALL_SHIFT_MS}ms cubic-bezier(0.2, 0.7, 0.2, 1)` : undefined,
       }
     } else {
       return { opacity: 0 }
     }
-  }, [layout.column_count, pos_map])
+  }, [layout.column_count, pos_map, shifting])
 
   return (
     <div className="waterfall-wrap" style={{
@@ -137,8 +127,6 @@ export default (props: Props) => {
                 vertical_gutter={vertical_gutter}
                 style={posStyle(item.id)}
                 register={refFn}
-                animate={columns.length > 0}
-                entering={entering_ids.has(item.id)}
               />
             ))
           }
@@ -153,10 +141,8 @@ function WaterfallItemView(props: {
   vertical_gutter: number
   style: React.CSSProperties
   register(getDim: () => WaterfallDimension, id: string): void
-  animate: boolean
-  entering: boolean
 }) {
-  const { item, box_width, vertical_gutter, style, register, animate, entering } = props
+  const { item, box_width, vertical_gutter, style, register } = props
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -177,11 +163,6 @@ function WaterfallItemView(props: {
   return (
     <div
       ref={ref}
-      className={[
-        'waterfall-item',
-        animate ? 'waterfall-item-animated' : '',
-        entering ? 'waterfall-item-entering' : '',
-      ].filter(Boolean).join(' ')}
       style={{
         position: 'absolute',
         width: `${box_width}px`,
@@ -376,23 +357,6 @@ function appendMultiDim(cols: Columns, dim_list: DimessionInfo[]): Columns {
   }, cols)
 }
 
-function prependAtColumn(cols: Columns, prepend_col: number, dim: DimessionInfo): Columns {
-  return cols.map((col, col_idx) => {
-    if (prepend_col === col_idx) {
-      return [dim, ...col]
-    }
-    return col
-  })
-}
-
-function prependMultiDim(cols: Columns, dim_list: DimessionInfo[]): Columns {
-  const ordered = [...dim_list].sort((left, right) => left.item_idx - right.item_idx)
-  return [...ordered].reverse().reduce((next_cols, dim) => {
-    const target = whichCanAppend(next_cols, dim)
-    return prependAtColumn(next_cols, target, dim)
-  }, cols)
-}
-
 function addColumn(cols: Columns, col: DimessionInfo[]): Columns {
   return [...cols, col]
 }
@@ -480,17 +444,13 @@ function reverseNewColumns(
   }
 }
 
-function mergeColumns(
-  prev_cols: Columns,
-  latest_cols: Columns,
-  new_item_placement: WaterfallItemPlacement = 'bottom',
-) {
+function mergeColumns(prev_cols: Columns, latest_cols: Columns, prepend_ids: ReadonlySet<string> = NO_ENTERING) {
   if (countColumn(prev_cols) === 0) {
     return latest_cols
   } else {
     return adjustColumns(
       countColumn(latest_cols),
-      updateColumnsKeepPosition(prev_cols, latest_cols, new_item_placement)
+      updateColumnsKeepPosition(prev_cols, latest_cols, prepend_ids)
     )
   }
 }
@@ -545,11 +505,11 @@ function adjustColumns(target_column: number, cols: Columns): Columns {
   }
 }
 
-function updateColumnsKeepPosition(
-  prev_cols: Columns,
-  latest_cols: Columns,
-  new_item_placement: WaterfallItemPlacement = 'bottom',
-): Columns {
+function prependAtColumn(cols: Columns, col_idx: number, dim: DimessionInfo): Columns {
+  return cols.map((col, idx) => idx === col_idx ? [dim, ...col] : col)
+}
+
+function updateColumnsKeepPosition(prev_cols: Columns, latest_cols: Columns, prepend_ids: ReadonlySet<string>): Columns {
   const latest_list = toDimListSorted(latest_cols)
 
   const exists_list = new Set<string>()
@@ -574,10 +534,16 @@ function updateColumnsKeepPosition(
     )
   }, [])
 
-  const new_dims = latest_list.filter(dim => exists_list.has(dim.id) !== true)
-  return new_item_placement === 'top'
-    ? prependMultiDim(keep_pos_cols, new_dims)
-    : appendMultiDim(keep_pos_cols, new_dims)
+  const fresh_list = latest_list.filter(dim => exists_list.has(dim.id) !== true)
+  // 正在贴上来的新条目放到最矮那一列的顶部，其余新条目照旧追加到底部
+  const prepended = fresh_list
+    .filter(dim => prepend_ids.has(dim.id))
+    .reduce((cols, dim) => prependAtColumn(cols, whichMinimum(toHeightList(cols)), dim), keep_pos_cols)
+
+  return appendMultiDim(
+    prepended,
+    fresh_list.filter(dim => !prepend_ids.has(dim.id))
+  )
 }
 
 function computeWaterfallHeight(waterfall_columns: Columns) {
@@ -590,7 +556,9 @@ function computeWaterfallHeight(waterfall_columns: Columns) {
 function useLayout({
   items,
   box_width,
-  newItemPlacement,
+  preservePositions,
+  layoutKey,
+  enteringIds,
   layout: {
     column_count,
     column_gutter,
@@ -599,7 +567,9 @@ function useLayout({
   layout: WaterfallLayout
   box_width: number
   items: WaterfallItem[]
-  newItemPlacement: WaterfallItemPlacement
+  preservePositions: boolean
+  layoutKey: string | undefined
+  enteringIds: ReadonlySet<string>
 }) {
   const refresh_signal = useMemo(() => Signal(), [])
   const [ refFn, getDimMap ] = useDimensionMap(
@@ -669,6 +639,7 @@ function useLayout({
   const columns_cache = useRef<Map<string, Columns> | undefined>(undefined)
 
   const prev_columns = useRef<{ id: string; cols: Columns } | undefined>(undefined)
+  const prev_layout_key = useRef(layoutKey)
 
   const applyNewLayout = useCallback((new_cols: Columns) => {
     prev_columns.current = {
@@ -680,14 +651,21 @@ function useLayout({
   }, [genCacheID, refreshColumns, refresh_signal])
 
   const refreshLayout = useCallback(() => {
+    if (!preservePositions) {
+      applyNewLayout(generateWaterfallColumns(items, column_count, getDimMap()))
+      return
+    }
+    if (prev_layout_key.current !== layoutKey) {
+      prev_layout_key.current = layoutKey
+      prev_columns.current = undefined
+    }
     if (prev_columns.current === undefined) {
       applyNewLayout(
         mergeColumns(
           createPlainColumns(0),
           generateWaterfallColumns(
             items, column_count, getDimMap()
-          ),
-          newItemPlacement,
+          )
         )
       )
     }
@@ -712,11 +690,11 @@ function useLayout({
           generateWaterfallColumns(
             items, column_count, getDimMap()
           ),
-          newItemPlacement,
+          enteringIds,
         )
       )
     }
-  }, [applyNewLayout, column_count, generateWaterfallColumns, getDimMap, items, newItemPlacement])
+  }, [applyNewLayout, column_count, enteringIds, generateWaterfallColumns, getDimMap, items, layoutKey, preservePositions])
 
   useEffect(() => {
     if (columns_cache.current === undefined) {

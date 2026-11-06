@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { cancelSubmission } from 'api/client-pool'
 import type { PhotoView } from 'pool/view'
 import { _EVENT_ } from 'components/Submission'
+import SubmittedPhotoCard from 'components/Submission/SubmittedPhotoCard'
+import { isWebKitSafari } from 'utils/browser'
 
 import styles from './index.module.scss'
 import { PaperShredder } from '@/components/uibrik/paper-shredder/paper-shredder'
@@ -16,7 +18,6 @@ export type CancelSubmissionRouteState = {
 }
 
 export default function CancelSubmissionApp({ thisIsDisplay }: { thisIsDisplay: boolean }) {
-  const [hide_effect, setHideEffect] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
   const [auto, setAuto] = useState(false)
@@ -27,6 +28,8 @@ export default function CancelSubmissionApp({ thisIsDisplay }: { thisIsDisplay: 
 
   const [error, setError] = useState<string | null>(null)
   const cancel_promise = useRef<Promise<unknown> | null>(null)
+  // Safari 把整张卡片光栅化（html-to-image 走 SVG foreignObject）会得到白纸，只能送单张缩略图进去
+  const [paper_is_image] = useState(isWebKitSafari)
 
   useEffect(() => {
     if (!thisIsDisplay) {
@@ -73,7 +76,6 @@ export default function CancelSubmissionApp({ thisIsDisplay }: { thisIsDisplay: 
         }
       }
       setTimeout(() => {
-        setHideEffect(true)
         navigate('/explore', { replace: true })
       }, 2000)
     })()
@@ -88,11 +90,16 @@ export default function CancelSubmissionApp({ thisIsDisplay }: { thisIsDisplay: 
       <div className={styles.label}>cancelSubmission</div>
 
       <div className={styles.shredderLayer}>
-        {
-          hide_effect ? null : <PaperShredder auto={auto} speed={35} sound strips={30} onShred={finish}>
-            {photo && <img src={photo.thumb_url} alt="" />}
-          </PaperShredder>
-        }
+        <PaperShredder auto={auto} speed={35} sound strips={30} onShred={finish}>
+          {/*
+            和确认页上那张是同一张拍立得：摆正、不贴纸胶带，宽 320px（碎纸机按纸宽等比缩放）。
+            Safari 例外：碎纸机直接拿已解码的 <img> 当纹理，才不会碎出白纸条。
+          */}
+          {photo && (paper_is_image
+            ? <img src={photo.thumb_url} alt="" />
+            : <SubmittedPhotoCard photo={photo} />
+          )}
+        </PaperShredder>
       </div>
 
       {error && <div className={styles.error}>{error}</div>}

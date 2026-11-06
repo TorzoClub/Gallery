@@ -3,8 +3,15 @@
   width: 100%;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 10px 0px;
+  padding: 8px max(10px, env(safe-area-inset-right)) 0px max(10px, env(safe-area-inset-left));
   user-select: none;
+}
+
+/* 左边：可选的“D”按钮 + 标题 */
+.navigator-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .navigator-title {
@@ -19,6 +26,57 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
+}
+
+/* 状态灯位：在按钮左边，与按钮之间多空 4px，像面板上灯和键分成两组 */
+.navigator-indicator {
+  display: flex;
+  align-items: center;
+  margin-right: 4px;
+}
+
+/*
+ * “A”：后台入口。颜色取 .navigator-title-admin-word 的 rgb(133 48 106)
+ * 但印在米白按钮面上：字号收到 15px，下沿一道白、上沿一道暗，像丝印压进塑料里；
+ * 颜色略压暗一点（与按钮面的暖灰相配），按下时再暗一档。
+ */
+.navigator-admin-button .pb__label {
+  padding-right: 1px; /* 斜体的视觉重心偏右，往左拉 1px 才居中 */
+  color: rgb(122 40 96);
+  font-family: Impact, Haettenschweiler, "Arial Narrow", "Liberation Sans Narrow", sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  font-stretch: condensed;
+  text-shadow:
+    0 1px 0 rgb(255 255 255 / .85),
+    0 -1px 0 rgb(70 20 55 / .18);
+}
+
+.navigator-admin-button:active:not(:disabled) .pb__label,
+.navigator-admin-button.pb--pressed .pb__label {
+  color: rgb(104 32 82);
+}
+
+/*
+ * “S”：Staff 页入口。
+ * 颜色取 .navigator-title 的 rgb(48 103 133)，压暗到 rgb(38 86 114) 以配米白按钮面，按下时再暗一档。
+ */
+.navigator-staff-button .pb__label {
+  padding-right: 1px;
+  color: rgb(38 86 114);
+  font-family: Didot, "Bodoni 72", "Bodoni MT", "Playfair Display", "Hoefler Text", Georgia, serif;
+  font-size: 15px;
+  font-weight: 700;
+  font-stretch: condensed;
+  text-shadow:
+    0 1px 0 rgb(255 255 255 / .85),
+    0 -1px 0 rgb(15 40 60 / .18);
+}
+
+.navigator-staff-button:active:not(:disabled) .pb__label,
+.navigator-staff-button.pb--pressed .pb__label {
+  color: rgb(28 70 96);
 }
 
 .navigator-title-word {

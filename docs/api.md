@@ -32,6 +32,7 @@
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | `POST` | `/auth/login` | 后台登录，返回 JWT |
+| `GET` | `/auth/check` | 校验 Bearer token，通过返回 `{ ok: true }`，不返回后台数据；过期 401，无效 403 |
 | `POST` | `/query/:name` | 公开 query |
 | `POST` | `/mutate/:name` | 公开 mutation |
 | `POST` | `/admin/query/:name` | admin query，需要 Bearer token |
@@ -154,6 +155,7 @@ Admin SSE 包含真实 QQ 和 `instance_config`，只能通过带 Bearer token �
 - 服务端在 Pool 更新后生成一次公开 photos/members 和完整 AdminPool 的 JSON raw 缓存
 - 所有 SSE 客户端共享同一份 JSON 字符串，不会为每个连接重复序列化 Pool
 - Gallery 时间窗口跨越 event_start/event_end 时，服务端会重建缓存并推送时间相关快照
+- 公开页和 Admin 标签页切到后台时主动关闭 SSE 连接，回到前台再重连；避免后台标签各占一条 HTTP/1.1 连接，触发浏览器同 origin 的 6 连接上限
 - 客户端断线自动重连；重连后立即收到当前快照
 - 反向代理必须关闭 SSE buffering，见 [configure.md](configure.md)
 
@@ -194,7 +196,8 @@ payload: { "qq_num": 123456 }
 
 - `/` 重定向到 `/explore`。
 - `/explore` 是公开相册页。
-- `/behind` 是同级 About 页面，不再作为 `/` 的 fixed 子页面。
+- `/behind` 是同级 About 页面，不再作为 `/` 的 fixed 子页面；其中的只读名单簿只用 ClientPool。
+- `/member/<id>` 是单独的只读成员笔记本，只用 ClientPool，没有对应的新接口；不返回 QQ 号。
 - `/admin` 是所见即所得后台。
 
 ## AdminPool
@@ -268,8 +271,8 @@ payload: {}
 | `adminCreatePhoto` | `{ gallery_id, member_id, desc, index?, temp_id }` | 创建相片 |
 | `adminUpdatePhoto` | `{ photo_id, gallery_id?, member_id?, desc?, index?, temp_id? }` | 更新相片 |
 | `adminRemovePhoto` | `{ photo_id }` | 删除相片 |
-| `adminSortPhotosByVoteCount` | `{ gallery_id }` | 按票数排序 |
-| `adminRefreshThumb` | `{ photo_id }` | 重建 SDR optimized 和缩略图 |
+| `adminSortPhotos` | `{ gallery_id, photo_ids }` | 一次性重排整个相册：`photo_ids[i]` 的 `index` 写成 `i`，公开页按 `index` 升序展示。`photo_ids` 必须恰好是该相册的全部相片，缺漏或重复返回 `400`，含其他相册的相片返回 `404`，整体拒绝、不改任何一张；`index` 未变的相片不刷新 `updated_at`。返回更新后的相册 |
+| `adminRefreshThumb` | `{ photo_id }` | 重建 SDR optimized 和缩略图；按当前配置生成的图超过 AVIF 每边 16384px 时返回 400 |
 | `adminRefreshAvatar` | `{ member_id }` | 重建头像缩略图 |
 
 日期字段使用 ISO 8601，例如 `2026-10-01T00:00:00.000Z`。
@@ -336,6 +339,7 @@ right.event_start <= left.event_end
 限制：
 
 - 文件大小不能超过当前 instance 配置的 `max_upload_bytes`，也不能超过进程的 `HTTP_BODY_HARD_LIMIT_BYTES`。
+- 图片不能太长：按当前配置生成的相片缩略图、相片 optimized、头像缩略图，任何一边超过 16384px（AVIF 上限）就返回 400 “图片太长了……”。规则见 [configure.md](configure.md)“过长图片在上传时拒绝”。
 - 无法解析的图片返回 `BAD_REQUEST`。
 - 临时文件由服务端在启动和清理流程中回收。
 
@@ -428,6 +432,9 @@ curl -X POST http://localhost:7001/query/listGalleries \
 curl -X POST http://localhost:7001/auth/login \
   -H 'content-type: application/json' \
   -d '{"password":"your-password"}'
+
+curl http://localhost:7001/auth/check \
+  -H "authorization: Bearer $TOKEN"
 
 curl -X POST http://localhost:7001/admin/query/adminFetchPool \
   -H 'content-type: application/json' \

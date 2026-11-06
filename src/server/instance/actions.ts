@@ -54,7 +54,7 @@ import {
   poolUpdateGallery,
   poolUpdateMember,
   poolUpdatePhoto,
-  poolSortPhotosByVoteCount,
+  poolSortPhotos,
   poolRemoveSubmission,
   type Pool,
 } from '../core/Pool'
@@ -202,6 +202,10 @@ const VoteSchema = z.object({
 })
 
 const GalleryIDPayloadSchema = z.object({ gallery_id: idSchema })
+const PhotoSortSchema = z.object({
+  gallery_id: idSchema,
+  photo_ids: z.array(idSchema),
+}).strict()
 const PhotoIDPayloadSchema = z.object({ photo_id: idSchema })
 const MemberIDPayloadSchema = z.object({ member_id: idSchema })
 const SubmissionLookupSchema = z.object({
@@ -852,14 +856,15 @@ export const mutations = {
     },
   }),
 
-  adminSortPhotosByVoteCount: defineMutation({
-    schema: GalleryIDPayloadSchema,
+  adminSortPhotos: defineMutation({
+    schema: PhotoSortSchema,
     admin: true,
     commit: (ctx, payload) => {
-      const next = poolSortPhotosByVoteCount(
+      const next = poolSortPhotos(
         ctx.pool,
         ctx.now,
         toGalleryID(payload.gallery_id),
+        payload.photo_ids.map(toPhotoID),
       )
       return {
         pool: next.pool,

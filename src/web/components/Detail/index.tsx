@@ -1,367 +1,300 @@
-import { nextTick, timeout } from 'vait'
-import React, { useRef, useEffect, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import useDisableScroll from 'hooks/useDisableScroll'
-
-import './style.scss'
-import useMountState from 'hooks/useMountState'
 import Spinner from '../Spinner'
+import { fitImage, INITIAL_VIEW, thumbnailTransform, viewTransform, type ThumbRect, type View } from './geometry'
+import { createGestures } from './gestures'
+import { downloadImage, prepareImage, type ImageDownload } from './image-loading'
+import './style.scss'
 
-const getCenter = (totalLength: number, length: number) => (totalLength / 2) - (length / 2)
-
-type OptProperties<T> = {
-  [K in keyof T]?: T[K]
-}
-
-type ImagePos = {
-  height: number
-  width: number
-  left: number
-  top: number
-}
-type TouchPos = { x: number; y: number}
-
-const calcTouchDragPos = (touchStart: TouchPos, touchMove: TouchPos): TouchPos => {
-  const x = 0
-  let y = touchMove.y - touchStart.y
-
-  const totalLength = window.innerHeight - (touchMove.y)
-  let b = y / totalLength
-
-  if (b > 1) {
-    console.log('滑动到极限了')
-    b = 1
-  }
-
-  y = b * 100
-
-  return { x, y }
-}
-
-const IMAGE_PADDING = 50
-const calcImageFullScreenPos = (
-  { width: imgW, height: imgH }: { width: number, height: number },
-  GLOBAL = window
-): ImagePos => {
-  const { innerWidth, innerHeight } = GLOBAL
-  const imageProportion = imgH / imgW
-
-  const newImgW = innerWidth
-  const newImgH = innerWidth * imageProportion
-
-  if (newImgH > innerHeight) {
-    // 缩放的图的高度大于窗口高度
-    console.error('>', newImgH, innerHeight)
-    const height = innerHeight - (IMAGE_PADDING * 2)
-    const width = height / imageProportion
-
-    return {
-      top: IMAGE_PADDING,
-      left: getCenter(innerWidth, width),
-      width,
-      height,
-    }
-  } else {
-    // 缩放的图的高度小于等于窗口高度
-    console.error('<=', newImgH, innerHeight)
-
-    if (newImgH / innerHeight > 0.80) {
-      // 图片是否较长，是的话就适当留空白
-      const width = newImgW - (IMAGE_PADDING * 2)
-      const height = width * imageProportion
-      return {
-        top: getCenter(innerHeight, height),
-        left: IMAGE_PADDING,
-        width,
-        height,
-      }
-    } else {
-      const width = newImgW
-      const height = width * imageProportion
-      return {
-        top: getCenter(innerHeight, height),
-        left: 0,
-        width,
-        height,
-      }
-    }
-  }
-}
-
-function usePictureLoading(source_url: string) {
-  const [is_loading, setLoading] = useState(false)
-  useEffect(() => {
-    if (source_url.length) {
-      setLoading(true)
-    } else {
-      setLoading(false)
-    }
-  }, [source_url.length])
-
-  return [
-    is_loading,
-    function onLoad() {
-      setLoading(false)
-    }
-  ] as const
-}
-
-export type Detail = {
-  from: ImagePos
+export type DetailInput = {
+  from: ThumbRect
   thumb: string
   src: string
   height: number
   width: number
-} | null
-export default ({ detail, onCancel = () => undefined }: {
-  detail: Detail
+}
+type DetailSession = DetailInput & { id: number; download: ImageDownload }
+export type Detail = DetailSession | null
+let nextSessionId = 0
+
+export function prepareDetail(input: DetailInput): DetailSession {
+  return { ...input, id: ++nextSessionId, download: downloadImage(input.src) }
+}
+
+export default function PhotoDetail({ detail, onCancel }: { detail: Detail; onCancel: () => void }) {
+  const [visible, setVisible] = useState(detail)
+  useLayoutEffect(() => {
+    if (detail !== null) setVisible(detail)
+  }, [detail])
+  useDisableScroll(visible !== null)
+
+  if (visible === null) return null
+  return createPortal(
+    <Viewer
+      key={visible.id}
+      detail={visible}
+      closing={detail !== visible}
+      onCancel={onCancel}
+      onExited={() => setVisible(current => current === visible ? null : current)}
+    />,
+    document.body,
+  )
+}
+
+type NativeGestureEvent = Event & { scale: number; clientX: number; clientY: number }
+const IMAGE_DURATION = 382
+const MASK_DURATION = 618
+
+function Viewer({ detail, closing, onCancel, onExited }: {
+  detail: DetailSession
+  closing: boolean
   onCancel: () => void
-}) => {
-  const isMounted = useMountState()
-  const [isShow, setIsShow] = useState(false)
-  const detailFrameEl = useRef<HTMLDivElement | null>(null)
-  const imageFrameEl = useRef<HTMLDivElement | null>(null)
+  onExited: () => void
+}) {
+  const rootRef = useRef<HTMLDivElement>(null)
+  const maskRef = useRef<HTMLDivElement>(null)
+  const frameRef = useRef<HTMLDivElement>(null)
+  const sourceRef = useRef<HTMLDivElement>(null)
+  const closeRef = useRef<() => void>(() => undefined)
+  const retryRef = useRef<() => void>(() => undefined)
+  const callbacks = useRef({ onCancel, onExited })
+  const [entered, setEntered] = useState(false)
+  const [loading, setLoading] = useState<'loading' | 'ready' | 'failed'>('loading')
 
-  const [opacity, setOpacity] = useState(0)
-  const [sourceUrl, setSourceUrl] = useState('')
-  const [thumbUrl, setThumbUrl] = useState('')
-  const [fromPos, setFromPos] = useState<ImagePos | null>(null)
-  const [toPos, setToPos] = useState<ImagePos | null>(null)
-  const [imageFrameTransition, setImageFrameTransition] = useState(true)
+  useLayoutEffect(() => { callbacks.current = { onCancel, onExited } })
 
-  const [touchStart, setTouchStart] = useState<TouchPos | null>(null)
-  const [touchMove, setTouchMove] = useState<TouchPos | null>(null)
+  useLayoutEffect(() => {
+    const root = rootRef.current!
+    const mask = maskRef.current!
+    const frame = frameRef.current!
+    const source = sourceRef.current!
+    const previousFocus = document.activeElement
+    root.focus({ preventScroll: true })
+    const lifetime = new AbortController()
+    const urls = new Set<string>()
+    const animations = new Set<Animation>()
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    let alive = true
+    let isClosing = false
+    let drawFrame = 0
+    let view = { ...INITIAL_VIEW }
+    let activeDownload = detail.download
+    let viewport = { width: window.innerWidth, height: window.innerHeight }
+    let fitted = fitImage(detail, viewport)
+    let nativeGesture: { scale: number; point: { x: number; y: number } } | null = null
 
-  useEffect(() => {
-    if (detail) {
-      setImageFrameTransition(true)
-      setThumbUrl(detail.thumb)
-      setSourceUrl(detail.src)
-      const { top, left, width, height } = detail.from
-      setFromPos({
-        top,
-        left,
-        width,
-        height,
+    function layout() {
+      viewport = { width: window.innerWidth, height: window.innerHeight }
+      fitted = fitImage(detail, viewport)
+      Object.assign(frame.style, {
+        width: `${fitted.width}px`, height: `${fitted.height}px`,
+        left: `${fitted.left}px`, top: `${fitted.top}px`,
       })
-      setIsShow(true)
-    } else {
-      setImageFrameTransition(true)
-      setToPos(null)
-      setTouchMove(null)
-      setTouchStart(null)
-      setOpacity(0)
+    }
+    function animate(element: HTMLElement, keyframes: Keyframe[], duration: number) {
+      const animation = element.animate(keyframes, { duration: reducedMotion ? 0 : duration, easing: 'ease' })
+      animations.add(animation)
+      return animation
+    }
+    layout()
+    frame.style.transform = viewTransform(view)
+    const imageEntrance = animate(frame, [
+      { transform: thumbnailTransform(detail.from, fitted), opacity: 0 },
+      { transform: viewTransform(view), opacity: 1 },
+    ], IMAGE_DURATION)
+    const maskEntrance = animate(mask, [{ opacity: 0 }, { opacity: 1 }], MASK_DURATION)
+    // Direct manipulation may interrupt the image flight. The mask still must finish.
+    const entrance = Promise.all([
+      imageEntrance.finished.catch(() => undefined),
+      maskEntrance.finished.catch(() => undefined),
+    ])
+    void entrance.then(() => {
+      if (!lifetime.signal.aborted) setEntered(true)
+    })
 
-      timeout(382).then(() => {
-        if (isMounted()) {
-          setThumbUrl('')
-          setSourceUrl('')
-          setFromPos(null)
-          setToPos(null)
-          setImageFrameTransition(false)
-          return timeout(382)
-        }
-      }).then(() => {
-        if (isMounted()) {
-          setIsShow(false)
+    async function decode(blob: Blob) {
+      const url = URL.createObjectURL(blob)
+      urls.add(url)
+      const image = new Image()
+      image.className = 'source'
+      image.alt = ''
+      image.draggable = false
+      image.decoding = 'async'
+      image.src = url
+      await image.decode()
+      return image
+    }
+    function load(download: ImageDownload) {
+      void prepareImage(download, entrance, decode, lifetime.signal).then(result => {
+        if (lifetime.signal.aborted || download !== activeDownload) return
+        if (result.status === 'ready') {
+          // Insert the already-decoded element itself, not a second <img> with a new src.
+          source.replaceChildren(result.image)
+          setLoading('ready')
+        } else if (result.status === 'failed') {
+          setLoading('failed')
         }
       })
     }
-  }, [detail, isMounted])
+    load(activeDownload)
+    retryRef.current = () => {
+      if (isClosing) return
+      activeDownload.abort()
+      activeDownload = downloadImage(detail.src)
+      setLoading('loading')
+      load(activeDownload)
+    }
 
-  useEffect(() => {
-    if (isShow && fromPos && detail && imageFrameTransition) {
-      window.requestAnimationFrame(() => {
-        nextTick().then(() => {
-          if (isMounted()) {
-            setOpacity(1)
-            setToPos({
-              ...calcImageFullScreenPos({
-                width: detail.width,
-                height: detail.height,
-              }),
-            })
-
-            timeout(382).then(() => {
-              if (isMounted()) {
-                setImageFrameTransition(false)
-              }
-            })
-          }
-        })
+    function close() {
+      if (isClosing || !alive) return
+      isClosing = true
+      lifetime.abort()
+      activeDownload.abort()
+      cancelAnimationFrame(drawFrame)
+      const transform = getComputedStyle(frame).transform
+      const imageOpacity = getComputedStyle(frame).opacity
+      const maskOpacity = getComputedStyle(mask).opacity
+      for (const animation of animations) animation.cancel()
+      frame.style.transform = thumbnailTransform(detail.from, fitted)
+      frame.style.opacity = '0'
+      mask.style.opacity = '0'
+      const imageExit = animate(frame, [
+        { transform, opacity: imageOpacity },
+        { transform: frame.style.transform, opacity: 0 },
+      ], IMAGE_DURATION)
+      const maskExit = animate(mask, [{ opacity: maskOpacity }, { opacity: 0 }], MASK_DURATION)
+      void Promise.all([imageExit.finished, maskExit.finished]).then(() => {
+        if (alive) callbacks.current.onExited()
+      }).catch(() => undefined)
+    }
+    closeRef.current = close
+    const dismiss = () => {
+      if (isClosing) return
+      close()
+      callbacks.current.onCancel()
+    }
+    const draw = (next: View) => {
+      if (isClosing) return
+      view = next
+      if (imageEntrance.playState === 'running') imageEntrance.cancel()
+      if (drawFrame) return
+      drawFrame = requestAnimationFrame(() => {
+        drawFrame = 0
+        frame.style.transform = viewTransform(view)
+        root.dataset.zoomed = String(view.scale > 1)
       })
-
-      return () => {
-        if (isMounted()) {
-          setImageFrameTransition(false)
-        }
+    }
+    const gestures = createGestures(fitted, viewport, draw, dismiss)
+    const isControl = (event: Event) => event.target instanceof Element && event.target.closest('button, a') !== null
+    const point = (event: { clientX: number; clientY: number }) => ({ x: event.clientX, y: event.clientY })
+    const pointerDown = (event: PointerEvent) => {
+      if (isClosing || isControl(event) || (event.pointerType === 'mouse' && event.button !== 0)) return
+      event.preventDefault()
+      root.setPointerCapture(event.pointerId)
+      gestures.down(event.pointerId, point(event))
+    }
+    const pointerMove = (event: PointerEvent) => {
+      if (!isClosing) gestures.move(event.pointerId, point(event))
+    }
+    const pointerUp = (event: PointerEvent) => {
+      if (!isClosing) gestures.up(event.pointerId, point(event))
+    }
+    const pointerCancel = (event: PointerEvent) => {
+      if (!isClosing) gestures.cancel(event.pointerId)
+    }
+    const wheel = (event: WheelEvent) => {
+      event.preventDefault()
+      if (isClosing || nativeGesture !== null) return
+      gestures.wheel(event.deltaX, event.deltaY, event.deltaMode, event.ctrlKey, point(event))
+    }
+    const gesturePoint = (event: NativeGestureEvent) => ({
+      x: Number.isFinite(event.clientX) ? event.clientX : viewport.width / 2,
+      y: Number.isFinite(event.clientY) ? event.clientY : viewport.height / 2,
+    })
+    const gestureStart = (raw: Event) => {
+      raw.preventDefault()
+      if (isClosing || gestures.pointerCount > 0) return
+      const event = raw as NativeGestureEvent
+      nativeGesture = { scale: event.scale || 1, point: gesturePoint(event) }
+    }
+    const gestureChange = (raw: Event) => {
+      raw.preventDefault()
+      if (isClosing || nativeGesture === null || gestures.pointerCount > 0) return
+      const event = raw as NativeGestureEvent
+      const next = gesturePoint(event)
+      gestures.zoom(event.scale / nativeGesture.scale, nativeGesture.point, next)
+      nativeGesture = { scale: event.scale || 1, point: next }
+    }
+    const gestureEnd = (event: Event) => {
+      event.preventDefault()
+      nativeGesture = null
+    }
+    const resize = () => {
+      if (isClosing) return
+      layout()
+      gestures.resize(fitted, viewport)
+    }
+    const keyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        dismiss()
+      } else if (event.key === 'Tab') {
+        event.preventDefault()
+        ;(root.querySelector('button') ?? root).focus({ preventScroll: true })
       }
     }
-  }, [isShow, detail, fromPos, imageFrameTransition, isMounted])
-
-  useEffect(() => {
-    const resizeHandle = () => {
-      // console.log('resizeHandle', fromPos)
-      if (!fromPos) {
-        return
-      }
-
-      setImageFrameTransition(true)
-      if (detail) {
-        setToPos({
-          ...calcImageFullScreenPos({
-            width: detail.width,
-            height: detail.height,
-          }),
-        })
-      }
-    }
-    window.addEventListener('resize', resizeHandle)
+    root.addEventListener('pointerdown', pointerDown)
+    root.addEventListener('pointermove', pointerMove)
+    root.addEventListener('pointerup', pointerUp)
+    root.addEventListener('pointercancel', pointerCancel)
+    root.addEventListener('lostpointercapture', pointerCancel)
+    root.addEventListener('wheel', wheel, { passive: false })
+    root.addEventListener('gesturestart', gestureStart, { passive: false })
+    root.addEventListener('gesturechange', gestureChange, { passive: false })
+    root.addEventListener('gestureend', gestureEnd, { passive: false })
+    root.addEventListener('keydown', keyDown)
+    window.addEventListener('resize', resize)
 
     return () => {
-      window.removeEventListener('resize', resizeHandle)
+      alive = false
+      lifetime.abort()
+      activeDownload.abort()
+      cancelAnimationFrame(drawFrame)
+      for (const animation of animations) animation.cancel()
+      for (const url of urls) URL.revokeObjectURL(url)
+      root.removeEventListener('pointerdown', pointerDown)
+      root.removeEventListener('pointermove', pointerMove)
+      root.removeEventListener('pointerup', pointerUp)
+      root.removeEventListener('pointercancel', pointerCancel)
+      root.removeEventListener('lostpointercapture', pointerCancel)
+      root.removeEventListener('wheel', wheel)
+      root.removeEventListener('gesturestart', gestureStart)
+      root.removeEventListener('gesturechange', gestureChange)
+      root.removeEventListener('gestureend', gestureEnd)
+      root.removeEventListener('keydown', keyDown)
+      window.removeEventListener('resize', resize)
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus({ preventScroll: true })
     }
-  }, [detail, fromPos])
+  }, [detail])
 
-  useEffect(() => {
-    const touchStartHandler: HTMLDivElement['ontouchstart'] = (e) => {
-      const { touches } = e
-      if (touches.length !== 1) {
-        // 不是单指操作的情况
-        return
-      }
-
-      e.stopPropagation()
-      e.preventDefault()
-
-      const touch = touches[0]
-
-      setTouchStart({
-        x: touch.clientX,
-        y: touch.clientY,
-      })
-    }
-    const touchMoveHandler: HTMLDivElement['ontouchmove'] = (e) => {
-      const { touches } = e
-      if (touches.length !== 1) {
-        // 不是单指操作的情况
-        return
-      }
-
-      e.stopPropagation()
-      e.preventDefault()
-
-      const { clientX, clientY } = touches[0]
-      const willWrite = touchMove ? { ...touchMove } : { x: 0, y: 0 }
-      if ((clientX >= 0) && (clientX < window.innerWidth)) {
-        willWrite.x = clientX
-      }
-      if ((clientY >= 0) && (clientY < window.innerHeight)) {
-        willWrite.y = clientY
-      }
-      setTouchMove(willWrite)
-    }
-
-    const touchEndHandler: HTMLDivElement['ontouchend'] = (e) => {
-      const { changedTouches: touches } = e
-      if (touches.length !== 1) {
-        // 不是单指操作的情况
-        return
-      }
-
-      e.stopPropagation()
-      e.preventDefault()
-
-      const touch = touches[0]
-
-      if (!touchStart) {
-        return
-      }
-
-      const diffY = touch.clientY - touchStart.y
-
-      if (diffY > 100) {
-        onCancel()
-      } else if (!touchMove) {
-        // 触屏点击的情况
-        onCancel()
-      } else {
-        setImageFrameTransition(true)
-        setTouchStart(null)
-        setTouchMove(null)
-        timeout(382).then(() => {
-          if (isMounted()) {
-            setImageFrameTransition(false)
-          }
-        })
-      }
-    }
-
-    if (imageFrameEl.current) {
-      const { current: el } = imageFrameEl
-
-      el.addEventListener('touchstart', touchStartHandler)
-      el.addEventListener('touchmove', touchMoveHandler)
-      el.addEventListener('touchend', touchEndHandler)
-      return () => {
-        el.removeEventListener('touchstart', touchStartHandler)
-        el.removeEventListener('touchmove', touchMoveHandler)
-        el.removeEventListener('touchend', touchEndHandler)
-      }
-    }
-    // isShow 控制着 imageFrameEl.current
-    // 也就是说 isShow = true 的时候 imageFrameEl.current 才不至于是 null
-  }, [isShow, onCancel, touchStart, touchMove, isMounted])
-
-  useEffect(() => {
-    if (detailFrameEl.current) {
-      const { current: el } = detailFrameEl
-      const touchMoveHandler: HTMLDivElement['ontouchmove'] = (e) => {
-        if (detail) {
-          e.preventDefault()
-          e.stopPropagation()
-        }
-      }
-      el.addEventListener('touchmove', touchMoveHandler)
-
-      return () => {
-        el.removeEventListener('touchmove', touchMoveHandler)
-      }
-    }
-    // isShow 控制着 detailFrameEl.current
-    // 也就是说 isShow = true 的时候 detailFrameEl.current 才不至于是 null
-  }, [isShow, detail])
-
-  useDisableScroll(Boolean(detail))
-
-  const [ is_loading, onLoad ] = usePictureLoading(sourceUrl)
-
-  if (!isShow) {
-    return null
-  }
-
-  const pos: OptProperties<ImagePos & { transform: string }> = {
-    ...(toPos || fromPos || {})
-  }
-  if (touchStart && touchMove) {
-    const dPos = calcTouchDragPos(touchStart, touchMove)
-    pos.transform = `translate(${dPos.x}px, ${dPos.y}px)`
-  }
+  useLayoutEffect(() => {
+    if (closing) closeRef.current()
+  }, [closing])
 
   return (
-    <div
-      ref={detailFrameEl}
-      className="detail-frame"
-      onClick={onCancel}
-    >
-      <div className="bgMask" style={{ opacity }}></div>
-      <div
-        ref={imageFrameEl}
-        className={`imageFrame ${imageFrameTransition ? 'transition' : ''}`}
-        style={{ ...pos, opacity: toPos ? 1 : 0 }}
-      >
-        <img className="thumb" src={thumbUrl || undefined} alt="" />
-        <img className="source" src={sourceUrl || undefined} alt="" onLoad={onLoad} />
-        { is_loading ? <div className='imgLoading'><Spinner audioVolume={.8} /> <span style={{ marginLeft: '4px' }}>加载中</span></div> : '' }
+    <div ref={rootRef} className='detail-frame' role='dialog' aria-modal='true' aria-label='查看大图' tabIndex={-1}>
+      <div ref={maskRef} className='bgMask' />
+      <div ref={frameRef} className='imageFrame'>
+        <img className='thumb' src={detail.thumb || undefined} alt='' draggable={false} />
+        <div ref={sourceRef} className='sourceLayer' />
+        {entered && !closing && loading !== 'ready' && (
+          <div className='imgLoading' role='status'>
+            {loading === 'loading'
+              ? <><Spinner audioVolume={.8} /><span>加载中</span></>
+              : <><span>大图加载失败，仍显示缩略图</span><button type='button' onClick={() => retryRef.current()}>重试</button></>}
+          </div>
+        )}
       </div>
     </div>
   )

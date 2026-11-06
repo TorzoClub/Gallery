@@ -1,3 +1,4 @@
+import { sign } from 'hono/jwt'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   createTestContext,
@@ -55,6 +56,36 @@ describe('dispatch authentication and envelopes', () => {
     expect(pool.body.data.instance_config.avif_source_quality).toBe(75)
     expect(pool.body.data.instance_config.image_processing_effort).toBe(8)
     expect(pool.body.data.instance_config.max_upload_bytes).toBe(16 * 1024 * 1024)
+  })
+
+  it('checks a token without returning admin data', async () => {
+    const check = (token?: string) => ctx.app.request('/auth/check', {
+      headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
+    })
+
+    const ok = await check(await ctx.login())
+    expect(ok.status).toBe(200)
+    expect(await ok.json()).toEqual({ success: true, data: { ok: true } })
+
+    expect((await check()).status).toBe(401)
+
+    const expired = await sign({
+      role: 'admin',
+      exp: Math.floor(Date.now() / 1000) - 60,
+    }, ctx.env.jwt_secret, 'HS256')
+    const expired_response = await check(expired)
+    expect(expired_response.status).toBe(401)
+    expect((await expired_response.json() as any).message).toBe('Token 已过期')
+
+    const forged = await sign({
+      role: 'admin',
+      exp: Math.floor(Date.now() / 1000) + 60,
+    }, 'not-the-secret-not-the-secret-00', 'HS256')
+    const forged_response = await check(forged)
+    expect(forged_response.status).toBe(403)
+
+    const garbage_response = await check('not-a-jwt')
+    expect(garbage_response.status).toBe(403)
   })
 
   it('returns 404 for unknown actions and 400 for malformed JSON', async () => {

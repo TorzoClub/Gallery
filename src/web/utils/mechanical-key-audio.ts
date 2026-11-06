@@ -118,6 +118,120 @@ export function playMechanicalKeySound(): void {
   start()
 }
 
+function playWith(build: (context: AudioContext, now: number, master: GainNode) => void, masterGain = 1): void {
+  const context = getAudioContext()
+  if (context === null) {
+    return
+  }
+
+  const start = () => {
+    try {
+      if (context.state === 'closed') {
+        return
+      }
+      const master = context.createGain()
+      master.gain.value = masterGain
+      master.connect(context.destination)
+      build(context, context.currentTime, master)
+    } catch {
+      // AudioContext 在部分浏览器/自动播放策略下不可用，静默降级。
+    }
+  }
+
+  if (context.state === 'suspended') {
+    void context.resume().then(start).catch(() => undefined)
+    return
+  }
+
+  start()
+}
+
+function tone(
+  context: AudioContext,
+  master: GainNode,
+  { type, at, from, to, peak, attack, decay }: {
+    type: OscillatorType
+    at: number
+    from: number
+    to: number
+    peak: number
+    attack: number
+    decay: number
+  },
+): void {
+  const osc = context.createOscillator()
+  const gain = context.createGain()
+  osc.type = type
+  osc.frequency.setValueAtTime(from, at)
+  if (to !== from) {
+    osc.frequency.exponentialRampToValueAtTime(to, at + decay)
+  }
+  gain.gain.setValueAtTime(0.0001, at)
+  gain.gain.linearRampToValueAtTime(peak, at + attack)
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + decay)
+  osc.connect(gain)
+  gain.connect(master)
+  osc.start(at)
+  osc.stop(at + decay + 0.01)
+}
+
+function noiseBurst(
+  context: AudioContext,
+  master: GainNode,
+  { at, filter, frequency, q, peak, decay }: {
+    at: number
+    filter: BiquadFilterType
+    frequency: number
+    q: number
+    peak: number
+    decay: number
+  },
+): void {
+  const noise = context.createBufferSource()
+  const noiseFilter = context.createBiquadFilter()
+  const gain = context.createGain()
+  noise.buffer = getNoiseBuffer(context)
+  noiseFilter.type = filter
+  noiseFilter.frequency.setValueAtTime(frequency, at)
+  noiseFilter.Q.value = q
+  gain.gain.setValueAtTime(0.0001, at)
+  gain.gain.linearRampToValueAtTime(peak, at + 0.002)
+  gain.gain.exponentialRampToValueAtTime(0.0001, at + decay)
+  noise.connect(noiseFilter)
+  noiseFilter.connect(gain)
+  gain.connect(master)
+  noise.start(at)
+  noise.stop(at + Math.min(decay + 0.01, 0.06))
+}
+
+/**
+ * 玻璃保护盖被弹簧顶开：卡扣松开的脆响 + 塑料盖撞到铰链限位的闷响 + 一点弹簧余震。
+ * 约 140ms。
+ */
+export function playCoverPopSound(): void {
+  playWith((context, now, master) => {
+    tone(context, master, { type: 'square', at: now, from: 3200, to: 1400, peak: 0.05, attack: 0.0015, decay: 0.018 })
+    noiseBurst(context, master, { at: now, filter: 'highpass', frequency: 2400, q: 0.7, peak: 0.16, decay: 0.03 })
+    tone(context, master, { type: 'triangle', at: now + 0.06, from: 240, to: 120, peak: 0.32, attack: 0.003, decay: 0.07 })
+    noiseBurst(context, master, { at: now + 0.06, filter: 'bandpass', frequency: 900, q: 1.2, peak: 0.14, decay: 0.04 })
+    tone(context, master, { type: 'sine', at: now + 0.065, from: 520, to: 760, peak: 0.07, attack: 0.004, decay: 0.075 })
+  })
+}
+
+/**
+ * 红色发射按钮按到底的一声“dang”：低频按键撞底 + 几个非谐波金属分音缓慢衰减。
+ * 约 600ms。
+ */
+export function playFireButtonSound(): void {
+  playWith((context, now, master) => {
+    tone(context, master, { type: 'triangle', at: now, from: 150, to: 82, peak: 0.45, attack: 0.003, decay: 0.12 })
+    noiseBurst(context, master, { at: now, filter: 'bandpass', frequency: 3000, q: 0.9, peak: 0.16, decay: 0.025 })
+    tone(context, master, { type: 'sine', at: now, from: 660, to: 655, peak: 0.2, attack: 0.002, decay: 0.6 })
+    tone(context, master, { type: 'sine', at: now, from: 1657, to: 1650, peak: 0.08, attack: 0.002, decay: 0.38 })
+    tone(context, master, { type: 'sine', at: now, from: 2433, to: 2425, peak: 0.04, attack: 0.002, decay: 0.22 })
+  })
+}
+
 /**
  * 另一个键被顶起来时的短促回弹声：比按下更轻、更高。
  * 用 45ms 的延迟让它在按下声音之后出现。

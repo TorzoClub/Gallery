@@ -10,6 +10,8 @@ import {
 } from '../../src/server/core/Pool'
 import { toClientPool } from '../../src/server/instance/to-client-pool'
 import { formatUptime } from '../../src/shared/uptime'
+import { memberBookFromPool } from '../../src/web/pool/member-book'
+import { isMemberPath, memberIdFromPath, memberPath } from '../../src/web/routes'
 
 const now = new Date('2026-06-01T00:00:00.000Z')
 const past = new Date('2026-01-01T00:00:00.000Z')
@@ -151,5 +153,79 @@ describe('formatUptime', () => {
   it('uses y m d at one year and above', () => {
     expect(formatUptime(0, 365 * day + 2 * 30 * day + 3 * day + 5 * hour)).toBe('1y 2m 3d')
     expect(formatUptime(0, 2 * 365 * day + 5 * hour)).toBe('2y 0m 0d')
+  })
+})
+
+describe('memberBookFromPool', () => {
+  it('builds the read-only notebook from the masked ClientPool only', () => {
+    let pool = makePool()
+    const author = addMember(pool, 20001)
+    pool = author.pool
+    const voter = addMember(pool, 20002)
+    pool = voter.pool
+
+    const active = addGallery(pool, {
+      name: 'active',
+      event_start: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+      submission_expire: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+      event_end: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+    })
+    pool = active.pool
+    pool = addPhoto(pool, active.gallery_id, author.member_id).pool
+
+    const past_gallery = addGallery(pool, {
+      name: 'past',
+      event_start: new Date(past.getTime() - 2 * 24 * 60 * 60 * 1000),
+      submission_expire: new Date(past.getTime() - 24 * 60 * 60 * 1000),
+      event_end: new Date(now.getTime() - 24 * 60 * 60 * 1000),
+    })
+    pool = past_gallery.pool
+    const first = addPhoto(pool, past_gallery.gallery_id, author.member_id)
+    pool = first.pool
+    const older_gallery = addGallery(pool, {
+      name: 'older',
+      event_start: new Date(past.getTime() - 4 * 24 * 60 * 60 * 1000),
+      submission_expire: new Date(past.getTime() - 3 * 24 * 60 * 60 * 1000),
+      event_end: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+    })
+    pool = older_gallery.pool
+    pool = addPhoto(pool, older_gallery.gallery_id, author.member_id).pool
+    pool = poolSubmitVotes(pool, past, asGalleryID(past_gallery.gallery_id), asMemberID(voter.member_id), [asPhotoID(first.photo_id)]).pool
+
+    const book = memberBookFromPool(toClientPool(pool, now, {
+      instance_hash: 'abc123',
+      app_startup_time: now.getTime(),
+      version_time: 1,
+      build_date: '2026-06-01',
+      git_hash: 'deadbeef',
+    }), {
+      avatar: m => `images/thumb/${m.avatar_src}`,
+      thumb: p => `images/thumb/${p.src}`,
+      optimized: p => `images/optimized/${p.src}`,
+    })
+
+    const a = book.members.find(m => Number(m.id) === author.member_id)!
+    const v = book.members.find(m => Number(m.id) === voter.member_id)!
+    // 没有 QQ 号
+    expect(a.qq).toBe('')
+    expect(book.members.every(m => m.qq === '')).toBe(true)
+    // 活动中相册的投稿认不出作者，不计入
+    expect(a.photoCount).toBe(2)
+    expect(book.submissions(a).map(p => p.galleryName).sort()).toEqual(['older', 'past'])
+    expect(v.photoCount).toBe(0)
+    expect(v.voteCount).toBe(1)
+    expect(a.avatarUrl).toContain('images/thumb/')
+    expect(book.submissions(a).every(p => p.srcUrl.includes('images/optimized/'))).toBe(true)
+  })
+})
+
+describe('member routes', () => {
+  it('parses /member/<id>', () => {
+    expect(memberPath(12)).toBe('/member/12')
+    expect(isMemberPath('/member/12')).toBe(true)
+    expect(isMemberPath('/members')).toBe(false)
+    expect(memberIdFromPath('/member/12/')).toBe('12')
+    expect(memberIdFromPath('/member/abc')).toBeNull()
+    expect(memberIdFromPath('/member')).toBeNull()
   })
 })

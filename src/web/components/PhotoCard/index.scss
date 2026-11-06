@@ -1,0 +1,341 @@
+/* PhotoCard：一张拍立得。四周白边、下方留出写字的位置，顶边贴一截纸胶带。
+ * 白边宽度、下方最小高度由 scatter.ts 按卡片宽度算出，写在行内样式里。 */
+
+.photo-card {
+  /* 手写字体：西文手写体 → 霞鹜文楷 → 行楷 → 楷体（macOS / Windows / 繁体）→ 系统无衬线 */
+  --photo-card-hand: "Bradley Hand", "Segoe Print", "LXGW WenKai", "LXGW WenKai Screen", "Xingkai SC", "STXingkai",
+    "Kaiti SC", "STKaiti", "KaiTi", "楷体", "BiauKai", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+
+  position: relative;
+  box-sizing: border-box;
+  background: #fffefb;
+  border-radius: 1px;
+  box-shadow:
+    0 0 0 0.5px rgb(0 0 0 / 0.12),
+    0 1px 1px rgb(0 0 0 / 0.14),
+    0 10px 18px -10px rgb(40 30 10 / 0.42);
+
+  .cover-area {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    cursor: pointer;
+    background: linear-gradient(-15deg, #ecebe6, #f6f5f0, #ecebe6);
+    /* 相纸压在白边里的那一圈细线 */
+    box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.1);
+
+    .cover {
+      display: block;
+      width: 100%;
+      height: 100%;
+      transition: opacity 382ms;
+    }
+
+    /*
+     * 横长图竖着贴（scatter.ts 的 SIDEWAYS_RATIO / photoCardCover）：
+     * <img> 的宽高在行内样式里对调成原图方向，这里居中后顺时针转 90°，原图顶边朝右。
+     * 只是显示上的旋转，图片文件本身不变；点开大图时转回横向（见 PhotoCard 的 onClickCover）。
+     */
+    .cover-sideways {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      max-width: none;
+      transform: translate(-50%, -50%) rotate(90deg);
+    }
+  }
+
+  .bottom-area {
+    box-sizing: border-box;
+    padding: 10px 2px 10px;
+  }
+
+  /* 右下角的磁粒盖住写字区的最后一列：描述右侧让出一条，别写到底下 */
+  .bottom-area.has-vote .desc-block {
+    padding-right: 44px;
+  }
+
+  .member-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .avatar-wrapper {
+    position: relative;
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    overflow: hidden;
+    box-shadow: inset 0 -1px 1px rgb(0 0 0 / 0.2), 0 0 1px rgb(0 0 0 / 0.3);
+
+    .avatar {
+      box-sizing: border-box;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #eee;
+      border-radius: 50%;
+      box-shadow:
+        inset 0 0 6px rgb(0 0 0 / 0.5),
+        0 0 1px rgb(0 0 0 / 0.5);
+
+      .avatar-inner {
+        width: 100%;
+        height: 100%;
+        background-position: center center;
+        background-size: cover;
+        border-radius: 50%;
+        transition: transform 382ms;
+        transition-timing-function: cubic-bezier(0.42, 0, 0.19, 1.51);
+      }
+    }
+  }
+
+  .member-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 14px;
+    line-height: 28px;
+    color: #4a4a4a;
+    text-shadow: 1px 1px 0 #fff;
+
+    .name-label {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  /* 公开页：头像和昵称可以点（换台到这位成员的名单簿）。只是去掉按钮外观，样子不变 */
+  .photo-card-member-link {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+    cursor: pointer;
+
+    &.is-avatar {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+    }
+
+    &:focus-visible {
+      outline: 2px solid #306785;
+      outline-offset: 2px;
+    }
+  }
+
+  .member-info > .photo-card-member-link {
+    flex: 1 1 auto;
+  }
+
+  .member-info + .desc-block {
+    margin-top: 6px;
+  }
+
+  .desc-block {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    font-family: var(--photo-card-hand);
+    font-size: 13px;
+    line-height: 18px;
+    color: rgb(0 0 0 / 0.62);
+    text-align: justify;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+
+    &::before,
+    &::after {
+      display: inline-block;
+      font-size: 1.5em;
+      font-weight: 900;
+      line-height: 0;
+      color: rgb(0 0 0 / 0.2);
+      vertical-align: middle;
+    }
+
+    &::before {
+      content: "“";
+      margin-right: 2px;
+    }
+
+    &::after {
+      content: "”";
+      margin-left: 2px;
+    }
+  }
+}
+
+/* 一截半透明的纸胶带，和名单簿里拼贴相片的那截是同一种 */
+.photo-card-tape {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  z-index: 1;
+  width: 40%;
+  min-width: 38px;
+  max-width: 96px;
+  height: 17px;
+  pointer-events: none;
+  background: rgb(238 226 186 / 0.72);
+  border-right: 1px dashed rgb(160 140 90 / 0.22);
+  border-left: 1px dashed rgb(160 140 90 / 0.22);
+  /* --tape-x / --tape-r 写在行内：按相片 id 随机 -55%～-45%、-3°～3°。用变量是为了让“贴胶带”的动画能沿用同一个位置 */
+  transform: translateX(var(--tape-x, -50%)) rotate(var(--tape-r, -3deg));
+}
+
+/*
+ * 每一截纸胶带都能点（撕下来保存原图），看起来和普通的一样，只换指针。
+ * 胶带只有 17px 高，点击区向四周各扩 10px / 6px。
+ * --tape-lift-r / --tape-lift-y：撕起来之前的样子，贴着时是 0，松动时见下面；撕胶带的动画从这里开始，不跳。
+ */
+.photo-card-tape.is-button {
+  --tape-lift-r: 0deg;
+  --tape-lift-y: 0deg;
+
+  box-sizing: content-box;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  appearance: none;
+  -webkit-appearance: none;
+  border-top: 0;
+  border-bottom: 0;
+  border-radius: 0;
+  transition: none;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -10px -6px;
+  }
+
+  &:focus-visible {
+    outline: 1px solid rgb(48 103 133);
+    outline-offset: 2px;
+  }
+}
+
+/* 登录成员自己的那一票：吸在整张卡片的右下角。直径 32px（后台统计磁粒 16px 的两倍），点击区 40px */
+.photo-card-vote {
+  --magnet-size: 32px;
+
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  touch-action: manipulation;
+
+  &.is-static {
+    cursor: default;
+    pointer-events: none;
+  }
+
+  /* 磁粒还在半空：占着位子，但先别点 */
+  &:disabled {
+    cursor: default;
+  }
+
+  /* 空位在相片上要看得见：底下垫一层半透明的白 */
+  &[aria-pressed='false'] > span {
+    background: rgb(255 255 255 / 0.55);
+  }
+
+  &:hover > span,
+  &:focus-visible > span {
+    outline: 1px solid rgb(255 255 255 / 0.9);
+    outline-offset: 1px;
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+}
+
+.photo-card-tape.is-button:disabled {
+  cursor: default;
+}
+
+/*
+ * 吸引锚：页面最上面那个瀑布流排好时，最上面一排随机一张的纸胶带就是松开的（不计时，没有过渡）。
+ * 左端还粘着（变换原点在左端），整体多转 5°，右端离墙翘起、投下一道小影子。
+ */
+.photo-card-tape.is-loose {
+  --tape-lift-r: 5deg;
+  --tape-lift-y: -26deg;
+
+  background: linear-gradient(90deg, rgb(238 226 186 / 0.72) 55%, rgb(244 236 206 / 0.82));
+  box-shadow: 3px 3px 4px -2px rgb(60 45 15 / 0.32);
+  transform-origin: 12% 50%;
+  transform: translateX(var(--tape-x, -50%)) rotate(calc(var(--tape-r, -3deg) + var(--tape-lift-r)))
+    perspective(240px) rotateY(var(--tape-lift-y)) translateZ(2px);
+}
+
+/*
+ * 抹胶带的手：框和纸胶带一模一样（位置、宽度、倾角），里面的 .photo-card-hand-glyph 宽度等于框宽，
+ * 平移 0→100% 就是手从胶带左端扫到右端。时间线由 Gallery 的外层 class 给。
+ */
+.photo-card-hand {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  z-index: 4;
+  width: 40%;
+  min-width: 38px;
+  max-width: 96px;
+  height: 17px;
+  pointer-events: none;
+  transform: translateX(var(--tape-x, -50%)) rotate(var(--tape-r, -3deg));
+}
+
+.photo-card-hand-glyph {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+
+  &::before {
+    content: "🤚";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+    font-size: 28px;
+    line-height: 1;
+    /* 掌心压在胶带上：字形中心对准胶带中线，稍微往下一点，指尖露在胶带上方 */
+    transform: translate(-50%, -42%);
+    filter: drop-shadow(1px 3px 2px rgb(40 30 10 / 0.3));
+  }
+
+  @media (max-width: 900px) {
+    &::before {
+      font-size: 25px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    display: none;
+  }
+}

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import type { GalleryView } from 'pool/view'
 import { ConfirmQQState } from 'components/ConfirmQQ'
 
@@ -8,6 +8,10 @@ import SkeuomorphismButton from 'components/SkeuomorphismButton'
 import SkeuomorphismButtonHighlight from 'components/SkeuomorphismButtonHighlight'
 import { removeListItemByIdx } from 'utils/common'
 import Spinner from '@/components/Spinner'
+import MagnetTray from 'components/MagnetTray'
+
+/** 磁粒用完还想放时，托盘描红的时长 */
+const TRAY_FULL_MS = 600
 
 type ActivityLayoutProps = {
   show_submit_button_area: boolean
@@ -15,9 +19,12 @@ type ActivityLayoutProps = {
   submiting: boolean
   showArrow: boolean,
   confirmState: ConfirmQQState
+  /** 先不显示磁粒托盘：“可别忘了点下面的提交”弹层离场动画播完 2 秒后才出现（由 Explore 计时） */
+  hide_magnet_tray?: boolean
   submitted_pool: Record<string, number | undefined>
   setSelectedIdList: (idList: number[]) => void
 
+  loose_tape?: GalleryProps['loose_tape']
   selected_id_list: GalleryProps['selected_id_list']
   show_vote_button: GalleryProps['show_vote_button']
   onClickCover: GalleryProps['onClickCover']
@@ -31,6 +38,7 @@ export default function ActivityLayout({
   submiting,
   showArrow,
   confirmState,
+  hide_magnet_tray = false,
 
   submitted_pool,
   selected_id_list,
@@ -51,9 +59,26 @@ export default function ActivityLayout({
     return Boolean(is_unlimited || !over_limit)
   }, [active.vote_limit, selected_id_list.length])
 
-  const cannot_add_vote_effect = useMemo(() => {
-    return Boolean(!can_add_vote || active.vote_submitted || submit_request_was_sent)
-  }, [active.vote_submitted, can_add_vote, submit_request_was_sent])
+  // 能放 / 收回磁粒：投票期、已确认 QQ（提交区已出现）、还没提交过
+  const vote_interactive = show_submit_button_area && !submit_request_was_sent && !active.vote_submitted
+
+  const [tray_full, setTrayFull] = useState(false)
+  useEffect(() => {
+    if (!tray_full) {
+      return
+    }
+    const timer = setTimeout(() => setTrayFull(false), TRAY_FULL_MS)
+    return () => clearTimeout(timer)
+  }, [tray_full])
+
+  // 选了 0 部作品就点提交：按钮下方出一行提示，选中任意作品后自动消失
+  const [show_empty_hint, setShowEmptyHint] = useState(false)
+  const has_selection = selected_id_list.length > 0
+  useEffect(() => {
+    if (has_selection && show_empty_hint) {
+      setShowEmptyHint(false)
+    }
+  }, [has_selection, show_empty_hint])
 
   const handleClickVote = (photo_id: number) => {
     if (!show_submit_button_area) {
@@ -70,6 +95,8 @@ export default function ActivityLayout({
       } else if (can_add_vote) {
         setArrowTickTock(Date.now())
         setSelectedIdList([...selected_id_list, photo_id])
+      } else {
+        setTrayFull(true)
       }
     }
   }
@@ -87,11 +114,14 @@ export default function ActivityLayout({
       <Gallery
         {...remain_props}
         gallery={active}
-        cannot_add_vote={cannot_add_vote_effect}
+        vote_interactive={vote_interactive}
         selected_id_list={selected_id_list}
         onClickVote={handleClickVote}
         onWatterfallRefreshed={onWatterfallRefreshed}
       />
+      {vote_interactive && !hide_magnet_tray && (
+        <MagnetTray vote_limit={active.vote_limit} used={selected_id_list.length} full={tray_full} />
+      )}
       {show_submit_button_area && (
         <div className="submit-button-area">
           {(() => {
@@ -101,23 +131,28 @@ export default function ActivityLayout({
               return <div className="submitted">感谢你的投票</div>
             } else {
               return (
-                <GuideLayout
-                  showArrow={showArrow}
-                  animatedTickTock={arrow_tick_tock}
-                >
-                  <SubmitButton
-                    buttonState={button_state}
-                    onClick={() => {
-                      if (!submiting) {
-                        if (selected_id_list.length === 0) {
-                          alert('你需要选择至少一部作品才能提交投票')
-                        } else {
-                          onClickSubmit()
+                <div className="submit-button-stack">
+                  <GuideLayout
+                    showArrow={showArrow}
+                    animatedTickTock={arrow_tick_tock}
+                  >
+                    <SubmitButton
+                      buttonState={button_state}
+                      onClick={() => {
+                        if (!submiting) {
+                          if (selected_id_list.length === 0) {
+                            setShowEmptyHint(true)
+                          } else {
+                            onClickSubmit()
+                          }
                         }
-                      }
-                    }}
-                  />
-                </GuideLayout>
+                      }}
+                    />
+                  </GuideLayout>
+                  {show_empty_hint && (
+                    <p className="submit-hint" role="alert">你需要选择至少一部作品才能提交投票</p>
+                  )}
+                </div>
               )
             }
           })()}
@@ -129,13 +164,25 @@ export default function ActivityLayout({
             .submit-button-area {
               margin-top: 32px;
 
-              height: 64px;
+              min-height: 64px;
               width: 100%;
 
               display: flex;
               align-items: center;
               align-content: center;
               justify-content: center;
+            }
+            .submit-button-stack {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              align-content: center;
+            }
+            .submit-hint {
+              margin: 10px 0 0;
+              font-size: 13px;
+              line-height: 18px;
+              color: #ba1616;
             }
           `}</style>
         </div>

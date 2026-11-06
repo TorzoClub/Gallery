@@ -1,28 +1,32 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Signal } from 'vait'
 import type { AdminGalleryDTO, AdminPoolDTO } from '@shared/dto'
 import { ApiError } from '../../api/dispatch'
-import { adminMutate } from '../../admin/api/client'
+import { adminMutate, type TokenRejection, tokenRejectionOf, UNAUTHORIZED_EVENT } from '../../admin/api/client'
 import { updateInstanceConfig } from '../../admin/api/config'
 import { createGallery } from '../../admin/api/gallery'
 import { refreshAvatar, refreshThumb } from '../../admin/api/image'
 import { fetchAdminPool } from '../../admin/api/pool'
 import { connectAdminPoolEvents } from '../../admin/api/events'
 import { mergeAdminPool } from '../../pool/merge'
-import { getToken, removeToken } from '../../admin/auth/token'
+import { removeToken, setToken } from '../../admin/auth/token'
 import { getApiErrorMessage } from '../../admin/utils/errors'
 import { global_queue } from '../../utils/queue-load'
 import Navigator from '@/components/Navigator'
 import { signal_critical_error } from '../../signals'
 import AdminGallery from './components/AdminGallery'
 import type { MemberHistory } from './components/GalleryManagePanel'
+import { AccessPanel } from './components/AccessPanel'
+import { LedIndicator } from './components/LedIndicator'
 import {
   AdminConsole,
+  AdminConsoleShell,
   type AdminSettings,
   type AdminStats,
   type Member as ConsoleMember,
   type MemberCanDelete,
+  type MemberSubmission,
   type RebuildReporter,
 } from './components/AdminConsole'
 import { instanceConfigFromSettings, settingsFromInstanceConfig } from './admin-settings'
@@ -55,19 +59,42 @@ function statsFromPool(pool: AdminPoolDTO): AdminStats {
 }
 
 function consoleMembersFromPool(pool: AdminPoolDTO): ConsoleMember[] {
+  // 名单簿排序用：每位成员投过几张稿、投过几票
+  const photos = new Map<number, number>()
+  const votes = new Map<number, number>()
+  for (const gallery of pool.galleries) {
+    for (const photo of gallery.photos) {
+      const id = Number(photo.member_id)
+      photos.set(id, (photos.get(id) ?? 0) + 1)
+    }
+    for (const vote of gallery.vote_records) {
+      const id = Number(vote.member_id)
+      votes.set(id, (votes.get(id) ?? 0) + 1)
+    }
+  }
   return pool.members.map(member => ({
     id: member.id,
     nickname: member.name,
     qq: String(member.qq_num),
     avatarUrl: member.avatar_thumb_url,
+    createdAt: member.created_at,
+    photoCount: photos.get(Number(member.id)) ?? 0,
+    voteCount: votes.get(Number(member.id)) ?? 0,
   }))
 }
 
 export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean }) {
   const navigate = useNavigate()
-  const token = getToken()
+  // 每次进 /admin 都先过门禁（AccessPanel）：本地已有 token 也要在门禁里核对一遍（IS LOGINED）。
+  // 这里的 token 是“已经过了门禁”的 token；为空时显示门禁，不读取任何后台数据
+  const [token, setTokenState] = useState('')
+  // 用着用着 token 失效被踢回门禁时的原因，门禁一进来就报警并显示 INVALID TOKEN / EXPIRED TOKEN
+  const [token_rejection, setTokenRejection] = useState<TokenRejection | undefined>(undefined)
   const watterfall_refreshed = useMemo(() => Signal(), [])
   const [state, setState] = useState<LoadState>({ status: 'loading' })
+  const [tab_visible, setTabVisible] = useState(() => (
+    typeof document === 'undefined' || document.visibilityState !== 'hidden'
+  ))
   const [settings, setSettings] = useState<AdminSettings | null>(null)
   const [settingsSaving, setSettingsSaving] = useState(false)
   const [creatingGallery, setCreatingGallery] = useState(false)
@@ -94,6 +121,14 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     }
   }, [thisIsDisplay])
 
+  useEffect(() => {
+    const sync_visibility = () => {
+      setTabVisible(document.visibilityState !== 'hidden')
+    }
+    document.addEventListener('visibilitychange', sync_visibility)
+    return () => document.removeEventListener('visibilitychange', sync_visibility)
+  }, [])
+
   const load = useCallback(async (show_loading = true) => {
     if (token === '') {
       return
@@ -113,18 +148,45 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     } catch (error) {
       if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         removeToken()
-        navigate('/behind', { replace: true })
+        setTokenRejection(tokenRejectionOf(error.status))
+        setTokenState('')
         return
       }
       setState({ status: 'error', message: getApiErrorMessage(error, '读取后台数据失败') })
     }
-  }, [navigate, token])
+  }, [token])
 
+  // 任何后台请求遇到 401 / token 类 403（client.ts 已清掉 token）：回到门禁，丢掉已读到的后台数据
   useEffect(() => {
-    if (thisIsDisplay) {
-      void load(true)
+    const handle = (event: Event) => {
+      const reason = (event as CustomEvent<TokenRejection | undefined>).detail
+      setTokenRejection(reason ?? 'expired')
+      setTokenState('')
+      setState({ status: 'loading' })
+      setSettings(null)
     }
-  }, [load, thisIsDisplay])
+    window.addEventListener(UNAUTHORIZED_EVENT, handle)
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, handle)
+  }, [])
+
+  const handleGranted = useCallback((next_token: string) => {
+    setToken(next_token)
+    setTokenRejection(undefined)
+    setState({ status: 'loading' })
+    setTokenState(next_token)
+  }, [])
+
+  // 换台离开后，后台页只是被 <Activity> 藏起来，回来时这个 effect 会再跑一遍。
+  // 同一个 token 已经读过就静默刷新（不切回“正在读取”），否则控制台会被卸掉，面板里的状态跟着丢
+  const loaded_token = useRef('')
+  useEffect(() => {
+    if (!thisIsDisplay) {
+      return
+    }
+    const silent = token !== '' && loaded_token.current === token
+    loaded_token.current = token
+    void load(!silent)
+  }, [load, thisIsDisplay, token])
 
   useEffect(() => {
     if (state.status !== 'ready') {
@@ -194,21 +256,19 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     })
   }, [])
 
+  // 后台数据的实时推送。只在过了门禁、读到数据、后台页正在显示时连接；
+  // 被拒（401 / 403）时只断开不跳转，登录失效统一由门禁处理
   useEffect(() => {
-    if (!thisIsDisplay || state.status !== 'ready') {
+    if (!thisIsDisplay || !tab_visible || token === '' || state.status !== 'ready') {
       return
     }
     const controller = new AbortController()
     void connectAdminPoolEvents({
       signal: controller.signal,
       onPool: applyPool,
-      onUnauthorized() {
-        removeToken()
-        navigate('/behind', { replace: true })
-      },
     })
     return () => controller.abort()
-  }, [applyPool, navigate, state.status, thisIsDisplay])
+  }, [applyPool, state.status, tab_visible, thisIsDisplay, token])
 
   const refresh = useCallback(async () => {
     watterfall_refreshed.trigger()
@@ -429,6 +489,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     const members = state.pool.members
     const total = photos.length + members.length
     let done = 0
+    reporter.progress(done, total)
 
     for (const photo of photos) {
       try {
@@ -468,6 +529,34 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     return member => !referenced.has(Number(member.id))
   }, [state])
 
+  // 名单簿成员页的“过去的投稿”：直接从 adminPool 归集，按投稿时间从新到旧
+  const memberSubmissions = useMemo(() => {
+    const by_member = new Map<number, Array<MemberSubmission & { created_at: string }>>()
+    if (state.status === 'ready') {
+      for (const gallery of state.pool.galleries) {
+        for (const photo of gallery.photos) {
+          const id = Number(photo.member_id)
+          const list = by_member.get(id) ?? []
+          list.push({
+            id: photo.id,
+            thumbUrl: photo.thumb_url,
+            srcUrl: photo.src_optimized,
+            width: photo.width,
+            height: photo.height,
+            desc: photo.desc,
+            galleryName: gallery.name,
+            created_at: photo.created_at,
+          })
+          by_member.set(id, list)
+        }
+      }
+    }
+    for (const list of by_member.values()) {
+      list.sort((a, b) => (a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : b.id - a.id))
+    }
+    return (member: ConsoleMember): MemberSubmission[] => by_member.get(Number(member.id)) ?? []
+  }, [state])
+
   const member_history = useMemo<MemberHistory>(() => {
     const ever_voted = new Set<number>()
     const ever_submitted = new Set<number>()
@@ -488,12 +577,35 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
     return null
   }
 
+  const back_to_explore = () => navigate('/explore', { replace: true })
+
+  // 大屏（≥ 641px）琴键组隐藏时，“登录”灯放进 Navigator：未登录黄、已登录绿
+  const nav_login_led = (
+    <span className={styles.navLoginLed}>
+      <LedIndicator color={token === '' ? 'yellow' : 'green'} label='登录' />
+    </span>
+  )
+
   if (token === '') {
-    return <Navigate to="/behind" replace />
+    return (
+      <main className={styles.page}>
+        <Navigator scene='admin' onClickPushButton={back_to_explore} indicator={nav_login_led} />
+        <AdminConsoleShell loggedIn={false}>
+          <AccessPanel rejected={token_rejection} onGranted={handleGranted} />
+        </AdminConsoleShell>
+      </main>
+    )
   }
 
   if (state.status === 'loading') {
-    return <main className={styles.page}><div className={styles.loading}>正在读取完整 Pool…</div></main>
+    return (
+      <main className={styles.page}>
+        <Navigator scene='admin' onClickPushButton={back_to_explore} indicator={nav_login_led} />
+        <AdminConsoleShell loggedIn>
+          <div className={styles.shellLoading}>正在读取完整 Pool…</div>
+        </AdminConsoleShell>
+      </main>
+    )
   }
 
   if (state.status === 'error') {
@@ -510,16 +622,14 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
 
   return (
     <main className={styles.page}>
-      <Navigator
-        scene='admin'
-        onClickPushButton={() => navigate('/explore', { replace: true })}
-      />
+      <Navigator scene='admin' onClickPushButton={back_to_explore} indicator={nav_login_led} />
       <AdminConsole
         stats={statsFromPool(state.pool)}
         settings={console_settings}
         onSettingsChange={handleSettingsChange}
         members={consoleMembersFromPool(state.pool)}
         memberCanDelete={memberCanDelete}
+        memberSubmissions={memberSubmissions}
         onMembersChanged={handleMembersChanged}
         onRebuild={handleRebuild}
       />

@@ -1,11 +1,13 @@
-import React, { ReactNode, useEffect } from 'react'
+import React, { ReactNode, useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import './index.css'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { OutterPromise } from 'vait'
 
 import { appInitInfomation } from './HomeApp'
-import { isBehindPath, isCancelSubmissionPath } from './routes'
+import { acquireTabSlot } from './utils/tab-slot'
+import TooManyTabs from './components/TooManyTabs'
+import { isBehindPath, isCancelSubmissionPath, isMemberPath, isStaffPath } from './routes'
 import { FailureLayoutContainer, useFailureLayout } from './components/FailureLayout'
 
 const rawBase = import.meta.env.BASE_URL
@@ -44,6 +46,10 @@ function TitleSync() {
   useEffect(() => {
     if (isBehindPath(location.pathname)) {
       document.title = '同装摄影集 · About'
+    } else if (isStaffPath(location.pathname)) {
+      document.title = '同装摄影集 · Staff'
+    } else if (isMemberPath(location.pathname)) {
+      document.title = '同装摄影集 · Member'
     } else if (isCancelSubmissionPath(location.pathname)) {
       document.title = '同装摄影集 · cancelSubmission'
     } else if (location.pathname.startsWith('/explore')) {
@@ -94,32 +100,50 @@ export async function initPictureSupportInfomation() {
   return { avif, webp } as const
 }
 
-const [
-  homeAppData,
-  publicRoot,
-] = await Promise.all([
-  import('./HomeApp'),
-  import('./PublicRoot'),
-])
+function RootGate() {
+  const [status, set_status] = useState<'checking' | 'ready' | 'blocked'>('checking')
 
-initPictureSupportInfomation()
-  .then(picutre_support => {
-    const [ getAppInitInfo, setAppInitInfo ] = appInitInfomation
-    setAppInitInfo({
-      ...getAppInitInfo(),
-      picutre_support,
-    })
+  useEffect(() => {
+    let cancelled = false
+    let timer: number | undefined
 
-    const mount_el = document.getElementById('root')
-    if (mount_el === null) {
-      alert('没有找到#root元素！')
-    } else {
-      ReactDOM.createRoot(mount_el).render(<Bootstrap />)
+    const check = async () => {
+      let result
+      try {
+        result = await acquireTabSlot()
+      } catch {
+        result = { ok: true }
+      }
+      if (cancelled) {
+        return
+      }
+      if (result.ok) {
+        set_status('ready')
+        return
+      }
+      set_status('blocked')
+      timer = window.setTimeout(() => {
+        void check()
+      }, 1000)
     }
-  })
-  .catch(err => {
-    alert(`页面初始化错误：${err?.message}`)
-  })
+
+    void check()
+    return () => {
+      cancelled = true
+      if (timer !== undefined) {
+        window.clearTimeout(timer)
+      }
+    }
+  }, [])
+
+  if (status === 'checking') {
+    return null
+  }
+  if (status === 'blocked') {
+    return <TooManyTabs />
+  }
+  return <Bootstrap />
+}
 
 function Bootstrap() {
   const PublicRoot = publicRoot.default
@@ -167,4 +191,32 @@ function Bootstrap() {
       `}</style>
     </div>
   )
+}
+
+
+const [
+  homeAppData,
+  publicRoot,
+] = await Promise.all([
+  import('./HomeApp'),
+  import('./PublicRoot'),
+])
+
+const picutre_support = await initPictureSupportInfomation()
+
+try {
+  const [ getAppInitInfo, setAppInitInfo ] = appInitInfomation
+  setAppInitInfo({
+    ...getAppInitInfo(),
+    picutre_support,
+  })
+
+  const mount_el = document.getElementById('root')
+  if (mount_el === null) {
+    alert('没有找到#root元素！')
+  } else {
+    ReactDOM.createRoot(mount_el).render(<RootGate />)
+  }
+} catch (err) {
+  alert(`页面初始化错误：${err}`)
 }

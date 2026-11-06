@@ -7,21 +7,23 @@ import LoadingLayout from '../GalleryHome/components/LoadingLayout'
 import useConfirmQQ from '../GalleryHome/useConfirmQQ'
 
 import Gallery from 'components/Gallery'
-import PhotoDetail, { type Detail } from 'components/Detail'
+import PhotoDetail, { prepareDetail, type Detail } from 'components/Detail'
 import ConfirmVote from 'components/ConfirmVote'
+import { TotalAnimationDuration as DIALOG_ANIMATION_MS } from 'components/DialogLayout'
 import SkeuomorphismButton from 'components/SkeuomorphismButton'
-import type { CoverClickEvent } from 'components/PhotoBox'
+import type { CoverClickEvent } from 'components/PhotoCard'
 import { usePhotoPriority } from './hooks/use-photo-priority'
 import { vote } from 'api/client-pool'
 import { useClientPool } from 'pool/store'
 import { useMemberView } from 'pool/member-view'
 import { activeGallery, normalGalleries } from 'pool/selectors'
-import { toGalleryViews, type GalleryView } from 'pool/view'
+import { shufflePhotosForEvent, toGalleryViews, type GalleryView } from 'pool/view'
 import { canUseCacheWorker, transformCacheWorkerURL } from 'pool/media'
-
-import { PaperShredder } from '@/components/uibrik/paper-shredder/paper-shredder'
+import { signal_critical_error } from 'signals'
 
 const watterfall_refreshed = Signal()
+/** 提示弹层离场动画播完之后，再过多久才出现磁粒托盘 */
+const MAGNET_TRAY_DELAY_MS = 2000
 
 function cachedImageUrl(url: string): string {
   return canUseCacheWorker() ? `${transformCacheWorkerURL(url)}&redirect=1` : url
@@ -46,7 +48,9 @@ export default function ExplorePage() {
     if (active_client === null) {
       return null
     }
-    return gallery_views.find(gallery => gallery.id === active_client.id) ?? null
+    const view = gallery_views.find(gallery => gallery.id === active_client.id)
+    // 活动期的相册乱序展示，不按 index（后台仍按 index / 所选排序）
+    return view === undefined ? null : { ...view, photos: shufflePhotosForEvent(view.photos) }
   }, [active_client, gallery_views])
 
   const past = useMemo(() => {
@@ -66,6 +70,8 @@ export default function ExplorePage() {
   const [show_arrow, setShowArrow] = useState(false)
   const [show_submit_button_area, setShowSubmitButtonArea] = useState(false)
   const [show_confirm_vote, setShowConfirmVote] = useState(false)
+  // 磁粒托盘（HUD）：“可别忘了点下面的提交”弹层离场动画播完后再等 2 秒才出现
+  const [show_magnet_tray, setShowMagnetTray] = useState(false)
   const [show_past, setShowPast] = useState(false)
   const [detail, setDetail] = useState<Detail>(null)
 
@@ -97,36 +103,45 @@ export default function ExplorePage() {
   }, [qq_num, setConfirmState])
 
   useEffect(() => {
-    if (active === null) {
-      return
-    }
-    if (!in_vote_period) {
-      return
-    }
-    if (qq_num === null && !confirm_state.in) {
+    if (
+      (active !== null) &&
+      (in_vote_period) &&
+      (qq_num === null && !confirm_state.in)
+    ) {
       setConfirmState({ in: true })
     }
   }, [active, confirm_state.in, in_vote_period, qq_num, setConfirmState])
 
   useEffect(() => {
-    if (!in_vote_period || member_view.view === null || vote_submitted || active === null) {
+    if (!in_vote_period || member_view.view === null || active === null) {
       setShowSubmitButtonArea(false)
-      return
-    }
-
-    let mounted = true
-    const timer = timeout(618).then(() => {
-      if (!mounted) {
-        return
-      }
+    } else if (vote_submitted) {
+      // 已提交是终态：保留提交区域，让 ActivityLayout 显示“感谢你的投票”
       setShowSubmitButtonArea(true)
-      setShowConfirmVote(true)
-    })
+    } else {
+      let mounted = true
+      const timer = timeout(618).then(() => {
+        if (!mounted) {
+          return
+        }
+        setShowSubmitButtonArea(true)
+        setShowConfirmVote(true)
+      })
 
-    return () => {
-      mounted = false
+      return () => {
+        mounted = false
+      }
     }
   }, [active, in_vote_period, member_view.view, vote_submitted])
+
+  useEffect(() => {
+    if (show_confirm_vote || !show_submit_button_area) {
+      setShowMagnetTray(false)
+    } else {
+      const timer = setTimeout(() => setShowMagnetTray(true), DIALOG_ANIMATION_MS + MAGNET_TRAY_DELAY_MS)
+      return () => clearTimeout(timer)
+    }
+  }, [show_confirm_vote, show_submit_button_area])
 
   const handleClickAnyWhere = useCallback(() => {
     setShowConfirmVote(false)
@@ -168,20 +183,21 @@ export default function ExplorePage() {
       if (photo === undefined) {
         return
       }
-      setDetail({
+      setDetail(prepareDetail({
         from: click_info.from,
         thumb: click_info.thumbBlobUrl,
         src: cachedImageUrl(photo.src_optimized),
         height: photo.height,
         width: photo.width,
-      })
+      }))
     }
   ), [])
 
   const normal_list_nodes = useMemo(() => (
-    past.map(gallery => (
+    past.map((gallery, idx) => (
       <div className="gallery-wrapper" key={gallery.id}>
         <Gallery
+          loose_tape={active === null && idx === 0}
           show_vote_button={false}
           gallery={gallery}
           selected_id_list={[]}
@@ -190,18 +206,21 @@ export default function ExplorePage() {
         />
       </div>
     ))
-  ), [handleClickCover, past])
+  ), [active, handleClickCover, past])
+
+  const pool_error_message = pool_state.status === 'error' ? pool_state.error.message : null
+  useEffect(() => {
+    if (pool_error_message !== null) {
+      signal_critical_error.trigger(`获取相册数据失败：${pool_error_message}`)
+    }
+  }, [pool_error_message])
 
   if (pool_state.status === 'loading') {
     return <LoadingLayout />
   }
 
   if (pool_state.status === 'error') {
-    return (
-      <div className='explore-error'>
-        <p>获取相册数据失败：{pool_state.error.message}</p>
-      </div>
-    )
+    return null
   }
 
   if (active === null && past.length === 0) {
@@ -213,12 +232,14 @@ export default function ExplorePage() {
       <div className='body'>
         {active !== null && (
           <ActivityLayout
+            loose_tape
             show_submit_button_area={show_submit_button_area}
             active={active}
             show_vote_button={in_vote_period}
             submiting={submiting}
             showArrow={show_arrow}
             confirmState={confirm_state}
+            hide_magnet_tray={!show_magnet_tray}
             submitted_pool={{ [active.id]: vote_submitted ? 1 : undefined }}
             selected_id_list={selected_ids}
             setSelectedIdList={setSelectedIds}

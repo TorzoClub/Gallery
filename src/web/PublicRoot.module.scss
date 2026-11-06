@@ -6,3 +6,12 @@
 
   visibility: visible !important;
 }
+
+/* 碎纸机页：挂在 body 上的整屏纯白层。低于换台余辉（11000）和噪点（12000），高于 Explore 的弹层 */
+.cancelStage {
+  position: fixed;
+  inset: 0;
+  z-index: 10500;
+  background: #fff;
+  overflow: hidden;
+}

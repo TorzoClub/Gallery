@@ -16,6 +16,7 @@ import type { Logger } from '../logger'
 import type { Readable } from 'node:stream'
 import {
   type ImageKind,
+  type ImageStream,
   type Storage,
 } from '../storage'
 import {
@@ -68,7 +69,7 @@ export type Instance = {
     format: string
     crc32: Promise<number>
   }): Promise<TempImage>
-  readImage(kind: ImageKind, filename: string): Promise<Buffer>
+  readImageStream(kind: ImageKind, filename: string): Promise<ImageStream>
   getPoolEvents(now: Date): PoolEventsSnapshot
   subscribePoolUpdates(listener: (event: PoolUpdateEvent) => void): () => void
   closePoolStreams(): void
@@ -498,7 +499,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
     dispatchQuery,
     dispatchMutation,
     storeTempImage,
-    readImage: storage.readImage,
+    readImageStream: storage.readImageStream,
     close,
   }
 }

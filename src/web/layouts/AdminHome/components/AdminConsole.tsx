@@ -401,7 +401,7 @@ function RebuildPanel({ onRebuild, note }: { onRebuild?: AdminConsoleProps['onRe
             {['TL', 'BR'].map((k) => (
               <i key={k} className={cn(styles.tape, styles[`tape${k}`])} aria-hidden />
             ))}
-            {note ?? (<><b>注意：</b>重建图片很慢，而且可能导致程序崩溃；会同时重新生成 SDR optimized、缩略图和 HDR（源图支持时）。重建期间请不要关闭浏览器窗口。</>)}
+            {note ?? (<><b>注意：</b>重建图片很慢，而且可能导致程序崩溃。重建期间请不要关闭浏览器窗口。</>)}
           </div>
           <div className={styles.readout}>
             <section>

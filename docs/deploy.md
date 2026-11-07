@@ -27,7 +27,7 @@ v4.3.0-deploy.20261108 → ghcr.io/torzoclub/gallery:4.3.0-deploy.20261108
 
 ### GHCR 权限
 
-GHCR 包默认可能是私有。服务器需要二选一：
+GHCR 包默认可能是私有。发布 workflow 不会修改包可见性；`GITHUB_TOKEN` 不能可靠地管理 package visibility，需要在 GitHub 包设置里手动处理。服务器需要二选一：
 
 - 在 GitHub 包设置里把 `gallery` 设为 public
 - 或准备一个带 `read:packages` 的 PAT：

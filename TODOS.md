@@ -38,7 +38,7 @@
 - [x] 图片管线 Phase 1：libavif HDR AVIF、CICP/gain map 探测、HDR 详情回退和 Docker-first 环境，见 [docs/images.md#hdr](docs/images.md#hdr)。
 - [x] 低内存保护：图片转换全局串行；图片请求等待上限 360 秒；Vitest 单测/集成测试超时 180 秒。
 - [ ] 浏览器 UI 交互测试（公开页投稿/投票、后台编辑、配置表单）。
-- [ ] 真实部署的 CI/CD 和密钥管理。
+- [ ] 真实部署的 CI/CD 和密钥管理：镜像构建/发布已完成；服务器部署仍手动执行，GHCR 包可见性需手动设置。
 - [ ] 取消投稿脚本的 lint 警告 `react-hooks(exhaustive-deps)`：`src/web/components/Submission/scripts.tsx` 里 `selects` 的 `useMemo(..., [])` 缺少依赖 `RemovingSubmission`。这是当前 `pnpm lint` 唯一一条警告，刻意保留未修。
   - 原因：`RemovingSubmission` 定义在 `Content` 组件内部，闭包了 `photo`、`qq_num`、`navigate`、`location`、`changeScript`，每次渲染都是一个新的组件函数。`useMemo` 的空依赖正是为了让“是，取消掉吧”选项里的 `script(RemovingSubmission, [])` 只生成一次、组件类型保持不变。
   - 不能照警告补依赖：补上后每次渲染都换一个新组件类型，React 会卸载再重新挂载它；它挂载时的 effect 会再次 `Signal.once(_EVENT_.canceled, ...)` 并再次 `navigate('/explore/cancelSubmission', ...)`，造成重复监听和重复跳转（碎纸机页面被反复进入）。

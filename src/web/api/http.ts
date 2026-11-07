@@ -45,6 +45,8 @@ export type JsonResponse = {
   data: unknown
 }
 
+export const REQUEST_TIMEOUT_MS = 360_000
+
 export type RequestOptions = {
   timeout?: number
   headers?: Record<string, string>

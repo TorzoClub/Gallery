@@ -1,17 +1,67 @@
-FROM node:24.22.1-bookworm-slim AS build
+# libavif is built once and shared by dev/check/runtime. Keep the versions pinned.
+FROM node:24.22.1-bookworm AS libavif
+
+ARG LIBAAVIF_VERSION=v1.4.2
+
+RUN unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake git nasm pkg-config ca-certificates \
+    libxml2-dev libjpeg-dev libpng-dev zlib1g-dev \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+RUN unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy && \
+    git clone --depth 1 --branch "${LIBAAVIF_VERSION}" https://github.com/AOMediaCodec/libavif.git
+RUN unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy && \
+    cmake -S libavif -B libavif/build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DAVIF_CODEC_AOM=LOCAL \
+    -DAVIF_BUILD_APPS=ON \
+    -DAVIF_LIBXML2=SYSTEM \
+    -DAVIF_LIBYUV=OFF \
+ && cmake --build libavif/build -j"$(nproc)" \
+ && mkdir -p /out \
+ && cp libavif/build/avifenc libavif/build/avifdec libavif/build/avifgainmaputil /out/
+
+FROM node:24.22.1-bookworm-slim AS base
+
+COPY docker/heic-requirements.txt /tmp/heic-requirements.txt
+
+RUN unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates libpng16-16 libjpeg62-turbo libxml2 libstdc++6 zlib1g libicu72 \
+    python3 python3-pip python3-venv libimage-exiftool-perl \
+ && rm -rf /var/lib/apt/lists/* \
+ && unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy \
+ && npm install -g pnpm@10.24.0 \
+ && python3 -m venv /opt/heic \
+ && /opt/heic/bin/pip install --no-cache-dir -r /tmp/heic-requirements.txt
+
+COPY --from=libavif /out/avifenc /out/avifdec /out/avifgainmaputil /usr/local/bin/
+ENV PATH="/opt/heic/bin:${PATH}"
 
 WORKDIR /app
-RUN npm install -g pnpm@10.24.0
 
+FROM base AS deps
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy && \
+    pnpm install --frozen-lockfile
 
+FROM deps AS build
 COPY . .
 RUN pnpm build && pnpm prune --prod
 
-FROM node:24.22.1-bookworm-slim AS runtime
+FROM deps AS dev
+COPY . .
+CMD ["pnpm", "dev"]
 
-WORKDIR /app
+FROM deps AS check
+COPY . .
+RUN pnpm typecheck && pnpm lint && pnpm test && pnpm build
+
+FROM base AS runtime
+
 ENV NODE_ENV=production \
     APP_ENV=production \
     HTTP_HOST=0.0.0.0 \

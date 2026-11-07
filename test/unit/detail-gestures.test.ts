@@ -129,6 +129,70 @@ describe('detail gestures', () => {
     expect(dismiss).not.toHaveBeenCalled()
   })
 
+  it('zooms with a mouse wheel and then pans by mouse drag', () => {
+    const { gestures, dismiss } = setup()
+
+    gestures.wheel(0, -100, 0, false, center, -120)
+    expect(gestures.view.scale).toBeCloseTo(Math.exp(0.2))
+    expect(gestures.view.x).toBe(0)
+    expect(gestures.view.y).toBe(0)
+
+    gestures.down(1, center)
+    gestures.move(1, { x: 550, y: 430 })
+    gestures.up(1, { x: 550, y: 430 })
+
+    expect(dismiss).not.toHaveBeenCalled()
+    expect(gestures.view.x).toBeCloseTo(50)
+    expect(gestures.view.y).toBeCloseTo(30)
+  })
+
+  it('does not treat small vertical trackpad scrolling as a mouse wheel', () => {
+    const { gestures } = setup()
+
+    gestures.zoom(2, center)
+    gestures.wheel(0, -10, 0, false, center)
+
+    expect(gestures.view.scale).toBe(2)
+    expect(gestures.view.y).toBeCloseTo(10)
+  })
+
+  it('recovers a slow physical mouse detent from legacy wheelDeltaY', () => {
+    const { gestures } = setup()
+
+    gestures.wheel(0, -4, 0, false, center, -120)
+    expect(gestures.view.scale).toBeCloseTo(Math.exp(0.008))
+    expect(gestures.view.x).toBe(0)
+    expect(gestures.view.y).toBe(0)
+  })
+
+  it('keeps a trackpad wheel step with non-detent wheelDeltaY as pan', () => {
+    const { gestures } = setup()
+
+    gestures.zoom(2, center)
+    gestures.wheel(0, -10, 0, false, center, -30)
+
+    expect(gestures.view.scale).toBe(2)
+    expect(gestures.view.y).toBeCloseTo(10)
+  })
+
+  it('falls back to large vertical pixel deltas when wheelDeltaY is unavailable', () => {
+    const { gestures } = setup()
+
+    gestures.wheel(0, -100, 0, false, center, undefined)
+    expect(gestures.view.scale).toBeCloseTo(Math.exp(0.2))
+  })
+
+  it('zooms with line-mode mouse wheel events and never zooms below 1x', () => {
+    const { gestures, dismiss } = setup()
+
+    gestures.wheel(0, -1, 1, false, center)
+    expect(gestures.view.scale).toBeCloseTo(Math.exp(0.032))
+
+    gestures.wheel(0, 10000, 0, false, center, 120)
+    expect(gestures.view).toEqual(INITIAL_VIEW)
+    expect(dismiss).not.toHaveBeenCalled()
+  })
+
   it('normalizes wheel lines and supports Safari scale gestures', () => {
     const { gestures } = setup()
     gestures.wheel(0, -1, 1, true, center)

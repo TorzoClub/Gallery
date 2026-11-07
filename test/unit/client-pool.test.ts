@@ -202,6 +202,7 @@ describe('memberBookFromPool', () => {
       avatar: m => `images/thumb/${m.avatar_src}`,
       thumb: p => `images/thumb/${p.src}`,
       optimized: p => `images/optimized/${p.src}`,
+      optimizedHdr: p => `images/optimized/${p.src}-hdr`,
     })
 
     const a = book.members.find(m => Number(m.id) === author.member_id)!

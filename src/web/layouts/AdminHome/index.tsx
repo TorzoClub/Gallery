@@ -541,6 +541,7 @@ export default function AdminHome({ thisIsDisplay }: { thisIsDisplay: boolean })
             id: photo.id,
             thumbUrl: photo.thumb_url,
             srcUrl: photo.src_optimized,
+            srcHdrUrl: photo.src_optimized_hdr,
             width: photo.width,
             height: photo.height,
             desc: photo.desc,

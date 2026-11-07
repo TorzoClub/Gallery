@@ -1,3 +1,109 @@
+# Torzo Gallery 4.3.0
+
+- 发布日期：2026-11-07
+- 版本：`4.3.0`
+- Git tag：`v4.3.0`
+- 对比基准：`v4.2.0` (`c91f2d1`)
+- 对比链接：https://github.com/TorzoClub/Gallery/compare/v4.2.0...v4.3.0
+
+## 概览
+
+4.3.0 是图片管线的一次大版本更新：加入 HDR AVIF、原生 HEIC/HEIF 和 Apple HDR gain map 支持，并针对 256MB 级虚拟主机把图片转换改成全局串行，避免多张大图同时解码和编码。查看大图也补上了鼠标滚轮缩放和鼠标拖拽平移。
+
+本版本没有 storage schema 迁移，也没有新增必需环境变量。已有相片需要在后台执行一次“重新生成图片”，才会生成 HDR optimized 并更新 `has_hdr_optimized`。
+
+## HDR
+
+- 新增 10-bit HDR AVIF optimized：`optimized/photo-...-hdr.avif`。
+- SDR optimized/thumb 始终生成；HDR 是额外产物，失败不阻止 SDR 保存。
+- HDR 来源：
+  - AVIF 主图 PQ/HLG CICP
+  - PNG `cICP`
+  - JPEG gain map
+  - AVIF gain map
+  - HEIC/HEIF Apple HDR gain map
+- HDR 输出使用正确 CICP，并校验 avifenc 输出仍是 PQ/HLG。
+- 详情只在 `(dynamic-range: high)` 匹配时加载 HDR，加载/解码失败自动回退 SDR。
+- 不生成 HDR thumb；头像不生成 HDR。
+- `has_hdr_optimized` 是上一次 prepare / 后台重建时记录的持久化标志，不是每次请求实时读盘。
+- 已人工验证 iPhone、SDR 显示器、MacBook XDR 显示器和 HDR Viewer 回退 SDR 的行为。
+
+## HEIC / HEIF
+
+- HEIC/HEIF 作为原生 source 上传，前端不再使用 `heic-convert`。
+- SDR 由 Docker 内 `pillow_heif` 解码后交给 sharp。
+- Apple HDR HEIC 由 `apple-hdr-heic-decoder` 解出 16-bit BT.2020 PQ PNG，再走 avifenc HDR 管线。
+- `pillow_heif` 升级到 `1.8.1`，修复 iPhone 常见的 8-bit YCbCr auxiliary gain map；旧版只支持 8-bit monochrome aux。
+- 普通 HEIC/HEIF 只生成 SDR；非 Apple HDR HEIC 不保证支持。
+- storage lock 增加 hostname 和进程启动时间判断，容器重建或 PID 复用时自动清理 stale lock。
+
+## 图片处理与低内存
+
+- 所有真正的图片转换共享实例级 `vait` `Sequence` 队列：同一时刻只处理一张照片/头像。
+- 排队范围包括投稿、后台替换照片、后台图片重建和头像生成；`/upload-image` 的临时文件接收不排队。
+- 前端公开 dispatch 和后台图片相关请求超时改为 360 秒；nginx 需要同步放宽 `proxy_read_timeout` / `proxy_send_timeout`。
+- Vitest `testTimeout` / `hookTimeout` 改为 180 秒，避免低配 CI 上 HEIC HDR 测试被 30 秒误杀。
+- Docker 加入 libavif 1.4.2 / libaom 3.14.1、pillow_heif、exiftool 和 apple-hdr-heic。
+- 新增 `compose.dev.yaml` 开发编排。
+
+## 查看大图
+
+- 新增鼠标滚轮缩放：以鼠标位置为锚点，范围仍是 1–5 倍。
+- 鼠标放大后支持按住拖拽平移；1x 下保留原有拖动关闭行为。
+- trackpad 捏合、ctrl-wheel、Safari gesture 和 trackpad 双指滚动继续保留。
+- 滚轮和 trackpad 用 `deltaMode`、`deltaX`、`wheelDeltaY % 120` 区分；没有 legacy 值时用纯纵向大 delta 兜底。
+- 新增鼠标滚轮、慢速鼠标滚轮、trackpad 平移、line-mode 和拖拽平移测试。
+
+## 文档与工程
+
+- HDR 实现文档合并进 `docs/images.md`，删除 `docs/todo/hdr-supports.md`。
+- 同步修正 `has_hdr_optimized` 的持久化语义和所有 HDR 文档引用。
+- HDR/HEIC 的 Docker 环境、失败回退和已知限制集中记录在 `docs/images.md`。
+- `about-image.jpg` 从 `src/web/` 移到 `public/`。
+- 后台图片重建提示文案精简。
+- 测试扩展到 33 个测试文件、235 个用例。
+
+## 接口、配置与升级
+
+- `Photo.format` 增加 `heic`；HEIC/HEIF source 保留原始字节，下载 MIME 为 `image/heic`。
+- 无 storage schema 变更，不需要迁移。
+- 无新增必需环境变量。
+- 生产环境需要 Docker 镜像内 HDR/HEIC 工具；缺少时启动 fail-fast。
+- 已有相片需要在后台执行“重新生成图片”才会生成 HDR optimized。
+- 图片请求部署时必须允许至少 360 秒；否则反向代理会先于应用超时。
+- 版本号更新：
+  - `package.json` → `4.3.0`
+  - `index.html` 静态资源 query → `v=4.3.0`
+  - `resources/report-card.html` 与 ReportCard 默认 Version 行 → `v4.3.0`
+- Git tag：`v4.3.0`
+
+## 验证
+
+本版本发布前验证通过：
+
+```text
+pnpm typecheck  通过
+pnpm lint       0 errors，2 warnings
+pnpm test       33 个测试文件，235 个用例通过
+pnpm build      通过
+```
+
+说明：
+
+- lint 警告为既有组件告警，不阻塞发布。
+- 当前仍没有浏览器 UI 自动化测试。
+- HDR 实机显示和详情回退已人工验证。
+- Docker 内完整测试为 235 个用例通过。
+
+## 已知限制
+
+- HEIC HDR 只支持 Apple 风格的 gain map；没有该辅助图的 HEIC 只生成 SDR。
+- HDR 能否实际显示取决于浏览器/显示器对 `(dynamic-range: high)` 的支持；不支持时使用 SDR。
+- 图片转换会按 FIFO 排队，排队时间计入 360 秒请求等待；客户端超时不会取消服务端已开始的任务。
+- 鼠标滚轮与 trackpad 的分类是启发式，快速甩动 trackpad 仍可能产生误判。
+- 单张 HDR/HEIC 子命令仍保留 180 秒超时。
+- 单实例 storage 仍只允许一个 Node 进程写入。
+
 # Torzo Gallery 4.2.0
 
 - 发布日期：2026-11-07

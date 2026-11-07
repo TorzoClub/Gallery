@@ -63,12 +63,10 @@
 ## 验证命令
 
 ```bash
-pnpm install --frozen-lockfile
-pnpm typecheck
-pnpm lint
-pnpm test
-pnpm build
+docker build --target check .
 ```
+
+HDR 相关验证必须在带 libavif 的 Docker check 中执行；宿主机没有三件套时 HDR 测试会跳过。
 
 需要启动服务时：
 

@@ -4,6 +4,8 @@ import useDisableScroll from 'hooks/useDisableScroll'
 import Spinner from '../Spinner'
 import { fitImage, INITIAL_VIEW, thumbnailTransform, viewTransform, type ThumbRect, type View } from './geometry'
 import { createGestures } from './gestures'
+import { supportsHdrDisplay } from '../../utils/browser'
+import { chooseDetailSource } from './hdr'
 import { downloadImage, prepareImage, type ImageDownload } from './image-loading'
 import './style.scss'
 
@@ -11,15 +13,29 @@ export type DetailInput = {
   from: ThumbRect
   thumb: string
   src: string
+  /** HDR optimized；没有生成 HDR 时传 null/不传 */
+  srcHdr?: string | null
   height: number
   width: number
 }
-type DetailSession = DetailInput & { id: number; download: ImageDownload }
+type DetailSession = DetailInput & {
+  id: number
+  download: ImageDownload
+  /** HDR 加载/解码失败时回退的 SDR URL；SDR 本身没有 fallback */
+  fallback_src: string | null
+}
 export type Detail = DetailSession | null
 let nextSessionId = 0
 
-export function prepareDetail(input: DetailInput): DetailSession {
-  return { ...input, id: ++nextSessionId, download: downloadImage(input.src) }
+export function prepareDetail(input: DetailInput, hdr_supported = supportsHdrDisplay()): DetailSession {
+  const { src, fallback_src } = chooseDetailSource(input, hdr_supported)
+  return {
+    ...input,
+    src,
+    id: ++nextSessionId,
+    download: downloadImage(src),
+    fallback_src,
+  }
 }
 
 export default function PhotoDetail({ detail, onCancel }: { detail: Detail; onCancel: () => void }) {
@@ -133,6 +149,13 @@ function Viewer({ detail, closing, onCancel, onExited }: {
           source.replaceChildren(result.image)
           setLoading('ready')
         } else if (result.status === 'failed') {
+          if (download === detail.download && detail.fallback_src !== null) {
+            // HDR 失败不把大图停在失败态：换回 SDR，仍保留缩略图垫底。
+            activeDownload = downloadImage(detail.fallback_src)
+            setLoading('loading')
+            load(activeDownload)
+            return
+          }
           setLoading('failed')
         }
       })
@@ -206,7 +229,8 @@ function Viewer({ detail, closing, onCancel, onExited }: {
     const wheel = (event: WheelEvent) => {
       event.preventDefault()
       if (isClosing || nativeGesture !== null) return
-      gestures.wheel(event.deltaX, event.deltaY, event.deltaMode, event.ctrlKey, point(event))
+      const legacyDeltaY = (event as WheelEvent & { wheelDeltaY?: number }).wheelDeltaY
+      gestures.wheel(event.deltaX, event.deltaY, event.deltaMode, event.ctrlKey, point(event), legacyDeltaY)
     }
     const gesturePoint = (event: NativeGestureEvent) => ({
       x: Number.isFinite(event.clientX) ? event.clientX : viewport.width / 2,

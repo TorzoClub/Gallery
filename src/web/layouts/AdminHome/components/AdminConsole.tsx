@@ -52,6 +52,8 @@ export interface MemberSubmission {
   thumbUrl: string;
   /** optimized 全尺寸图，点开大图时用 */
   srcUrl: string;
+  /** HDR optimized；没有时为空 */
+  srcHdrUrl?: string | null;
   width: number;
   height: number;
   desc: string;
@@ -266,7 +268,7 @@ function SettingsPanel({ settings, onChange }: { settings: AdminSettings; onChan
   );
 }
 
-/* ============================== 面板 C：缩略图重建 ============================== */
+/* ============================== 面板 C：图片重建 ============================== */
 
 interface LogLine {
   id: number;
@@ -288,7 +290,7 @@ function LaunchSwitch({ armed, running, onToggleCover, onFire }: {
         {[0, 1, 2, 3].map((i) => (
           <i key={i} className={cn(styles.screw, styles[`screw${i}`])} />
         ))}
-        <p className={styles.nameplate}>缩略图重建</p>
+        <p className={styles.nameplate}>图片重建</p>
         <div className={styles.hazard} />
         <div className={styles.lamps}>
           <LedIndicator color={!armed && !running ? 'green' : null} label="保险" />
@@ -301,7 +303,7 @@ function LaunchSwitch({ armed, running, onToggleCover, onFire }: {
               className={cn(styles.fire, running && styles.firing)}
               disabled={!armed || running}
               tabIndex={armed ? 0 : -1}
-              aria-label="开始重建缩略图"
+              aria-label="开始重建图片（SDR/HDR）"
               onPointerDown={(e) => {
                 if (e.button !== 0) return;
                 pressSounded.current = true;
@@ -399,7 +401,7 @@ function RebuildPanel({ onRebuild, note }: { onRebuild?: AdminConsoleProps['onRe
             {['TL', 'BR'].map((k) => (
               <i key={k} className={cn(styles.tape, styles[`tape${k}`])} aria-hidden />
             ))}
-            {note ?? (<><b>注意：</b>重建缩略图很慢，而且可能导致程序崩溃。重建期间请不要关闭浏览器窗口。</>)}
+            {note ?? (<><b>注意：</b>重建图片很慢，而且可能导致程序崩溃。重建期间请不要关闭浏览器窗口。</>)}
           </div>
           <div className={styles.readout}>
             <section>
@@ -480,7 +482,7 @@ function MemberPanel({ members, onMembersChanged, memberCanDelete, memberSubmiss
 const TABS = [
   { id: 'stats', label: '数据' },
   { id: 'settings', label: '设置' },
-  { id: 'rebuild', label: '缩略图' },
+  { id: 'rebuild', label: '图片' },
   { id: 'members', label: '成员' },
 ] as const;
 

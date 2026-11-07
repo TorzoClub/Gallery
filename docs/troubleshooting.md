@@ -142,7 +142,7 @@ QQ number 是成员身份的一部分，创建后不可修改。`adminUpdateMemb
 - 旧相片或缺失衍生图会直接 404，不回退原图。
 - 在后台执行“重新生成图片”，会重建相片的 SDR optimized/thumb 和成员头像 thumb；旧命名文件及旧的 HDR AVIF 会被清理。
 - 旧 storage 中可能残留 `.jpg`/无变体文件；执行一次重建即可转换为 `.avif` 命名。
-- 当前 Phase 0 不生成 HDR optimized；HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
+- HDR source 会额外生成 `-hdr.avif`；10-bit SDR 不会。详情在支持 HDR 的显示环境失败会自动回退 SDR。HDR/HEIC 工具缺失时查看 Docker 镜像是否包含 `avifenc` / `avifdec` / `avifgainmaputil`、`pillow_heif`、`exiftool` 和 `apple-hdr-heic-decoder`，详见 [images.md#hdr](images.md#hdr)。
 - 修改 instance 配置后，派生图 URL 的 `?v` 会变化；如果仍看到旧图，刷新页面获取新 API 响应。
 
 ## instance 配置修改后没有生效
@@ -152,6 +152,14 @@ QQ number 是成员身份的一部分，创建后不可修改。`adminUpdateMemb
 - 需要重建已有图片时，在后台使用“重新生成图片”操作。
 - `max_upload_bytes` 不能超过 `HTTP_BODY_HARD_LIMIT_BYTES`，否则服务端返回 400。
 
+## 图片处理排队
+
+同一时刻只允许一个图片转换任务执行。连续投稿多张相片、或同时点多个后台“重新生成图片”时，后面的请求会等待前面的 SDR/HDR/缩略图生成完成，而不是并行抢内存。
+
+- 前端图片相关请求的等待上限是 360 秒；nginx 也要把 `proxy_read_timeout` / `proxy_send_timeout` 放宽到至少 360 秒。
+- 客户端超时或关闭页面不会取消已经排队/执行中的服务端任务；图片可能仍在后台继续生成。
+- `/upload-image` 本身不排队，图片转换排队时仍可以继续上传临时文件。
+
 ## storage lock 冲突
 
 同一 `STORAGE_PATH` 只允许一个 API 进程写入。看到 lock 相关错误时：
@@ -160,7 +168,7 @@ QQ number 是成员身份的一部分，创建后不可修改。`adminUpdateMemb
 lsof -nP -iTCP:${HTTP_PORT:-7001} -sTCP:LISTEN
 ```
 
-确认是否已有进程在运行。不要手动删除正在使用中的 lock；先停止旧进程。异常退出后的 stale lock 由服务端按 PID 检测处理。
+确认是否已有进程在运行。不要手动删除正在使用中的 lock；先停止旧进程。异常退出后的 stale lock 由服务端按 hostname、PID 和进程启动时间判断；容器重建或 PID 复用时会自动清理。
 
 ## 端口被占用
 
@@ -214,3 +222,11 @@ pnpm start
 ## 打开超过 5 个页面
 
 同装摄影集会在启动时用 Web Locks 占一个页面槽位：每个顶层页面持有一个 `__app_tab__:<uuid>` 锁，浏览器在页面销毁时自动释放。超过 5 个槽位时，新页面只显示“页面开得太多了”，不会挂载应用或建立 SSE，并每秒重试占位；关闭其他标签页、空出槽位后会自动进入。iframe 不单独占槽，由顶层窗口负责计数。
+
+
+### HEIC / HEIF
+
+- Chrome 预览 HEIC 会失败，这是浏览器限制；表单会显示“提交后显示缩略图”，提交后服务端用 `pillow_heif` 生成 SDR thumb。
+- 服务端没有 `pillow_heif` / `exiftool` / `apple-hdr-heic-decoder` 时，HEIC 无法读取；用 Docker 镜像，或在宿主机安装对应工具。
+- 只有带 Apple HDR gain map 的 HEIC 会生成 HDR；普通 HEIC 只生成 SDR。
+- 如果日志出现 `Only 8-bit monochrome auxiliary images are currently supported`，说明 `pillow_heif` 太旧；升级到 `>=1.8` 后重建图片。

@@ -5,3 +5,20 @@
 export function isWebKitSafari(ua: string = typeof navigator === 'undefined' ? '' : navigator.userAgent): boolean {
   return /AppleWebKit\//.test(ua) && !/(Chrome|Chromium)\//.test(ua) && !/Android/.test(ua)
 }
+
+
+/** 系统/显示器是否声明支持 HDR；不支持或无法检测时保持 SDR */
+type MatchMediaLike = (query: string) => { matches: boolean }
+
+export function supportsHdrDisplay(match_media?: MatchMediaLike): boolean {
+  const media = match_media
+    ?? (globalThis as { matchMedia?: MatchMediaLike }).matchMedia
+  if (typeof media !== 'function') {
+    return false
+  }
+  try {
+    return media.call(globalThis, '(dynamic-range: high)').matches
+  } catch {
+    return false
+  }
+}

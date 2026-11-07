@@ -20,7 +20,7 @@ import { type InstanceConfig } from '../config/instance'
 
 const dateString = z.iso.datetime()
 const idNumber = z.number().int().positive()
-const format = z.enum(['jpg', 'png', 'gif', 'webp', 'avif'])
+const format = z.enum(['jpg', 'png', 'gif', 'webp', 'avif', 'heic'])
 
 export const MemberJsonSchema = z.strictObject({
   id: idNumber,

@@ -267,8 +267,14 @@ async function detectFormat(buffer: Buffer, label: string): Promise<ImageFormat>
     case 'webp':
       return 'webp'
     case 'avif':
-    case 'heif':
       return 'avif'
+    case 'heif': {
+      const metadata = await sharp(buffer).metadata()
+      if (metadata.mediaType === 'image/avif' || metadata.compression === 'av1') {
+        return 'avif'
+      }
+      return 'heic'
+    }
     default:
       fail(`${label} 的图片格式不受支持: ${format ?? 'unknown'}`)
   }

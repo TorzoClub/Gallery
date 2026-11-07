@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import type { ClientPool } from '@shared/client-pool'
 import { MemberNotebook } from '../../layouts/AdminHome/components/MemberNotebook'
 import { memberBookFromPool } from '../../pool/member-book'
-import { memberAvatarUrl, photoOptimizedUrl, photoThumbUrl } from '../../pool/media'
+import { memberAvatarUrl, photoOptimizedHdrUrl, photoOptimizedUrl, photoThumbUrl } from '../../pool/media'
 
 /**
  * 公开页的名单簿：后台 MemberNotebook 的只读模式，数据只来自 ClientPool。
@@ -18,6 +18,7 @@ export default function PublicMemberNotebook({ pool, entryMemberId, onLeave }: {
     avatar: member => memberAvatarUrl(pool, member),
     thumb: photo => photoThumbUrl(pool, photo),
     optimized: photo => photoOptimizedUrl(pool, photo),
+    optimizedHdr: photo => photoOptimizedHdrUrl(pool, photo),
   }), [pool])
   return (
     <MemberNotebook

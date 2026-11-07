@@ -26,7 +26,11 @@ type ImageMetadataLike = {
   format?: string | undefined
 }
 
-function normalizeFormat(format: string | undefined): ImageFormat {
+function normalizeFormat(
+  format: string | undefined,
+  media_type: string | undefined,
+  compression: string | undefined,
+): ImageFormat {
   switch (format) {
     case 'jpeg':
     case 'jpg':
@@ -38,7 +42,15 @@ function normalizeFormat(format: string | undefined): ImageFormat {
     case 'webp':
       return 'webp'
     case 'avif':
+      return 'avif'
     case 'heif':
+      if (media_type === 'image/avif' || compression === 'av1') {
+        return 'avif'
+      }
+      if (media_type === 'image/heic' || media_type === 'image/heif' || compression === 'hevc') {
+        return 'heic'
+      }
+      // Backward compatibility for older libvips metadata that only returns "heif".
       return 'avif'
     default:
       throw badRequest(`不支持的图片格式: ${format ?? 'unknown'}`)
@@ -76,7 +88,7 @@ export async function readImageInfo(file_path: string): Promise<ImageInfo> {
     const metadata = await sharp(file_path).metadata()
     const { width, height } = normalizedSize(metadata)
     return {
-      format: normalizeFormat(metadata.format),
+      format: normalizeFormat(metadata.format, metadata.mediaType, metadata.compression),
       width,
       height,
       bits_per_sample: bitsPerSample(metadata),

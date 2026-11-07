@@ -1,6 +1,7 @@
 services:
   api:
     build: .
+    image: torzo-gallery
     init: true
     restart: unless-stopped
     env_file:
@@ -8,7 +9,4 @@ services:
     ports:
       - "7001:7001"
     volumes:
-      - torzo-data:/data
-
-volumes:
-  torzo-data:
+      - ./storage-migrated:/data

@@ -3,11 +3,10 @@ dist
 coverage
 .vitest
 storage
+storage-*
 storage-dev
 temp
 legacy
-test
-docs
 scripts
 .github
 .env
@@ -16,6 +15,7 @@ scripts
 .npmrc
 *.log
 .DS_Store
+p.txt
 *.tsbuildinfo
 .git
 .pnpm-store

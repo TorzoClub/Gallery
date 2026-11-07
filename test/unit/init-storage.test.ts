@@ -47,6 +47,26 @@ describe('storage:init', () => {
     expect(pool_after.next_id).toBe(1)
   })
 
+  it('removes a stale lock left by a previous container', async () => {
+    const dir = await tempDir()
+    await fs.mkdir(dir, { recursive: true })
+    await fs.writeFile(path.join(dir, 'lock'), JSON.stringify({
+      pid: process.pid,
+      hostname: 'previous-container',
+      start_ticks: '1',
+      started_at: new Date().toISOString(),
+      token: 'stale-token',
+    }))
+
+    const storage = await createStorage({
+      storage_path: dir,
+      allow_empty_data: true,
+      logger: createLogger({ level: 'error', pretty: true }),
+    })
+    await storage.close()
+    expect(await fileExists(path.join(dir, 'lock'))).toBe(false)
+  })
+
   it('refuses to initialize while another process holds the storage lock', async () => {
     const dir = await tempDir()
     const storage = await createStorage({

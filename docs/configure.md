@@ -6,6 +6,7 @@
 
 - Node.js >= 24.22.1
 - pnpm >= 10.24.0
+- HDR 图片需要 Docker 镜像内的 libavif 1.4.2 工具（`avifenc` / `avifdec` / `avifgainmaputil`）；HEIC/HEIF 还需要 `pillow_heif>=1.8`、exiftool 和 `apple-hdr-heic-decoder`
 
 ```bash
 nvm use
@@ -22,6 +23,7 @@ pnpm dev
 ```
 
 - 只有一个端口：`HTTP_PORT`（默认 `7001`）。
+- 本地开发推荐 `docker compose -f compose.dev.yaml up --build`；HDR/HEIC 工具随镜像提供。宿主机没有 libavif/pillow_heif 时仍可看 SDR，但不能生成 HDR 或读取 HEIC。
 - Hono 在 Node HTTP Server 最前面处理 API。
 - development 下非 API 请求进入同进程的 Vite middleware；production 下进入 Hono 的 `dist/client` 静态服务。
 - 公开页 `/explore`（`/` 重定向），About 页 `/behind`，取消投稿覆盖层 `/explore/cancelSubmission`（旧 `/cancelSubmission`、`/removingSubmission` 会重定向到这里），后台入口 `/admin`。
@@ -132,7 +134,7 @@ sharp 输出 AVIF 时每条边最多 16384px（`AVIF_MAX_DIMENSION`），超过�
 ```text
 <STORAGE_PATH>/stored-images/
 ├── source/       # 原图原始字节：photo-...-<crc>.<format> / avatar-<member-id>-<crc>.<format>
-├── optimized/    # photo-...-<crc>-sdr.avif
+├── optimized/    # photo-...-<crc>-sdr.avif；HDR source 另有 -hdr.avif
 ├── thumb/        # photo-...-<crc>.avif；头像 avatar-<member-id>-<crc>.avif，SDR AVIF
 └── temp/         # <uuidv7>.<format>
 ```
@@ -147,7 +149,8 @@ sharp 输出 AVIF 时每条边最多 16384px（`AVIF_MAX_DIMENSION`），超过�
 
 | 命令 | 作用 |
 |---|---|
-| `pnpm dev` | 单进程、单端口的后端优先开发模式（Vite middleware） |
+| `docker compose -f compose.dev.yaml up --build` | 推荐的 Docker 开发环境，包含 HDR 工具 |
+| `pnpm dev` | 单进程、单端口的后端优先开发模式（Vite middleware）；宿主机需要自行提供 libavif 才能生成 HDR |
 | `pnpm storage:init` | 初始化 storage 目录和空数据 |
 | `pnpm update-storage` | 将旧 storage schema 升级到当前版本 |
 | `pnpm typecheck` | client + server TypeScript 检查 |
@@ -257,9 +260,9 @@ dist/
 | `public` 下的图片 | `public, max-age=31536000, immutable` |
 | 其他静态文件（如 manifest） | `public, max-age=3600` |
 
-前端 bundle 由 Vite 生成 hash 文件名。HTML 不 hash，所以使用 `no-cache`，确保每次先重新验证 HTML，再加载新的 hash bundle。source 文件名为 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`；photo optimized 固定为 `-sdr.avif`，photo thumb 为无后缀 `.avif`。头像 source 为 `avatar-<member-id>-<crc32>.<format>`，thumb 为 `avatar-<member-id>-<crc32>.avif`。
+前端 bundle 由 Vite 生成 hash 文件名。HTML 不 hash，所以使用 `no-cache`，确保每次先重新验证 HTML，再加载新的 hash bundle。source 文件名为 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`；photo optimized 固定为 `-sdr.avif`（HDR source 另有 `-hdr.avif`），photo thumb 为无后缀 `.avif`。头像 source 为 `avatar-<member-id>-<crc32>.<format>`，thumb 为 `avatar-<member-id>-<crc32>.avif`。
 
-当前 Phase 0 所有输入都只生成 8-bit SDR optimized/thumb；HDR optimized 暂不生成。后续 HDR 方案见 [todo/hdr-supports.md](todo/hdr-supports.md)。
+HDR source 额外生成 10-bit HDR optimized，CICP 来自 PQ/HLG 或 gain map；thumb 始终是 SDR。已有相片需要执行一次“重新生成图片”才会生成 HDR。实现、限制和失败策略见 [images.md#hdr](images.md#hdr)。
 
 派生图 URL 带 `?v=<instance_hash>`；`instance_hash` 是当前 instance_config 的 CRC32。修改 instance 配置后，API 返回新的版本 URL，避免 immutable 缓存命中旧图。旧命名的相片变体会在“重新生成图片”时清理。
 
@@ -288,6 +291,7 @@ pnpm start
 - 同一 storage 只运行一个 API 进程
 - 反向代理直接转发到 Hono，不需要单独的静态服务器
 - SSE `/events/pool` 和 `/admin/events/pool` 必须关闭响应 buffering；nginx 使用 `proxy_buffering off`，并将 `proxy_read_timeout` 设为大于 15 秒心跳间隔
+- 图片上传、投稿、后台图片重建是长请求；前端等待上限为 360 秒，nginx 需要把 `/mutate/*`、`/admin/mutate/*` 的 `proxy_read_timeout` 和 `proxy_send_timeout` 配到至少 360 秒
 - SSE 连接不参与普通静态资源缓存
 
 Docker：

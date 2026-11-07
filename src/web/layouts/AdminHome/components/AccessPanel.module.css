@@ -1,6 +1,6 @@
 /*
  * 门禁面板（AccessPanel）：后台登录。
- * 竖长的拉丝金属门禁机，四角螺丝；与控制台同一套拟物语汇（缩略图重建的金属壳、数码屏、LED 小灯）。
+ * 竖长的拉丝金属门禁机，四角螺丝；与控制台同一套拟物语汇（图片重建的金属壳、数码屏、LED 小灯）。
  * 状态变化是瞬时的；动画只有：等待输入的点（在 tsx 里）、拒绝类（ACCESS DENIED / INVALID TOKEN / EXPIRED TOKEN）
  * 和通过类（LOGIN SUCCESS / IS LOGINED）各闪 3 次。
  */

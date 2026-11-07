@@ -11,6 +11,7 @@ import type {
 import type { PhotoDTO } from '@shared/dto'
 import {
   memberAvatarUrl,
+  photoOptimizedHdrUrl,
   photoOptimizedUrl,
   photoSourceUrl,
   photoThumbUrl,
@@ -42,7 +43,7 @@ export type PhotoView = {
   member: MemberView | null
   src_url: string
   src_optimized: string
-  src_optimized_hdr: null
+  src_optimized_hdr: string | null
   vote_count: number
   thumb: string
   thumb_url: string
@@ -103,7 +104,7 @@ export function toPhotoView(
     member: member_view_data,
     src_url: photoSourceUrl(pool, photo),
     src_optimized: photoOptimizedUrl(pool, photo),
-    src_optimized_hdr: null,
+    src_optimized_hdr: photo.has_hdr_optimized ? photoOptimizedHdrUrl(pool, photo) : null,
     vote_count: 0,
     thumb,
     thumb_url: thumb,
@@ -128,7 +129,7 @@ export function photoViewFromDTO(photo: PhotoDTO, is_voted = false): PhotoView {
     member: photo.member === null ? null : { ...photo.member, qq_num: null },
     src_url: photo.src_url,
     src_optimized: photo.src_optimized,
-    src_optimized_hdr: null,
+    src_optimized_hdr: photo.src_optimized_hdr,
     vote_count: photo.vote_count,
     thumb: photo.thumb,
     thumb_url: photo.thumb_url,

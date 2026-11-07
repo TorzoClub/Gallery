@@ -14,6 +14,10 @@ export function photoOptimizedFilename(src: string): string {
   return `${baseName(src)}-sdr.avif`
 }
 
+export function photoOptimizedHdrFilename(src: string): string {
+  return `${baseName(src)}-hdr.avif`
+}
+
 export function avatarThumbFilename(src: string): string {
   return `${baseName(src)}.avif`
 }
@@ -38,6 +42,10 @@ export function photoThumbUrl(pool: ClientPool, photo: Pick<ClientPhotoBase, 'sr
 
 export function photoOptimizedUrl(pool: ClientPool, photo: Pick<ClientPhotoBase, 'src'>): string {
   return imageUrl(pool, 'optimized', photoOptimizedFilename(photo.src))
+}
+
+export function photoOptimizedHdrUrl(pool: ClientPool, photo: Pick<ClientPhotoBase, 'src'>): string {
+  return imageUrl(pool, 'optimized', photoOptimizedHdrFilename(photo.src))
 }
 
 export function memberAvatarUrl(pool: ClientPool, member: Pick<ClientMember, 'avatar_src'>): string {

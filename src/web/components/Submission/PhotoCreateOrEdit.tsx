@@ -21,7 +21,14 @@ const ImageUploading = (
 ) as typeof ImageUploadingImport
 
 type ImageSize = { width: number, height: number }
-type WillUploadImage = null | { blob: Blob, filename: string, blob_url: string, size: ImageSize }
+type WillUploadImage = null | {
+  blob: Blob
+  filename: string
+  blob_url: string
+  size: ImageSize
+  /** 浏览器不能解码 HEIC 时，拍立得只显示提示，提交后由服务端生成 thumb */
+  preview_unsupported: boolean
+}
 
 /** 表单这张拍立得的宽度；摆正、不贴纸胶带 */
 const CARD_WIDTH = 320
@@ -126,40 +133,31 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
       const array_buffer = await file.arrayBuffer()
       const blob = new Blob([new Uint8Array(array_buffer)], { type: file.type })
 
-      const [type, image_type] = blob.type.split('/')
-      const supported_type = ['webp', 'avif', 'jpeg', 'jpg', 'png', 'gif', 'heic']
+      const extension = file.name.slice(file.name.lastIndexOf('.') + 1).toLowerCase()
+      const [mime_type, mime_image_type] = blob.type.split('/')
+      const image_type = mime_type === 'image' && mime_image_type ? mime_image_type : extension
+      const supported_type = ['webp', 'avif', 'jpeg', 'jpg', 'png', 'gif', 'heic', 'heif']
       const is_supported_image = supported_type.includes(image_type)
-      if (type === undefined) {
+      if (image_type === '') {
         alert(`看起来这不是一个图片格式（blob type: ${blob.type}），请重新选择`)
       } else if (!is_supported_image) {
         alert(`🧎对不起，目前暂不支持该格式(${image_type})，我们只支持这些格式：${supported_type.join('|')}`)
       } else {
-        const is_heic = blob.type.includes('heic') || blob.type.includes('heif')
-        if (is_heic) {
-          const { default: heicConvert } = await import('heic-convert/browser')
-          const jpg_buf = await heicConvert({
-            buffer: new Uint8Array(array_buffer),
-            format: 'JPEG',
-            quality: 0.8,
-          })
-          const jpg_blob = new Blob([new Uint8Array(jpg_buf)], { type: 'image/jpeg' })
-          const blob_url = URL.createObjectURL(jpg_blob)
-          const size = await readImageSize(blob_url)
-          setWillUploadImage(prev => {
-            if (prev?.blob_url) {
-              URL.revokeObjectURL(prev.blob_url)
-            }
-            return {
-              filename: `img-${Date.now()}.jpg`,
-              blob: jpg_blob,
-              blob_url,
-              size,
-            }
-          })
-        } else {
-          const blob_url = URL.createObjectURL(blob)
-          setWillUploadImage({ filename: file.name, blob, blob_url, size: await readImageSize(blob_url) })
-        }
+        const is_heic = image_type === 'heic' || image_type === 'heif'
+        const blob_url = URL.createObjectURL(blob)
+        const size = await readImageSize(blob_url)
+        setWillUploadImage(prev => {
+          if (prev?.blob_url) {
+            URL.revokeObjectURL(prev.blob_url)
+          }
+          return {
+            filename: file.name,
+            blob,
+            blob_url,
+            size,
+            preview_unsupported: is_heic,
+          }
+        })
       }
     }
   }, [])
@@ -205,6 +203,7 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
             >
               <FormCover
                 previewURL={preview_url}
+                previewUnsupported={will_upload_image?.preview_unsupported ?? false}
                 isDragging={isDragging}
                 // 横长图和瀑布流里一样转 90° 竖着放：<img> 按原图方向排（宽高对调），再转过来填满相片区域
                 sideways={sideways ? { width: cover_height, height: cover_width } : null}
@@ -238,8 +237,9 @@ export default function PhotoCreateOrEdit({ onUpdateDone }: Props) {
 }
 
 /** 拍立得上的相片位：没选图时是提示语，选了图就是预览 */
-function FormCover({ previewURL, isDragging, sideways }: {
+function FormCover({ previewURL, previewUnsupported, isDragging, sideways }: {
   previewURL: string | null
+  previewUnsupported: boolean
   isDragging: boolean
   sideways: { width: number, height: number } | null
 }) {
@@ -267,7 +267,7 @@ function FormCover({ previewURL, isDragging, sideways }: {
         />
       )
   } else if (load_status === 'FAILURE') {
-    return <span className={s.CoverTips}>图片读取失败</span>
+    return <span className={s.CoverTips}>{previewUnsupported ? 'HEIC 文件已选择，提交后显示缩略图' : '图片读取失败'}</span>
   } else {
     return <LoadingMask opacity={0.7} />
   }

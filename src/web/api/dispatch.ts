@@ -1,8 +1,6 @@
-import { postJson, unwrapApiResponse } from './http'
+import { postJson, REQUEST_TIMEOUT_MS, unwrapApiResponse } from './http'
 
 export { API_BASE, ApiError, unwrapApiResponse } from './http'
-
-const __DISPATCH_TIMEOUT = 120_000
 
 async function dispatch<T>(
   kind: 'query' | 'mutation',
@@ -14,7 +12,7 @@ async function dispatch<T>(
   const response = await postJson(
     `${admin ? 'admin/' : ''}${route}/${name}`,
     { payload },
-    { timeout: __DISPATCH_TIMEOUT },
+    { timeout: REQUEST_TIMEOUT_MS },
   )
   return unwrapApiResponse<T>(response.status, response.data)
 }

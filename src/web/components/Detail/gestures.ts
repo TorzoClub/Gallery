@@ -3,9 +3,24 @@ import {
   type Point, type Size, type View,
 } from './geometry'
 
+export const MOUSE_WHEEL_PIXEL_THRESHOLD = 50
+const TRACKPAD_ZOOM_SENSITIVITY = 0.01
+const MOUSE_WHEEL_ZOOM_SENSITIVITY = 0.002
+
 const distance = (a: Point, b: Point) => Math.hypot(b.x - a.x, b.y - a.y)
 const midpoint = (a: Point, b: Point): Point => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 })
 
+export function looksLikeMouseWheel(
+  deltaX: number,
+  deltaY: number,
+  deltaMode: number,
+  legacyDeltaY: number | undefined,
+): boolean {
+  if (deltaMode !== 0) return true
+  if (deltaX !== 0) return false
+  if (legacyDeltaY !== undefined) return legacyDeltaY % 120 === 0
+  return Number.isInteger(deltaY) && Math.abs(deltaY) >= MOUSE_WHEEL_PIXEL_THRESHOLD
+}
 export function createGestures(image: Size, viewport: Size, onChange: (view: View) => void, onDismiss: () => void) {
   const pointers = new Map<number, Point>()
   let view = { ...INITIAL_VIEW }
@@ -104,12 +119,25 @@ export function createGestures(image: Size, viewport: Size, onChange: (view: Vie
     down, move, up, cancel, zoom,
     get view() { return view },
     get pointerCount() { return pointers.size },
-    wheel(deltaX: number, deltaY: number, deltaMode: number, zooming: boolean, point: Point) {
+    wheel(
+      deltaX: number,
+      deltaY: number,
+      deltaMode: number,
+      ctrlKey: boolean,
+      point: Point,
+      legacyDeltaY?: number,
+    ) {
+      // ctrl-wheel 是 trackpad 捏合；普通 wheel 用 test.html 的启发式区分
+      // 鼠标滚轮和 trackpad 双指滚动。启发式不可能 100% 准确，但这是
+      // Chromium/WebKit 上已经验证过的规则。
       const unit = deltaMode === 1 ? 16 : deltaMode === 2 ? viewport.height : 1
-      if (zooming) {
-        zoom(Math.exp(-deltaY * unit * 0.01), point)
+      if (ctrlKey) {
+        zoom(Math.exp(-deltaY * unit * TRACKPAD_ZOOM_SENSITIVITY), point)
+      } else if (looksLikeMouseWheel(deltaX, deltaY, deltaMode, legacyDeltaY)) {
+        const d = deltaMode === 1 ? deltaY * 16 : deltaY
+        zoom(Math.exp(-d * MOUSE_WHEEL_ZOOM_SENSITIVITY), point)
       } else if (view.scale > 1) {
-        update(boundView({ ...view, x: view.x - deltaX * unit, y: view.y - deltaY * unit }, image, viewport))
+        update(boundView({ ...view, x: view.x - deltaX, y: view.y - deltaY }, image, viewport))
         rebase()
       }
     },

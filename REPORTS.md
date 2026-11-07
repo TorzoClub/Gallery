@@ -457,18 +457,16 @@ pnpm build      通过
    - 快照/恢复演练；
    - 迁移前自动备份。
 
-### 5.3 HDR（已规划）
+### 5.3 HDR（已完成）
 
-按 [docs/todo/hdr-supports.md](docs/todo/hdr-supports.md)：
+HDR Phase 1 已落地，实现和限制见 [docs/images.md](docs/images.md#hdr)：
 
-- libavif CLI + libaom + libxml2；
-- 纯 HDR base 的 `-hdr.avif`；
-- SDR/HDR 双文件；
-- Docker-first 构建；
-- CICP/gain map 验证；
-- `has_hdr_optimized`/`src_optimized_hdr` 真正生效。
+- libavif CLI + libaom + libxml2，随 Docker 镜像构建；
+- 纯 HDR base 的 `-hdr.avif`，与 SDR 双文件；
+- CICP/gain map 判定，HEIC 的 Apple HDR gain map 也支持；
+- `has_hdr_optimized` / `src_optimized_hdr` 已生效。
 
-这是当前最明确的“下一阶段功能”。
+仍缺：HDR thumb（有意不做）、12-bit 输出、非 Apple 格式的 HDR HEIC。
 
 ### 5.4 用户体验/产品功能
 
@@ -534,13 +532,14 @@ pnpm build      通过
 - 失败路径 orphan 清理
 - 补充回归测试
 
-**第 2–3 周：HDR Phase 1**
+**第 2–3 周：HDR Phase 1（已完成）**
 
-- Docker 多阶段 + libavif
-- `-hdr.avif` 生成
-- `has_hdr_optimized`/`src_optimized_hdr`
-- CICP/gain map 测试
-- 手机验收
+- Docker 多阶段 + libavif ✅
+- `-hdr.avif` 生成 ✅
+- `has_hdr_optimized`/`src_optimized_hdr` ✅
+- CICP/gain map 测试 ✅
+- HEIC/HEIF + Apple gain map ✅
+- 手机/MacBook XDR 验收 ✅
 
 **第 4–5 周：图片 job 化 + 分页/索引**
 
@@ -582,7 +581,7 @@ pnpm build      通过
    - admin 图片请求超时策略；
    - 失败路径 orphan 清理。
 
-2. 然后按 [docs/todo/hdr-supports.md](docs/todo/hdr-supports.md) 进入 HDR Phase 1，同时把 Docker 开发/CI 一起落地。
+2. HDR Phase 1 已完成（见 [docs/images.md](docs/images.md#hdr)），Docker 开发和 CI 已改成镜像内验证。
 
 3. HDR 完成后再做 **图片 job 队列**，不要在 HDR 之前把图片处理继续堆进 mutation。
 

@@ -1,0 +1,18 @@
+services:
+  api:
+    build:
+      context: .
+      target: dev
+    init: true
+    env_file:
+      - .env.development
+    ports:
+      - "7001:7001"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - torzo-dev-data:/data
+    command: pnpm dev
+
+volumes:
+  torzo-dev-data:

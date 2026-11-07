@@ -178,6 +178,9 @@ export function photoDto(options: {
   const member = findMemberByIdOrNull(pool, photo.member_id)
   const thumb = photoThumbFilename(photo.src)
   const optimized = photoVariantFilename(photo.src, 'sdr')
+  const optimized_hdr = photo.has_hdr_optimized
+    ? imageUrl(env, 'optimized', photoVariantFilename(photo.src, 'hdr'), instance_hash)
+    : null
   const thumb_url = imageUrl(env, 'thumb', thumb, instance_hash)
   const hide_member = options.hide_member === true
 
@@ -195,7 +198,7 @@ export function photoDto(options: {
     thumb: thumb_url,
     src_url: imageUrl(env, 'source', photo.src),
     src_optimized: imageUrl(env, 'optimized', optimized, instance_hash),
-    src_optimized_hdr: null,
+    src_optimized_hdr: optimized_hdr,
     thumb_url,
     vote_count: voteCountByPhoto(gallery, photo.id),
     member: member === undefined || hide_member ? null : memberDto(member, env, instance_hash),

@@ -3,6 +3,9 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import { crc32 } from 'node:zlib'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createTestContext,
@@ -14,6 +17,8 @@ import { crc32Hex } from '../../src/server/common/crc32'
 import { isUuidV7, uuidV7Timestamp, uuidv7 } from '../../src/server/common/uuid'
 import { createLogger } from '../../src/server/logger'
 import { createImagePipeline, TEMP_IMAGE_TTL_MS, TEMP_CLEANUP_INTERVAL_MS } from '../../src/server/instance/prepare-photo'
+import { hdrToolsAvailable } from '../../src/server/storage/hdr'
+import { heicToolsAvailable } from '../../src/server/storage/heic-hdr'
 
 const dirs: string[] = []
 let active: TestContext | undefined
@@ -44,6 +49,60 @@ async function makeExifOriented6Image(): Promise<string> {
     .withMetadata({ orientation: 6 })
     .toFile(output_path)
   return output_path
+}
+function pngWithCicp(png: Buffer, values: readonly [number, number, number, number]): Buffer {
+  const type = Buffer.from('cICP')
+  const data = Buffer.from(values)
+  const header = Buffer.alloc(8)
+  header.writeUInt32BE(data.length, 0)
+  type.copy(header, 4)
+  const crc = Buffer.alloc(4)
+  crc.writeUInt32BE(crc32(Buffer.concat([type, data])) >>> 0)
+  const chunk = Buffer.concat([header, data, crc])
+  const first_idat = png.indexOf(Buffer.from('IDAT')) - 4
+  return Buffer.concat([png.subarray(0, first_idat), chunk, png.subarray(first_idat)])
+}
+
+async function makeHdrPng(values: readonly [number, number, number, number]): Promise<Buffer> {
+  const png = await sharp({
+    create: {
+      width: 320,
+      height: 200,
+      channels: 3,
+      background: { r: 20000, g: 12000, b: 6000 },
+    },
+  }).toColourspace('rgb16').png().toBuffer()
+  return pngWithCicp(png, values)
+}
+
+async function avifCicp(file_path: string): Promise<string> {
+  const { stdout } = await promisify(execFile)('avifdec', ['--info', file_path])
+  return stdout
+}
+async function runTool(command: string, args: string[]): Promise<void> {
+  await promisify(execFile)(command, args)
+}
+
+async function makeAvifGainMap(): Promise<Buffer> {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'torzo-hdr-gain-'))
+  dirs.push(dir)
+  const sdr_png = path.join(dir, 'sdr.png')
+  const hdr_png = path.join(dir, 'hdr.png')
+  const sdr_avif = path.join(dir, 'sdr.avif')
+  const hdr_avif = path.join(dir, 'hdr.avif')
+  const gain_avif = path.join(dir, 'gain.avif')
+  await fs.writeFile(sdr_png, await makePng(320, 200))
+  await fs.writeFile(hdr_png, await makeHdrPng([9, 16, 9, 1]))
+  await runTool('avifenc', [
+    '--depth', '8', '--cicp', '1/13/1', '--range', 'full',
+    '--ignore-icc', '--ignore-exif', '--ignore-xmp', sdr_png, sdr_avif,
+  ])
+  await runTool('avifenc', [
+    '--depth', '10', '--cicp', '9/16/9', '--range', 'full',
+    '--ignore-icc', '--ignore-exif', '--ignore-xmp', hdr_png, hdr_avif,
+  ])
+  await runTool('avifgainmaputil', ['combine', sdr_avif, hdr_avif, gain_avif, '--ignore-profile'])
+  return fs.readFile(gain_avif)
 }
 
 type ImageMetadata = {
@@ -136,6 +195,33 @@ describe('storage persistence', () => {
 })
 
 describe('image flow', () => {
+  it('handles two concurrent photo preparations', async () => {
+    const ctx = await context()
+    const memberA = await ctx.createMember({ qq_num: 52001 })
+    const memberB = await ctx.createMember({ qq_num: 52002 })
+    const gallery = await ctx.createGallery()
+    const image = await makePng(320, 200)
+
+    const [photoA, photoB] = await Promise.all([
+      ctx.createPhoto({
+        gallery_id: gallery.id as number,
+        member_id: memberA.id as number,
+        image,
+      }),
+      ctx.createPhoto({
+        gallery_id: gallery.id as number,
+        member_id: memberB.id as number,
+        image,
+      }),
+    ])
+
+    expect(photoA.src).not.toBe(photoB.src)
+    expect(photoA.has_hdr_optimized).toBe(false)
+    expect(photoB.has_hdr_optimized).toBe(false)
+    expect(photoA.thumb).toBeTruthy()
+    expect(photoB.thumb).toBeTruthy()
+  })
+
   it('serves source/optimized/thumb and refreshes derived images', async () => {
     const ctx = await context()
     const member = await ctx.createMember({ qq_num: 51001 })
@@ -591,5 +677,157 @@ describe('image flow', () => {
     expect(same.body.data.src).toBe(second_source)
     await expect(fs.access(ctx.storage.imagePath('source', second_source)))
       .resolves.toBeUndefined()
+  })
+})
+
+
+const hdr_available = await hdrToolsAvailable()
+
+describe.skipIf(!hdr_available)('HDR image flow', () => {
+  it('generates and exposes HDR optimized for PQ PNG, then refreshes the flag', async () => {
+    const ctx = await context()
+    const member = await ctx.createMember({ qq_num: 51007 })
+    const gallery = await ctx.createGallery()
+    const image = await makeHdrPng([9, 16, 9, 1])
+    const photo = await ctx.createPhoto({
+      gallery_id: gallery.id as number,
+      member_id: member.id as number,
+      image,
+      image_filename: 'hdr.png',
+    })
+
+    expect(photo.has_hdr_optimized).toBe(true)
+    expect(photo.src_optimized_hdr).toContain('-hdr.avif')
+    const source_name = photo.src as string
+    const hdr_name = variantName(source_name, 'hdr')
+    const hdr_path = ctx.storage.imagePath('optimized', hdr_name)
+    await expect(fs.access(hdr_path)).resolves.toBeUndefined()
+
+    const info = await avifCicp(hdr_path)
+    expect(info).toContain('Bit Depth      : 10')
+    expect(info).toContain('Color Primaries: 9')
+    expect(info).toContain('Transfer Char. : 16')
+    expect(info).toContain('Matrix Coeffs. : 9')
+
+    await fs.rm(hdr_path)
+    const refreshed = await ctx.adminMutate('adminRefreshThumb', { photo_id: photo.id })
+    expect(refreshed.status).toBe(200)
+    expect(refreshed.body.data.has_hdr_optimized).toBe(true)
+    await expect(fs.access(hdr_path)).resolves.toBeUndefined()
+  })
+
+  it('converts a JPEG gain map to an HDR base', async () => {
+    const ctx = await context()
+    const member = await ctx.createMember({ qq_num: 51010 })
+    const gallery = await ctx.createGallery()
+    const image = await fs.readFile(fileURLToPath(new URL('../fixtures/hdr/apple_gainmap_new.jpg', import.meta.url)))
+    const photo = await ctx.createPhoto({
+      gallery_id: gallery.id as number,
+      member_id: member.id as number,
+      image,
+      image_filename: 'gain.jpg',
+    })
+
+    expect(photo.has_hdr_optimized).toBe(true)
+    const hdr_name = variantName(photo.src as string, 'hdr')
+    const info = await avifCicp(ctx.storage.imagePath('optimized', hdr_name))
+    expect(info).toContain('Bit Depth      : 10')
+    expect(info).toContain('Transfer Char. : 16')
+  })
+
+  it('swaps an AVIF gain map and exposes its HDR base', async () => {
+    const ctx = await context()
+    const member = await ctx.createMember({ qq_num: 51009 })
+    const gallery = await ctx.createGallery()
+    const image = await makeAvifGainMap()
+    const photo = await ctx.createPhoto({
+      gallery_id: gallery.id as number,
+      member_id: member.id as number,
+      image,
+      image_filename: 'gain.avif',
+    })
+
+    expect(photo.has_hdr_optimized).toBe(true)
+    expect(photo.src_optimized_hdr).toContain('-hdr.avif')
+    const hdr_name = variantName(photo.src as string, 'hdr')
+    const info = await avifCicp(ctx.storage.imagePath('optimized', hdr_name))
+    expect(info).toContain('Bit Depth      : 10')
+    expect(info).toContain('Transfer Char. : 16')
+  })
+
+  it('does not guess HDR for a 16-bit PNG without cICP', async () => {
+    const ctx = await context()
+    const member = await ctx.createMember({ qq_num: 51008 })
+    const gallery = await ctx.createGallery()
+    const png = await sharp({
+      create: {
+        width: 64,
+        height: 48,
+        channels: 3,
+        background: '#804020',
+      },
+    }).toColourspace('rgb16').png().toBuffer()
+    const photo = await ctx.createPhoto({
+      gallery_id: gallery.id as number,
+      member_id: member.id as number,
+      image: png,
+      image_filename: 'no-cicp.png',
+    })
+    expect(photo.has_hdr_optimized).toBe(false)
+    expect(photo.src_optimized_hdr).toBeNull()
+  })
+})
+
+
+const heic_available = await heicToolsAvailable()
+
+describe.skipIf(!heic_available)('HEIC image flow', () => {
+  it('stores a native HEIC source and generates SDR images', async () => {
+    const ctx = await context()
+    const member = await ctx.createMember({ qq_num: 51011 })
+    const gallery = await ctx.createGallery()
+    const image = await fs.readFile(fileURLToPath(new URL('../fixtures/hdr/plain-sdr.heic', import.meta.url)))
+    const photo = await ctx.createPhoto({
+      gallery_id: gallery.id as number,
+      member_id: member.id as number,
+      image,
+      image_filename: 'iphone.heic',
+    })
+
+    expect(photo.src).toMatch(/\.heic$/)
+    expect(photo.format).toBe('heic')
+    expect(photo.has_hdr_optimized).toBe(false)
+    expect(photo.src_optimized_hdr).toBeNull()
+
+    const source = await ctx.app.request(`/images/source/${photo.src}`)
+    expect(source.status).toBe(200)
+    expect(source.headers.get('content-type')).toBe('image/heic')
+    const thumb = await ctx.app.request(new URL(photo.thumb as string).pathname)
+    expect(thumb.status).toBe(200)
+    expect(thumb.headers.get('content-type')).toBe('image/avif')
+  })
+})
+
+describe.skipIf(!hdr_available || !heic_available)('HEIC HDR image flow', () => {
+  it('converts an Apple HDR HEIC to a 10-bit HDR AVIF', async () => {
+    const ctx = await context()
+    const member = await ctx.createMember({ qq_num: 51012 })
+    const gallery = await ctx.createGallery()
+    const image = await fs.readFile(fileURLToPath(new URL('../fixtures/hdr/iphone-hdr.heic', import.meta.url)))
+    const photo = await ctx.createPhoto({
+      gallery_id: gallery.id as number,
+      member_id: member.id as number,
+      image,
+      image_filename: 'iphone-hdr.heic',
+    })
+
+    expect(photo.has_hdr_optimized).toBe(true)
+    expect(photo.src_optimized_hdr).toContain('-hdr.avif')
+    const hdr_name = variantName(photo.src as string, 'hdr')
+    const info = await avifCicp(ctx.storage.imagePath('optimized', hdr_name))
+    expect(info).toContain('Bit Depth      : 10')
+    expect(info).toContain('Color Primaries: 9')
+    expect(info).toContain('Transfer Char. : 16')
+    expect(info).toContain('Matrix Coeffs. : 9')
   })
 })

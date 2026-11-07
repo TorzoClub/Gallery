@@ -1,6 +1,6 @@
-export const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif'] as const
+export const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'heic', 'heif'] as const
 
-export type ImageFormat = 'jpg' | 'png' | 'gif' | 'webp' | 'avif'
+export type ImageFormat = 'jpg' | 'png' | 'gif' | 'webp' | 'avif' | 'heic'
 
 export function extensionOf(filename: string): string {
   const index = filename.lastIndexOf('.')
@@ -19,6 +19,9 @@ export function formatFromFilename(filename: string): ImageFormat | null {
   }
   if (ext === 'jpg' || ext === 'png' || ext === 'gif' || ext === 'webp' || ext === 'avif') {
     return ext
+  }
+  if (ext === 'heic' || ext === 'heif') {
+    return 'heic'
   }
   return null
 }
@@ -78,6 +81,9 @@ export function mimeTypeOf(filename: string): string {
       return 'image/webp'
     case 'avif':
       return 'image/avif'
+    case 'heic':
+    case 'heif':
+      return 'image/heic'
     default:
       return 'application/octet-stream'
   }

@@ -8,11 +8,11 @@
 node -v
 ```
 
-要求 Node.js >= 24.22.1：
+要求 Node.js >= 26.13.0：
 
 ```bash
 nvm use
-nvm install 24.22.1
+nvm install 26.13.0
 ```
 
 ## pnpm install 失败

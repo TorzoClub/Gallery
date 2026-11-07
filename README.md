@@ -6,7 +6,7 @@
 
 ## 快速开始
 
-要求 Node.js >= 24.22.1、pnpm >= 10.24.0。
+要求 Node.js >= 26.13.0、pnpm >= 10.24.0。
 
 推荐用 Docker 开发，镜像内已经包含 HDR 和 HEIC 所需的 libavif、pillow_heif、exiftool 和 `apple-hdr-heic`：
 

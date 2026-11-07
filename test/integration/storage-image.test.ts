@@ -786,7 +786,7 @@ describe.skipIf(!heic_available)('HEIC image flow', () => {
     const ctx = await context()
     const member = await ctx.createMember({ qq_num: 51011 })
     const gallery = await ctx.createGallery()
-    const image = await fs.readFile(fileURLToPath(new URL('../fixtures/hdr/iphone-sdr.heic', import.meta.url)))
+    const image = await fs.readFile(fileURLToPath(new URL('../fixtures/hdr/plain-sdr.heic', import.meta.url)))
     const photo = await ctx.createPhoto({
       gallery_id: gallery.id as number,
       member_id: member.id as number,

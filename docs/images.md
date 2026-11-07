@@ -218,6 +218,7 @@ HDR 处理同样受全局图片串行队列和 360 秒请求上限影响；排�
 
 - 碎纸机：非 Safari 用 html-to-image 把整张卡片转成图片再切条；Safari（含 iOS 上所有浏览器，`utils/browser.ts` 的 `isWebKitSafari`）转出来是白的，回退为只碎单张 thumb。
 - 撕胶带下载原图：Chromium 在安全上下文里用 `showSaveFilePicker`，能知道用户点了“存储”还是“取消”；其他浏览器直接下载 `src_url`。见 designs.md“撕纸胶带”。
+- 查看大图的滚轮缩放：鼠标滚轮和 trackpad 双指滚动共用 `wheel` 事件，`gestures.ts` 的 `looksLikeMouseWheel()` 只能靠 `deltaMode`、`deltaX` 和 legacy `wheelDeltaY` 猜设备（有 `wheelDeltaY` 时以 `% 120 === 0` 视为鼠标档位），猜不到才用“整数且 ≥ 50px 的纵向 delta”兜底。这是启发式，不可能完全准确：平滑滚动的鼠标可能给出非 120 倍数的 `wheelDeltaY`，被当成 trackpad 去平移；trackpad 快速甩动也可能撞上大整数 delta 被当成缩放。要更确定就得改交互契约（例如要求按住修饰键才缩放），目前不这么做。
 
 ## 改动前的检查清单
 

@@ -275,6 +275,8 @@ production 下 Hono 的静态服务顺序（development 的非 API 请求先由 
 
 ## 部署
 
+完整的 GitHub Actions 镜像发布和服务器部署流程见 [deploy.md](deploy.md)。
+
 根路径部署：
 
 ```bash

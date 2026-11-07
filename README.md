@@ -48,6 +48,8 @@ Docker（production，镜像内包含 libavif HDR 工具）：
 docker compose up -d --build
 ```
 
+服务器部署、GHCR 镜像、数据迁移和 nginx 配置见 [docs/deploy.md](docs/deploy.md)。
+
 ## 文档
 
 - [docs/introduction.md](docs/introduction.md)：项目结构、技术栈和文档索引

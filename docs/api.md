@@ -272,7 +272,7 @@ payload: {}
 | `adminUpdatePhoto` | `{ photo_id, gallery_id?, member_id?, desc?, index?, temp_id? }` | 更新相片 |
 | `adminRemovePhoto` | `{ photo_id }` | 删除相片 |
 | `adminSortPhotos` | `{ gallery_id, photo_ids }` | 一次性重排整个相册：`photo_ids[i]` 的 `index` 写成 `i`，公开页按 `index` 升序展示。`photo_ids` 必须恰好是该相册的全部相片，缺漏或重复返回 `400`，含其他相册的相片返回 `404`，整体拒绝、不改任何一张；`index` 未变的相片不刷新 `updated_at`。返回更新后的相册 |
-| `adminRefreshThumb` | `{ photo_id }` | 重建 SDR optimized/thumb，并按 source 重新生成 HDR optimized；同时更新 `has_hdr_optimized`。超过 AVIF 每边 16384px 时返回 400 |
+| `adminRefreshThumb` | `{ photo_id }` | 重建 SDR optimized/thumb，并按 source 重新生成 HDR optimized；同时更新持久化的 `has_hdr_optimized` 标志。超过 AVIF 每边 16384px 时返回 400 |
 | `adminRefreshAvatar` | `{ member_id }` | 重建头像缩略图 |
 
 日期字段使用 ISO 8601，例如 `2026-10-01T00:00:00.000Z`。
@@ -391,8 +391,8 @@ thumb/avatar-<member-id>-<crc32>.avif
 - `thumb_url` 是 `thumb` 的同值兼容别名。
 - `?v=` 来自 `Instance.getInstanceHash()`，即当前 `instance_config` 的 CRC32；配置变化后 URL 变化，避免浏览器继续使用旧的 immutable 缓存。
 - 头像 `avatar_thumb_url` 同样带 `?v=`。
-- `has_hdr_optimized` 表示磁盘上确有 HDR optimized；没有 HDR 时为 `false`，`src_optimized_hdr` 为 `null`。
-- HDR 只从 PQ/HLG CICP 或 gain map source 生成；10-bit SDR 和没有 CICP 的 16-bit 图不生成 HDR。详见 [todo/hdr-supports.md](todo/hdr-supports.md)。
+- `has_hdr_optimized` 是上一次 prepare / 后台重建时记录的持久化标志，不是每次请求实时读盘；没有 HDR 时为 `false`，`src_optimized_hdr` 为 `null`。
+- HDR 只从 PQ/HLG CICP、JPEG/AVIF gain map 或 HEIC Apple HDR gain map 生成；10-bit SDR 和没有 CICP 的 16-bit 图不生成 HDR。详见 [images.md#hdr](images.md#hdr)。
 - 旧的 `-hdr.avif` 文件会在重建时按新结果清理或更新。
 
 ## 健康检查

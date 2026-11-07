@@ -32,9 +32,9 @@
 
 ## 后续待办
 
-- [x] 图片管线 Phase 0：SDR-only 回退，thumb 无后缀，头像 thumb 使用 `.avif`，`has_hdr_optimized=false`。
+- [x] 图片管线 Phase 0：SDR-only 回退，thumb 无后缀，头像 thumb 使用 `.avif`，`has_hdr_optimized` 持久化默认值为 `false`。
 - [x] HEIC/HEIF：原生上传、pillow_heif SDR、Apple HEIC HDR gain map；前端不再使用 heic-convert。
-- [x] 图片管线 Phase 1：libavif HDR AVIF、CICP/gain map 探测、HDR 详情回退和 Docker-first 环境，见 [docs/todo/hdr-supports.md](docs/todo/hdr-supports.md)。
+- [x] 图片管线 Phase 1：libavif HDR AVIF、CICP/gain map 探测、HDR 详情回退和 Docker-first 环境，见 [docs/images.md#hdr](docs/images.md#hdr)。
 - [x] 低内存保护：图片转换全局串行；图片请求等待上限 360 秒；Vitest 单测/集成测试超时 180 秒。
 - [ ] 浏览器 UI 交互测试（公开页投稿/投票、后台编辑、配置表单）。
 - [ ] 真实部署的 CI/CD 和密钥管理。

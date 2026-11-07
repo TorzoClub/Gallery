@@ -69,13 +69,95 @@ sharp（libheif）输出 AVIF 时每条边最多 16384px，超过会在编码时
 - 没有 Apple gain map 的 HEIC 只生成 SDR。
 - 浏览器不能预览 HEIC 时拍摄表单显示提示，提交后由服务端生成 thumb。
 
-### HDR optimized
+### HDR
 
-- `thumb` 和 `optimized` 的 SDR 文件规则不变：thumb 只有 SDR，optimized 始终有 `-sdr.avif`。
-- HDR source 额外生成 `optimized/...-hdr.avif`；HDR 文件不是 gain map 形式，而是纯 10-bit HDR base。
-- HDR 判定认 AVIF/PNG 的 PQ/HLG CICP，或 JPEG/AVIF 的 gain map；10-bit SDR 和没有 CICP 的 16-bit 图不生成 HDR。
-- HDR 详情只在 `(dynamic-range: high)` 环境加载；失败回退 SDR。
-- 详细流程、文件名和 Docker 工具见 [todo/hdr-supports.md](todo/hdr-supports.md)。
+HDR 是 SDR 之外的附加产物。每张相片都先有 SDR optimized 和 SDR thumb；只有识别到 HDR source，才额外生成 HDR optimized。头像不参与 HDR。
+
+#### 输出文件
+
+```text
+thumb/photo-...avif              SDR 缩略图，始终生成
+optimized/photo-...-sdr.avif     SDR 全尺寸图，始终生成
+optimized/photo-...-hdr.avif     HDR 全尺寸图，仅 HDR source
+```
+
+- `src_optimized` 指向 `-sdr.avif`
+- `src_optimized_hdr` 指向 `-hdr.avif`，没有时为 `null`
+- `thumb` / `thumb_url` 指向无后缀 SDR thumb
+- HDR 文件是**纯 10-bit HDR AVIF base**，不是 gain map 文件；SDR 和 HDR 是两个独立文件
+- 派生图 URL 继续带 `?v=<instance_hash>`
+
+`has_hdr_optimized` 是**持久化标志**：表示上一次 prepare / 后台重建时确认生成了 HDR optimized。它不是每次请求实时读盘检查。HDR 文件被手工删除时 API 仍可能是 `true`，详情加载失败会回退 SDR；后台“重新生成图片”会重新校正。
+
+#### 判定与编码矩阵
+
+| source | thumb | optimized SDR | optimized HDR |
+|---|---|---|---|
+| SDR | sharp SDR | sharp 8-bit | 不生成 |
+| JPEG gain map | sharp SDR base | sharp 8-bit | `avifgainmaputil convert --swap-base --ignore-profile` 得到 HDR base，10-bit CICP |
+| AVIF gain map | sharp SDR | sharp 8-bit | `avifgainmaputil swapbase` 得到 HDR base，10-bit CICP |
+| AVIF PQ/HLG CICP | sharp SDR | sharp 8-bit | `avifdec --depth 16` 得到 16-bit，缩放后 10-bit CICP |
+| PNG cICP | sharp SDR | sharp 8-bit | `avifenc` 10-bit CICP |
+| HEIC/HEIF + Apple HDR gain map | pillow_heif 解 SDR | sharp 8-bit | `apple-hdr-heic-decoder` 生成 16-bit BT.2020 PQ PNG，再 avifenc |
+| 无 gain map 的 HEIC/HEIF | pillow_heif 解 SDR | sharp 8-bit | 不生成 |
+
+#### HDR 判定条件
+
+只认这些 HDR 来源：
+
+- AVIF 主图的 CICP transfer = 16（PQ）或 18（HLG）
+- PNG `cICP` chunk 的 transfer = 16 或 18
+- JPEG/AVIF 的 gain map
+- HEIC/HEIF 的 `urn:com:apple:photo:2020:aux:hdrgainmap` 辅助图
+
+10-bit SDR、16-bit 无 cICP 图不生成 HDR；没有 PQ/HLG 的普通高位深图也不猜。
+
+HEIC/HEIF 的 HEVC 解码由 Docker 内的 `pillow_heif` 完成；sharp 内置的 libheif 没有 HEVC decoder plugin，不能直接解 HEIC 主图。HEIC HDR 还依赖：
+
+- `pillow_heif >= 1.8`：旧版只能读 8-bit monochrome aux，iPhone 常见的 8-bit YCbCr gain map 会失败并退回 SDR
+- `apple-hdr-heic == 0.1.0`
+- exiftool
+
+HEIC 只支持 Apple 风格的 HDR gain map；没有该辅助图的 HEIC 只生成 SDR，非 Apple 格式的 HDR HEIC 不保证支持。
+
+#### 编码流程
+
+实现位于 `src/server/storage/hdr.ts` 和 `src/server/storage/heic-hdr.ts`：
+
+1. `detectHdrSource()` 判断 source 是否 HDR，并得到 CICP
+2. JPEG/AVIF gain map 用 `avifgainmaputil` 换成 HDR base；AVIF/PNG/HEIC 按各自方式解出 16-bit 或 8-bit 中间图
+3. HEIC Apple gain map 由 `apple-hdr-heic-decoder` 生成 16-bit BT.2020 PQ PNG
+4. sharp 以 `rgb16` pipeline 缩放到 optimized 尺寸；不转 sRGB、不 flatten
+5. `avifenc --depth 10 --cicp P/T/M --range ... --ignore-icc` 输出 HDR AVIF
+6. 读取输出 CICP，确认仍是 PQ/HLG
+7. 成功后才 rename 到 `optimized/...-hdr.avif`
+
+HDR 处理同样受全局图片串行队列和 360 秒请求上限影响；排队时间也算在请求等待里。
+
+#### 失败与回退
+
+- HDR 是附加产物，失败不阻止 SDR 保存
+- 重建 HDR 失败时保留旧 HDR 文件
+- HDR 文件丢失或损坏时，详情加载失败自动回退 `src_optimized`，不会停在失败态
+- 缺少 HDR 工具时，development 告警并降级 SDR；production 启动 fail-fast
+
+#### 运行条件与限制
+
+- Docker 需要 libavif `1.4.2` + libaom `3.14.1` 的 `avifenc` / `avifdec` / `avifgainmaputil`
+- production 还要求 `pillow_heif`、`exiftool`、`apple-hdr-heic-decoder`；缺失会 fail-fast
+- 详情只在 `(dynamic-range: high)` 匹配时加载 HDR，否则用 SDR
+- 不做 HDR thumb；头像不生成 HDR
+- HDR 输出固定 10-bit，不输出 12-bit
+- 已有相片需要在后台执行一次“重新生成图片”，才会生成 HDR 并更新 `has_hdr_optimized`
+- storage schema 不需要迁移
+
+#### 验证状态
+
+- Docker check：当前 229 个测试通过
+- iPhone：HDR 显示正常
+- SDR 显示器：回退 SDR 正常
+- MacBook XDR：HDR 显示正常
+- HDR Viewer 加载失败：自动回退 SDR 正常
 
 ### 其他约定
 

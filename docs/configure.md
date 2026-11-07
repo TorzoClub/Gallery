@@ -262,7 +262,7 @@ dist/
 
 前端 bundle 由 Vite 生成 hash 文件名。HTML 不 hash，所以使用 `no-cache`，确保每次先重新验证 HTML，再加载新的 hash bundle。source 文件名为 `photo-<gallery_id>-<photo_id>-<crc32>.<format>`；photo optimized 固定为 `-sdr.avif`（HDR source 另有 `-hdr.avif`），photo thumb 为无后缀 `.avif`。头像 source 为 `avatar-<member-id>-<crc32>.<format>`，thumb 为 `avatar-<member-id>-<crc32>.avif`。
 
-HDR source 额外生成 10-bit HDR optimized，CICP 来自 PQ/HLG 或 gain map；thumb 始终是 SDR。已有相片需要执行一次“重新生成图片”才会生成 HDR。实现和失败策略见 [todo/hdr-supports.md](todo/hdr-supports.md)。
+HDR source 额外生成 10-bit HDR optimized，CICP 来自 PQ/HLG 或 gain map；thumb 始终是 SDR。已有相片需要执行一次“重新生成图片”才会生成 HDR。实现、限制和失败策略见 [images.md#hdr](images.md#hdr)。
 
 派生图 URL 带 `?v=<instance_hash>`；`instance_hash` 是当前 instance_config 的 CRC32。修改 instance 配置后，API 返回新的版本 URL，避免 immutable 缓存命中旧图。旧命名的相片变体会在“重新生成图片”时清理。
 

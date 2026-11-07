@@ -39,7 +39,7 @@
 | HEIC/HEIF | HEIC/HEIF | 原始 HEIC 文件作为 source；SDR 由 pillow_heif 解码，Apple HDR gain map 由 apple-hdr-heic 处理。 |
 | optimized | Optimized image | 相片的全尺寸 AVIF；SDR 文件名为 source basename 加 `-sdr`，HDR source 另有 `-hdr`，位于 `stored-images/optimized/`。 |
 | avif_source_quality | AVIF source quality | optimized 全尺寸 AVIF 的质量配置，默认 75。 |
-| has_hdr_optimized | Has HDR optimized | 磁盘上是否确实存在 HDR optimized 文件；HDR source 生成后为 true。 |
+| has_hdr_optimized | Has HDR optimized | 上一次 prepare / 后台重建时记录的 HDR optimized 持久化标志；不是每次请求实时读盘。 |
 | instance hash | Instance hash | 当前 instance_config 的 CRC32，用作派生图 URL 的 `?v` 缓存版本。 |
 | ClientPool | ClientPool | 公开页使用的 Pool 快照；活动期使用 `GalleryInEvent` 屏蔽成员和投票记录；`ClientMember.qq_num` 固定为 null。 |
 | GalleryInEvent | GalleryInEvent | 活动期相册，含 `in_event: true`，不含 `vote_records`，照片不带成员 ID。 |

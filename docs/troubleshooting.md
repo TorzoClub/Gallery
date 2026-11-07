@@ -142,7 +142,7 @@ QQ number 是成员身份的一部分，创建后不可修改。`adminUpdateMemb
 - 旧相片或缺失衍生图会直接 404，不回退原图。
 - 在后台执行“重新生成图片”，会重建相片的 SDR optimized/thumb 和成员头像 thumb；旧命名文件及旧的 HDR AVIF 会被清理。
 - 旧 storage 中可能残留 `.jpg`/无变体文件；执行一次重建即可转换为 `.avif` 命名。
-- HDR source 会额外生成 `-hdr.avif`；10-bit SDR 不会。详情在支持 HDR 的显示环境失败会自动回退 SDR。HDR 工具缺失时查看 Docker 镜像是否包含 `avifenc` / `avifdec` / `avifgainmaputil`，详见 [todo/hdr-supports.md](todo/hdr-supports.md)。
+- HDR source 会额外生成 `-hdr.avif`；10-bit SDR 不会。详情在支持 HDR 的显示环境失败会自动回退 SDR。HDR/HEIC 工具缺失时查看 Docker 镜像是否包含 `avifenc` / `avifdec` / `avifgainmaputil`、`pillow_heif`、`exiftool` 和 `apple-hdr-heic-decoder`，详见 [images.md#hdr](images.md#hdr)。
 - 修改 instance 配置后，派生图 URL 的 `?v` 会变化；如果仍看到旧图，刷新页面获取新 API 响应。
 
 ## instance 配置修改后没有生效

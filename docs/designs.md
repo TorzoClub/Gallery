@@ -216,8 +216,9 @@ Zelda 风格横幅（`ZeldaQuestBanner`）也是合成音。它原来在 Behind 
 
 - 保持点击缩略图打开、点击大图或背景关闭；也可用 Escape 关闭。
 - 保持原适屏尺寸和居中规则，以及图片 382ms、背景遮罩 618ms 的转场时长；转场只改变 transform 和 opacity，不逐帧修改尺寸或位置。
-- 双指捏合及 trackpad 捏合以手势中心缩放，范围是适屏大小的 1–5 倍。支持 Chromium/Firefox 的 ctrl-wheel 和 Safari 的原生 gesture 事件，不缩放整个网页。
-- 放大后单指或鼠标拖动平移，trackpad 双指滚动也可平移；平移约束在图片边界内。双指操作结束或只剩一指时，不把松指误判为关闭。
+- 双指捏合、trackpad 捏合、鼠标滚轮都按手势/鼠标位置中心缩放，范围是适屏大小的 1–5 倍。trackpad 捏合继续支持 Chromium/Firefox 的 ctrl-wheel 和 Safari 的原生 gesture 事件；鼠标滚轮使用普通 wheel 事件。两者都不缩放整个网页。
+- 鼠标滚轮和 trackpad 双指滚动按 `ctrlKey`、`deltaMode`、`deltaX` 和 legacy `wheelDeltaY` 区分：`deltaMode !== 0` 视为鼠标；`deltaX !== 0` 视为 trackpad；有 `wheelDeltaY` 时以 `% 120 === 0` 判断鼠标；没有 legacy 值时只有纯纵向整数大 delta（≥50）作为鼠标兜底。带水平分量或小步进的 trackpad 双指滚动继续平移，不把双指平移误判成鼠标缩放。
+- 放大后单指、鼠标或触控笔拖动平移，trackpad 双指滚动也可平移；平移约束在图片边界内。双指操作结束或只剩一指时，不把松指误判为关闭。
 - 未放大时，单指向上或向下拖动超过 100px，且纵向位移大于横向位移，松手关闭；不足阈值则立即复位。点击允许 8px 内的触摸抖动。
 - 缩略图点击回调内立即下载 optimized 字节，不排队等待入场动画。图片和背景入场动画全部结束前，只显示缩略图，不解码或挂载 optimized 图片；结束后异步解码并直接插入已解码的图片元素。
 - 关闭或切换相片时取消旧请求，忽略迟到的解码结果；退出完成后释放对象 URL 和事件监听。加载失败仍保留缩略图并提供重试。

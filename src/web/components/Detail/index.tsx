@@ -229,7 +229,8 @@ function Viewer({ detail, closing, onCancel, onExited }: {
     const wheel = (event: WheelEvent) => {
       event.preventDefault()
       if (isClosing || nativeGesture !== null) return
-      gestures.wheel(event.deltaX, event.deltaY, event.deltaMode, event.ctrlKey, point(event))
+      const legacyDeltaY = (event as WheelEvent & { wheelDeltaY?: number }).wheelDeltaY
+      gestures.wheel(event.deltaX, event.deltaY, event.deltaMode, event.ctrlKey, point(event), legacyDeltaY)
     }
     const gesturePoint = (event: NativeGestureEvent) => ({
       x: Number.isFinite(event.clientX) ? event.clientX : viewport.width / 2,

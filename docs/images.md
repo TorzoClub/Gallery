@@ -153,7 +153,7 @@ HDR 处理同样受全局图片串行队列和 360 秒请求上限影响；排�
 
 #### 验证状态
 
-- Docker check：当前 229 个测试通过
+- Docker check：当前 235 个测试通过
 - iPhone：HDR 显示正常
 - SDR 显示器：回退 SDR 正常
 - MacBook XDR：HDR 显示正常

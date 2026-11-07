@@ -29,6 +29,18 @@ source/原图 ──► optimized/…-sdr.avif   长边 ≤ max_image_dimension�
 
 代码在 `src/server/storage/image.ts`（尺寸公式、sharp 调用）和 `src/server/instance/prepare-photo.ts`（上传、生成、清理）。
 
+### 全局串行
+
+所有真正的图片转换共享一个实例级 `vait` `Sequence` 队列：同一时刻只处理一张照片/头像，而不是只保证单张照片内部串行。排队范围包括：
+
+- 投稿、后台新增/替换照片的 `prepareImage`
+- 后台“重新生成图片”的 `refreshThumb`
+- 头像的 `prepareAvatar` / `refreshAvatar`
+
+`/upload-image` 的 `storeTempImage` 只接收文件、写 temp、读 metadata，不做完整解码和 resize，因此不进入这个队列；它在图片转换排队时仍可继续接收上传。
+
+这样在低内存虚拟主机上不会出现多张 HEIC/HDR 同时解码、缩放和 avifenc 编码造成的内存峰值。代价是不同照片的转换会按 FIFO 排队，后来的请求需要等待前面的任务完成。
+
 ### 尺寸规则
 
 | 派生图 | 基本规则 | 短边下限 | 放大 |

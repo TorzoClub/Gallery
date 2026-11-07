@@ -117,7 +117,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
 
   assertInstanceConfigWithinHardLimit(instance_config, env.http_body_hard_limit_bytes)
 
-  // 磁盘写入是唯一的串行区；prepare/commit 不进入这里。
+  // 磁盘写入和图片处理分别串行；prepare/commit 不进入这里的 persistQueue。
   const persistQueue = Sequence()
   let closing = false
   let closed = false

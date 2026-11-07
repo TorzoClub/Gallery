@@ -1,6 +1,7 @@
 import {
   getJson,
   postJson,
+  REQUEST_TIMEOUT_MS,
   unwrapApiResponse,
 } from '../../api/http'
 import { getToken, removeToken } from '../auth/token'
@@ -41,7 +42,7 @@ async function adminDispatch<T>(
   const response = await postJson(
     `admin/${route}/${name}`,
     { payload },
-    { timeout: 30_000, headers: headers() },
+    { timeout: REQUEST_TIMEOUT_MS, headers: headers() },
   )
   maybeUnauthorized(response.status, response.data)
   return unwrapApiResponse<T>(response.status, response.data)

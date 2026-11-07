@@ -152,6 +152,14 @@ QQ number 是成员身份的一部分，创建后不可修改。`adminUpdateMemb
 - 需要重建已有图片时，在后台使用“重新生成图片”操作。
 - `max_upload_bytes` 不能超过 `HTTP_BODY_HARD_LIMIT_BYTES`，否则服务端返回 400。
 
+## 图片处理排队
+
+同一时刻只允许一个图片转换任务执行。连续投稿多张相片、或同时点多个后台“重新生成图片”时，后面的请求会等待前面的 SDR/HDR/缩略图生成完成，而不是并行抢内存。
+
+- 前端图片相关请求的等待上限是 360 秒；nginx 也要把 `proxy_read_timeout` / `proxy_send_timeout` 放宽到至少 360 秒。
+- 客户端超时或关闭页面不会取消已经排队/执行中的服务端任务；图片可能仍在后台继续生成。
+- `/upload-image` 本身不排队，图片转换排队时仍可以继续上传临时文件。
+
 ## storage lock 冲突
 
 同一 `STORAGE_PATH` 只允许一个 API 进程写入。看到 lock 相关错误时：

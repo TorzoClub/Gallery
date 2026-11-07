@@ -195,6 +195,33 @@ describe('storage persistence', () => {
 })
 
 describe('image flow', () => {
+  it('handles two concurrent photo preparations', async () => {
+    const ctx = await context()
+    const memberA = await ctx.createMember({ qq_num: 52001 })
+    const memberB = await ctx.createMember({ qq_num: 52002 })
+    const gallery = await ctx.createGallery()
+    const image = await makePng(320, 200)
+
+    const [photoA, photoB] = await Promise.all([
+      ctx.createPhoto({
+        gallery_id: gallery.id as number,
+        member_id: memberA.id as number,
+        image,
+      }),
+      ctx.createPhoto({
+        gallery_id: gallery.id as number,
+        member_id: memberB.id as number,
+        image,
+      }),
+    ])
+
+    expect(photoA.src).not.toBe(photoB.src)
+    expect(photoA.has_hdr_optimized).toBe(false)
+    expect(photoB.has_hdr_optimized).toBe(false)
+    expect(photoA.thumb).toBeTruthy()
+    expect(photoB.thumb).toBeTruthy()
+  })
+
   it('serves source/optimized/thumb and refreshes derived images', async () => {
     const ctx = await context()
     const member = await ctx.createMember({ qq_num: 51001 })

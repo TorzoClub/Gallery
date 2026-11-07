@@ -42,6 +42,7 @@ import {
   writeHdrOptimizedImage,
 } from '../storage/hdr'
 import { writeHeicSdrPng } from '../storage/heic-hdr'
+import { CreateImageSequence } from './image-sequence'
 
 export const TEMP_IMAGE_TTL_MS = 24 * 60 * 60 * 1000
 export const TEMP_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
@@ -125,6 +126,7 @@ export function createImagePipeline(options: {
   const now = options.now ?? Date.now
   const cleanup_interval_ms = options.cleanup_interval_ms ?? TEMP_CLEANUP_INTERVAL_MS
   const temp_metadata = new Map<string, TempMetadata>()
+  const imageSequence = CreateImageSequence()
   let closing = false
   let cleanup_promise: Promise<void> | null = null
 
@@ -464,14 +466,14 @@ export function createImagePipeline(options: {
   }): Promise<PreparedPhoto> {
     const { meta, temp_filename } = await loadTemp(input.temp_id)
     try {
-      const prepared = await prepareImage({
+      const prepared = await imageSequence(() => prepareImage({
         temp_filename,
         format: meta.format,
         crc32: meta.crc32,
         prefix: `photo-${input.gallery_id}-${input.photo_id}`,
         thumb_size: getConfig().image_thumb_size,
         kind: 'photo',
-      })
+      }))
       return {
         id: input.photo_id,
         index: input.index,
@@ -494,14 +496,14 @@ export function createImagePipeline(options: {
   }): Promise<PreparedAvatar> {
     const { meta, temp_filename } = await loadTemp(input.temp_id)
     try {
-      const prepared = await prepareImage({
+      const prepared = await imageSequence(() => prepareImage({
         temp_filename,
         format: meta.format,
         crc32: meta.crc32,
         prefix: `avatar-${Number(input.member_id)}`,
         thumb_size: getConfig().avatar_thumb_size,
         kind: 'avatar',
-      })
+      }))
       return {
         member_id: input.member_id,
         avatar_src: prepared.src,
@@ -773,8 +775,8 @@ export function createImagePipeline(options: {
     storeTempImage,
     preparePhoto,
     prepareAvatar,
-    refreshThumb,
-    refreshAvatar,
+    refreshThumb: source_filename => imageSequence(() => refreshThumb(source_filename)),
+    refreshAvatar: source_filename => imageSequence(() => refreshAvatar(source_filename)),
     collectGarbage,
     cleanupStaleTemps,
     close,

@@ -92,7 +92,7 @@ function computeGalleryWidthWithAutoColumnCount(
 
 const getLayoutConfigure = (): GalleryLayout => {
   const viewport_width = getViewportWidth()
-  if (viewport_width > 1900) {
+  if (viewport_width > 1535) {
     const box_width = 232
     const column_gutter = 27
     const padding_horizontal = 54

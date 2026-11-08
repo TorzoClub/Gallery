@@ -9,7 +9,6 @@ import {
   type InstanceConfig,
 } from '../config/instance'
 import { type EnvConfig } from '../config'
-import { crc32Hex } from '../common/crc32'
 import type { Pool } from '../core/Pool'
 import { checkPool } from '../core/Pool-Check'
 import type { Logger } from '../logger'
@@ -30,6 +29,7 @@ import {
   type QueryContext,
   type QueryDef,
 } from './actions'
+import { calcInstanceHash } from './instance-hash'
 import {
   createImagePipeline,
   type ImagePipeline,
@@ -82,10 +82,6 @@ export type CreateInstanceOptions = {
   logger: Logger
 }
 
-function calcInstanceConfigCRC32(config: InstanceConfig): string {
-  return crc32Hex(Buffer.from(JSON.stringify(config)))
-}
-
 function validationError(error: z.ZodError): never {
   throw apiError(400, 'INVALID_PAYLOAD', '参数错误', error.issues.map((issue) => ({
     path: issue.path.join('.'),
@@ -114,7 +110,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
   const loaded = await storage.load()
   let pool: Pool = loaded.pool
   let instance_config: InstanceConfig = loaded.instance_config
-  let instance_hash = calcInstanceConfigCRC32(instance_config)
+  let instance_hash = calcInstanceHash(instance_config)
 
   assertInstanceConfigWithinHardLimit(instance_config, env.http_body_hard_limit_bytes)
 
@@ -330,7 +326,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
     }
     if (config_changed) {
       instance_config = next_config
-      instance_hash = calcInstanceConfigCRC32(instance_config)
+      instance_hash = calcInstanceHash(instance_config)
     }
 
     if (pool_changed || config_changed) {

@@ -264,7 +264,7 @@ dist/
 
 HDR source 额外生成 10-bit HDR optimized，CICP 来自 PQ/HLG 或 gain map；thumb 始终是 SDR。已有相片需要执行一次“重新生成图片”才会生成 HDR。实现、限制和失败策略见 [images.md#hdr](images.md#hdr)。
 
-派生图 URL 带 `?v=<instance_hash>`；`instance_hash` 是当前 instance_config 的 CRC32。修改 instance 配置后，API 返回新的版本 URL，避免 immutable 缓存命中旧图。旧命名的相片变体会在“重新生成图片”时清理。
+派生图 URL 带 `?v=<instance_hash>`；`instance_hash` 是当前 instance_config 与图片派生常量（`AVIF_MAX_DIMENSION`、`MIN_DERIVED_SHORT_EDGE`）的 CRC32。修改 instance 配置或这些常量后，API 返回新的版本 URL，避免 immutable 缓存命中旧图。旧命名的相片变体会在“重新生成图片”时清理。
 
 production 下 Hono 的静态服务顺序（development 的非 API 请求先由 Vite middleware 处理）：
 

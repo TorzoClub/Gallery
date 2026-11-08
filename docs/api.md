@@ -389,7 +389,7 @@ thumb/avatar-<member-id>-<crc32>.avif
 ```
 
 - `thumb_url` 是 `thumb` 的同值兼容别名。
-- `?v=` 来自 `Instance.getInstanceHash()`，即当前 `instance_config` 的 CRC32；配置变化后 URL 变化，避免浏览器继续使用旧的 immutable 缓存。
+- `?v=` 来自 `Instance.getInstanceHash()`，即当前 `instance_config` 与图片派生常量（`AVIF_MAX_DIMENSION`、`MIN_DERIVED_SHORT_EDGE`）的 CRC32；配置或这些常量变化后 URL 变化，避免浏览器继续使用旧的 immutable 缓存。
 - 头像 `avatar_thumb_url` 同样带 `?v=`。
 - `has_hdr_optimized` 是上一次 prepare / 后台重建时记录的持久化标志，不是每次请求实时读盘；没有 HDR 时为 `false`，`src_optimized_hdr` 为 `null`。
 - HDR 只从 PQ/HLG CICP、JPEG/AVIF gain map 或 HEIC Apple HDR gain map 生成；10-bit SDR 和没有 CICP 的 16-bit 图不生成 HDR。详见 [images.md#hdr](images.md#hdr)。

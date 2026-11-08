@@ -110,8 +110,19 @@ export function usePhotoPriority(
       global_queue.startWorking()
     })
 
+    // 瀑布流首次布局可能早于这个 effect 注册 refreshed 信号；图片队列不能只等信号。
+    // 先开始工作，等首屏 DOM 就绪后再按可见性排一次优先级。
+    global_queue.startWorking()
+    const start_timer = window.setTimeout(() => {
+      if (mounted) {
+        resort()
+        global_queue.startWorking()
+      }
+    }, 0)
+
     return () => {
       mounted = false
+      window.clearTimeout(start_timer)
       window.removeEventListener('resize', resort_if_loading)
       window.removeEventListener('scroll', resort_if_loading)
       cancel()

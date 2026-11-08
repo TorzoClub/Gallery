@@ -38,17 +38,18 @@
   position: absolute;
   width: 8px;
   height: 8px;
+  --screw-rotate-deg: 0deg;
   background:
-    linear-gradient(35deg, transparent 44%, rgb(0 0 0 / .55) 44% 56%, transparent 56%),
+    linear-gradient(var(--screw-rotate-deg), transparent 44%, rgb(0 0 0 / .55) 44% 56%, transparent 56%),
     radial-gradient(circle at 35% 30%, #f1f1ee, #7a7a74);
   border-radius: 50%;
   box-shadow: 0 0 0 1px rgb(0 0 0 / .45), 0 1px 0 rgb(255 255 255 / .7);
 }
 
-.screw0 { transform: rotate(0deg); top: 8px; left: 8px; }
-.screw1 { transform: rotate(27deg); top: 8px; right: 8px; }
-.screw2 { transform: rotate(122deg); bottom: 8px; left: 8px; }
-.screw3 { transform: rotate(275deg); bottom: 8px; right: 8px; }
+.screw0 { --screw-rotate-deg: 0deg; top: 8px; left: 8px; }
+.screw1 { --screw-rotate-deg: 27deg; top: 8px; right: 8px; }
+.screw2 { --screw-rotate-deg: 122deg; bottom: 8px; left: 8px; }
+.screw3 { --screw-rotate-deg: 275deg; bottom: 8px; right: 8px; }
 
 /* 铭牌：压印字 */
 .plate {

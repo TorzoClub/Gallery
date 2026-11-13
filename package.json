@@ -29,7 +29,7 @@
   },
   "packageManager": "pnpm@10.24.0",
   "dependencies": {
-    "@hono/node-server": "^2.1.5",
+    "@hono/node-server": "^2.1.6",
     "@juggle/resize-observer": "^3.4.0",
     "@tabler/icons-react": "^3.50.0",
     "busboy": "^1.6.0",

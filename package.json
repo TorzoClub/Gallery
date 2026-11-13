@@ -34,7 +34,7 @@
     "@tabler/icons-react": "^3.50.0",
     "busboy": "^1.6.0",
     "clsx": "^2.1.1",
-    "hono": "^4.13.13",
+    "hono": "^4.13.16",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "immutable": "^5.1.9",

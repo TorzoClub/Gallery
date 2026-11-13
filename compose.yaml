@@ -10,3 +10,8 @@ services:
       - "7001:7001"
     volumes:
       - ./storage-migrated:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

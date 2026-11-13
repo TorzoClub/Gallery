@@ -39,6 +39,7 @@ import { assertHdrTools, hdrToolsAvailable } from '../storage/hdr'
 import { assertHeicTools, heicToolsAvailable } from '../storage/heic-hdr'
 import {
   buildPoolJsonCache,
+  clampTimerDelay,
   nextGalleryBoundary,
   poolInEventKey,
   type PoolEventsSnapshot,
@@ -178,7 +179,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
       const after = getPoolJsonCache(new Date())
       publishPoolCacheChanges(before, after)
       schedulePoolBoundary()
-    }, Math.max(0, boundary - Date.now() + 5))
+    }, clampTimerDelay(boundary - Date.now() + 5))
     pool_boundary_timer.unref?.()
   }
 

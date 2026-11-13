@@ -34,7 +34,7 @@ RUN unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy && \
     python3 python3-pip python3-venv libimage-exiftool-perl \
  && rm -rf /var/lib/apt/lists/* \
  && unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy \
- && npm install -g pnpm@10.24.0 \
+ && npm install -g pnpm@12.18.0 \
  && python3 -m venv /opt/heic \
  && /opt/heic/bin/pip install --no-cache-dir -r /tmp/heic-requirements.txt
 
@@ -44,7 +44,7 @@ ENV PATH="/opt/heic/bin:${PATH}"
 WORKDIR /app
 
 FROM base AS deps
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy && \
     pnpm install --frozen-lockfile
 
@@ -69,6 +69,8 @@ ENV NODE_ENV=production \
     STORAGE_PATH=/data
 
 COPY --from=build --chown=node:node /app/package.json ./package.json
+COPY --from=build --chown=node:node /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=build --chown=node:node /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY --from=build --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
 

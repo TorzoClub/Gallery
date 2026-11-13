@@ -29,6 +29,7 @@
 - [x] 所见即所得新后台 `/admin`：完整 Pool 查询、通用 Waterfall、照片编辑/删除、成员头像 popover、AdminConsole 数据/设置/重建面板、名单簿成员新增/修改/条件删除、PhotoPopover 相片描述编辑/替换/删除、空相册创建与倒序排列、相册标题折叠、空相册虚线图标、展开后的相册编辑、相片排序固化（批量写 index）、成员投票统计、重投、未投票/未投稿成员筛选、相册拖拽排序与排序模式悬浮。
 - [x] PhotoBox 改名 PhotoCard：拍立得 + 纸胶带，瀑布流里按相片 id 斜贴、错落且不碰撞（公开页与后台一致）；公开页投票改为放蓝色磁粒、底部磁粒托盘；查看大图从倾角放大并转正。
 - [x] `/admin` 相片投票记录：PhotoCard 图片区显示蓝色 1 票、红色 5 票的圆形磁粒，管理面板与瀑布流之间展示图例，点击查看该相片的投票人及时间；磁粒先蓝后红，useRef 缓存轻微偏移，图例支持投稿时间/获票数的前端升降序排序，不提交服务端更改。
+- [x] Node.js 26.13.0 LTS 工具链：`.nvmrc`、`engines`、`@types/node` 26、tsup target 与 Docker 基础镜像同步。
 
 ## 后续待办
 
@@ -37,7 +38,8 @@
 - [x] 图片管线 Phase 1：libavif HDR AVIF、CICP/gain map 探测、HDR 详情回退和 Docker-first 环境，见 [docs/images.md#hdr](docs/images.md#hdr)。
 - [x] 低内存保护：图片转换全局串行；图片请求等待上限 360 秒；Vitest 单测/集成测试超时 180 秒。
 - [ ] 浏览器 UI 交互测试（公开页投稿/投票、后台编辑、配置表单）。
-- [ ] 真实部署的 CI/CD 和密钥管理。
+- [ ] 真实部署的 CI/CD 和密钥管理：镜像构建/发布已完成；服务器部署仍手动执行，GHCR 包可见性需手动设置。
+- [ ] Docker 构建未注入 Git SHA，生产 ReportCard 显示 `githash: N/A`：`.dockerignore` 排除了 `.git`，`build-info.config.ts` 在 `pnpm build` 时执行 `git rev-parse --short HEAD` 失败，回退为 `N/A`。修复方向：GitHub Actions 把 commit SHA 作为 `GIT_HASH` build arg 传入，Dockerfile build 阶段声明 `ARG`/`ENV`，`build-info.config.ts` 优先读取该环境变量；构建后确认镜像页面的 `githash` 不再是 `N/A`。
 - [ ] 取消投稿脚本的 lint 警告 `react-hooks(exhaustive-deps)`：`src/web/components/Submission/scripts.tsx` 里 `selects` 的 `useMemo(..., [])` 缺少依赖 `RemovingSubmission`。这是当前 `pnpm lint` 唯一一条警告，刻意保留未修。
   - 原因：`RemovingSubmission` 定义在 `Content` 组件内部，闭包了 `photo`、`qq_num`、`navigate`、`location`、`changeScript`，每次渲染都是一个新的组件函数。`useMemo` 的空依赖正是为了让“是，取消掉吧”选项里的 `script(RemovingSubmission, [])` 只生成一次、组件类型保持不变。
   - 不能照警告补依赖：补上后每次渲染都换一个新组件类型，React 会卸载再重新挂载它；它挂载时的 effect 会再次 `Signal.once(_EVENT_.canceled, ...)` 并再次 `navigate('/explore/cancelSubmission', ...)`，造成重复监听和重复跳转（碎纸机页面被反复进入）。

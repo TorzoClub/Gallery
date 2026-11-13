@@ -85,7 +85,7 @@ optimized/photo-...-hdr.avif     HDR 全尺寸图，仅 HDR source
 - `src_optimized_hdr` 指向 `-hdr.avif`，没有时为 `null`
 - `thumb` / `thumb_url` 指向无后缀 SDR thumb
 - HDR 文件是**纯 10-bit HDR AVIF base**，不是 gain map 文件；SDR 和 HDR 是两个独立文件
-- 派生图 URL 继续带 `?v=<instance_hash>`
+- 派生图 URL 继续带 `?v=<instance_hash>`；hash 同时覆盖 instance_config、`AVIF_MAX_DIMENSION` 和 `MIN_DERIVED_SHORT_EDGE`
 
 `has_hdr_optimized` 是**持久化标志**：表示上一次 prepare / 后台重建时确认生成了 HDR optimized。它不是每次请求实时读盘检查。HDR 文件被手工删除时 API 仍可能是 `true`，详情加载失败会回退 SDR；后台“重新生成图片”会重新校正。
 

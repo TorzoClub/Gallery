@@ -145,7 +145,8 @@ Node HTTP Server
 |---|---|
 | [README.md](../README.md) | 项目入口、快速开始 |
 | [docs/introduction.md](introduction.md) | 项目结构、架构、技术栈、文档索引 |
-| [docs/configure.md](configure.md) | 环境、安装、命令、环境变量、instance 配置、缓存、部署 |
+| [docs/configure.md](configure.md) | 环境、安装、命令、环境变量、instance 配置、缓存 |
+| [docs/deploy.md](deploy.md) | GitHub Actions 镜像发布、服务器部署、数据迁移、nginx、升级和回滚 |
 | [docs/api.md](api.md) | HTTP 接口、dispatch action、上传和错误码 |
 | [docs/auth.md](auth.md) | 后台登录、JWT、权限边界 |
 | [docs/troubleshooting.md](troubleshooting.md) | 常见问题排查 |

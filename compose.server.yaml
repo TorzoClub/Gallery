@@ -1,0 +1,16 @@
+services:
+  api:
+    image: ghcr.io/torzoclub/gallery:${IMAGE_TAG:?set IMAGE_TAG}
+    init: true
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    ports:
+      - "7001:7001"
+    volumes:
+      - ${STORAGE_HOST_PATH:?set STORAGE_HOST_PATH}:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

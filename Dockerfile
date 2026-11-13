@@ -1,5 +1,5 @@
 # libavif is built once and shared by dev/check/runtime. Keep the versions pinned.
-FROM node:24.22.1-bookworm AS libavif
+FROM node:26.13.0-bookworm AS libavif
 
 ARG LIBAAVIF_VERSION=v1.4.2
 
@@ -24,7 +24,7 @@ RUN unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy && \
  && mkdir -p /out \
  && cp libavif/build/avifenc libavif/build/avifdec libavif/build/avifgainmaputil /out/
 
-FROM node:24.22.1-bookworm-slim AS base
+FROM node:26.13.0-bookworm-slim AS base
 
 COPY docker/heic-requirements.txt /tmp/heic-requirements.txt
 

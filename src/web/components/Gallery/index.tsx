@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import './index.scss'
 
 import Title from 'components/Title'
-import Waterfall, { WaterfallLayout } from 'components/Waterfall'
+import Waterfall from 'components/Waterfall'
 import type { GalleryView, PhotoView } from 'pool/view'
 import PhotoCard, { getPhotoCardScatter, type CoverClickEvent, type PhotoCardScatter } from 'components/PhotoCard'
 import Submission from 'components/Submission'
@@ -19,117 +19,26 @@ import { playMagnetDropSound, primeMagnetAudio } from 'utils/magnet-audio'
 import { pickSaveFile, writeSaveFile } from 'utils/save-file'
 import { memberPath } from '../../routes'
 import { TAPE_DONE_MS, usePhotoPresence } from './usePhotoPresence'
+import {
+  type GalleryLayout,
+  getAdminGalleryLayoutForWidth,
+  getGalleryLayoutForWidth,
+  galleryColumnWidth,
+  sameGalleryLayout,
+} from './layout'
 
-export type GalleryLayout = WaterfallLayout & {
-  /** ≤ 900px 的紧凑布局：PhotoCard 散落得更小、更浅 */
-  tight: boolean
-  /** ≤ 640px 的双列布局：留白和列间距收窄、卡片放大，小屏尽量把相片放大 */
-  duo: boolean
-}
+export * from './layout'
 
 function getViewportWidth() {
-  const { innerWidth } = window
-  return innerWidth
-}
-
-/** 宽屏列间距：给倾斜和横向位移留出余地（两列各占一半） */
-const WIDE_GUTTER = 32
-/** ≤ 900px 的列间距 */
-const TIGHT_GUTTER = 20
-/** ≤ 640px 双列：瀑布流左右留白、列间距。外侧卡片最多越过列边半个列间距（5px），仍留在屏幕里 */
-const DUO_SIDE = 8
-const DUO_GUTTER = 10
-
-const fixedLayout = ({
-  column_count,
-  gallery_width,
-  column_gutter,
-  tight,
-  duo = false,
-}: Pick<GalleryLayout, 'column_count' | 'gallery_width' | 'column_gutter' | 'tight'> & { duo?: boolean }): GalleryLayout => ({
-  tight,
-  duo,
-  column_count,
-  gallery_width,
-  column_gutter,
-  vertical_gutter: tight ? TIGHT_GUTTER : 27,
-})
-
-function computeColumnCountByBoxWidth(
-  gallery_width: number,
-  box_width: number,
-  column_gutter: number,
-  count = 0
-) {
-  const column_gutter_total = (count - 1) * column_gutter
-  if (gallery_width < (box_width + column_gutter_total)) {
-    return count
-  } else {
-    return computeColumnCountByBoxWidth(
-      gallery_width - box_width,
-      box_width,
-      column_gutter,
-      count + 1
-    )
-  }
-}
-
-function computeGalleryWidthWithAutoColumnCount(
-  max_gallery_width: number,
-  column_gutter: number,
-  box_width: number,
-) {
-  const column_count = computeColumnCountByBoxWidth(
-    max_gallery_width,
-    box_width,
-    column_gutter,
-  )
-  return {
-    gallery_width: (box_width * column_count) + ((column_count - 1) * column_gutter),
-    column_count
-  } as const
-}
-
-const getLayoutConfigure = (): GalleryLayout => {
-  const viewport_width = getViewportWidth()
-  if (viewport_width > 1900) {
-    const box_width = 232
-    const column_gutter = 27
-    const padding_horizontal = 54
-    return fixedLayout({
-      tight: false,
-      column_gutter,
-      ...computeGalleryWidthWithAutoColumnCount(
-        viewport_width - (2 * padding_horizontal),
-        column_gutter,
-        box_width,
-      ),
-    })
-  } else if (viewport_width > 1450) {
-    return fixedLayout({ tight: false, gallery_width: 1200, column_count: 4, column_gutter: WIDE_GUTTER })
-  } else if (viewport_width > 1150) {
-    return fixedLayout({ tight: false, gallery_width: 900, column_count: 4, column_gutter: WIDE_GUTTER })
-  } else if (viewport_width > 900) {
-    return fixedLayout({ tight: false, gallery_width: 750, column_count: 3, column_gutter: WIDE_GUTTER })
-  } else if (viewport_width > 640) {
-    return fixedLayout({ tight: true, gallery_width: 640 - TIGHT_GUTTER * 2, column_count: 3, column_gutter: TIGHT_GUTTER })
-  } else {
-    return fixedLayout({
-      tight: true,
-      duo: true,
-      gallery_width: viewport_width - DUO_SIDE * 2,
-      column_count: 2,
-      column_gutter: DUO_GUTTER,
-    })
-  }
+  return window.innerWidth
 }
 
 export function getGalleryLayout(): GalleryLayout {
-  return getLayoutConfigure()
+  return getGalleryLayoutForWidth(getViewportWidth())
 }
 
-export function galleryColumnWidth(layout: GalleryLayout): number {
-  return (layout.gallery_width - layout.column_gutter * (layout.column_count - 1)) / layout.column_count
+export function getAdminGalleryLayout(): GalleryLayout {
+  return getAdminGalleryLayoutForWidth(getViewportWidth())
 }
 
 /** 瀑布流的一格：上下留白容纳纸胶带、倾斜多出来的高度和纵向错落；卡片在格子里居中，再由自身 transform 偏移、倾斜 */
@@ -745,7 +654,7 @@ function useTape(
 }
 
 function useWaterfallLayout() {
-  const [layout, refreshLayout] = useSafeState(getLayoutConfigure())
+  const [layout, refreshLayout] = useSafeState(() => getGalleryLayout())
 
   useEffect(() => {
     let latest_width: number | undefined
@@ -755,7 +664,10 @@ function useWaterfallLayout() {
       const viewport_width = getViewportWidth()
       if (latest_width !== viewport_width) {
         latest_width = viewport_width
-        refreshLayout(getLayoutConfigure())
+        const next_layout = getGalleryLayout()
+        refreshLayout(current => (
+          sameGalleryLayout(current, next_layout) ? current : next_layout
+        ))
       }
     }
     window.addEventListener('resize', updateState)

@@ -8,11 +8,11 @@
 node -v
 ```
 
-要求 Node.js >= 24.22.1：
+要求 Node.js >= 26.13.0：
 
 ```bash
 nvm use
-nvm install 24.22.1
+nvm install 26.13.0
 ```
 
 ## pnpm install 失败
@@ -27,6 +27,8 @@ https-proxy=socks5://127.0.0.1:503
 ```
 
 代理端口不可用时，先确认本机代理在运行，或临时移除代理配置。
+
+pnpm 12 的 `pnpm-lock.yaml` 是双 YAML 文档（第一段记录项目固定的 pnpm 版本），pnpm 10 无法读取。先确认 `pnpm --version` 为 12.18.0；如果还是旧版，升级 pnpm 后重新运行 `pnpm install`。
 
 ## API 请求失败
 
@@ -230,3 +232,41 @@ pnpm start
 - 服务端没有 `pillow_heif` / `exiftool` / `apple-hdr-heic-decoder` 时，HEIC 无法读取；用 Docker 镜像，或在宿主机安装对应工具。
 - 只有带 Apple HDR gain map 的 HEIC 会生成 HDR；普通 HEIC 只生成 SDR。
 - 如果日志出现 `Only 8-bit monochrome auxiliary images are currently supported`，说明 `pillow_heif` 太旧；升级到 `>=1.8` 后重建图片。
+
+## 容器 unhealthy、根分区 100%、TimeoutOverflowWarning
+
+现象：
+
+- `docker ps` 显示容器 `unhealthy`
+- 健康检查输出 `no space left on device`
+- 应用日志反复出现：
+
+```text
+TimeoutOverflowWarning: 3290286769 does not fit into a 32-bit signed integer.
+Timeout duration was set to 1.
+```
+
+根因是 `setTimeout` 的延迟超过 Node.js 的 32 位上限（约 24.8 天）。服务端在计算下一个 gallery 边界时，如果距离边界超过这个上限，Node 会把定时器压到 1ms，回调立即重算并再次设置超长定时器，形成日志和事件循环风暴，最终写满磁盘并让 Docker 健康检查无法创建进程。
+
+当前实现已将边界定时器限制在 `2_147_483_647` ms；到达上限后重新计算剩余时间，不会再把超长延迟传给 `setTimeout`。
+
+立即恢复步骤：
+
+```bash
+# 1. 停止应用，避免继续写日志
+docker compose -f /server/gallery-v4/compose.server.yaml stop api
+
+# 2. 找到并清空应用容器日志
+docker inspect gallery-v4-api-1 --format '{{.LogPath}}'
+: > /var/lib/docker/containers/<container-id>/<container-id>-json.log
+
+# 3. 确认磁盘释放
+df -h /
+
+# 4. 拉取修复镜像后重新启动
+cd /server/gallery-v4
+docker compose -f compose.server.yaml pull
+docker compose -f compose.server.yaml up -d
+```
+
+`compose.server.yaml` 已限制 Docker 日志为 `10m × 3`，避免单个容器日志再次无限增长。

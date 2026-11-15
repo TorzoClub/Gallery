@@ -239,6 +239,7 @@ Zelda 风格横幅（`ZeldaQuestBanner`）也是合成音。它原来在 Behind 
 - **双列（≤ 640px）尽量放大**：小屏上相片太小，所以只有双列时收窄留白、放大卡片：瀑布流左右留白 8px（其他断点是 20px）、列间距 10px，卡片宽为列宽的 92%～100%。外侧那一列斜过去时最多越过瀑布流边缘 5px（半个列间距），伸进左右留白但不出屏幕。上下间距、纵向错落不变。375px 宽的手机上卡片平均宽从约 134px 变成约 167px（面积约 1.5 倍）。常量是 `Gallery/index.tsx` 的 `DUO_SIDE` / `DUO_GUTTER`，卡片比例在 `scatter.ts` 的 `duo` 分支。
 - 瀑布流只量外层格子；倾角和横向位移是卡片自身的 transform，相片里的磁粒、后台的编辑入口都在卡片里，跟着一起斜。
 - **描述用手写字体**：13px，字体栈为 Bradley Hand / Segoe Print（西文）→ 霞鹜文楷 → 行楷（Xingkai SC / STXingkai）→ 楷体（Kaiti SC / STKaiti / KaiTi / BiauKai）→ PingFang SC / Microsoft YaHei → sans-serif，不下载网络字体。定义在 `.photo-card` 的 `--photo-card-hand` 变量上。
+- **读取失败**：缩略图加载失败时，相片区域内居中显示 14px“读取失败”，下面是 20px 本地内联 SVG 刷新图标 + 13px“重试”文字的扁平胶囊按钮（32px 高、10px 横向 padding、16px 圆角）；“读取失败”、图标和“重试”文字统一用寡淡的 `#71717a`，hover 4% 中性灰底，focus-visible 1px 描边；点击只重试、不打开大图，不再使用 `SkeuomorphismButton`，也不依赖图标包。
 - **相纸外壳 `PhotoCardPaper`**：白边、阴影、倾斜抽成 `PhotoCardPaper`，`PhotoCard` 和投稿表单共用；胶带和 🤚 由它转交给 `Tape`。
 - **纸胶带 `Tape`**：普通胶带、松动可撕按钮、HDR 字和 🤚 抹胶带在 `components/PhotoCard/Tape.tsx`，样式在配套的 `Tape.scss`。胶带的位置写成 `--tape-x` / `--tape-r` 两个变量，入场“贴胶带”的动画沿用同一个位置。
 - **成员自己的投稿**：“你这不是已经投稿了吗？”、取消投稿确认页、碎纸机里都用 `SubmittedPhotoCard`：宽 320px、摆正、不贴纸胶带的 PhotoCard，与投稿表单是同一张相纸。这些重复出现的卡片不挂 `id="photo-{id}"`（`anchor={false}`），相片加载优先级只认瀑布流里那一张。

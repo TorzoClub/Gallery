@@ -9,7 +9,7 @@
 - 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。
 - 前端由 Vite 构建到 `dist/client`，服务端由 tsup 构建到 `dist/server`。
 - 静态缓存：HTML 弱缓存，hash assets 强缓存，API/图片强缓存。
-- 服务端与前端纯逻辑测试 241 个用例通过；不包含浏览器 UI 交互测试。
+- 服务端与前端纯逻辑测试 254 个用例通过；不包含浏览器 UI 交互测试。
 - 旧 `server/`、`web/`、脚本和 CI 已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支。
 - storage 仍为单实例 JSON + 图片池；没有 MySQL 运行时依赖。
 
@@ -38,6 +38,7 @@
 - [x] HEIC/HEIF：原生上传、pillow_heif SDR、Apple HEIC HDR gain map；前端不再使用 heic-convert。
 - [x] 图片管线 Phase 1：libavif HDR AVIF、CICP/gain map 探测、HDR 详情回退和 Docker-first 环境，见 [docs/images.md#hdr](docs/images.md#hdr)。
 - [x] 低内存保护：图片转换全局串行；图片请求等待上限 360 秒；Vitest 单测/集成测试超时 180 秒。
+- [ ] Node 26 下 Docker check 的 storage-image HEIC 用例结束后会报 “A FileHandle object was closed during garbage collection”（ERR_INVALID_STATE）：254 个测试本身通过，但 Vitest 以 unhandled error 失败、check 退出码非 0。需检查图片流/文件句柄是否显式关闭，修好后让 Docker check 通过。
 - [ ] 浏览器 UI 交互测试（公开页投稿/投票、后台编辑、配置表单）。
 - [ ] 真实部署的 CI/CD 和密钥管理：镜像构建/发布已完成；服务器部署仍手动执行，GHCR 包可见性需手动设置。
 - [ ] Docker 构建未注入 Git SHA，生产 ReportCard 显示 `githash: N/A`：`.dockerignore` 排除了 `.git`，`build-info.config.ts` 在 `pnpm build` 时执行 `git rev-parse --short HEAD` 失败，回退为 `N/A`。修复方向：GitHub Actions 把 commit SHA 作为 `GIT_HASH` build arg 传入，Dockerfile build 阶段声明 `ARG`/`ENV`，`build-info.config.ts` 优先读取该环境变量；构建后确认镜像页面的 `githash` 不再是 `N/A`。

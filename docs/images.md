@@ -155,7 +155,7 @@ HDR 处理同样受全局图片串行队列和 360 秒请求上限影响；排�
 
 #### 验证状态
 
-- Docker check：当前 241 个测试通过
+- Docker check：254 个测试通过；Node 26 下 storage-image 的 HEIC 用例结束后有一个 FileHandle GC unhandled error，导致 check 退出码非 0（见 TODOS）
 - iPhone：HDR 显示正常
 - SDR 显示器：回退 SDR 正常
 - MacBook XDR：HDR 显示正常

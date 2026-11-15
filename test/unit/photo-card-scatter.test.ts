@@ -6,7 +6,9 @@ import {
   getPhotoCardScatter,
   photoCardCover,
   photoCardFrame,
+  photoCardTapeWidth,
   photoIsSideways,
+  PHOTO_CARD_TAPE_HEIGHT,
   PHOTO_CARD_TAPE_ROOM,
   SIDEWAYS_RATIO,
   SCATTER_ROTATE_MAX,
@@ -228,5 +230,14 @@ describe('PhotoCard scatter', () => {
     expect(frame).toBe(9)
     expect(cover_width).toBe(182)
     expect(cover_height).toBeCloseTo(136.5)
+  })
+
+  it('sizes the tape from the card width: 40%, clamped to 38～96px', () => {
+    expect(photoCardTapeWidth(80)).toBe(38)
+    expect(photoCardTapeWidth(100)).toBe(40)
+    expect(photoCardTapeWidth(170)).toBe(68)
+    expect(photoCardTapeWidth(300)).toBe(96)
+    expect(photoCardTapeWidth(Number.NaN)).toBe(38)
+    expect(PHOTO_CARD_TAPE_HEIGHT).toBe(17)
   })
 })

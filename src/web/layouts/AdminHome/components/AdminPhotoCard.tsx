@@ -77,6 +77,7 @@ export default function AdminPhotoCard({
             height: photo.height,
             src: photo.src_url,
             thumb: photo.thumb_url,
+            has_hdr_optimized: photo.has_hdr_optimized,
           }}
           avatar={member === null ? null : {
             width: 0,

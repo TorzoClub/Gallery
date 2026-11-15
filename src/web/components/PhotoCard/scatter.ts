@@ -61,6 +61,19 @@ export function photoCardCover(card_width: number, photo: { width: number; heigh
 /** 纸胶带探出卡片顶边的高度，与 .photo-card-tape 的 top 一致 */
 export const PHOTO_CARD_TAPE_ROOM = 9
 
+/** 纸胶带的高度，与 .photo-card-tape 的 height 一致 */
+export const PHOTO_CARD_TAPE_HEIGHT = 17
+
+/**
+ * 纸胶带内容区的宽度：卡片宽度的 40%，38～96px。
+ * 与 index.scss 的 .photo-card-tape 一致（绝对定位以 .photo-card 的 padding box 为基准，
+ * 也就是这里的 card_width）。改那三个 CSS 值时，这里要一起改。
+ */
+export function photoCardTapeWidth(card_width: number): number {
+  const width = Number.isFinite(card_width) ? card_width : 0
+  return Math.min(96, Math.max(38, width * 0.4))
+}
+
 export const SCATTER_ROTATE_MIN = 0.8
 export const SCATTER_ROTATE_MAX = 3
 

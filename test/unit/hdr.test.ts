@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isHdrCicp, parseAvifCicp, parseAvifInfo, parsePngCicp } from '../../src/server/storage/hdr'
 import { supportsHdrDisplay } from '../../src/web/utils/browser'
 import { chooseDetailSource } from '../../src/web/components/Detail/hdr'
+import { HDR_TAPE_MATRIX, hdrTapeWords, photoCardTapeHdr } from '../../src/web/components/PhotoCard/hdr'
 import { formatFromFilename, mimeTypeOf } from '../../src/server/common/image-name'
 
 function pngWithCicp(values: readonly [number, number, number, number]): Buffer {
@@ -94,5 +95,58 @@ describe('HDR display detection', () => {
     expect(supportsHdrDisplay(query => ({ matches: query === '(dynamic-range: high)' }))).toBe(true)
     expect(supportsHdrDisplay(() => ({ matches: false }))).toBe(false)
     expect(supportsHdrDisplay(() => { throw new Error('unavailable') })).toBe(false)
+  })
+})
+
+describe('HDR tape', () => {
+  it('marks the tape only when the photo has HDR and the display supports it', () => {
+    expect(photoCardTapeHdr(true, true)).toBe(true)
+    expect(photoCardTapeHdr(true, false)).toBe(false)
+    expect(photoCardTapeHdr(false, true)).toBe(false)
+    expect(photoCardTapeHdr(false, false)).toBe(false)
+    expect(photoCardTapeHdr(undefined, true)).toBe(false)
+  })
+})
+
+describe('HDR tape words', () => {
+  const rad = HDR_TAPE_MATRIX.rotate * Math.PI / 180
+  const half_w = (HDR_TAPE_MATRIX.word_width * Math.abs(Math.cos(rad))
+    + HDR_TAPE_MATRIX.word_height * Math.abs(Math.sin(rad))) / 2
+  const half_h = (HDR_TAPE_MATRIX.word_width * Math.abs(Math.sin(rad))
+    + HDR_TAPE_MATRIX.word_height * Math.abs(Math.cos(rad))) / 2
+
+  it('keeps only words whose rotated box intersects the tape', () => {
+    for (const width of [38, 68, 96]) {
+      const words = hdrTapeWords(width, 17)
+      expect(words.length).toBeGreaterThan(0)
+      for (const word of words) {
+        expect(word.x + half_w).toBeGreaterThan(0)
+        expect(word.x - half_w).toBeLessThan(width)
+        expect(word.y + half_h).toBeGreaterThan(0)
+        expect(word.y - half_h).toBeLessThan(17)
+      }
+    }
+  })
+
+  it('reaches every tape edge instead of only the middle', () => {
+    for (const width of [38, 68, 96]) {
+      const words = hdrTapeWords(width, 17)
+      expect(Math.min(...words.map(word => word.x - half_w))).toBeLessThanOrEqual(0)
+      expect(Math.max(...words.map(word => word.x + half_w))).toBeGreaterThanOrEqual(width)
+      expect(Math.min(...words.map(word => word.y - half_h))).toBeLessThanOrEqual(0)
+      expect(Math.max(...words.map(word => word.y + half_h))).toBeGreaterThanOrEqual(17)
+    }
+  })
+
+  it('culls fully hidden words: fewer than the old fixed 30 at the widest tape', () => {
+    expect(hdrTapeWords(96, 17).length).toBeLessThan(30)
+    expect(hdrTapeWords(38, 17).length).toBeLessThan(hdrTapeWords(96, 17).length)
+  })
+
+  it('returns no words for invalid dimensions', () => {
+    expect(hdrTapeWords(0, 17)).toEqual([])
+    expect(hdrTapeWords(96, 0)).toEqual([])
+    expect(hdrTapeWords(Number.NaN, 17)).toEqual([])
+    expect(hdrTapeWords(-1, 17)).toEqual([])
   })
 })

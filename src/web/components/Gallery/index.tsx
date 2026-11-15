@@ -414,6 +414,7 @@ export default ({
           height: photo.height,
           src: photo.src_url,
           thumb: photo.thumb,
+          has_hdr_optimized: photo.has_hdr_optimized,
         },
         avatar: photo.member ? {
           width: 0,

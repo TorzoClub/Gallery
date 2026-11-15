@@ -178,6 +178,11 @@
 
 /* 一截半透明的纸胶带，和名单簿里拼贴相片的那截是同一种 */
 .photo-card-tape {
+  /* 颜色抽成变量：HDR 屏上的 HDR 相片把这三项换成淡蓝（见 .is-hdr），松动的那截也跟着换 */
+  --tape-bg: rgb(238 226 186 / 0.72);
+  --tape-bg-loose: linear-gradient(90deg, rgb(238 226 186 / 0.72) 55%, rgb(244 236 206 / 0.82));
+  --tape-edge: rgb(160 140 90 / 0.22);
+
   position: absolute;
   top: -9px;
   left: 50%;
@@ -187,11 +192,47 @@
   max-width: 96px;
   height: 17px;
   pointer-events: none;
-  background: rgb(238 226 186 / 0.72);
-  border-right: 1px dashed rgb(160 140 90 / 0.22);
-  border-left: 1px dashed rgb(160 140 90 / 0.22);
+  background: var(--tape-bg);
+  border-right: 1px dashed var(--tape-edge);
+  border-left: 1px dashed var(--tape-edge);
   /* --tape-x / --tape-r 写在行内：按相片 id 随机 -55%～-45%、-3°～3°。用变量是为了让“贴胶带”的动画能沿用同一个位置 */
   transform: translateX(var(--tape-x, -50%)) rotate(var(--tape-r, -3deg));
+}
+
+/* HDR 胶带：淡透明蓝，5 列 × 6 行的 HDR 字矩阵整块倾斜。尺寸、位置、倾角和撕贴动画都不变 */
+.photo-card-tape.is-hdr {
+  --tape-bg: rgb(190 222 238 / 0.72);
+  --tape-bg-loose: linear-gradient(90deg, rgb(190 222 238 / 0.72) 55%, rgb(214 236 247 / 0.82));
+  --tape-edge: rgb(48 103 133 / 0.22);
+}
+
+/*
+ * 胶带上的 HDR 字样：5 列 × 6 行的等宽粗体字矩阵，整块倾斜，像平铺的封箱胶带。
+ * 外层只在胶带内裁切；不给 .photo-card-tape 加 overflow，否则会把按钮扩大后的点击区裁掉。
+ */
+.photo-card-tape-hdr {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.photo-card-tape-hdr-matrix {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  grid-template-columns: repeat(5, max-content);
+  gap: 2px 4px;
+  font-family: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 6px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.2px;
+  color: rgb(48 103 133 / 0.25);
+  white-space: nowrap;
+  user-select: none;
+  transform: translate(-50%, -50%) rotate(-30deg);
 }
 
 /*
@@ -287,7 +328,7 @@
   --tape-lift-r: 5deg;
   --tape-lift-y: -26deg;
 
-  background: linear-gradient(90deg, rgb(238 226 186 / 0.72) 55%, rgb(244 236 206 / 0.82));
+  background: var(--tape-bg-loose);
   box-shadow: 3px 3px 4px -2px rgb(60 45 15 / 0.32);
   transform-origin: 12% 50%;
   transform: translateX(var(--tape-x, -50%)) rotate(calc(var(--tape-r, -3deg) + var(--tape-lift-r)))

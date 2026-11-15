@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { isHdrCicp, parseAvifCicp, parseAvifInfo, parsePngCicp } from '../../src/server/storage/hdr'
 import { supportsHdrDisplay } from '../../src/web/utils/browser'
 import { chooseDetailSource } from '../../src/web/components/Detail/hdr'
+import { photoCardTapeHdr } from '../../src/web/components/PhotoCard/hdr'
 import { formatFromFilename, mimeTypeOf } from '../../src/server/common/image-name'
 
 function pngWithCicp(values: readonly [number, number, number, number]): Buffer {
@@ -94,5 +95,15 @@ describe('HDR display detection', () => {
     expect(supportsHdrDisplay(query => ({ matches: query === '(dynamic-range: high)' }))).toBe(true)
     expect(supportsHdrDisplay(() => ({ matches: false }))).toBe(false)
     expect(supportsHdrDisplay(() => { throw new Error('unavailable') })).toBe(false)
+  })
+})
+
+describe('HDR tape', () => {
+  it('marks the tape only when the photo has HDR and the display supports it', () => {
+    expect(photoCardTapeHdr(true, true)).toBe(true)
+    expect(photoCardTapeHdr(true, false)).toBe(false)
+    expect(photoCardTapeHdr(false, true)).toBe(false)
+    expect(photoCardTapeHdr(false, false)).toBe(false)
+    expect(photoCardTapeHdr(undefined, true)).toBe(false)
   })
 })

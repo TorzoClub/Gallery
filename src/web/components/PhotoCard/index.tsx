@@ -2,8 +2,10 @@ import { useRef, type CSSProperties, type ReactNode } from 'react'
 import './index.scss'
 
 import { useQueueload } from 'utils/queue-load'
+import useHdrDisplay from 'hooks/useHdrDisplay'
 import { Magnet, MagnetSlot } from 'components/Magnet'
 import LoadFailure from './LoadFailure'
+import { photoCardTapeHdr } from './hdr'
 import { photoCardBottomMin, photoCardCover, photoCardHasBottom } from './scatter'
 
 export { getPhotoCardScatter, photoCardBottomMin, photoCardCover, photoCardFrame, photoIsSideways, type PhotoCardScatter } from './scatter'
@@ -20,6 +22,8 @@ export type PhotoCardPaperProps = {
   tilt?: { rotate: number; x: number }
   /** 纸胶带的 translateX 百分比和倾角（度）；false 表示不贴纸胶带 */
   tape?: { x: number; rotate: number } | false
+  /** 有 HDR optimized 且屏幕支持 HDR：纸胶带换成淡蓝的 HDR 斜向字样 */
+  tapeHdr?: boolean
   /** 纸胶带松动了：一端翘起，可以点；点下去就是撕下来 */
   tapeLoose?: TapeLoose
   /** 正在被复印：盖一层扫描光，见 Gallery 的 .photo-card-copying */
@@ -43,15 +47,27 @@ export type TapeLoose = {
   onPull(): void
 }
 
+/** 胶带上的 HDR 纹样：5 列 × 6 行的等宽粗体字矩阵，整块倾斜，见 index.scss 的 .photo-card-tape-hdr */
+function HdrTapeLabel() {
+  return (
+    <span className="photo-card-tape-hdr" aria-hidden>
+      <span className="photo-card-tape-hdr-matrix">
+        {Array.from({ length: 30 }, (_, index) => <span key={index}>HDR</span>)}
+      </span>
+    </span>
+  )
+}
+
 /**
  * 拍立得的那张相纸：白边、阴影、倾斜和纸胶带。
  * PhotoCard 和投稿表单共用它，里面放 .cover-area 和 .bottom-area。
  */
-export function PhotoCardPaper({ id, className, width, frame, has_bottom, tilt, tape, tapeLoose, copying = false, hand = false, style, children }: PhotoCardPaperProps) {
+export function PhotoCardPaper({ id, className, width, frame, has_bottom, tilt, tape, tapeHdr = false, tapeLoose, copying = false, hand = false, style, children }: PhotoCardPaperProps) {
   const tape_style = tape === false ? undefined : {
     '--tape-x': `${tape?.x ?? -50}%`,
     '--tape-r': `${tape?.rotate ?? -3}deg`,
   } as CSSProperties
+  const tape_class = tapeHdr ? 'photo-card-tape is-hdr' : 'photo-card-tape'
   return (
     <div
       id={id}
@@ -64,8 +80,12 @@ export function PhotoCardPaper({ id, className, width, frame, has_bottom, tilt, 
       } as CSSProperties}
     >
       {tape !== false && (tapeLoose === undefined
-        ? <span className="photo-card-tape" aria-hidden style={tape_style} />
-        : <LooseTape loose={tapeLoose} style={tape_style} />
+        ? (
+          <span className={tape_class} aria-hidden style={tape_style}>
+            {tapeHdr && <HdrTapeLabel />}
+          </span>
+        )
+        : <LooseTape loose={tapeLoose} hdr={tapeHdr} style={tape_style} />
       )}
       {children}
       {copying && <span className="photo-card-scan" aria-hidden />}
@@ -79,11 +99,17 @@ export function PhotoCardPaper({ id, className, width, frame, has_bottom, tilt, 
   )
 }
 
-function LooseTape({ loose, style }: { loose: TapeLoose; style: CSSProperties | undefined }) {
+function LooseTape({ loose, hdr, style }: { loose: TapeLoose; hdr: boolean; style: CSSProperties | undefined }) {
+  const class_name = [
+    'photo-card-tape',
+    'is-button',
+    loose.loose ? 'is-loose' : '',
+    hdr ? 'is-hdr' : '',
+  ].filter(Boolean).join(' ')
   return (
     <button
       type="button"
-      className={loose.loose ? 'photo-card-tape is-button is-loose' : 'photo-card-tape is-button'}
+      className={class_name}
       style={style}
       disabled={loose.state !== 'idle'}
       aria-label="撕下纸胶带（保存原图）"
@@ -95,7 +121,9 @@ function LooseTape({ loose, style }: { loose: TapeLoose; style: CSSProperties | 
           loose.onPull()
         }
       }}
-    />
+    >
+      {hdr && <HdrTapeLabel />}
+    </button>
   )
 }
 
@@ -104,6 +132,8 @@ type PhotoCardImage = {
   height: number
   thumb: string
   src: string
+  /** 这张相片有 HDR optimized；HDR 屏上纸胶带会换成淡蓝的 HDR 字样。头像不需要 */
+  has_hdr_optimized?: boolean
 }
 
 export type CoverClickEvent = {
@@ -169,11 +199,13 @@ const PhotoCard = (props: Props) => {
 
   const [thumb_status, thumb, retryLoadPhotoThumb] = useQueueload(photo.thumb)
   const [avatar_status, avatarThumb] = useQueueload(avatar?.thumb)
+  const hdr_display = useHdrDisplay()
 
   const coverFrameEl = useRef<HTMLDivElement>(null)
 
   const { frame, cover_width, cover_height, sideways } = photoCardCover(width, photo)
   const rotate = tilt?.rotate ?? 0
+  const tape_hdr = photoCardTapeHdr(photo.has_hdr_optimized, hdr_display)
 
   const show_desc = Boolean(desc.trim().length)
   // 活动中的公开相片不带作者（hideMember），没有描述时就没有写字区，下方只留一道白边
@@ -199,6 +231,7 @@ const PhotoCard = (props: Props) => {
       has_bottom={has_bottom}
       tilt={tilt}
       tape={tape}
+      tapeHdr={tape_hdr}
       tapeLoose={tapeLoose}
       copying={props.copying}
       hand={props.hand}

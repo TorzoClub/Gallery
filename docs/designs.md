@@ -239,7 +239,8 @@ Zelda 风格横幅（`ZeldaQuestBanner`）也是合成音。它原来在 Behind 
 - **双列（≤ 640px）尽量放大**：小屏上相片太小，所以只有双列时收窄留白、放大卡片：瀑布流左右留白 8px（其他断点是 20px）、列间距 10px，卡片宽为列宽的 92%～100%。外侧那一列斜过去时最多越过瀑布流边缘 5px（半个列间距），伸进左右留白但不出屏幕。上下间距、纵向错落不变。375px 宽的手机上卡片平均宽从约 134px 变成约 167px（面积约 1.5 倍）。常量是 `Gallery/index.tsx` 的 `DUO_SIDE` / `DUO_GUTTER`，卡片比例在 `scatter.ts` 的 `duo` 分支。
 - 瀑布流只量外层格子；倾角和横向位移是卡片自身的 transform，相片里的磁粒、后台的编辑入口都在卡片里，跟着一起斜。
 - **描述用手写字体**：13px，字体栈为 Bradley Hand / Segoe Print（西文）→ 霞鹜文楷 → 行楷（Xingkai SC / STXingkai）→ 楷体（Kaiti SC / STKaiti / KaiTi / BiauKai）→ PingFang SC / Microsoft YaHei → sans-serif，不下载网络字体。定义在 `.photo-card` 的 `--photo-card-hand` 变量上。
-- **相纸外壳 `PhotoCardPaper`**：白边、阴影、倾斜和纸胶带抽成 `PhotoCardPaper`，`PhotoCard` 和投稿表单共用。纸胶带的位置写成 `--tape-x` / `--tape-r` 两个变量，入场“贴胶带”的动画沿用同一个位置。
+- **相纸外壳 `PhotoCardPaper`**：白边、阴影、倾斜抽成 `PhotoCardPaper`，`PhotoCard` 和投稿表单共用；胶带和 🤚 由它转交给 `Tape`。
+- **纸胶带 `Tape`**：普通胶带、松动可撕按钮、HDR 字和 🤚 抹胶带在 `components/PhotoCard/Tape.tsx`，样式在配套的 `Tape.scss`。胶带的位置写成 `--tape-x` / `--tape-r` 两个变量，入场“贴胶带”的动画沿用同一个位置。
 - **成员自己的投稿**：“你这不是已经投稿了吗？”、取消投稿确认页、碎纸机里都用 `SubmittedPhotoCard`：宽 320px、摆正、不贴纸胶带的 PhotoCard，与投稿表单是同一张相纸。这些重复出现的卡片不挂 `id="photo-{id}"`（`anchor={false}`），相片加载优先级只认瀑布流里那一张。
 - **投稿表单**：一张宽 320px、摆正、不贴纸胶带的拍立得。相片位就是选图按钮（没选图时 4:3，显示“点击此处选择作品，或者拖拽文件到此处”，选了图按原图比例显示预览）（横长图同样转 90° 竖着放，投稿时看到的就是贴上墙的样子），写字区就是介绍输入框（手写字体 16px，无边框，placeholder“点击此处填写介绍（可不填）”，随内容长高）。“提交”按钮不变。
 

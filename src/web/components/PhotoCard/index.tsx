@@ -5,10 +5,12 @@ import { useQueueload } from 'utils/queue-load'
 import useHdrDisplay from 'hooks/useHdrDisplay'
 import { Magnet, MagnetSlot } from 'components/Magnet'
 import LoadFailure from './LoadFailure'
-import { HDR_TAPE_MATRIX, hdrTapeWords, photoCardTapeHdr } from './hdr'
-import { PHOTO_CARD_TAPE_HEIGHT, photoCardBottomMin, photoCardCover, photoCardHasBottom, photoCardTapeWidth } from './scatter'
+import PhotoCardTape, { type TapeLoose } from './Tape'
+import { photoCardTapeHdr } from './hdr'
+import { photoCardBottomMin, photoCardCover, photoCardHasBottom } from './scatter'
 
 export { getPhotoCardScatter, photoCardBottomMin, photoCardCover, photoCardFrame, photoIsSideways, type PhotoCardScatter } from './scatter'
+export type { TapeLoose } from './Tape'
 
 export type PhotoCardPaperProps = {
   id?: string
@@ -35,62 +37,10 @@ export type PhotoCardPaperProps = {
 }
 
 /**
- * 能撕的纸胶带（点下去就是撕，同时弹出系统的“存储为”对话框）：
- * - idle：贴着，可以点；
- * - tearing：正在撕起（动画由外层 class 驱动）；
- * - asking：撕开了，在等系统对话框的结果（点“存储”继续、点“取消”胶带贴回去）。
- * loose：松动的那一截（吸引锚），一端翘起。
- */
-export type TapeLoose = {
-  state: 'idle' | 'tearing' | 'asking'
-  loose: boolean
-  onPull(): void
-}
-
-/**
- * 胶带上的 HDR 纹样：按胶带尺寸算好每个字的位置，只渲染和胶带相交的字。
- * 每个字绝对定位、各自旋转；完全在胶带外的不进 DOM。
- */
-function HdrTapeLabel({ width, height }: { width: number; height: number }) {
-  const words = hdrTapeWords(width, height)
-  const hdr_style = {
-    '--hdr-word-w': `${HDR_TAPE_MATRIX.word_width}px`,
-    '--hdr-word-h': `${HDR_TAPE_MATRIX.word_height}px`,
-    '--hdr-rotate': `${HDR_TAPE_MATRIX.rotate}deg`,
-  } as CSSProperties
-  return (
-    <span className="photo-card-tape-hdr" aria-hidden style={hdr_style}>
-      {words.map(word => (
-        <span
-          key={word.key}
-          className="photo-card-tape-hdr-word"
-          style={{
-            left: `${word.x - HDR_TAPE_MATRIX.word_width / 2}px`,
-            top: `${word.y - HDR_TAPE_MATRIX.word_height / 2}px`,
-          }}
-        >
-          HDR
-        </span>
-      ))}
-    </span>
-  )
-}
-
-/**
- * 拍立得的那张相纸：白边、阴影、倾斜和纸胶带。
- * PhotoCard 和投稿表单共用它，里面放 .cover-area 和 .bottom-area。
+ * 拍立得的那张相纸：白边、阴影和倾斜。
+ * PhotoCard 和投稿表单共用它，里面放 .cover-area 和 .bottom-area；纸胶带与 🤚 交给 Tape。
  */
 export function PhotoCardPaper({ id, className, width, frame, has_bottom, tilt, tape, tapeHdr = false, tapeLoose, copying = false, hand = false, style, children }: PhotoCardPaperProps) {
-  const tape_style = tape === false ? undefined : {
-    '--tape-x': `${tape?.x ?? -50}%`,
-    '--tape-r': `${tape?.rotate ?? -3}deg`,
-  } as CSSProperties
-  const tape_class = tapeHdr ? 'photo-card-tape is-hdr' : 'photo-card-tape'
-  // 胶带内容区宽度由卡片宽度决定；HdrTapeLabel 用同一个值算每个字的位置
-  const tape_width = photoCardTapeWidth(width)
-  const hdr_label = tapeHdr
-    ? <HdrTapeLabel width={tape_width} height={PHOTO_CARD_TAPE_HEIGHT} />
-    : null
   return (
     <div
       id={id}
@@ -102,51 +52,16 @@ export function PhotoCardPaper({ id, className, width, frame, has_bottom, tilt, 
         ...(style ?? {}),
       } as CSSProperties}
     >
-      {tape !== false && (tapeLoose === undefined
-        ? (
-          <span className={tape_class} aria-hidden style={tape_style}>
-            {hdr_label}
-          </span>
-        )
-        : <LooseTape loose={tapeLoose} hdr={tapeHdr} hdrLabel={hdr_label} style={tape_style} />
-      )}
+      <PhotoCardTape
+        width={width}
+        tape={tape}
+        hdr={tapeHdr}
+        loose={tapeLoose}
+        hand={hand}
+      />
       {children}
       {copying && <span className="photo-card-scan" aria-hidden />}
-      {/* 和纸胶带同一个框（同样的位置、宽度、倾角），手在框里从左端扫到右端 */}
-      {hand && tape !== false && (
-        <span className="photo-card-hand" aria-hidden style={tape_style}>
-          <span className="photo-card-hand-glyph" />
-        </span>
-      )}
     </div>
-  )
-}
-
-function LooseTape({ loose, hdr, hdrLabel, style }: { loose: TapeLoose; hdr: boolean; hdrLabel: ReactNode; style: CSSProperties | undefined }) {
-  const class_name = [
-    'photo-card-tape',
-    'is-button',
-    loose.loose ? 'is-loose' : '',
-    hdr ? 'is-hdr' : '',
-  ].filter(Boolean).join(' ')
-  return (
-    <button
-      type="button"
-      className={class_name}
-      style={style}
-      disabled={loose.state !== 'idle'}
-      aria-label="撕下纸胶带（保存原图）"
-      title="撕下来，保存原图"
-      onClick={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        if (loose.state === 'idle') {
-          loose.onPull()
-        }
-      }}
-    >
-      {hdrLabel}
-    </button>
   )
 }
 

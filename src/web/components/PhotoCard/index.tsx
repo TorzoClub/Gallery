@@ -5,8 +5,8 @@ import { useQueueload } from 'utils/queue-load'
 import useHdrDisplay from 'hooks/useHdrDisplay'
 import { Magnet, MagnetSlot } from 'components/Magnet'
 import LoadFailure from './LoadFailure'
-import { photoCardTapeHdr } from './hdr'
-import { photoCardBottomMin, photoCardCover, photoCardHasBottom } from './scatter'
+import { HDR_TAPE_MATRIX, hdrTapeWords, photoCardTapeHdr } from './hdr'
+import { PHOTO_CARD_TAPE_HEIGHT, photoCardBottomMin, photoCardCover, photoCardHasBottom, photoCardTapeWidth } from './scatter'
 
 export { getPhotoCardScatter, photoCardBottomMin, photoCardCover, photoCardFrame, photoIsSideways, type PhotoCardScatter } from './scatter'
 
@@ -47,13 +47,31 @@ export type TapeLoose = {
   onPull(): void
 }
 
-/** 胶带上的 HDR 纹样：5 列 × 6 行的等宽粗体字矩阵，整块倾斜，见 index.scss 的 .photo-card-tape-hdr */
-function HdrTapeLabel() {
+/**
+ * 胶带上的 HDR 纹样：按胶带尺寸算好每个字的位置，只渲染和胶带相交的字。
+ * 每个字绝对定位、各自旋转；完全在胶带外的不进 DOM。
+ */
+function HdrTapeLabel({ width, height }: { width: number; height: number }) {
+  const words = hdrTapeWords(width, height)
+  const hdr_style = {
+    '--hdr-word-w': `${HDR_TAPE_MATRIX.word_width}px`,
+    '--hdr-word-h': `${HDR_TAPE_MATRIX.word_height}px`,
+    '--hdr-rotate': `${HDR_TAPE_MATRIX.rotate}deg`,
+  } as CSSProperties
   return (
-    <span className="photo-card-tape-hdr" aria-hidden>
-      <span className="photo-card-tape-hdr-matrix">
-        {Array.from({ length: 30 }, (_, index) => <span key={index}>HDR</span>)}
-      </span>
+    <span className="photo-card-tape-hdr" aria-hidden style={hdr_style}>
+      {words.map(word => (
+        <span
+          key={word.key}
+          className="photo-card-tape-hdr-word"
+          style={{
+            left: `${word.x - HDR_TAPE_MATRIX.word_width / 2}px`,
+            top: `${word.y - HDR_TAPE_MATRIX.word_height / 2}px`,
+          }}
+        >
+          HDR
+        </span>
+      ))}
     </span>
   )
 }
@@ -68,6 +86,11 @@ export function PhotoCardPaper({ id, className, width, frame, has_bottom, tilt, 
     '--tape-r': `${tape?.rotate ?? -3}deg`,
   } as CSSProperties
   const tape_class = tapeHdr ? 'photo-card-tape is-hdr' : 'photo-card-tape'
+  // 胶带内容区宽度由卡片宽度决定；HdrTapeLabel 用同一个值算每个字的位置
+  const tape_width = photoCardTapeWidth(width)
+  const hdr_label = tapeHdr
+    ? <HdrTapeLabel width={tape_width} height={PHOTO_CARD_TAPE_HEIGHT} />
+    : null
   return (
     <div
       id={id}
@@ -82,10 +105,10 @@ export function PhotoCardPaper({ id, className, width, frame, has_bottom, tilt, 
       {tape !== false && (tapeLoose === undefined
         ? (
           <span className={tape_class} aria-hidden style={tape_style}>
-            {tapeHdr && <HdrTapeLabel />}
+            {hdr_label}
           </span>
         )
-        : <LooseTape loose={tapeLoose} hdr={tapeHdr} style={tape_style} />
+        : <LooseTape loose={tapeLoose} hdr={tapeHdr} hdrLabel={hdr_label} style={tape_style} />
       )}
       {children}
       {copying && <span className="photo-card-scan" aria-hidden />}
@@ -99,7 +122,7 @@ export function PhotoCardPaper({ id, className, width, frame, has_bottom, tilt, 
   )
 }
 
-function LooseTape({ loose, hdr, style }: { loose: TapeLoose; hdr: boolean; style: CSSProperties | undefined }) {
+function LooseTape({ loose, hdr, hdrLabel, style }: { loose: TapeLoose; hdr: boolean; hdrLabel: ReactNode; style: CSSProperties | undefined }) {
   const class_name = [
     'photo-card-tape',
     'is-button',
@@ -122,7 +145,7 @@ function LooseTape({ loose, hdr, style }: { loose: TapeLoose; hdr: boolean; styl
         }
       }}
     >
-      {hdr && <HdrTapeLabel />}
+      {hdrLabel}
     </button>
   )
 }

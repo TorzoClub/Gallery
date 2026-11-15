@@ -16,7 +16,7 @@
 | 短边下限 | min short edge | 相片 thumb 和 optimized 的短边不低于 256px（原图更小时不放大），保住横长图竖贴后的清晰度，见 `docs/images.md`。 |
 | 撕纸胶带 | tape pull | 公开页每截纸胶带都能点：撕开并弹出系统“存储为”对话框，存储则相片掉下去、原位空着，取消则胶带重新贴好（Safari / Firefox 拿不到结果，直接下载）。 |
 | 松动的纸胶带 | loose tape | 吸引锚：公开页最上面那个瀑布流排好时，最上面一排随机一张相片的纸胶带就是松开的，提示胶带能撕。 |
-| HDR 胶带 | HDR tape | 相片有 HDR optimized 且屏幕匹配 `(dynamic-range: high)` 时，PhotoCard 的纸胶带换成淡透明蓝并斜向重复 HDR 字样；尺寸、位置、倾角和撕贴行为不变，见 `docs/designs.md`“相片卡片 PhotoCard”。 |
+| HDR 胶带 | HDR tape | 相片有 HDR optimized 且屏幕匹配 `(dynamic-range: high)` 时，PhotoCard 的纸胶带换成淡透明蓝，按胶带尺寸绝对定位 HDR 字样，只渲染与胶带相交的字；尺寸、位置、倾角和撕贴行为不变，见 `docs/designs.md`“相片卡片 PhotoCard”。 |
 | 磁粒 | Magnet | 代表一票的蓝色圆粒。公开页是登录成员自己放在相片上的票；后台统计里红色磁粒代表 5 票。 |
 | 磁粒托盘 | Magnet tray | 公开页投票期屏幕底部居中的托盘（HUD），显示手里还剩几颗磁粒，磁粒与卡片上的一样大；放磁粒时磁粒从托盘飞到相片上。不限票数时为“磁粒 × ♾️”，磁粒从天而降。 |
 | 公开页 | Public page | 普通访问者看到的相册页面，入口是 `/explore`；`/` 重定向到它。 |

@@ -146,6 +146,8 @@ HDR 处理同样受全局图片串行队列和 360 秒请求上限影响；排�
 - Docker 需要 libavif `1.4.2` + libaom `3.14.1` 的 `avifenc` / `avifdec` / `avifgainmaputil`
 - production 还要求 `pillow_heif`、`exiftool`、`apple-hdr-heic-decoder`；缺失会 fail-fast
 - 详情只在 `(dynamic-range: high)` 匹配时加载 HDR，否则用 SDR
+- 相片卡片的纸胶带用同一个 `(dynamic-range: high)` 判断：有 HDR optimized 且屏幕支持 HDR 时换成淡蓝的 HDR 斜向字样（见 [designs.md](designs.md)“相片卡片 PhotoCard”）；卡片本身仍只加载 SDR thumb，不会为了标记额外加载 HDR 图
+- `has_hdr_optimized` 是持久化标志：HDR 文件被手工删除时胶带仍可能显示 HDR 标记，查看大图会按“失败与回退”换回 SDR
 - 不做 HDR thumb；头像不生成 HDR
 - HDR 输出固定 10-bit，不输出 12-bit
 - 已有相片需要在后台执行一次“重新生成图片”，才会生成 HDR 并更新 `has_hdr_optimized`
@@ -153,7 +155,7 @@ HDR 处理同样受全局图片串行队列和 360 秒请求上限影响；排�
 
 #### 验证状态
 
-- Docker check：当前 235 个测试通过
+- Docker check：254 个测试通过；Node 26 下 storage-image 的 HEIC 用例结束后有一个 FileHandle GC unhandled error，导致 check 退出码非 0（见 TODOS）
 - iPhone：HDR 显示正常
 - SDR 显示器：回退 SDR 正常
 - MacBook XDR：HDR 显示正常

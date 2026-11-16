@@ -10,6 +10,9 @@ export function isWebKitSafari(ua: string = typeof navigator === 'undefined' ? '
 /** 系统/显示器是否声明支持 HDR；不支持或无法检测时保持 SDR */
 type MatchMediaLike = (query: string) => { matches: boolean }
 
+/** HDR 屏幕检测共用的媒体查询：详情大图和 PhotoCard 的纸胶带都用这一条 */
+export const HDR_DISPLAY_QUERY = '(dynamic-range: high)'
+
 export function supportsHdrDisplay(match_media?: MatchMediaLike): boolean {
   const media = match_media
     ?? (globalThis as { matchMedia?: MatchMediaLike }).matchMedia
@@ -17,7 +20,7 @@ export function supportsHdrDisplay(match_media?: MatchMediaLike): boolean {
     return false
   }
   try {
-    return media.call(globalThis, '(dynamic-range: high)').matches
+    return media.call(globalThis, HDR_DISPLAY_QUERY).matches
   } catch {
     return false
   }

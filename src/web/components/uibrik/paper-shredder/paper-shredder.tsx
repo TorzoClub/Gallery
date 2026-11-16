@@ -11,7 +11,6 @@ import {
 } from "react";
 import { useReducedMotion } from "motion/react";
 import { toCanvas } from "html-to-image";
-import { IconFileText } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import { ShredScene } from "./strips";
 
@@ -313,12 +312,36 @@ function Led({ on }: { on: boolean }) {
   );
 }
 
+/** Local file-with-lines glyph; the sample paper no longer pulls an icon package. */
+function FileTextIcon() {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      focusable="false"
+      className="shrink-0 text-zinc-400"
+    >
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" />
+      <path d="M9 13h6" />
+      <path d="M9 17h6" />
+    </svg>
+  );
+}
+
 /** The sheet shown when the shredder is given nothing to shred. */
 function SamplePaper() {
   return (
     <div className="flex h-[136px] w-[220px] flex-col rounded-xl bg-white p-3.5 text-zinc-900 shadow-[0_0_0_1px_rgb(0_0_0/0.06),0_1px_2px_rgb(0_0_0/0.06)] dark:bg-zinc-100">
       <div className="flex items-center gap-1.5">
-        <IconFileText size={15} stroke={1.75} aria-hidden className="shrink-0 text-zinc-400" />
+        <FileTextIcon />
         <span className="truncate text-[13px] font-medium">Q3 numbers (final).pdf</span>
       </div>
       <div className="mt-3 flex flex-col gap-1.5">

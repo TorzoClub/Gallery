@@ -31,7 +31,6 @@
   "dependencies": {
     "@hono/node-server": "^2.1.5",
     "@juggle/resize-observer": "^3.4.0",
-    "@tabler/icons-react": "^3.50.0",
     "busboy": "^1.6.0",
     "clsx": "^2.1.1",
     "hono": "^4.13.13",

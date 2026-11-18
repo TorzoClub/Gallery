@@ -9,7 +9,7 @@
 - 前端在 `src/web/`，后端在 `src/server/`，共享 wire 类型在 `src/shared/`。
 - 前端由 Vite 构建到 `dist/client`，服务端由 tsup 构建到 `dist/server`。
 - 静态缓存：HTML 弱缓存，hash assets 强缓存，API/图片强缓存。
-- 服务端与前端纯逻辑测试 241 个用例通过；不包含浏览器 UI 交互测试。
+- 服务端与前端纯逻辑测试 254 个用例通过；不包含浏览器 UI 交互测试。
 - 旧 `server/`、`web/`、脚本和 CI 已从当前分支移除，归档在 [`legacy-v3`](https://github.com/TorzoClub/Gallery/tree/legacy-v3) 分支。
 - storage 仍为单实例 JSON + 图片池；没有 MySQL 运行时依赖。
 
@@ -30,6 +30,7 @@
 - [x] PhotoBox 改名 PhotoCard：拍立得 + 纸胶带，瀑布流里按相片 id 斜贴、错落且不碰撞（公开页与后台一致）；公开页投票改为放蓝色磁粒、底部磁粒托盘；查看大图从倾角放大并转正。
 - [x] PhotoCard HDR 胶带：相片有 HDR optimized 且屏幕匹配 `(dynamic-range: high)` 时，纸胶带换成淡透明蓝；按胶带尺寸和 12×6 字盒、4/2 间距、-30° 绝对定位 HDR 字样，只渲染与胶带相交的字。SDR 屏幕或无 HDR 的相片保持米黄，尺寸与撕贴动画不变。
 - [x] `/admin` 相片投票记录：PhotoCard 图片区显示蓝色 1 票、红色 5 票的圆形磁粒，管理面板与瀑布流之间展示图例，点击查看该相片的投票人及时间；磁粒先蓝后红，useRef 缓存轻微偏移，图例支持投稿时间/获票数的前端升降序排序，不提交服务端更改。
+- [x] Node.js 26.13.0 LTS + pnpm 12.18.0 工具链：`.nvmrc`、`engines`、`@types/node` 26、tsup target、pnpm boot lockfile、`allowBuilds` 与 Docker 基础镜像同步。
 
 ## 后续待办
 
@@ -37,8 +38,10 @@
 - [x] HEIC/HEIF：原生上传、pillow_heif SDR、Apple HEIC HDR gain map；前端不再使用 heic-convert。
 - [x] 图片管线 Phase 1：libavif HDR AVIF、CICP/gain map 探测、HDR 详情回退和 Docker-first 环境，见 [docs/images.md#hdr](docs/images.md#hdr)。
 - [x] 低内存保护：图片转换全局串行；图片请求等待上限 360 秒；Vitest 单测/集成测试超时 180 秒。
+- [ ] Node 26 下 Docker check 的 storage-image HEIC 用例结束后会报 “A FileHandle object was closed during garbage collection”（ERR_INVALID_STATE）：254 个测试本身通过，但 Vitest 以 unhandled error 失败、check 退出码非 0。需检查图片流/文件句柄是否显式关闭，修好后让 Docker check 通过。
 - [ ] 浏览器 UI 交互测试（公开页投稿/投票、后台编辑、配置表单）。
-- [ ] 真实部署的 CI/CD 和密钥管理。
+- [ ] 真实部署的 CI/CD 和密钥管理：镜像构建/发布已完成；服务器部署仍手动执行，GHCR 包可见性需手动设置。
+- [ ] Docker 构建未注入 Git SHA，生产 ReportCard 显示 `githash: N/A`：`.dockerignore` 排除了 `.git`，`build-info.config.ts` 在 `pnpm build` 时执行 `git rev-parse --short HEAD` 失败，回退为 `N/A`。修复方向：GitHub Actions 把 commit SHA 作为 `GIT_HASH` build arg 传入，Dockerfile build 阶段声明 `ARG`/`ENV`，`build-info.config.ts` 优先读取该环境变量；构建后确认镜像页面的 `githash` 不再是 `N/A`。
 - [ ] 取消投稿脚本的 lint 警告 `react-hooks(exhaustive-deps)`：`src/web/components/Submission/scripts.tsx` 里 `selects` 的 `useMemo(..., [])` 缺少依赖 `RemovingSubmission`。这是当前 `pnpm lint` 唯一一条警告，刻意保留未修。
   - 原因：`RemovingSubmission` 定义在 `Content` 组件内部，闭包了 `photo`、`qq_num`、`navigate`、`location`、`changeScript`，每次渲染都是一个新的组件函数。`useMemo` 的空依赖正是为了让“是，取消掉吧”选项里的 `script(RemovingSubmission, [])` 只生成一次、组件类型保持不变。
   - 不能照警告补依赖：补上后每次渲染都换一个新组件类型，React 会卸载再重新挂载它；它挂载时的 effect 会再次 `Signal.once(_EVENT_.canceled, ...)` 并再次 `navigate('/explore/cancelSubmission', ...)`，造成重复监听和重复跳转（碎纸机页面被反复进入）。

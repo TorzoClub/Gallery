@@ -18,6 +18,12 @@ export type PoolJsonCache = {
   admin_pool_json: string
 }
 
+export const MAX_TIMER_DELAY_MS = 2_147_483_647
+
+export function clampTimerDelay(delay_ms: number): number {
+  return Math.min(Math.max(0, delay_ms), MAX_TIMER_DELAY_MS)
+}
+
 export type PoolEventsSnapshot = {
   photos_json: string
   members_json: string

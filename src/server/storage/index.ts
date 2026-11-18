@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import type { Readable } from 'node:stream'
 import Immutable from 'immutable'
 import { asGalleryID, asNextID, asSchemaVersion } from '../common/ID'
 import { notFound } from '../common/error'
@@ -66,12 +67,17 @@ export type StoragePaths = Readonly<{
   lock_file: string
 }>
 
+export type ImageStream = {
+  stream: Readable
+  size: number
+}
+
 export type Storage = {
   paths: StoragePaths
   load(): Promise<{ pool: Pool; instance_config: InstanceConfig }>
   storeByDiff(latest: Pool, prev: Pool): Promise<void>
   storeInstanceConfig(config: InstanceConfig): Promise<void>
-  readImage(kind: ImageKind, filename: string): Promise<Buffer>
+  readImageStream(kind: ImageKind, filename: string): Promise<ImageStream>
   imagePath(kind: ImageKind, filename: string): string
   tempPath(filename: string): string
   findTempFile(temp_id: string): Promise<string | null>
@@ -342,11 +348,20 @@ export async function createStorage(options: CreateStorageOptions): Promise<Stor
     return path.join(dir, filename)
   }
 
-  async function readImage(kind: ImageKind, filename: string): Promise<Buffer> {
+  async function readImageStream(kind: ImageKind, filename: string): Promise<ImageStream> {
     const file = imagePath(kind, filename)
+    let handle: Awaited<ReturnType<typeof fs.open>> | undefined
     try {
-      return await fs.readFile(file)
+      handle = await fs.open(file, 'r')
+      const stat = await handle.stat()
+      return {
+        stream: handle.createReadStream({ autoClose: true }),
+        size: stat.size,
+      }
     } catch (error) {
+      if (handle !== undefined) {
+        await handle.close().catch(() => undefined)
+      }
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         throw notFound('图片不存在')
       }
@@ -449,7 +464,7 @@ export async function createStorage(options: CreateStorageOptions): Promise<Stor
     load,
     storeByDiff,
     storeInstanceConfig,
-    readImage,
+    readImageStream,
     imagePath,
     tempPath,
     findTempFile,

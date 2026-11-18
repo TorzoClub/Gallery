@@ -248,6 +248,7 @@ describe('image flow', () => {
     const source_response = await ctx.app.request(`/images/source/${photo.src}`)
     expect(source_response.status).toBe(200)
     expect(source_response.headers.get('content-type')).toBe('image/png')
+    expect(source_response.headers.get('content-length')).toBe(String(image.byteLength))
     expect(source_response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
     expect(Buffer.from(await source_response.arrayBuffer())).toEqual(image)
 
@@ -255,6 +256,7 @@ describe('image flow', () => {
     const optimized_response = await ctx.app.request(optimized_url)
     expect(optimized_response.status).toBe(200)
     expect(optimized_response.headers.get('content-type')).toBe('image/avif')
+    expect(Number(optimized_response.headers.get('content-length'))).toBeGreaterThan(0)
     expect(optimized_response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
     const optimized_metadata = await sharp(Buffer.from(await optimized_response.arrayBuffer())).metadata()
     expect(optimized_metadata.format).toBe('heif')
@@ -267,6 +269,7 @@ describe('image flow', () => {
     const thumb_response = await ctx.app.request(`/images/thumb/${filenameFromUrl(photo.thumb as string)}`)
     expect(thumb_response.status).toBe(200)
     expect(thumb_response.headers.get('content-type')).toBe('image/avif')
+    expect(Number(thumb_response.headers.get('content-length'))).toBeGreaterThan(0)
     expect(thumb_response.headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
 
     const old_photo_base = source_name.slice(0, source_name.lastIndexOf('.'))

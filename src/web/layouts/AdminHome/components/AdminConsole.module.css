@@ -539,17 +539,18 @@
   position: absolute;
   width: 7px;
   height: 7px;
+  --screw-rotate-deg: 0deg;
   background:
-    linear-gradient(35deg, transparent 44%, rgba(0, 0, 0, 0.6) 44% 56%, transparent 56%),
+    linear-gradient(var(--screw-rotate-deg), transparent 44%, rgba(0, 0, 0, 0.6) 44% 56%, transparent 56%),
     radial-gradient(circle at 35% 30%, #d4d4cf, #6c6c66);
   border-radius: 50%;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
 }
 
-.screw0 { top: 5px; left: 5px; }
-.screw1 { top: 5px; right: 5px; }
-.screw2 { bottom: 5px; left: 5px; }
-.screw3 { right: 5px; bottom: 5px; }
+.screw0 { --screw-rotate-deg: 27deg; top: 5px; left: 5px; }
+.screw1 { --screw-rotate-deg: 83deg; top: 5px; right: 5px; }
+.screw2 { --screw-rotate-deg: 150deg; bottom: 5px; left: 5px; }
+.screw3 { --screw-rotate-deg: 227deg; right: 5px; bottom: 5px; }
 
 .nameplate {
   margin: 0 0 6px;

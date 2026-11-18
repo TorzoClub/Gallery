@@ -3,6 +3,8 @@ services:
     build:
       context: .
       target: dev
+    restart: no
+    image: torzo-gallery-dev
     init: true
     env_file:
       - .env.development

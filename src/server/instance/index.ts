@@ -9,13 +9,13 @@ import {
   type InstanceConfig,
 } from '../config/instance'
 import { type EnvConfig } from '../config'
-import { crc32Hex } from '../common/crc32'
 import type { Pool } from '../core/Pool'
 import { checkPool } from '../core/Pool-Check'
 import type { Logger } from '../logger'
 import type { Readable } from 'node:stream'
 import {
   type ImageKind,
+  type ImageStream,
   type Storage,
 } from '../storage'
 import {
@@ -29,6 +29,7 @@ import {
   type QueryContext,
   type QueryDef,
 } from './actions'
+import { calcInstanceHash } from './instance-hash'
 import {
   createImagePipeline,
   type ImagePipeline,
@@ -38,6 +39,7 @@ import { assertHdrTools, hdrToolsAvailable } from '../storage/hdr'
 import { assertHeicTools, heicToolsAvailable } from '../storage/heic-hdr'
 import {
   buildPoolJsonCache,
+  clampTimerDelay,
   nextGalleryBoundary,
   poolInEventKey,
   type PoolEventsSnapshot,
@@ -68,7 +70,7 @@ export type Instance = {
     format: string
     crc32: Promise<number>
   }): Promise<TempImage>
-  readImage(kind: ImageKind, filename: string): Promise<Buffer>
+  readImageStream(kind: ImageKind, filename: string): Promise<ImageStream>
   getPoolEvents(now: Date): PoolEventsSnapshot
   subscribePoolUpdates(listener: (event: PoolUpdateEvent) => void): () => void
   closePoolStreams(): void
@@ -79,10 +81,6 @@ export type CreateInstanceOptions = {
   env: EnvConfig
   storage: Storage
   logger: Logger
-}
-
-function calcInstanceConfigCRC32(config: InstanceConfig): string {
-  return crc32Hex(Buffer.from(JSON.stringify(config)))
 }
 
 function validationError(error: z.ZodError): never {
@@ -113,7 +111,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
   const loaded = await storage.load()
   let pool: Pool = loaded.pool
   let instance_config: InstanceConfig = loaded.instance_config
-  let instance_hash = calcInstanceConfigCRC32(instance_config)
+  let instance_hash = calcInstanceHash(instance_config)
 
   assertInstanceConfigWithinHardLimit(instance_config, env.http_body_hard_limit_bytes)
 
@@ -181,7 +179,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
       const after = getPoolJsonCache(new Date())
       publishPoolCacheChanges(before, after)
       schedulePoolBoundary()
-    }, Math.max(0, boundary - Date.now() + 5))
+    }, clampTimerDelay(boundary - Date.now() + 5))
     pool_boundary_timer.unref?.()
   }
 
@@ -329,7 +327,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
     }
     if (config_changed) {
       instance_config = next_config
-      instance_hash = calcInstanceConfigCRC32(instance_config)
+      instance_hash = calcInstanceHash(instance_config)
     }
 
     if (pool_changed || config_changed) {
@@ -498,7 +496,7 @@ export async function createInstance(options: CreateInstanceOptions): Promise<In
     dispatchQuery,
     dispatchMutation,
     storeTempImage,
-    readImage: storage.readImage,
+    readImageStream: storage.readImageStream,
     close,
   }
 }

@@ -232,11 +232,7 @@ O(photos × members + photos × votes)
 
 相片数量增加后，首屏 JSON 和客户端内存都会上升。
 
-#### 3.2.4 图片响应整块读入内存
-
-`Storage.readImage()` 使用 `fs.readFile()` 返回完整 `Buffer`。大图、并发详情请求和批量预加载会带来额外内存峰值；目前依靠浏览器 immutable 缓存，但没有流式响应、Range 或 CDN 层。
-
-#### 3.2.5 前端图片队列缓存不释放
+#### 3.2.4 前端图片队列缓存不释放
 
 `src/web/utils/queue-load.ts`：
 
@@ -246,11 +242,11 @@ O(photos × members + photos × votes)
 
 长时间浏览会累积内存和 object URL。队列并发限制是 5，但没有缓存上限、LRU 或清理策略。
 
-#### 3.2.6 初始加载硬编码延迟
+#### 3.2.5 初始加载硬编码延迟
 
 评估时 `GalleryHome` 在 `fetchList()` 前有 `timeout(4000)`，固定增加约 4 秒首屏等待。当前代码里这条延迟和 `GalleryHome/index.tsx` 都已不存在，`Explore` 直接读 `ClientPool`，此项已解决。
 
-#### 3.2.7 JSON 持久化写放大
+#### 3.2.6 JSON 持久化写放大
 
 - `members.json` 任一成员变化会重写全部成员；
 - 每个 gallery 单独写文件；
@@ -433,8 +429,8 @@ pnpm build      通过
    - 避免 O(P×M + P×V)。
 
 6. **图片响应流式化/CDN**
-   - `createReadStream` 替代 `readFile`；
-   - Range/ETag；
+   - 已完成：`createReadStream` 替代 `readFile`，并返回 `Content-Length`；
+   - 未做：Range/ETag；
    - CDN 或对象存储；
    - srcset 多尺寸 thumb。
 
@@ -471,13 +467,11 @@ HDR Phase 1 已落地，实现和限制见 [docs/images.md](docs/images.md#hdr)�
 ### 5.4 用户体验/产品功能
 
 - 上传进度、取消、断点续传；
-- 拖拽排序、批量上传；
 - 相片搜索/标签/人物/活动筛选；
 - EXIF 信息面板/GPS 地图；
 - 投票结果统计图表；
 - 管理端审计日志/撤销；
 - 投稿审核/举报/隐藏；
-- 分享链接/二维码；
 - 公开页虚拟滚动与骨架屏；
 - PWA/离线缓存；
 - 可访问性（键盘、aria、对比度）。

@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
+import { Readable } from 'node:stream'
 import type { Handler } from 'hono'
 import { Hono } from 'hono'
 import { serveStatic } from '@hono/node-server/serve-static'
@@ -251,13 +252,19 @@ export function constructApi(deps: Deps): Hono {
     const kind = c.req.param('kind')
     if (kind !== 'source' && kind !== 'optimized' && kind !== 'thumb') {
       throw apiError(404, 'NOT_FOUND', '图片不存在')
+    } else {
+      const file = c.req.param('file')
+      const image = await instance.readImageStream(kind, file)
+      // @types/node types toWeb() with node:stream/web.ReadableStream, while
+      // Hono's Data uses the global/DOM ReadableStream. Runtime is the same
+      // Web ReadableStream; cast only resolves the duplicate type identity.
+      const body = Readable.toWeb(image.stream) as unknown as ReadableStream
+      return c.body(body, 200, {
+        'Content-Type': kind === 'source' ? mimeTypeOf(file) : 'image/avif',
+        'Content-Length': String(image.size),
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      })
     }
-    const file = c.req.param('file')
-    const buffer = await instance.readImage(kind, file)
-    return c.body(new Uint8Array(buffer), 200, {
-      'Content-Type': kind === 'source' ? mimeTypeOf(file) : 'image/avif',
-      'Cache-Control': 'public, max-age=31536000, immutable',
-    })
   })
 
   app.get('/healthz', (c) => c.json({

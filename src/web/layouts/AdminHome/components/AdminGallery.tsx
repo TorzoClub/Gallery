@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useMemo, useState } from 'react'
 import type { AdminGalleryDTO, MemberDTO } from '@shared/dto'
-import { getGalleryLayout, PhotoCardCell, scatterFor } from '../../../components/Gallery'
+import { getAdminGalleryLayout, PhotoCardCell, scatterFor } from '../../../components/Gallery'
 import { usePhotoPresence } from '../../../components/Gallery/usePhotoPresence'
 import Waterfall, { type WaterfallItem } from '../../../components/Waterfall'
 import GalleryHeader from './GalleryHeader'
@@ -56,7 +56,7 @@ export default function AdminGallery({
   }, [])
   const layout = useMemo(() => {
     void viewport_width
-    return getGalleryLayout()
+    return getAdminGalleryLayout()
   }, [viewport_width])
   const votes_by_photo = useMemo(
     () => indexPhotoVotes(gallery.id, gallery.vote_records, members),
